@@ -1,0 +1,58 @@
+name: Bug Report
+description: Report a bug or unexpected behavior in Pravaah
+title: "[Bug] "
+labels: ["type: bug", "area: docs"]
+body:
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: Bug description
+      description: Clearly explain what the bug is.
+      placeholder: Example: The login button does not work after entering valid details.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected behavior
+      description: What should happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual behavior
+      description: What actually happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Write clear steps to reproduce the bug.
+      placeholder: |
+        1. Go to ...
+        2. Click on ...
+        3. See error ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots-logs
+    attributes:
+      label: Screenshots or logs
+      description: Add screenshots, console logs, terminal errors, or API response if available.
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Mention browser, OS, device, Node version, or app environment.
+      placeholder: |
+        OS:
+        Browser:
+        Node version:
+        Environment:
