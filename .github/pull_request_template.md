@@ -6,8 +6,6 @@
 
 <!-- List the key changes included in this PR. -->
 
-- 
-
 ## Screenshots
 
 <!-- Add screenshots or screen recordings if UI/UX is affected. -->
