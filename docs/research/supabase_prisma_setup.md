@@ -79,3 +79,4 @@ Backend API
    | Prisma Client
    v
 Supabase PostgreSQL
+```
