@@ -1,0 +1,43 @@
+{
+  "name": "pravaah",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pravaah is an AI-assisted clinic flow management system that helps small clinics manage appointments, reduce no-shows, and optimize daily patient queues.",
+  "workspaces": [
+    "apps/web",
+    "apps/server",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces",
+    "dev:web": "npm run dev -w apps/web",
+    "dev:server": "npm run dev -w apps/server",
+    "build": "npm run build --workspaces",
+    "build:web": "npm run build -w apps/web",
+    "build:server": "npm run build -w apps/server",
+    "lint": "npm run lint --workspaces",
+    "format": "prettier --write .",
+    "check": "npm run build && npm run lint"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/garvitsingh171/pravaah.git"
+  },
+  "keywords": [
+    "clinic",
+    "flow management",
+    "AI",
+    "appointments",
+    "no-shows",
+    "patient queues",
+    "queue-management",
+    "healthcare",
+    "typescript"
+  ],
+  "author": "Garvit Singh",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/garvitsingh171/pravaah/issues"
+  },
+  "homepage": "https://github.com/garvitsingh171/pravaah#readme"
+}
