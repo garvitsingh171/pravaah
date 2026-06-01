@@ -1,58 +1,70 @@
 name: Bug Report
 description: Report a bug or unexpected behavior in Pravaah
-title: "[Bug] "
-labels: ["type: bug"]
+title: '[Bug] '
+labels: ['type: bug']
 body:
   - type: textarea
-    id: bug-description
+    id: overview
     attributes:
-      label: Bug description
-      description: Clearly explain what the bug is.
-      placeholder: Example: The login button does not work after entering valid details.
-    validations:
-      required: true
-
-  - type: textarea
-    id: expected-behavior
-    attributes:
-      label: Expected behavior
-      description: What should happen?
-    validations:
-      required: true
-
-  - type: textarea
-    id: actual-behavior
-    attributes:
-      label: Actual behavior
-      description: What actually happened?
+      label: Overview
+      description: Describe the bug in one or two sentences.
     validations:
       required: true
 
   - type: textarea
     id: steps-to-reproduce
     attributes:
-      label: Steps to reproduce
-      description: Write clear steps to reproduce the bug.
+      label: Steps to Reproduce
+      description: List the steps that trigger the bug.
       placeholder: |
         1. Go to ...
         2. Click on ...
-        3. See error ...
+        3. See the issue ...
     validations:
       required: true
 
   - type: textarea
-    id: screenshots-logs
+    id: expected-behavior
     attributes:
-      label: Screenshots or logs
-      description: Add screenshots, console logs, terminal errors, or API response if available.
+      label: Expected Behavior
+      description: What should happen instead?
+    validations:
+      required: true
 
   - type: textarea
-    id: environment
+    id: actual-behavior
     attributes:
-      label: Environment
-      description: Mention browser, OS, device, Node version, or app environment.
+      label: Actual Behavior
+      description: What happened instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: tasks
+    attributes:
+      label: Tasks
+      description: List investigation or fix tasks.
       placeholder: |
-        OS:
-        Browser:
-        Node version:
-        Environment:
+        - [ ] Add item
+        - [ ] Add item
+        - [ ] Add item
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: How will we know the bug is resolved?
+      placeholder: |
+        - [ ] Add item
+        - [ ] Add item
+        - [ ] Add item
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Add logs, screenshots, environment details, or related links.

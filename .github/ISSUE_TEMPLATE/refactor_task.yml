@@ -1,13 +1,13 @@
-name: Feature Task
-description: Create a feature task for Pravaah
-title: '[Feature] '
-labels: ['type: feature']
+name: Refactor Task
+description: Create a refactor task for Pravaah
+title: '[Refactor] '
+labels: ['type: refactor']
 body:
   - type: textarea
     id: overview
     attributes:
       label: Overview
-      description: What feature or capability should be added?
+      description: What code or structure should be improved without changing behavior?
     validations:
       required: true
 
@@ -15,7 +15,7 @@ body:
     id: tasks
     attributes:
       label: Tasks
-      description: Break the work into concrete tasks.
+      description: List the refactor steps.
       placeholder: |
         - [ ] Add item
         - [ ] Add item
@@ -27,7 +27,7 @@ body:
     id: acceptance-criteria
     attributes:
       label: Acceptance Criteria
-      description: How will we know this task is complete?
+      description: How will we know the refactor is complete?
       placeholder: |
         - [ ] Add item
         - [ ] Add item
@@ -39,4 +39,4 @@ body:
     id: notes
     attributes:
       label: Notes
-      description: Add technical notes, links, or implementation context.
+      description: Add context, risks, or files to review.

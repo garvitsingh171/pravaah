@@ -1,0 +1,11 @@
+{
+  "name": "@pravaah/server",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "check": "echo \"server workspace ready\"",
+    "build": "echo \"server workspace ready\"",
+    "lint": "echo \"server workspace ready\"",
+    "dev": "echo \"server workspace ready\""
+  }
+}

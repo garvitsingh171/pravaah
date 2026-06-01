@@ -1,13 +1,13 @@
-name: Feature Task
-description: Create a feature task for Pravaah
-title: '[Feature] '
-labels: ['type: feature']
+name: Test Task
+description: Create a testing task for Pravaah
+title: '[Test] '
+labels: ['type: test']
 body:
   - type: textarea
     id: overview
     attributes:
       label: Overview
-      description: What feature or capability should be added?
+      description: What test coverage or validation should be added?
     validations:
       required: true
 
@@ -15,7 +15,7 @@ body:
     id: tasks
     attributes:
       label: Tasks
-      description: Break the work into concrete tasks.
+      description: List the testing steps or coverage additions.
       placeholder: |
         - [ ] Add item
         - [ ] Add item
@@ -27,7 +27,7 @@ body:
     id: acceptance-criteria
     attributes:
       label: Acceptance Criteria
-      description: How will we know this task is complete?
+      description: How will we know the testing work is complete?
       placeholder: |
         - [ ] Add item
         - [ ] Add item
@@ -39,4 +39,4 @@ body:
     id: notes
     attributes:
       label: Notes
-      description: Add technical notes, links, or implementation context.
+      description: Add test cases, frameworks, or risk notes.

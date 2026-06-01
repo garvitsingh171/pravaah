@@ -1,13 +1,13 @@
-name: Feature Task
-description: Create a feature task for Pravaah
-title: '[Feature] '
-labels: ['type: feature']
+name: Docs Task
+description: Create a documentation task for Pravaah
+title: '[Docs] '
+labels: ['type: docs']
 body:
   - type: textarea
     id: overview
     attributes:
       label: Overview
-      description: What feature or capability should be added?
+      description: What documentation needs to be added or updated?
     validations:
       required: true
 
@@ -15,7 +15,7 @@ body:
     id: tasks
     attributes:
       label: Tasks
-      description: Break the work into concrete tasks.
+      description: List the documentation changes needed.
       placeholder: |
         - [ ] Add item
         - [ ] Add item
@@ -27,7 +27,7 @@ body:
     id: acceptance-criteria
     attributes:
       label: Acceptance Criteria
-      description: How will we know this task is complete?
+      description: How will we know the docs are complete?
       placeholder: |
         - [ ] Add item
         - [ ] Add item
@@ -39,4 +39,4 @@ body:
     id: notes
     attributes:
       label: Notes
-      description: Add technical notes, links, or implementation context.
+      description: Add links, source-of-truth notes, or context.

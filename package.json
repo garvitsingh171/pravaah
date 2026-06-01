@@ -36,6 +36,9 @@
   ],
   "author": "Garvit Singh",
   "license": "MIT",
+  "devDependencies": {
+    "prettier": "^3.0.0"
+  },
   "bugs": {
     "url": "https://github.com/garvitsingh171/pravaah/issues"
   },
