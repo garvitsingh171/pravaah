@@ -1,13 +1,13 @@
-name: Feature Task
-description: Create a feature task for Pravaah
-title: '[Feature] '
-labels: ['type: feature']
+name: Research Task
+description: Create a research task for Pravaah
+title: '[Research] '
+labels: ['type: research']
 body:
   - type: textarea
     id: overview
     attributes:
       label: Overview
-      description: What feature or capability should be added?
+      description: What question or decision should this research answer?
     validations:
       required: true
 
@@ -15,7 +15,7 @@ body:
     id: tasks
     attributes:
       label: Tasks
-      description: Break the work into concrete tasks.
+      description: List the research actions to perform.
       placeholder: |
         - [ ] Add item
         - [ ] Add item
@@ -27,7 +27,7 @@ body:
     id: acceptance-criteria
     attributes:
       label: Acceptance Criteria
-      description: How will we know this task is complete?
+      description: How will we know the research is complete?
       placeholder: |
         - [ ] Add item
         - [ ] Add item
@@ -39,4 +39,4 @@ body:
     id: notes
     attributes:
       label: Notes
-      description: Add technical notes, links, or implementation context.
+      description: Add links, comparisons, or final recommendations.

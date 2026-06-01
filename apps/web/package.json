@@ -1,0 +1,11 @@
+{
+  "name": "@pravaah/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "check": "echo \"web workspace ready\"",
+    "build": "echo \"web workspace ready\"",
+    "lint": "echo \"web workspace ready\"",
+    "dev": "echo \"web workspace ready\""
+  }
+}

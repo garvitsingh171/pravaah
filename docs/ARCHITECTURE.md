@@ -1,1279 +1,540 @@
+<!--
+Pravaah documentation package
+Generated for Project Pravaah on June 1, 2026.
+Locked stack: React + TypeScript, Express + TypeScript, Clerk, Neon PostgreSQL, Prisma.
+-->
+
 # Pravaah Architecture
 
-## 1. Architecture Goal
+## 1. Purpose
 
-Pravaah is being designed as a serious MVP, not as a temporary college project.
+This document is the architecture source of truth for Pravaah.
 
-The architecture should support:
+If any planning note, AI-generated suggestion, issue description, or future document conflicts with this file, this file wins until the architecture is intentionally changed through a reviewed documentation pull request.
 
-- clean frontend-backend separation
-- PostgreSQL database design
-- future SaaS expansion
-- clinic-side user management
-- doctor and patient management
-- appointment scheduling
-- live queue management
-- AI-assisted no-show prediction
-- future patient login
-- future doctor login
-- future analytics
-- future recommendation system
+The goal of this file is to help a beginner contributor, an AI coding assistant, and an interviewer understand:
 
-The MVP must stay simple enough to build by **12 July 2026**, with **3 to 4 hours daily development time**, but the database and code structure should not block future growth.
+- what Pravaah is
+- what stack is locked
+- how the frontend, backend, database, and authentication parts connect
+- how the MVP remains simple while still being future-ready
+- what should not be built during the MVP
 
----
+## 2. Product Identity
 
-## 2. High-Level System Architecture
+Pravaah is an AI-assisted clinic flow management system for small and medium clinics.
+
+It helps clinic-side users manage:
+
+- clinics
+- doctors
+- patients
+- appointments
+- live queues
+- starter no-show risk scoring
+
+The word **Pravaah** means **flow**. In product terms, Pravaah is not only about booking appointments. It is about improving the daily operational flow of a clinic.
+
+The MVP should solve the core problem first:
+
+> Clinic staff need a simple system to manage appointments, queues, and no-show risk without depending on notebooks, scattered calls, and manual guesswork.
+
+## 3. Locked MVP Stack
+
+The MVP stack is fixed.
+
+| Layer            | Locked Choice        | Reason                                                                                      |
+| ---------------- | -------------------- | ------------------------------------------------------------------------------------------- |
+| Frontend         | React + TypeScript   | Good for component-based UI, maintainability, and internship-ready frontend practice.       |
+| Backend          | Express + TypeScript | Simple, flexible, beginner-friendly, and suitable for REST APIs.                            |
+| Authentication   | Clerk                | Handles sign-in/session identity so the MVP does not waste time building auth from scratch. |
+| Database Hosting | Neon PostgreSQL      | Managed PostgreSQL with a modern developer workflow.                                        |
+| ORM              | Prisma               | Type-safe database access, schema modeling, and migration workflow.                         |
+| Repository Style | Monorepo             | Keeps frontend, backend, docs, and shared code in one repository.                           |
+| Package Manager  | npm workspaces       | Simple workspace support without adding unnecessary tooling complexity.                     |
+
+### 3.1 Explicitly rejected for MVP
+
+Do not reintroduce these unless a future architecture decision officially changes the stack:
+
+- Supabase Auth
+- Supabase database hosting
+- Next.js
+- MongoDB
+- Firebase
+- a mobile app stack
+- a microservices architecture
+- a layer-first backend folder structure
+
+These are not bad technologies. They are rejected only because the MVP needs focus.
+
+## 4. System Overview
 
 ```txt
-User Browser
-    ↓
+Clinic Admin / Staff
+        |
+        v
 React + TypeScript Frontend
-    ↓
-Express + TypeScript Backend API
-    ↓
+        |
+        | HTTP requests with Clerk session token
+        v
+Express + TypeScript Backend
+        |
+        | Auth verification + role checks + business rules
+        v
 Prisma ORM
-    ↓
-PostgreSQL Database
+        |
+        v
+Neon PostgreSQL
 ```
 
-External services:
+### 4.1 Responsibility of each layer
 
-```txt
-Clerk → Authentication
-OpenAI API / Rule Engine → No-show prediction support
-Vercel → Frontend deployment
-Render → Backend deployment
-Supabase → PostgreSQL database hosting
-```
+| Layer      | Responsibility                                                                     | Must Not Do                                     |
+| ---------- | ---------------------------------------------------------------------------------- | ----------------------------------------------- |
+| Frontend   | Render UI, collect form input, call APIs, show loading/errors.                     | Make final authorization decisions.             |
+| Backend    | Verify auth, enforce roles, validate input, run business logic, call repositories. | Trust frontend role or clinic IDs blindly.      |
+| Prisma     | Represent database schema and provide typed database access.                       | Contain business workflow decisions.            |
+| PostgreSQL | Store reliable relational data with constraints, indexes, and transactions.        | Depend on frontend-only validation.             |
+| Clerk      | Authenticate users and provide external identity.                                  | Replace app-level roles and clinic permissions. |
 
----
-
-## 3. Monorepo Architecture
-
-Pravaah will use a simple monorepo structure.
+## 5. Monorepo Layout
 
 ```txt
 pravaah/
-├── client/
-├── server/
-├── shared/
+├── apps/
+│   ├── web/
+│   │   ├── src/
+│   │   ├── package.json
+│   │   └── ...
+│   └── server/
+│       ├── src/
+│       ├── prisma/
+│       ├── package.json
+│       └── ...
+├── packages/
+│   └── shared/              # optional later, not required on day one
 ├── docs/
+│   ├── ARCHITECTURE.md
+│   ├── MVP.md
+│   ├── DATABASE_DESIGN.md
+│   ├── ROADMAP.md
+│   ├── SETUP.md
+│   ├── USER_ROLES.md
+│   ├── CONTRIBUTING.md
+│   └── AI_CONTEXT.md
+├── .github/
 ├── README.md
 ├── package.json
-├── package-lock.json
-└── .gitignore
+└── .env.example
 ```
 
-### Why Monorepo?
+### 5.1 Why monorepo?
 
-Because Pravaah is a solo project and the frontend, backend, and shared code belong to the same product.
+A monorepo is useful for Pravaah because:
 
-Benefits:
+- the frontend and backend belong to the same product
+- issues and pull requests stay easier to connect
+- shared types can later move into `packages/shared`
+- documentation stays close to code
+- the project is easier to explain in interviews
 
-- one GitHub repository
-- easier project management
-- easier for GitHub Copilot and AI tools to understand the full project
-- shared types can be reused
-- frontend and backend stay synchronized
-- simpler for solo development
+## 6. Backend Architecture
 
----
-
-## 4. Folder Structure
-
-## 4.1 Root Structure
+The backend is feature-module based.
 
 ```txt
-pravaah/
-├── client/                  # React frontend
-├── server/                  # Express backend
-├── shared/                  # Shared types/constants/schemas
-├── docs/                    # Project documentation
-├── README.md                # Project overview
-├── package.json             # Root workspace config
-├── package-lock.json
-└── .gitignore
+apps/server/src/
+├── modules/
+│   ├── auth/
+│   ├── users/
+│   ├── clinics/
+│   ├── doctors/
+│   ├── patients/
+│   ├── appointments/
+│   ├── queues/
+│   └── predictions/
+├── middleware/
+├── config/
+├── utils/
+├── app.ts
+└── server.ts
 ```
 
----
+### 6.1 Module structure
 
-## 4.2 Client Structure
+Each feature module should own its routes, controller, service, repository, validation, and types.
+
+Example:
 
 ```txt
-client/
-├── src/
-│   ├── app/
-│   ├── pages/
-│   ├── components/
-│   ├── features/
-│   │   ├── auth/
-│   │   ├── dashboard/
-│   │   ├── doctors/
-│   │   ├── patients/
-│   │   ├── appointments/
-│   │   ├── queue/
-│   │   └── predictions/
-│   │
-│   ├── hooks/
-│   ├── lib/
-│   ├── services/
-│   ├── types/
-│   ├── constants/
-│   └── main.tsx
-│
-├── package.json
-├── vite.config.ts
-└── tsconfig.json
+modules/appointments/
+├── appointment.routes.ts
+├── appointment.controller.ts
+├── appointment.service.ts
+├── appointment.repository.ts
+├── appointment.validation.ts
+└── appointment.types.ts
 ```
 
-### Client Responsibilities
+### 6.2 Backend layer rules
 
-The frontend is responsible for:
+| File type  | Job                                          | Example                                    |
+| ---------- | -------------------------------------------- | ------------------------------------------ |
+| Route      | Connect URL + method to controller.          | `POST /appointments`                       |
+| Controller | Read request, call service, return response. | `createAppointmentController`              |
+| Service    | Business decisions and workflow rules.       | Check slot conflict, generate queue entry. |
+| Repository | Prisma/database queries only.                | `appointmentRepository.create()`           |
+| Validation | Request body/query validation.               | Validate appointment date and patient ID.  |
+| Types      | Local TypeScript types.                      | `CreateAppointmentInput`                   |
 
-- displaying UI
-- handling forms
-- calling backend APIs
-- showing dashboard data
-- showing queue state
-- showing no-show risk badges
-- handling protected routes
-- giving users a clean experience
+### 6.3 Strict backend rules
 
-The frontend should not contain business-critical database logic.
+- Keep controllers thin.
+- Keep business decisions in services.
+- Keep Prisma access in repositories.
+- Keep authentication in middleware and backend handlers.
+- Keep role checks on the backend.
+- Do not create global top-level `routes`, `controllers`, or `repositories` folders.
+- Do not allow frontend-sent `role` or `clinicId` to decide access without backend verification.
 
----
+## 7. Backend modules
 
-## 4.3 Server Structure
+### 7.1 Auth module
+
+Responsibilities:
+
+- verify Clerk tokens
+- map Clerk identity to internal `User`
+- expose current user/profile endpoint if needed
+- support backend route protection
+
+### 7.2 Users module
+
+Responsibilities:
+
+- store app user profile
+- store role such as Admin or Staff
+- connect authenticated users to clinic operations
+- support future user management by Admin
+
+### 7.3 Clinics module
+
+Responsibilities:
+
+- create and update clinic profile
+- store clinic timings and operational settings
+- act as the tenant boundary for appointments, queues, and analytics
+
+### 7.4 Doctors module
+
+Responsibilities:
+
+- create doctor profiles
+- update doctor identity and practice details
+- link doctors to clinics through `DoctorClinic`
+- check active doctor-clinic relationship before appointments
+
+### 7.5 Patients module
+
+Responsibilities:
+
+- create patient profiles
+- update contact details
+- link patients to clinics through `PatientClinic`
+- track clinic-specific visit/no-show/late-arrival history
+
+### 7.6 Appointments module
+
+Responsibilities:
+
+- book appointments
+- update appointment status
+- filter appointments by clinic, doctor, date, patient, and status
+- trigger queue and prediction-related workflows
+
+### 7.7 Queues module
+
+Responsibilities:
+
+- show today's live queue
+- create queue entries for appointments
+- update queue status
+- preserve consistency when appointment status changes
+
+### 7.8 Predictions module
+
+Responsibilities:
+
+- generate starter no-show risk score
+- store risk score, risk level, and reasons
+- expose prediction details to appointment and queue views
+
+For MVP, this module is rule-based. It must not pretend to be an advanced ML system.
+
+## 8. Frontend Architecture
+
+Suggested structure:
 
 ```txt
-server/
-├── src/
-│   ├── routes/
-│   ├── controllers/
-│   ├── services/
-│   ├── repositories/
-│   ├── middlewares/
-│   ├── validations/
-│   ├── utils/
-│   ├── config/
-│   └── index.ts
-│
-├── prisma/
-│   ├── schema.prisma
-│   └── seed.ts
-│
-├── package.json
-└── tsconfig.json
-```
-
-### Server Responsibilities
-
-The backend is responsible for:
-
-- API routes
-- authentication verification
-- authorization checks
-- business logic
-- database communication
-- appointment rules
-- queue rules
-- prediction generation
-- validation
-- error handling
-
----
-
-## 4.4 Shared Structure
-
-```txt
-shared/
+apps/web/src/
+├── app/
+├── components/
+├── features/
+│   ├── auth/
+│   ├── dashboard/
+│   ├── clinics/
+│   ├── doctors/
+│   ├── patients/
+│   ├── appointments/
+│   └── queues/
+├── lib/
+├── routes/
 ├── types/
-├── constants/
-├── schemas/
-└── index.ts
+└── main.tsx
 ```
 
-### What Goes in Shared?
+### 8.1 Frontend responsibilities
 
-The shared folder contains code used by both frontend and backend.
+The frontend should:
 
-Examples:
+- render the clinic staff UI
+- manage forms and local UI state
+- call backend APIs
+- display server validation errors clearly
+- protect private routes at the UI level
+- show no-show risk badges and explanations
 
-```ts
-export const APPOINTMENT_STATUSES = [
-  "SCHEDULED",
-  "ARRIVED",
-  "COMPLETED",
-  "LATE",
-  "NO_SHOW",
-  "CANCELLED",
-] as const;
-```
+The frontend should not:
 
-Shared can include:
+- make final authorization decisions
+- store secrets
+- directly talk to the database
+- bypass backend validation
+- implement business rules that must remain server-side
 
-- common types
-- enums
-- constants
-- validation schemas
-
-This avoids duplicating the same values in both client and server.
-
----
-
-## 5. Backend Layered Architecture
-
-The backend will follow layered architecture.
+## 9. Authentication and authorization flow
 
 ```txt
-Route → Controller → Service → Repository → Database
+1. Admin or Staff signs in using Clerk.
+2. Frontend receives Clerk session state.
+3. Frontend sends authenticated request to backend.
+4. Backend verifies Clerk token.
+5. Backend finds internal User by clerkUserId.
+6. Backend checks role and clinic access.
+7. Backend performs the requested operation.
 ```
 
----
+### 9.1 Why Clerk is not enough alone
 
-## 5.1 Routes
+Clerk answers:
 
-Routes define API endpoints.
+> Who is this authenticated person?
+
+Pravaah backend must answer:
+
+> What is this person allowed to do inside this clinic?
+
+That is why role checks and clinic access checks must remain in the backend.
+
+## 10. Database architecture
+
+Pravaah uses relational modeling because clinic operations are relationship-heavy.
+
+Final MVP entities:
+
+1. User
+2. Clinic
+3. Doctor
+4. DoctorClinic
+5. Patient
+6. PatientClinic
+7. Appointment
+8. QueueEntry
+9. NoShowPrediction
+
+Important rule:
+
+> Doctor and Patient are not directly locked to one clinic. Their clinic relationship is handled through `DoctorClinic` and `PatientClinic`.
+
+This keeps the database more future-ready for multi-clinic SaaS growth.
+
+## 11. MVP AI architecture
+
+The MVP includes one AI-assisted feature:
+
+> Starter No-Show Risk Prediction
+
+This should be built as an explainable rule-based scoring service.
+
+Example input factors:
+
+- patient previous no-shows
+- patient previous late arrivals
+- distance from clinic
+- appointment timing
+- same-day booking
+- total appointment history
+
+Example output:
+
+```json
+{
+  "riskScore": 72,
+  "riskLevel": "HIGH",
+  "reasons": [
+    "Patient has previous no-shows",
+    "Patient lives far from the clinic",
+    "Appointment was booked on the same day"
+  ],
+  "modelVersion": "starter-rule-v1"
+}
+```
+
+### 11.1 AI boundary
+
+Allowed in MVP:
+
+- rule-based risk score
+- low/medium/high risk level
+- human-readable reasons
+- storage in `NoShowPrediction`
+- display in appointment and queue views
+
+Not allowed in MVP:
+
+- trained ML model
+- live patient location tracking
+- traffic API
+- weather API
+- automatic cancellation
+- fully automatic queue reordering
+- WhatsApp/voice automation
+
+## 12. Main product workflow
+
+```txt
+Admin/Staff signs in
+        ↓
+Clinic profile is created or selected
+        ↓
+Doctor profile is created
+        ↓
+Doctor is linked to clinic through DoctorClinic
+        ↓
+Patient profile is created
+        ↓
+Patient is linked to clinic through PatientClinic
+        ↓
+Appointment is booked
+        ↓
+Starter no-show prediction is generated
+        ↓
+Queue entry is created or shown for the clinic day
+        ↓
+Staff manages queue status during operations
+```
+
+## 13. API design style
+
+Use REST-style resource URLs.
+
+Good examples:
+
+```txt
+GET    /api/clinics/:clinicId/doctors
+POST   /api/clinics/:clinicId/doctors
+GET    /api/clinics/:clinicId/patients
+POST   /api/clinics/:clinicId/appointments
+PATCH  /api/appointments/:appointmentId/status
+GET    /api/clinics/:clinicId/queue/today
+POST   /api/appointments/:appointmentId/prediction
+```
+
+Avoid RPC-style route names such as:
+
+```txt
+/getAllUsers
+/createDoctor
+/deleteAppointment
+```
+
+## 14. Error handling architecture
+
+Use a consistent error response shape.
 
 Example:
 
-```txt
-GET /api/doctors
-POST /api/doctors
-GET /api/patients
-POST /api/patients
-POST /api/appointments
-PATCH /api/appointments/:id/status
-GET /api/queue/today
-GET /api/dashboard/summary
+```json
+{
+  "success": false,
+  "error": {
+    "code": "APPOINTMENT_SLOT_CONFLICT",
+    "message": "This doctor already has an appointment in this time slot."
+  }
+}
 ```
 
-Routes should stay thin.
+Common error categories:
 
----
+- authentication error
+- authorization error
+- validation error
+- not found error
+- conflict error
+- database error
+- unexpected server error
 
-## 5.2 Controllers
+## 15. Security principles
 
-Controllers handle request and response.
+- Never commit secrets.
+- Verify Clerk tokens on backend routes.
+- Do not trust client-provided role values.
+- Do not expose database connection strings to frontend.
+- Validate all request bodies.
+- Scope every clinic operation by clinic access.
+- Use transactions for appointment + queue updates.
+- Keep patient data minimal for MVP.
 
-They should:
+## 16. Deployment architecture
 
-- read request body
-- read request params
-- call service functions
-- return response
-- handle errors cleanly
+MVP deployment can use:
 
-Controllers should not contain complex business logic.
+- Frontend: Vercel, Netlify, or similar static frontend hosting
+- Backend: Render, Railway, Fly.io, or similar Node hosting
+- Database: Neon PostgreSQL
+- Auth: Clerk
 
----
+Deployment is not the main architecture decision. The important rule is that environment variables must be separated by environment:
 
-## 5.3 Services
+- local development
+- preview/staging
+- production
 
-Services contain business logic.
+## 17. Post-MVP architecture direction
 
-Examples:
+After MVP, Pravaah can grow into:
 
-- check whether doctor is available
-- prevent duplicate appointment slots
-- create queue entry after appointment creation
-- generate no-show prediction
-- update appointment status
-- update patient statistics
-- calculate dashboard summary
-
-Most important Pravaah logic lives here.
-
----
-
-## 5.4 Repositories
-
-Repositories communicate with the database using Prisma.
-
-Examples:
-
-- create doctor
-- find patient by phone
-- create appointment
-- update appointment status
-- fetch today’s queue
-
-Repositories should not decide business rules.
-
-They should mainly perform database operations.
-
----
-
-## 5.5 Database
-
-PostgreSQL stores structured data.
-
-Prisma is used as ORM.
-
-Prisma responsibilities:
-
-- schema definition
-- migrations
-- type-safe database queries
-- seed data
-
----
-
-## 6. API Modules
-
-MVP backend modules:
-
-```txt
-/api/users
-/api/clinics
-/api/doctors
-/api/patients
-/api/appointments
-/api/queue
-/api/predictions
-/api/dashboard
-```
-
-Build order:
-
-```txt
-1. clinics
-2. users
-3. doctors
-4. patients
-5. appointments
-6. queue
-7. predictions
-8. dashboard
-```
-
----
-
-## 7. Database Architecture
-
-## 7.1 Final MVP Entities
-
-Core entities:
-
-```txt
-User
-Clinic
-Doctor
-DoctorClinic
-Patient
-PatientClinic
-Appointment
-QueueEntry
-NoShowPrediction
-```
-
-Future-ready optional entities:
-
-```txt
-AppointmentGroup
-AppointmentStatusLog
-```
-
----
-
-## 7.2 Entity Meaning
-
-### User
-
-A user is someone who can log in to Pravaah.
-
-MVP users:
-
-- Admin
-- Staff
-
-Future users:
-
-- Doctor
-- Patient
-- Super Admin
-
----
-
-### Clinic
-
-A clinic is the organization/business using Pravaah.
-
-A clinic is not the same as a user.
-
-Example:
-
-```txt
-Clinic: Mehta Dental Clinic
-User: Ramesh, clinic owner
-Doctor: Dr. Mehta
-Patient: Garvit Singh
-```
-
----
-
-### Doctor
-
-Doctor is the professional profile.
-
-A doctor may work at many clinics in the future.
-
----
-
-### DoctorClinic
-
-DoctorClinic connects a doctor with a clinic.
-
-This supports many-to-many relationship.
-
-Example:
-
-```txt
-Dr. Sharma works at Clinic A
-Dr. Sharma works at Clinic B
-```
-
-This creates two DoctorClinic records.
-
----
-
-### Patient
-
-Patient is the person receiving healthcare service.
-
-A patient may visit many clinics in the future.
-
----
-
-### PatientClinic
-
-PatientClinic connects a patient with a clinic and stores clinic-specific behavior.
-
-Example:
-
-```txt
-Same patient at Clinic A: 0 no-shows
-Same patient at Clinic B: 3 no-shows
-```
-
-This is why no-show history is stored at patient-clinic level.
-
----
-
-### Appointment
-
-Appointment is the scheduled meeting between patient and doctor inside a clinic.
-
-Appointment connects:
-
-```txt
-Clinic + Doctor + Patient + Time
-```
-
----
-
-### QueueEntry
-
-QueueEntry represents live clinic flow.
-
-Appointment means planned schedule.  
-QueueEntry means what is happening right now.
-
-This is essential because Pravaah is not just appointment booking. It is flow management.
-
----
-
-### NoShowPrediction
-
-NoShowPrediction stores the risk prediction for an appointment.
-
-It includes:
-
-- risk level
-- risk score
-- reason
-- suggested action
-- factors used
-- model/rule version
-
-This allows future analytics and prediction improvement.
-
----
-
-## 8. Final Relationships
-
-```txt
-User
- └── belongs to Clinic
-
-Clinic
- ├── has many Users
- ├── has many DoctorClinic records
- ├── has many PatientClinic records
- ├── has many Appointments
- ├── has many QueueEntries
- └── has many AppointmentGroups
-
-Doctor
- ├── may connect to User in future
- ├── has many DoctorClinic records
- └── has many Appointments
-
-Patient
- ├── may connect to User in future
- ├── has many PatientClinic records
- └── has many Appointments
-
-DoctorClinic
- ├── belongs to Doctor
- └── belongs to Clinic
-
-PatientClinic
- ├── belongs to Patient
- └── belongs to Clinic
-
-Appointment
- ├── belongs to Clinic
- ├── belongs to Doctor
- ├── belongs to Patient
- ├── belongs to User as creator
- ├── may belong to AppointmentGroup
- ├── has one QueueEntry
- └── has one NoShowPrediction
-
-QueueEntry
- └── belongs to Appointment
-
-NoShowPrediction
- └── belongs to Appointment
-
-AppointmentGroup
- └── has many Appointments
-
-AppointmentStatusLog
- └── belongs to Appointment
-```
-
----
-
-## 9. Entity Fields
-
-## 9.1 User
-
-```txt
-id
-clerkId
-name
-email
-phone
-avatarUrl
-role
-clinicId
-isActive
-lastLoginAt
-createdAt
-updatedAt
-```
-
-Roles:
-
-```txt
-ADMIN
-STAFF
-DOCTOR       future
-PATIENT      future
-SUPER_ADMIN  future
-```
-
----
-
-## 9.2 Clinic
-
-```txt
-id
-name
-slug
-address
-city
-state
-country
-pincode
-phone
-email
-timezone
-openingTime
-closingTime
-slotDurationMinutes
-bufferTimeMinutes
-isActive
-createdAt
-updatedAt
-```
-
----
-
-## 9.3 Doctor
-
-```txt
-id
-userId nullable
-name
-phone
-email
-gender
-specialization
-registrationNumber
-qualification
-experienceYears
-profilePhotoUrl
-isActive
-createdAt
-updatedAt
-```
-
-`userId` is nullable because doctor login is not part of MVP but can be added later.
-
----
-
-## 9.4 DoctorClinic
-
-```txt
-id
-doctorId
-clinicId
-consultationFee
-defaultSlotDurationMinutes
-isAvailable
-joiningDate
-createdAt
-updatedAt
-```
-
-Future fields:
-
-```txt
-workingDays
-startTime
-endTime
-roomNumber
-```
-
----
-
-## 9.5 Patient
-
-```txt
-id
-userId nullable
-name
-phone
-email
-age
-gender
-dateOfBirth
-address
-city
-state
-pincode
-emergencyContactName
-emergencyContactPhone
-createdAt
-updatedAt
-```
-
-`userId` is nullable because patient login is not part of MVP but can be added later.
-
----
-
-## 9.6 PatientClinic
-
-```txt
-id
-patientId
-clinicId
-clinicPatientCode
-patientType
-distanceFromClinicKm
-totalAppointments
-totalNoShows
-totalLateArrivals
-lastVisitAt
-notes
-createdAt
-updatedAt
-```
-
-Patient types:
-
-```txt
-REGULAR
-FIRST_TIME
-WALK_IN
-REFERRED
-```
-
----
-
-## 9.7 Appointment
-
-```txt
-id
-clinicId
-doctorId
-patientId
-groupId nullable
-scheduledAt
-durationMinutes
-status
-appointmentType
-bookingSource
-reasonForVisit
-notes
-cancelledAt
-cancelReason
-rescheduledFromAppointmentId nullable
-createdByUserId
-createdAt
-updatedAt
-```
-
-MVP statuses:
-
-```txt
-SCHEDULED
-ARRIVED
-COMPLETED
-LATE
-NO_SHOW
-CANCELLED
-```
-
-Future statuses:
-
-```txt
-CONFIRMED
-IN_QUEUE
-IN_PROGRESS
-RESCHEDULED
-SKIPPED
-```
-
-Appointment types:
-
-```txt
-CONSULTATION
-FOLLOW_UP
-EMERGENCY
-```
-
-Booking sources:
-
-```txt
-RECEPTION
-PHONE_CALL
-WEBSITE
-WHATSAPP
-PATIENT_APP
-```
-
----
-
-## 9.8 AppointmentGroup
-
-```txt
-id
-clinicId
-primaryPatientId
-groupType
-notes
-createdAt
-updatedAt
-```
-
-Group types:
-
-```txt
-FAMILY
-COUPLE
-FRIENDS
-OTHER
-```
-
-MVP decision:
-
-```txt
-Keep in architecture.
-Build only if time allows.
-```
-
----
-
-## 9.9 QueueEntry
-
-```txt
-id
-clinicId
-appointmentId
-queueDate
-position
-status
-estimatedStartTime
-actualStartTime
-completedAt
-skippedAt
-waitTimeMinutes
-createdAt
-updatedAt
-```
-
-Queue statuses:
-
-```txt
-WAITING
-IN_PROGRESS
-COMPLETED
-SKIPPED
-NO_SHOW
-```
-
-Future statuses:
-
-```txt
-CALLED
-DELAYED
-REJOINED
-```
-
----
-
-## 9.10 NoShowPrediction
-
-```txt
-id
-appointmentId
-riskLevel
-riskScore
-reason
-suggestedAction
-factors
-modelUsed
-predictionVersion
-createdAt
-updatedAt
-```
-
-Risk levels:
-
-```txt
-LOW
-MEDIUM
-HIGH
-```
-
-Future fields:
-
-```txt
-actualOutcome
-confidence
-feedbackByStaff
-accuracyStatus
-```
-
----
-
-## 9.11 AppointmentStatusLog
-
-```txt
-id
-appointmentId
-oldStatus
-newStatus
-changedByUserId
-reason
-createdAt
-```
-
-MVP decision:
-
-```txt
-Optional, but useful for future analytics.
-```
-
----
-
-## 10. Queue Architecture
-
-Queue is one of the most important parts of Pravaah.
-
-### Appointment vs QueueEntry
-
-```txt
-Appointment = scheduled plan
-QueueEntry = live operational state
-```
-
-Example:
-
-```txt
-10:00 AM - Patient A
-10:15 AM - Patient B
-10:30 AM - Patient C
-```
-
-If Patient B is late, the queue may become:
-
-```txt
-Patient A
-Patient C
-Patient B
-```
-
-The appointment time should remain unchanged, but the queue position can change.
-
-This separation protects historical appointment data while allowing real-time clinic flow adjustment.
-
----
-
-## 11. Prediction Architecture
-
-No-show prediction will be built in stages.
-
-## Stage 1: Rule-Based Prediction
-
-Use simple rules:
-
-```txt
-If totalNoShows >= 2 → HIGH
-If distanceFromClinicKm > 10 and appointment is in evening → MEDIUM
-If totalLateArrivals >= 2 → MEDIUM
-Otherwise → LOW
-```
-
-This is easy to build, test, and explain.
-
----
-
-## Stage 2: AI-Assisted Explanation
-
-After rule-based prediction works, AI can generate better explanations and staff actions.
-
-Input to AI:
-
-```txt
-patient history
-appointment time
-distance from clinic
-previous no-shows
-previous late arrivals
-patient type
-```
-
-Output:
-
-```txt
-risk level
-reason
-suggested action
-```
-
----
-
-## 12. Authentication Architecture
-
-Use Clerk for authentication.
-
-Flow:
-
-```txt
-User signs in through Clerk
-        ↓
-Frontend receives auth session
-        ↓
-Frontend sends request to backend with auth token
-        ↓
-Backend verifies token
-        ↓
-Backend maps Clerk user to internal User record
-        ↓
-Backend applies clinic-level access control
-```
-
-MVP roles:
-
-```txt
-ADMIN
-STAFF
-```
-
----
-
-## 13. Authorization Rules
-
-Basic rules:
-
-```txt
-1. User can only access their own clinic data.
-2. Admin can manage clinic settings.
-3. Admin can manage doctors and staff.
-4. Staff can manage patients, appointments, and queue.
-5. No user can access another clinic’s data.
-```
-
-This is important for SaaS readiness.
-
----
-
-## 14. Frontend Pages
-
-MVP pages:
-
-```txt
-/login
-/dashboard
-/doctors
-/patients
-/appointments
-/queue
-/settings
-```
-
-Optional pages:
-
-```txt
-/appointments/:id
-/patients/:id
-/doctors/:id
-```
-
----
-
-## 15. Backend Endpoints
-
-Possible MVP endpoints:
-
-```txt
-GET    /api/health
-
-GET    /api/clinics/me
-PATCH  /api/clinics/me
-
-GET    /api/doctors
-POST   /api/doctors
-GET    /api/doctors/:id
-PATCH  /api/doctors/:id
-
-GET    /api/patients
-POST   /api/patients
-GET    /api/patients/:id
-PATCH  /api/patients/:id
-
-GET    /api/appointments
-POST   /api/appointments
-GET    /api/appointments/:id
-PATCH  /api/appointments/:id/status
-
-GET    /api/queue/today
-PATCH  /api/queue/:id/status
-
-GET    /api/predictions/appointment/:appointmentId
-POST   /api/predictions/appointment/:appointmentId/generate
-
-GET    /api/dashboard/summary
-```
-
----
-
-## 16. Data Flow: Create Appointment
-
-```txt
-Staff fills appointment form
-        ↓
-Frontend sends POST /api/appointments
-        ↓
-Backend validates data
-        ↓
-Backend checks doctor/clinic relationship
-        ↓
-Backend checks patient/clinic relationship
-        ↓
-Backend checks slot availability
-        ↓
-Backend creates appointment
-        ↓
-Backend creates queue entry
-        ↓
-Backend generates no-show prediction
-        ↓
-Backend returns appointment with queue and prediction
-        ↓
-Frontend updates UI
-```
-
----
-
-## 17. Data Flow: Update Appointment Status
-
-```txt
-Staff clicks status action
-        ↓
-Frontend sends PATCH request
-        ↓
-Backend updates appointment status
-        ↓
-Backend updates queue status if needed
-        ↓
-Backend updates patient-clinic stats if needed
-        ↓
-Optional: backend creates status log
-        ↓
-Frontend refreshes queue/dashboard
-```
-
----
-
-## 18. Data Flow: No-Show Prediction
-
-```txt
-Appointment is created
-        ↓
-Prediction service reads patient-clinic history
-        ↓
-Prediction service reads appointment details
-        ↓
-Rules calculate risk score
-        ↓
-Risk level is assigned
-        ↓
-Reason and suggested action are generated
-        ↓
-Prediction is saved in NoShowPrediction table
-        ↓
-Frontend displays risk badge and suggestion
-```
-
----
-
-## 19. Deployment Architecture
-
-```txt
-Frontend → Vercel
-Backend → Render
-Database → Supabase Postgres / Neon Postgres
-Auth → Clerk
-```
-
-Environment variables will be used for:
-
-```txt
-DATABASE_URL
-CLERK_SECRET_KEY
-CLERK_PUBLISHABLE_KEY
-CLIENT_URL
-SERVER_URL
-OPENAI_API_KEY optional
-```
-
----
-
-## 20. Scalability Decisions
-
-Pravaah is MVP-first but SaaS-ready because:
-
-```txt
-1. Clinic is a separate entity.
-2. Users belong to clinics.
-3. Doctors are not locked to one clinic.
-4. Patients are not locked to one clinic.
-5. DoctorClinic supports multi-clinic doctors.
-6. PatientClinic supports multi-clinic patients.
-7. Appointment keeps clinic, doctor, and patient relationship clear.
-8. QueueEntry separates live flow from scheduled appointment.
-9. NoShowPrediction stores AI/risk history.
-10. Future doctor and patient login can be added using nullable userId fields.
-```
-
----
-
-## 21. Future Features Supported by Architecture
-
-This architecture can support:
-
-- patient login
+- advanced no-show prediction
+- reminders and notification integrations
+- doctor availability windows
+- patient portal
 - doctor login
-- multi-clinic SaaS
-- clinic subscription plans
-- WhatsApp reminders
-- SMS reminders
-- email reminders
-- AI reminder timing
-- patient feedback
-- doctor reviews
-- clinic reviews
-- doctor discovery
-- clinic discovery
-- appointment analytics
-- queue analytics
-- no-show prediction accuracy tracking
-- patient-clinic relationship analytics
-- patient-doctor behavior analytics
-- group/family appointments
-- doctor availability schedules
-- billing and payments
+- multi-clinic admin workflows
+- analytics dashboard
+- audit logs
+- role and permission expansion
+- location/weather/traffic-based prediction
+- mobile app
 
----
+These should not be mixed into the MVP unless the MVP is already stable.
 
-## 22. Architecture Non-Negotiables
+## 18. Final architecture principle
+
+Build the spine first:
 
 ```txt
-1. Do not mix frontend and backend logic.
-2. Do not put database logic inside React components.
-3. Do not put business logic directly inside routes.
-4. Keep services responsible for business rules.
-5. Keep repositories responsible for database queries.
-6. Keep shared constants/enums reusable.
-7. Keep clinicId checks in protected routes/services.
-8. Do not build future features before MVP core flow works.
+Auth → Clinic → Doctor/Patient → Appointment → Queue → Starter Prediction
 ```
 
----
-
-## 23. Build Order
-
-Recommended build order:
-
-```txt
-1. Project setup
-2. Authentication
-3. Clinic setup
-4. Doctor module
-5. Patient module
-6. Appointment module
-7. Queue module
-8. Prediction module
-9. Dashboard module
-10. Deployment
-11. Documentation and demo
-```
-
-This order prevents chaos.
-
----
-
-## 24. Final Architecture Summary
-
-Pravaah uses a React frontend, Express backend, PostgreSQL database, Prisma ORM, and Clerk authentication inside a monorepo.
-
-The core architecture is built around this flow:
-
-```txt
-Clinic users manage doctors and patients.
-Doctors and patients are connected to clinics through relationship tables.
-Staff books appointments.
-Appointments create queue entries.
-Queue entries manage live clinic flow.
-No-show predictions warn staff before workflow breaks.
-Dashboard summarizes the clinic day.
-```
-
-This architecture is simple enough for MVP and strong enough to grow into a SaaS product.
+Do not expand into a healthcare super-app before this spine works end to end.
