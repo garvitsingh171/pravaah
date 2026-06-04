@@ -11,15 +11,18 @@
     "lint": "echo \"server lint not configured yet\""
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "pg": "^8.21.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^24.12.4",
+    "@types/pg": "^8.20.0",
     "prisma": "^7.8.0",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3"
