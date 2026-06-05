@@ -1,0 +1,11 @@
+-- CreateEnum
+CREATE TYPE "AppointmentStatus" AS ENUM ('SCHEDULED', 'CONFIRMED', 'ARRIVED', 'IN_QUEUE', 'CALLED', 'COMPLETED', 'CANCELLED', 'NO_SHOW');
+
+-- CreateEnum
+CREATE TYPE "QueueStatus" AS ENUM ('WAITING', 'ARRIVED', 'CALLED', 'COMPLETED', 'CANCELLED', 'NO_SHOW');
+
+-- CreateEnum
+CREATE TYPE "RiskLevel" AS ENUM ('LOW', 'MEDIUM', 'HIGH');
+
+-- CreateEnum
+CREATE TYPE "BookingSource" AS ENUM ('RECEPTION', 'PHONE', 'WEB', 'WALK_IN');
