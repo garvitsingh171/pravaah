@@ -30,6 +30,39 @@ enum Gender {
   PREFER_NOT_TO_SAY
 }
 
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  ARRIVED
+  IN_QUEUE
+  CALLED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum QueueStatus {
+  WAITING
+  ARRIVED
+  CALLED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum BookingSource {
+  RECEPTION
+  PHONE
+  WEB
+  WALK_IN
+}
+
 model Clinic {
   id                  String         @id @default(uuid()) @db.Uuid
   name                String
