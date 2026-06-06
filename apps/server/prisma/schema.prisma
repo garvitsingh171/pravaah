@@ -93,17 +93,18 @@ model Clinic {
 }
 
 model User {
-  id          String     @id @default(uuid()) @db.Uuid
-  clerkUserId String     @unique
-  fullName    String
-  email       String     @unique
-  phone       String?
-  role        UserRole   @default(STAFF)
-  status      UserStatus @default(INVITED)
-  clinicId    String?    @db.Uuid
-  clinic      Clinic?    @relation(fields: [clinicId], references: [id], onDelete: SetNull)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id                  String        @id @default(uuid()) @db.Uuid
+  clerkUserId         String        @unique
+  fullName            String
+  email               String        @unique
+  phone               String?
+  role                UserRole      @default(STAFF)
+  status              UserStatus    @default(INVITED)
+  clinicId            String?       @db.Uuid
+  clinic              Clinic?       @relation(fields: [clinicId], references: [id], onDelete: SetNull)
+  createdAppointments Appointment[] @relation("AppointmentCreatedBy")
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
   @@index([clinicId])
   @@index([role])
@@ -123,6 +124,7 @@ model Doctor {
   experienceYears    Int?
   isActive           Boolean        @default(true)
   doctorClinics      DoctorClinic[]
+  appointments       Appointment[]
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 
@@ -195,4 +197,31 @@ model PatientClinic {
   @@index([patientId])
   @@index([isActive])
   @@map("patient_clinics")
+}
+
+model Appointment {
+  id              String            @id @default(uuid()) @db.Uuid
+  clinicId        String            @db.Uuid
+  doctorId        String            @db.Uuid
+  patientId       String            @db.Uuid
+  createdByUserId String            @db.Uuid
+  scheduledAt     DateTime
+  durationMinutes Int               @default(15)
+  status          AppointmentStatus @default(SCHEDULED)
+  bookingSource   BookingSource     @default(RECEPTION)
+  reason          String?
+  notes           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  clinic    Clinic  @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  doctor    Doctor  @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  createdBy User    @relation("AppointmentCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([clinicId, scheduledAt])
+  @@index([clinicId, doctorId, scheduledAt])
+  @@index([clinicId, patientId, scheduledAt])
+  @@index([clinicId, status])
+  @@map("appointments")
 }
