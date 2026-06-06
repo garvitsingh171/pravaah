@@ -164,9 +164,10 @@ model Patient {
   emergencyContactPhone String?
   isActive              Boolean   @default(true)
   createdAt             DateTime  @default(now())
+  createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  clinicLinks PatientClinic[]
+  patientClinics        PatientClinic[]
 
   @@index([phone])
   @@index([fullName])
