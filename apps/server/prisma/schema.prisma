@@ -83,8 +83,7 @@ model Clinic {
   isActive            Boolean         @default(true)
   users               User[]
   doctorClinics       DoctorClinic[]
-  patientLinks        PatientClinic[]
-  appointments        Appointment[]
+  patientClinics      PatientClinic[]
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
 
@@ -167,13 +166,14 @@ model Patient {
   emergencyContactPhone String?
   isActive              Boolean   @default(true)
   createdAt             DateTime  @default(now())
+  createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  clinicLinks  PatientClinic[]
-  appointments Appointment[]
+  patientClinics        PatientClinic[]
 
   @@index([phone])
   @@index([fullName])
+  @@index([isActive])
   @@map("patients")
 }
 
@@ -190,13 +190,12 @@ model PatientClinic {
   isActive             Boolean   @default(true)
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
-
-  patient Patient @relation(fields: [patientId], references: [id], onDelete: Restrict)
-  clinic  Clinic  @relation(fields: [clinicId], references: [id], onDelete: Restrict)
-
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  clinic  Clinic  @relation(fields: [clinicId], references: [id], onDelete: Cascade)
   @@unique([patientId, clinicId])
   @@index([clinicId])
   @@index([patientId])
+  @@index([isActive])
   @@map("patient_clinics")
 }
 
