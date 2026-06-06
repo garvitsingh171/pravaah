@@ -171,6 +171,7 @@ model Patient {
 
   @@index([phone])
   @@index([fullName])
+  @@index([isActive])
   @@map("patients")
 }
 
