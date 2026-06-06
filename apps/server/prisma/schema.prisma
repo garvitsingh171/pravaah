@@ -64,27 +64,28 @@ enum BookingSource {
 }
 
 model Clinic {
-  id                  String         @id @default(uuid()) @db.Uuid
+  id                  String          @id @default(uuid()) @db.Uuid
   name                String
-  slug                String         @unique
+  slug                String          @unique
   phone               String?
   email               String?
   addressLine1        String?
   addressLine2        String?
   city                String?
   state               String?
-  country             String         @default("India")
+  country             String          @default("India")
   pincode             String?
-  timezone            String         @default("Asia/Kolkata")
-  openingTime         String         @default("09:00")
-  closingTime         String         @default("18:00")
-  slotDurationMinutes Int            @default(15)
-  bufferMinutes       Int            @default(0)
-  isActive            Boolean        @default(true)
+  timezone            String          @default("Asia/Kolkata")
+  openingTime         String          @default("09:00")
+  closingTime         String          @default("18:00")
+  slotDurationMinutes Int             @default(15)
+  bufferMinutes       Int             @default(0)
+  isActive            Boolean         @default(true)
   users               User[]
   doctorClinics       DoctorClinic[]
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
+  patientLinks        PatientClinic[]
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
 
   @@index([isActive])
   @@index([city])
@@ -147,4 +148,50 @@ model DoctorClinic {
   @@index([clinicId])
   @@index([isActive])
   @@map("doctor_clinics")
+}
+
+model Patient {
+  id                    String    @id @default(uuid()) @db.Uuid
+  fullName              String
+  phone                 String
+  email                 String?
+  gender                Gender?
+  dateOfBirth           DateTime?
+  age                   Int?
+  address               String?
+  city                  String?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  isActive              Boolean   @default(true)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  clinicLinks PatientClinic[]
+
+  @@index([phone])
+  @@index([fullName])
+  @@map("patients")
+}
+
+model PatientClinic {
+  id                   String    @id @default(uuid()) @db.Uuid
+  patientId            String    @db.Uuid
+  clinicId             String    @db.Uuid
+  totalAppointments    Int       @default(0)
+  totalNoShows         Int       @default(0)
+  totalLateArrivals    Int       @default(0)
+  lastVisitAt          DateTime?
+  notes                String?
+  distanceFromClinicKm Decimal?  @db.Decimal(6, 2)
+  isActive             Boolean   @default(true)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  clinic  Clinic  @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+
+  @@unique([patientId, clinicId])
+  @@index([clinicId])
+  @@index([patientId])
+  @@map("patient_clinics")
 }
