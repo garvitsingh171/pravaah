@@ -219,5 +219,9 @@ model Appointment {
   patient   Patient @relation(fields: [patientId], references: [id], onDelete: Restrict)
   createdBy User    @relation("AppointmentCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
 
+  @@index([clinicId, scheduledAt])
+  @@index([clinicId, doctorId, scheduledAt])
+  @@index([clinicId, patientId, scheduledAt])
+  @@index([clinicId, status])
   @@map("appointments")
 }
