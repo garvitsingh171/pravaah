@@ -64,28 +64,31 @@ enum BookingSource {
 }
 
 model Clinic {
-  id                  String          @id @default(uuid()) @db.Uuid
+  id                  String   @id @default(uuid()) @db.Uuid
   name                String
-  slug                String          @unique
+  slug                String   @unique
   phone               String?
   email               String?
   addressLine1        String?
   addressLine2        String?
   city                String?
   state               String?
-  country             String          @default("India")
+  country             String   @default("India")
   pincode             String?
-  timezone            String          @default("Asia/Kolkata")
-  openingTime         String          @default("09:00")
-  closingTime         String          @default("18:00")
-  slotDurationMinutes Int             @default(15)
-  bufferMinutes       Int             @default(0)
-  isActive            Boolean         @default(true)
-  users               User[]
-  doctorClinics       DoctorClinic[]
-  patientClinics      PatientClinic[]
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
+  timezone            String   @default("Asia/Kolkata")
+  openingTime         String   @default("09:00")
+  closingTime         String   @default("18:00")
+  slotDurationMinutes Int      @default(15)
+  bufferMinutes       Int      @default(0)
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  users          User[]
+  doctorClinics  DoctorClinic[]
+  patientClinics PatientClinic[]
+  appointments   Appointment[]
+  queueEntries   QueueEntry[]
 
   @@index([isActive])
   @@index([city])
@@ -93,18 +96,19 @@ model Clinic {
 }
 
 model User {
-  id                  String        @id @default(uuid()) @db.Uuid
-  clerkUserId         String        @unique
-  fullName            String
-  email               String        @unique
-  phone               String?
-  role                UserRole      @default(STAFF)
-  status              UserStatus    @default(INVITED)
-  clinicId            String?       @db.Uuid
+  id          String     @id @default(uuid()) @db.Uuid
+  clerkUserId String     @unique
+  fullName    String
+  email       String     @unique
+  phone       String?
+  role        UserRole   @default(STAFF)
+  status      UserStatus @default(INVITED)
+  clinicId    String?    @db.Uuid
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
   clinic              Clinic?       @relation(fields: [clinicId], references: [id], onDelete: SetNull)
   createdAppointments Appointment[] @relation("AppointmentCreatedBy")
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
 
   @@index([clinicId])
   @@index([role])
@@ -113,7 +117,7 @@ model User {
 }
 
 model Doctor {
-  id                 String         @id @default(uuid()) @db.Uuid
+  id                 String   @id @default(uuid()) @db.Uuid
   fullName           String
   specialization     String?
   qualification      String?
@@ -122,11 +126,13 @@ model Doctor {
   email              String?
   gender             Gender?
   experienceYears    Int?
-  isActive           Boolean        @default(true)
-  doctorClinics      DoctorClinic[]
-  appointments       Appointment[]
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  doctorClinics DoctorClinic[]
+  appointments  Appointment[]
+  queueEntries  QueueEntry[]
 
   @@index([isActive])
   @@index([specialization])
@@ -140,10 +146,11 @@ model DoctorClinic {
   isActive        Boolean  @default(true)
   displayName     String?
   consultationFee Decimal? @db.Decimal(10, 2)
-  doctor          Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-  clinic          Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
 
   @@unique([doctorId, clinicId])
   @@index([doctorId])
@@ -166,10 +173,11 @@ model Patient {
   emergencyContactPhone String?
   isActive              Boolean   @default(true)
   createdAt             DateTime  @default(now())
-  createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  patientClinics        PatientClinic[]
+  patientClinics PatientClinic[]
+  appointments   Appointment[]
+  queueEntries   QueueEntry[]
 
   @@index([phone])
   @@index([fullName])
@@ -190,8 +198,10 @@ model PatientClinic {
   isActive             Boolean   @default(true)
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
+
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
   clinic  Clinic  @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
   @@unique([patientId, clinicId])
   @@index([clinicId])
   @@index([patientId])
@@ -214,14 +224,40 @@ model Appointment {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
-  clinic    Clinic  @relation(fields: [clinicId], references: [id], onDelete: Restrict)
-  doctor    Doctor  @relation(fields: [doctorId], references: [id], onDelete: Restrict)
-  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Restrict)
-  createdBy User    @relation("AppointmentCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  clinic     Clinic      @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  doctor     Doctor      @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+  patient    Patient     @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  createdBy  User        @relation("AppointmentCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  queueEntry QueueEntry?
 
   @@index([clinicId, scheduledAt])
   @@index([clinicId, doctorId, scheduledAt])
   @@index([clinicId, patientId, scheduledAt])
   @@index([clinicId, status])
   @@map("appointments")
+}
+
+model QueueEntry {
+  id            String      @id @default(uuid()) @db.Uuid
+  clinicId      String      @db.Uuid
+  appointmentId String      @unique @db.Uuid
+  doctorId      String      @db.Uuid
+  patientId     String      @db.Uuid
+  position      Int
+  status        QueueStatus @default(WAITING)
+  queuedAt      DateTime    @default(now())
+  calledAt      DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  clinic      Clinic      @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Restrict)
+  doctor      Doctor      @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+  patient     Patient     @relation(fields: [patientId], references: [id], onDelete: Restrict)
+
+  @@index([clinicId, status])
+  @@index([clinicId, doctorId, position])
+  @@index([clinicId, queuedAt])
+  @@map("queue_entries")
 }
