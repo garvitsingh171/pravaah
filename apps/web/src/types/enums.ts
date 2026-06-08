@@ -24,8 +24,7 @@ export const AppointmentStatus = {
     NO_SHOW: 'NO_SHOW',
 } as const;
 
-export type AppointmentStatus =
-    (typeof AppointmentStatus)[keyof typeof AppointmentStatus];
+export type AppointmentStatus = (typeof AppointmentStatus)[keyof typeof AppointmentStatus];
 
 export const QueueStatus = {
     WAITING: 'WAITING',
@@ -36,8 +35,7 @@ export const QueueStatus = {
     NO_SHOW: 'NO_SHOW',
 } as const;
 
-export type QueueStatus =
-    (typeof QueueStatus)[keyof typeof QueueStatus];
+export type QueueStatus = (typeof QueueStatus)[keyof typeof QueueStatus];
 
 export const RiskLevel = {
     LOW: 'LOW',
@@ -45,8 +43,7 @@ export const RiskLevel = {
     HIGH: 'HIGH',
 } as const;
 
-export type RiskLevel =
-    (typeof RiskLevel)[keyof typeof RiskLevel];
+export type RiskLevel = (typeof RiskLevel)[keyof typeof RiskLevel];
 
 export const BookingSource = {
     RECEPTION: 'RECEPTION',
@@ -55,5 +52,4 @@ export const BookingSource = {
     WALK_IN: 'WALK_IN',
 } as const;
 
-export type BookingSource =
-    (typeof BookingSource)[keyof typeof BookingSource];
+export type BookingSource = (typeof BookingSource)[keyof typeof BookingSource];

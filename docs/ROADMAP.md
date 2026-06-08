@@ -120,15 +120,15 @@ Create the schema-first foundation for the backend.
 - connect Prisma to Neon PostgreSQL
 - create initial Prisma schema
 - model final MVP entities:
-  - User
-  - Clinic
-  - Doctor
-  - DoctorClinic
-  - Patient
-  - PatientClinic
-  - Appointment
-  - QueueEntry
-  - NoShowPrediction
+    - User
+    - Clinic
+    - Doctor
+    - DoctorClinic
+    - Patient
+    - PatientClinic
+    - Appointment
+    - QueueEntry
+    - NoShowPrediction
 - add enums
 - add indexes and constraints
 - add environment loading and validation

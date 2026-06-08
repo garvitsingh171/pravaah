@@ -70,11 +70,11 @@ When docs conflict:
 
 1. Create or pick a clear issue.
 2. Confirm the issue has:
-   - goal
-   - scope
-   - tasks
-   - acceptance criteria
-   - notes/constraints
+    - goal
+    - scope
+    - tasks
+    - acceptance criteria
+    - notes/constraints
 3. Create a focused branch.
 4. Make one coherent change.
 5. Run formatting and checks.

@@ -380,14 +380,14 @@ Example output:
 
 ```json
 {
-  "riskScore": 72,
-  "riskLevel": "HIGH",
-  "reasons": [
-    "Patient has previous no-shows",
-    "Patient lives far from the clinic",
-    "Appointment was booked on the same day"
-  ],
-  "modelVersion": "starter-rule-v1"
+    "riskScore": 72,
+    "riskLevel": "HIGH",
+    "reasons": [
+        "Patient has previous no-shows",
+        "Patient lives far from the clinic",
+        "Appointment was booked on the same day"
+    ],
+    "modelVersion": "starter-rule-v1"
 }
 ```
 
@@ -467,11 +467,11 @@ Example:
 
 ```json
 {
-  "success": false,
-  "error": {
-    "code": "APPOINTMENT_SLOT_CONFLICT",
-    "message": "This doctor already has an appointment in this time slot."
-  }
+    "success": false,
+    "error": {
+        "code": "APPOINTMENT_SLOT_CONFLICT",
+        "message": "This doctor already has an appointment in this time slot."
+    }
 }
 ```
 

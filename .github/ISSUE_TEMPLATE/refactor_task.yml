@@ -3,40 +3,40 @@ description: Create a refactor task for Pravaah
 title: '[Refactor] '
 labels: ['type: refactor']
 body:
-  - type: textarea
-    id: overview
-    attributes:
-      label: Overview
-      description: What code or structure should be improved without changing behavior?
-    validations:
-      required: true
+    - type: textarea
+      id: overview
+      attributes:
+          label: Overview
+          description: What code or structure should be improved without changing behavior?
+      validations:
+          required: true
 
-  - type: textarea
-    id: tasks
-    attributes:
-      label: Tasks
-      description: List the refactor steps.
-      placeholder: |
-        - [ ] Add item
-        - [ ] Add item
-        - [ ] Add item
-    validations:
-      required: true
+    - type: textarea
+      id: tasks
+      attributes:
+          label: Tasks
+          description: List the refactor steps.
+          placeholder: |
+              - [ ] Add item
+              - [ ] Add item
+              - [ ] Add item
+      validations:
+          required: true
 
-  - type: textarea
-    id: acceptance-criteria
-    attributes:
-      label: Acceptance Criteria
-      description: How will we know the refactor is complete?
-      placeholder: |
-        - [ ] Add item
-        - [ ] Add item
-        - [ ] Add item
-    validations:
-      required: true
+    - type: textarea
+      id: acceptance-criteria
+      attributes:
+          label: Acceptance Criteria
+          description: How will we know the refactor is complete?
+          placeholder: |
+              - [ ] Add item
+              - [ ] Add item
+              - [ ] Add item
+      validations:
+          required: true
 
-  - type: textarea
-    id: notes
-    attributes:
-      label: Notes
-      description: Add context, risks, or files to review.
+    - type: textarea
+      id: notes
+      attributes:
+          label: Notes
+          description: Add context, risks, or files to review.

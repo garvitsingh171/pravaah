@@ -1,9 +1,7 @@
-import AppLayout from "./app/AppLayout";
+import AppLayout from './app/AppLayout';
 
 function App() {
-    return (
-      <AppLayout />
-    );
+    return <AppLayout />;
 }
 
 export default App;

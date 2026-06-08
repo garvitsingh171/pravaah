@@ -3,40 +3,40 @@ description: Create a feature task for Pravaah
 title: '[Feature] '
 labels: ['type: feature']
 body:
-  - type: textarea
-    id: overview
-    attributes:
-      label: Overview
-      description: What feature or capability should be added?
-    validations:
-      required: true
+    - type: textarea
+      id: overview
+      attributes:
+          label: Overview
+          description: What feature or capability should be added?
+      validations:
+          required: true
 
-  - type: textarea
-    id: tasks
-    attributes:
-      label: Tasks
-      description: Break the work into concrete tasks.
-      placeholder: |
-        - [ ] Add item
-        - [ ] Add item
-        - [ ] Add item
-    validations:
-      required: true
+    - type: textarea
+      id: tasks
+      attributes:
+          label: Tasks
+          description: Break the work into concrete tasks.
+          placeholder: |
+              - [ ] Add item
+              - [ ] Add item
+              - [ ] Add item
+      validations:
+          required: true
 
-  - type: textarea
-    id: acceptance-criteria
-    attributes:
-      label: Acceptance Criteria
-      description: How will we know this task is complete?
-      placeholder: |
-        - [ ] Add item
-        - [ ] Add item
-        - [ ] Add item
-    validations:
-      required: true
+    - type: textarea
+      id: acceptance-criteria
+      attributes:
+          label: Acceptance Criteria
+          description: How will we know this task is complete?
+          placeholder: |
+              - [ ] Add item
+              - [ ] Add item
+              - [ ] Add item
+      validations:
+          required: true
 
-  - type: textarea
-    id: notes
-    attributes:
-      label: Notes
-      description: Add technical notes, links, or implementation context.
+    - type: textarea
+      id: notes
+      attributes:
+          label: Notes
+          description: Add technical notes, links, or implementation context.

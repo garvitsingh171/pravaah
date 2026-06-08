@@ -3,68 +3,68 @@ description: Report a bug or unexpected behavior in Pravaah
 title: '[Bug] '
 labels: ['type: bug']
 body:
-  - type: textarea
-    id: overview
-    attributes:
-      label: Overview
-      description: Describe the bug in one or two sentences.
-    validations:
-      required: true
+    - type: textarea
+      id: overview
+      attributes:
+          label: Overview
+          description: Describe the bug in one or two sentences.
+      validations:
+          required: true
 
-  - type: textarea
-    id: steps-to-reproduce
-    attributes:
-      label: Steps to Reproduce
-      description: List the steps that trigger the bug.
-      placeholder: |
-        1. Go to ...
-        2. Click on ...
-        3. See the issue ...
-    validations:
-      required: true
+    - type: textarea
+      id: steps-to-reproduce
+      attributes:
+          label: Steps to Reproduce
+          description: List the steps that trigger the bug.
+          placeholder: |
+              1. Go to ...
+              2. Click on ...
+              3. See the issue ...
+      validations:
+          required: true
 
-  - type: textarea
-    id: expected-behavior
-    attributes:
-      label: Expected Behavior
-      description: What should happen instead?
-    validations:
-      required: true
+    - type: textarea
+      id: expected-behavior
+      attributes:
+          label: Expected Behavior
+          description: What should happen instead?
+      validations:
+          required: true
 
-  - type: textarea
-    id: actual-behavior
-    attributes:
-      label: Actual Behavior
-      description: What happened instead?
-    validations:
-      required: true
+    - type: textarea
+      id: actual-behavior
+      attributes:
+          label: Actual Behavior
+          description: What happened instead?
+      validations:
+          required: true
 
-  - type: textarea
-    id: tasks
-    attributes:
-      label: Tasks
-      description: List investigation or fix tasks.
-      placeholder: |
-        - [ ] Add item
-        - [ ] Add item
-        - [ ] Add item
-    validations:
-      required: true
+    - type: textarea
+      id: tasks
+      attributes:
+          label: Tasks
+          description: List investigation or fix tasks.
+          placeholder: |
+              - [ ] Add item
+              - [ ] Add item
+              - [ ] Add item
+      validations:
+          required: true
 
-  - type: textarea
-    id: acceptance-criteria
-    attributes:
-      label: Acceptance Criteria
-      description: How will we know the bug is resolved?
-      placeholder: |
-        - [ ] Add item
-        - [ ] Add item
-        - [ ] Add item
-    validations:
-      required: true
+    - type: textarea
+      id: acceptance-criteria
+      attributes:
+          label: Acceptance Criteria
+          description: How will we know the bug is resolved?
+          placeholder: |
+              - [ ] Add item
+              - [ ] Add item
+              - [ ] Add item
+      validations:
+          required: true
 
-  - type: textarea
-    id: notes
-    attributes:
-      label: Notes
-      description: Add logs, screenshots, environment details, or related links.
+    - type: textarea
+      id: notes
+      attributes:
+          label: Notes
+          description: Add logs, screenshots, environment details, or related links.

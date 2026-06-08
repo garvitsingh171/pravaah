@@ -1,5 +1,5 @@
-import Sidebar from "../components/layout/Sidebar";
-import Topbar from "../components/layout/Topbar";
+import Sidebar from '../components/layout/Sidebar';
+import Topbar from '../components/layout/Topbar';
 
 function AppLayout() {
     return (
@@ -21,14 +21,16 @@ function AppLayout() {
                             </h1>
 
                             <p className="mt-4 max-w-2xl text-slate-600">
-                                This main content area will later hold clinic staff workflows such as dashboard, clinic settings, doctor management, patient management, appointments, and queue screens.
+                                This main content area will later hold clinic staff workflows such
+                                as dashboard, clinic settings, doctor management, patient
+                                management, appointments, and queue screens.
                             </p>
                         </section>
                     </main>
                 </div>
             </div>
         </div>
-    )
+    );
 }
 
 export default AppLayout;
