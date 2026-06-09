@@ -6,9 +6,9 @@ import type { CreateClinicInput } from './clinic.types.js';
 
 export async function createClinicController(req: Request, res: Response) {
     try {
-        const validatedData = createClinicSchema.parse(req.body);
+        const clinicData = req.body as CreateClinicInput;
 
-        const clinic = await clinicService.createClinic(validatedData);
+        const clinic = await clinicService.createClinic(clinicData);
 
         return res.status(201).json({
             success: true,
