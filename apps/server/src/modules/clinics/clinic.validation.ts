@@ -21,7 +21,7 @@ export const createClinicSchema = z.object({
     country: z.string().trim().default('India'),
     pincode: z.string().trim().optional(),
 
-    timezone: z.string().trim().default('Aisa/Kolkata'),
+    timezone: z.string().trim().default('Asia/Kolkata'),
 
     openingTime: z.string().trim().optional(),
     closingTime: z.string().trim().optional(),
