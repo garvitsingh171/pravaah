@@ -28,10 +28,7 @@ const assignParsedData = (req: Request, source: RequestValidationSource, data: u
 
     if (source === 'params') {
         req.params = data as Request['params'];
-        return;
     }
-
-    req.query = data as Request['query'];
 };
 
 /**
