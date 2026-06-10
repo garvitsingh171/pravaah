@@ -1,8 +1,12 @@
-import type { Request, Response } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { clinicService } from './clinic.service.js';
 import type { CreateClinicInput, UpdateClinicInput } from './clinic.types.js';
 
-export async function createClinicController(req: Request, res: Response): Promise<void> {
+export async function createClinicController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
     try {
         const clinicData = req.body as CreateClinicInput;
 
@@ -15,48 +19,21 @@ export async function createClinicController(req: Request, res: Response): Promi
                 clinic,
             },
         });
-        return;
     } catch (error) {
-        if (error instanceof Error && error.name === 'CLINIC_SLUG_ALREADY_EXISTS') {
-            res.status(409).json({
-                success: false,
-                error: {
-                    code: 'CLINIC_SLUG_ALREADY_EXISTS',
-                    message: 'Clinic slug already exists',
-                },
-            });
-            return;
-        }
-
-        res.status(500).json({
-            success: false,
-            error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'Something went wrong while creating clinic',
-            },
-        });
-        return;
+        next(error);
     }
 }
 
-export async function updateClinicController(req: Request, res: Response): Promise<void> {
+export async function updateClinicController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
     try {
-        const clinicIdParam = req.params.clinicId;
-
-        if (typeof clinicIdParam !== 'string' || clinicIdParam.length === 0) {
-            res.status(400).json({
-                success: false,
-                error: {
-                    code: 'CLINIC_ID_REQUIRED',
-                    message: 'Clinic id is required',
-                },
-            });
-            return;
-        }
-
+        const { clinicId } = req.params as { clinicId: string };
         const clinicData = req.body as UpdateClinicInput;
 
-        const clinic = await clinicService.updateClinic(clinicIdParam, clinicData);
+        const clinic = await clinicService.updateClinic(clinicId, clinicData);
 
         res.status(200).json({
             success: true,
@@ -65,37 +42,7 @@ export async function updateClinicController(req: Request, res: Response): Promi
                 clinic,
             },
         });
-        return;
     } catch (error) {
-        if (error instanceof Error && error.name === 'CLINIC_NOT_FOUND') {
-            res.status(404).json({
-                success: false,
-                error: {
-                    code: 'CLINIC_NOT_FOUND',
-                    message: 'Clinic not found',
-                },
-            });
-            return;
-        }
-
-        if (error instanceof Error && error.name === 'CLINIC_SLUG_ALREADY_EXISTS') {
-            res.status(409).json({
-                success: false,
-                error: {
-                    code: 'CLINIC_SLUG_ALREADY_EXISTS',
-                    message: 'Clinic slug already exists',
-                },
-            });
-            return;
-        }
-
-        res.status(500).json({
-            success: false,
-            error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'Something went wrong while updating clinic',
-            },
-        });
-        return;
+        next(error);
     }
 }
