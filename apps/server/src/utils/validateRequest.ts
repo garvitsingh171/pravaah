@@ -28,27 +28,28 @@ const assignParsedData = (req: Request, source: RequestValidationSource, data: u
 
     if (source === 'params') {
         req.params = data as Request['params'];
+        return;
+    }
+
+    if (source === 'query') {
+        req.query = data as Request['query'];
     }
 };
 
 /**
  * Reusable request validation middleware.
  *
- * Example usage inside a future feature module:
+ * Example usage:
  *
- * router.post(
- *   "/clinics/:clinicId/appointments",
+ * router.patch(
+ *   "/clinics/:clinicId",
  *   validateRequest({
  *     params: z.object({
  *       clinicId: z.string().uuid(),
  *     }),
- *     body: z.object({
- *       patientId: z.string().uuid(),
- *       doctorId: z.string().uuid(),
- *       scheduledAt: z.string().datetime(),
- *     }),
+ *     body: updateClinicSchema,
  *   }),
- *   createAppointmentController,
+ *   updateClinicController,
  * );
  */
 export const validateRequest = (schemas: RequestValidationSchemas): RequestHandler => {
