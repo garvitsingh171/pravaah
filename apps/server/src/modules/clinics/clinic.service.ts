@@ -24,11 +24,7 @@ export const clinicService = {
             const clinicWithSameSlug = await clinicRepository.findBySlug(input.slug);
 
             if (clinicWithSameSlug) {
-                throw new AppError(
-                    409,
-                    'CLINIC_SLUG_ALREADY_EXISTS',
-                    'Clinic slug already exists'
-                );
+                throw new AppError(409, 'CLINIC_SLUG_ALREADY_EXISTS', 'Clinic slug already exists');
             }
         }
 

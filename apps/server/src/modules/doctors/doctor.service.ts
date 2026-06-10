@@ -1,0 +1,15 @@
+import { AppError } from '../../utils/AppError.js';
+import { doctorRepository } from './doctor.repository.js';
+import type { CreateDoctorInput } from './doctor.types.js';
+
+export const doctorService = {
+    async createDoctor(clinicId: string, input: CreateDoctorInput) {
+        const existingClinic = await doctorRepository.findClinicById(clinicId);
+
+        if (!existingClinic) {
+            throw new AppError(404, 'CLINIC_NOT_FOUND', 'Clinic not found');
+        }
+
+        return doctorRepository.createDoctorWithClinicLink(clinicId, input);
+    },
+};
