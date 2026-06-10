@@ -81,3 +81,14 @@ export const updateClinicSchema = z
     });
 
 export type UpdateClinicSchemaInput = z.infer<typeof updateClinicSchema>;
+
+export const clinicIdParamsSchema = z.object({
+    clinicId: z
+        .string()
+        .regex(
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+            'Invalid clinic id'
+        ),
+});
+
+export type ClinicIdParamsInput = z.infer<typeof clinicIdParamsSchema>;

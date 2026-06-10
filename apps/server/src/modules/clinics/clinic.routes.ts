@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { validateRequest } from '../../utils/validateRequest.js';
 import { createClinicController, updateClinicController } from './clinic.controller.js';
-import { createClinicSchema, updateClinicSchema } from './clinic.validation.js';
+import { createClinicSchema, updateClinicSchema, clinicIdParamsSchema } from './clinic.validation.js';
 
 const clinicRouter = Router();
 
@@ -9,7 +9,10 @@ clinicRouter.post('/', validateRequest({ body: createClinicSchema }), createClin
 
 clinicRouter.patch(
     '/:clinicId',
-    validateRequest({ body: updateClinicSchema }),
+    validateRequest({
+        params: clinicIdParamsSchema,
+        body: updateClinicSchema,
+    }),
     updateClinicController
 );
 
