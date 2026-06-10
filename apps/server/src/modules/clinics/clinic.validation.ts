@@ -1,30 +1,30 @@
 import { z } from 'zod';
 
 export const createClinicSchema = z.object({
-    name: z.string().trim().min(2, 'Clinic name must be at least 2 characters long'),
+    name: z.string().min(2, 'Clinic name must be at least 2 characters long'),
+
     slug: z
         .string()
-        .trim()
         .min(2, 'Clinic slug must be at least 2 characters long')
         .regex(
             /^[a-z0-9-]+$/,
             'Clinic slug can only contain lowercase letters, numbers, and hyphens'
         ),
 
-    phone: z.string().trim().optional(),
-    email: z.string().trim().email('Invalid clinic email').optional(),
+    phone: z.string().optional(),
+    email: z.string().email('Invalid clinic email').optional(),
 
-    addressLine1: z.string().trim().optional(),
-    addressLine2: z.string().trim().optional(),
-    city: z.string().trim().optional(),
-    state: z.string().trim().optional(),
-    country: z.string().trim().default('India'),
-    pincode: z.string().trim().optional(),
+    addressLine1: z.string().optional(),
+    addressLine2: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    country: z.string().default('India'),
+    pincode: z.string().optional(),
 
-    timezone: z.string().trim().default('Asia/Kolkata'),
+    timezone: z.string().default('Asia/Kolkata'),
 
-    openingTime: z.string().trim().optional(),
-    closingTime: z.string().trim().optional(),
+    openingTime: z.string().default('09:00'),
+    closingTime: z.string().default('18:00'),
 
     slotDurationMinutes: z
         .number()
@@ -36,3 +36,48 @@ export const createClinicSchema = z.object({
 });
 
 export type CreateClinicSchemaInput = z.infer<typeof createClinicSchema>;
+
+export const updateClinicSchema = z
+    .object({
+        name: z.string().min(2, 'Clinic name must be at least 2 characters long').optional(),
+
+        slug: z
+            .string()
+            .min(2, 'Clinic slug must be at least 2 characters long')
+            .regex(
+                /^[a-z0-9-]+$/,
+                'Clinic slug can only contain lowercase letters, numbers, and hyphens'
+            )
+            .optional(),
+
+        phone: z.string().optional(),
+        email: z.string().email('Invalid clinic email').optional(),
+
+        addressLine1: z.string().optional(),
+        addressLine2: z.string().optional(),
+        city: z.string().optional(),
+        state: z.string().optional(),
+        country: z.string().optional(),
+        pincode: z.string().optional(),
+
+        timezone: z.string().optional(),
+
+        openingTime: z.string().optional(),
+        closingTime: z.string().optional(),
+
+        slotDurationMinutes: z
+            .number()
+            .int()
+            .positive('Slot duration must be a positive number')
+            .optional(),
+
+        bufferMinutes: z.number().int().min(0, 'Buffer minutes cannot be negative').optional(),
+
+        isActive: z.boolean().optional(),
+    })
+    .strict()
+    .refine((data) => Object.keys(data).length > 0, {
+        message: 'At least one clinic field is required for update',
+    });
+
+export type UpdateClinicSchemaInput = z.infer<typeof updateClinicSchema>;
