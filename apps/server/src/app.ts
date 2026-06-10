@@ -1,6 +1,6 @@
-import cors from 'cors';
 import express from 'express';
-
+import cors from 'cors';
+import { errorHandler } from './middleware/errorHandler.js'
 import { env } from './config/env.js';
 import { healthRouter } from './modules/health/health.routes.js';
 import { clinicRouter } from './modules/clinics/clinic.routes.js';
