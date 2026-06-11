@@ -21,7 +21,11 @@ export const errorHandler: ErrorRequestHandler = (error: HttpError, _req, res, _
         return;
     }
 
-    if (error instanceof SyntaxError && error.status === 400 && error.type === 'entity.parse.failed') {
+    if (
+        error instanceof SyntaxError &&
+        error.status === 400 &&
+        error.type === 'entity.parse.failed'
+    ) {
         res.status(400).json({
             success: false,
             error: {

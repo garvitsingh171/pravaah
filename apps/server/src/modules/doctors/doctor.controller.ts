@@ -24,3 +24,25 @@ export async function createDoctorController(
         next(error);
     }
 }
+
+export async function listDoctorsByClinicController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { clinicId } = req.params as { clinicId: string };
+
+        const doctors = await doctorService.listDoctorsByClinic(clinicId);
+
+        res.status(200).json({
+            success: true,
+            message: 'Doctors fetched successfully',
+            data: {
+                doctors,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+}

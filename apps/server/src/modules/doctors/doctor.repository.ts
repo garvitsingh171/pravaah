@@ -41,4 +41,32 @@ export const doctorRepository = {
             return doctor;
         });
     },
+
+    findDoctorLinksByClinicId(clinicId: string) {
+        return prisma.doctorClinic.findMany({
+            where: {
+                clinicId,
+            },
+            select: {
+                id: true,
+                isActive: true,
+                doctor: {
+                    select: {
+                        id: true,
+                        fullName: true,
+                        specialization: true,
+                        qualification: true,
+                        registrationNumber: true,
+                        phone: true,
+                        email: true,
+                        gender: true,
+                        experienceYears: true,
+                        isActive: true,
+                        createdAt: true,
+                        updatedAt: true,
+                    },
+                },
+            },
+        });
+    },
 };
