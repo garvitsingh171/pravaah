@@ -1,3 +1,5 @@
-import type { CreateDoctorSchemaInput } from './doctor.validation.js';
+import type { CreateDoctorSchemaInput, UpdateDoctorSchemaInput } from './doctor.validation.js';
 
 export type CreateDoctorInput = CreateDoctorSchemaInput;
+
+export type UpdateDoctorInput = UpdateDoctorSchemaInput;
