@@ -86,14 +86,14 @@ Pravaah should stay feature-module based.
 
 ## File Responsibility Summary
 
-| File | Responsibility |
-| --- | --- |
-| `*.routes.ts` | Defines URL, HTTP method, validation middleware, and controller connection. |
+| File              | Responsibility                                                                             |
+| ----------------- | ------------------------------------------------------------------------------------------ |
+| `*.routes.ts`     | Defines URL, HTTP method, validation middleware, and controller connection.                |
 | `*.controller.ts` | Reads request data, calls service, sends success response, passes errors to `next(error)`. |
-| `*.service.ts` | Contains business rules, checks, and throws `AppError` when rules fail. |
-| `*.repository.ts` | Contains only Prisma/database operations. |
-| `*.validation.ts` | Contains Zod schemas for body, params, and query validation. |
-| `*.types.ts` | Exports TypeScript types inferred from validation schemas. |
+| `*.service.ts`    | Contains business rules, checks, and throws `AppError` when rules fail.                    |
+| `*.repository.ts` | Contains only Prisma/database operations.                                                  |
+| `*.validation.ts` | Contains Zod schemas for body, params, and query validation.                               |
+| `*.types.ts`      | Exports TypeScript types inferred from validation schemas.                                 |
 
 ---
 
@@ -136,11 +136,11 @@ Use this format:
 
 ```json
 {
-  "success": true,
-  "message": "Clinic created successfully",
-  "data": {
-    "clinic": {}
-  }
+    "success": true,
+    "message": "Clinic created successfully",
+    "data": {
+        "clinic": {}
+    }
 }
 ```
 
@@ -148,11 +148,11 @@ For doctor:
 
 ```json
 {
-  "success": true,
-  "message": "Doctor created successfully",
-  "data": {
-    "doctor": {}
-  }
+    "success": true,
+    "message": "Doctor created successfully",
+    "data": {
+        "doctor": {}
+    }
 }
 ```
 
@@ -160,8 +160,8 @@ Do not return this:
 
 ```json
 {
-  "success": true,
-  "data": {}
+    "success": true,
+    "data": {}
 }
 ```
 
@@ -175,11 +175,11 @@ Use this format:
 
 ```json
 {
-  "success": false,
-  "error": {
-    "code": "CLINIC_NOT_FOUND",
-    "message": "Clinic not found"
-  }
+    "success": false,
+    "error": {
+        "code": "CLINIC_NOT_FOUND",
+        "message": "Clinic not found"
+    }
 }
 ```
 
@@ -250,7 +250,11 @@ export const errorHandler: ErrorRequestHandler = (error: HttpError, _req, res, _
         return;
     }
 
-    if (error instanceof SyntaxError && error.status === 400 && error.type === 'entity.parse.failed') {
+    if (
+        error instanceof SyntaxError &&
+        error.status === 400 &&
+        error.type === 'entity.parse.failed'
+    ) {
         res.status(400).json({
             success: false,
             error: {
@@ -373,7 +377,11 @@ Routes should not contain:
 import { Router } from 'express';
 import { validateRequest } from '../../utils/validateRequest.js';
 import { createClinicController, updateClinicController } from './clinic.controller.js';
-import { createClinicSchema, updateClinicSchema, clinicIdParamsSchema } from './clinic.validation.js';
+import {
+    createClinicSchema,
+    updateClinicSchema,
+    clinicIdParamsSchema,
+} from './clinic.validation.js';
 
 const clinicRouter = Router();
 
@@ -582,11 +590,7 @@ export const clinicService = {
             const clinicWithSameSlug = await clinicRepository.findBySlug(input.slug);
 
             if (clinicWithSameSlug) {
-                throw new AppError(
-                    409,
-                    'CLINIC_SLUG_ALREADY_EXISTS',
-                    'Clinic slug already exists'
-                );
+                throw new AppError(409, 'CLINIC_SLUG_ALREADY_EXISTS', 'Clinic slug already exists');
             }
         }
 
@@ -819,10 +823,12 @@ Rules:
 You can define this inside each validation file for now:
 
 ```ts
-const uuidSchema = z.string().regex(
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
-    'Invalid id'
-);
+const uuidSchema = z
+    .string()
+    .regex(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+        'Invalid id'
+    );
 ```
 
 Later, this can be moved to a shared validation utility.
@@ -832,10 +838,12 @@ Later, this can be moved to a shared validation utility.
 ```ts
 import { z } from 'zod';
 
-const uuidSchema = z.string().regex(
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
-    'Invalid id'
-);
+const uuidSchema = z
+    .string()
+    .regex(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+        'Invalid id'
+    );
 
 export const createClinicSchema = z
     .object({
@@ -933,10 +941,12 @@ export type ClinicIdParamsInput = z.infer<typeof clinicIdParamsSchema>;
 ```ts
 import { z } from 'zod';
 
-const uuidSchema = z.string().regex(
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
-    'Invalid id'
-);
+const uuidSchema = z
+    .string()
+    .regex(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+        'Invalid id'
+    );
 
 export const createDoctorSchema = z
     .object({
@@ -1053,12 +1063,12 @@ Use transaction only when one API creates or updates multiple related records.
 
 Examples:
 
-| Operation | Transaction Needed? | Reason |
-| --- | --- | --- |
-| Create clinic | No | Only one main record is created. |
-| Update clinic | No | Only one main record is updated. |
-| Create doctor + DoctorClinic link | Yes | Two related records must succeed together. |
-| Book appointment + queue entry + prediction | Yes | Multiple workflow records must stay consistent. |
+| Operation                                   | Transaction Needed? | Reason                                          |
+| ------------------------------------------- | ------------------- | ----------------------------------------------- |
+| Create clinic                               | No                  | Only one main record is created.                |
+| Update clinic                               | No                  | Only one main record is updated.                |
+| Create doctor + DoctorClinic link           | Yes                 | Two related records must succeed together.      |
+| Book appointment + queue entry + prediction | Yes                 | Multiple workflow records must stay consistent. |
 
 ---
 

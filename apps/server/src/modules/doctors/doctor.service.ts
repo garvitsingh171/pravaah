@@ -12,4 +12,20 @@ export const doctorService = {
 
         return doctorRepository.createDoctorWithClinicLink(clinicId, input);
     },
+
+    async listDoctorsByClinic(clinicId: string) {
+        const existingClinic = await doctorRepository.findClinicById(clinicId);
+
+        if (!existingClinic) {
+            throw new AppError(404, 'CLINIC_NOT_FOUND', 'Clinic not found');
+        }
+
+        const doctorLinks = await doctorRepository.findDoctorLinksByClinicId(clinicId);
+
+        return doctorLinks.map((doctorLink) => ({
+            doctorClinicId: doctorLink.id,
+            clinicLinkIsActive: doctorLink.isActive,
+            ...doctorLink.doctor,
+        }));
+    },
 };
