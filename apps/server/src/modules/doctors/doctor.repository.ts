@@ -1,11 +1,31 @@
 import { prisma } from '../../config/prisma.js';
-import type { CreateDoctorInput } from './doctor.types.js';
+import type { Prisma } from '../../generated/prisma/client.js';
+import type { CreateDoctorInput, UpdateDoctorInput } from './doctor.types.js';
 
 export const doctorRepository = {
     findClinicById(id: string) {
         return prisma.clinic.findUnique({
             where: {
                 id,
+            },
+        });
+    },
+
+    findDoctorById(id: string) {
+        return prisma.doctor.findUnique({
+            where: {
+                id,
+            },
+        });
+    },
+
+    findDoctorClinicLink(clinicId: string, doctorId: string) {
+        return prisma.doctorClinic.findUnique({
+            where: {
+                doctorId_clinicId: {
+                    doctorId,
+                    clinicId,
+                },
             },
         });
     },
@@ -67,6 +87,42 @@ export const doctorRepository = {
                     },
                 },
             },
+        });
+    },
+
+    updateDoctor(id: string, data: UpdateDoctorInput) {
+        const updateData: Prisma.DoctorUpdateInput = {};
+
+        if (data.fullName !== undefined) updateData.fullName = data.fullName;
+
+        if (data.specialization !== undefined) {
+            updateData.specialization = data.specialization;
+        }
+
+        if (data.qualification !== undefined) {
+            updateData.qualification = data.qualification;
+        }
+
+        if (data.registrationNumber !== undefined) {
+            updateData.registrationNumber = data.registrationNumber;
+        }
+
+        if (data.phone !== undefined) updateData.phone = data.phone;
+        if (data.email !== undefined) updateData.email = data.email;
+
+        if (data.gender !== undefined) updateData.gender = data.gender;
+
+        if (data.experienceYears !== undefined) {
+            updateData.experienceYears = data.experienceYears;
+        }
+
+        if (data.isActive !== undefined) updateData.isActive = data.isActive;
+
+        return prisma.doctor.update({
+            where: {
+                id,
+            },
+            data: updateData,
         });
     },
 };

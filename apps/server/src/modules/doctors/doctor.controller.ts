@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { doctorService } from './doctor.service.js';
-import type { CreateDoctorInput } from './doctor.types.js';
+import type { CreateDoctorInput, UpdateDoctorInput } from './doctor.types.js';
 
 export async function createDoctorController(
     req: Request,
@@ -40,6 +40,33 @@ export async function listDoctorsByClinicController(
             message: 'Doctors fetched successfully',
             data: {
                 doctors,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function updateDoctorController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { clinicId, doctorId } = req.params as {
+            clinicId: string;
+            doctorId: string;
+        };
+
+        const doctorData = req.body as UpdateDoctorInput;
+
+        const doctor = await doctorService.updateDoctor(clinicId, doctorId, doctorData);
+
+        res.status(200).json({
+            success: true,
+            message: 'Doctor updated successfully',
+            data: {
+                doctor,
             },
         });
     } catch (error) {
