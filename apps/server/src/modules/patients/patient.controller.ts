@@ -63,7 +63,7 @@ export async function listPatientsByClinicController(
 ): Promise<void> {
     try {
         const { clinicId } = req.params as { clinicId: string };
-        const query = req.query as ListPatientsQueryInput;
+        const query = res.locals.validatedQuery as ListPatientsQueryInput;
 
         const patients = await patientService.listPatientsByClinic(clinicId, query);
 
