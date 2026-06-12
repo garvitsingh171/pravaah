@@ -1,6 +1,10 @@
 import { AppError } from '../../utils/AppError.js';
 import { patientRepository } from './patient.repository.js';
-import type { CreatePatientInput, UpdatePatientInput } from './patient.types.js';
+import type {
+    CreatePatientInput,
+    ListPatientsQueryInput,
+    UpdatePatientInput,
+} from './patient.types.js';
 
 export const patientService = {
     async createPatient(clinicId: string, input: CreatePatientInput) {
@@ -40,5 +44,15 @@ export const patientService = {
         }
 
         return patientRepository.updatePatientWithClinicDetails(clinicId, patientId, input);
+    },
+
+    async listPatientsByClinic(clinicId: string, query: ListPatientsQueryInput) {
+        const existingClinic = await patientRepository.findClinicById(clinicId);
+
+        if (!existingClinic) {
+            throw new AppError(404, 'CLINIC_NOT_FOUND', 'Clinic not found');
+        }
+
+        return patientRepository.listPatientsByClinic(clinicId, query);
     },
 };

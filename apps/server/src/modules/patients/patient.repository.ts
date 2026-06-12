@@ -1,6 +1,10 @@
 import { prisma } from '../../config/prisma.js';
 import type { Prisma } from '../../generated/prisma/client.js';
-import type { CreatePatientInput, UpdatePatientInput } from './patient.types.js';
+import type {
+    CreatePatientInput,
+    ListPatientsQueryInput,
+    UpdatePatientInput,
+} from './patient.types.js';
 
 export const patientRepository = {
     findClinicById(id: string) {
@@ -121,6 +125,43 @@ export const patientRepository = {
                     },
                 },
             });
+        });
+    },
+
+    listPatientsByClinic(clinicId: string, query: ListPatientsQueryInput) {
+        const patientWhere: Prisma.PatientWhereInput = {};
+
+        if (query.search !== undefined) {
+            patientWhere.OR = [
+                {
+                    fullName: {
+                        contains: query.search,
+                        mode: 'insensitive',
+                    },
+                },
+                {
+                    phone: {
+                        contains: query.search,
+                    },
+                },
+            ];
+        }
+
+        if (query.isActive !== undefined) {
+            patientWhere.isActive = query.isActive;
+        }
+
+        return prisma.patientClinic.findMany({
+            where: {
+                clinicId,
+                patient: patientWhere,
+            },
+            include: {
+                patient: true,
+            },
+            orderBy: {
+                createdAt: 'desc',
+            },
         });
     },
 };

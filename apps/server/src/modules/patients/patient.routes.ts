@@ -1,10 +1,15 @@
 import { Router } from 'express';
 import { validateRequest } from '../../utils/validateRequest.js';
-import { createPatientController, updatePatientController } from './patient.controller.js';
+import {
+    createPatientController,
+    listPatientsByClinicController,
+    updatePatientController,
+} from './patient.controller.js';
 import {
     clinicIdParamsSchema,
     clinicPatientIdParamsSchema,
     createPatientSchema,
+    listPatientsQuerySchema,
     updatePatientSchema,
 } from './patient.validation.js';
 
@@ -26,6 +31,15 @@ patientRouter.patch(
         body: updatePatientSchema,
     }),
     updatePatientController
+);
+
+patientRouter.get(
+    '/:clinicId/patients',
+    validateRequest({
+        params: clinicIdParamsSchema,
+        query: listPatientsQuerySchema,
+    }),
+    listPatientsByClinicController
 );
 
 export { patientRouter };

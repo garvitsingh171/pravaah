@@ -1,4 +1,4 @@
-import type { Request, RequestHandler } from 'express';
+import type { Request, RequestHandler, Response } from 'express';
 import type { ZodIssue, ZodTypeAny } from 'zod';
 
 type RequestValidationSource = 'body' | 'params' | 'query';
@@ -20,7 +20,12 @@ const formatValidationErrors = (
     }));
 };
 
-const assignParsedData = (req: Request, source: RequestValidationSource, data: unknown): void => {
+const assignParsedData = (
+    req: Request,
+    res: Response,
+    source: RequestValidationSource,
+    data: unknown
+): void => {
     if (source === 'body') {
         req.body = data;
         return;
@@ -32,7 +37,7 @@ const assignParsedData = (req: Request, source: RequestValidationSource, data: u
     }
 
     if (source === 'query') {
-        req.query = data as Request['query'];
+        res.locals.validatedQuery = data;
     }
 };
 
@@ -92,7 +97,7 @@ export const validateRequest = (schemas: RequestValidationSchemas): RequestHandl
                 continue;
             }
 
-            assignParsedData(req, target.source, result.data);
+            assignParsedData(req, res, target.source, result.data);
         }
 
         if (validationErrors.length > 0) {

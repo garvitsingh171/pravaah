@@ -1,6 +1,10 @@
 import type { Request, Response, NextFunction } from 'express';
 import { patientService } from './patient.service.js';
-import type { CreatePatientInput, UpdatePatientInput } from './patient.types.js';
+import type {
+    CreatePatientInput,
+    ListPatientsQueryInput,
+    UpdatePatientInput,
+} from './patient.types.js';
 
 export async function createPatientController(
     req: Request,
@@ -45,6 +49,29 @@ export async function updatePatientController(
             message: 'Patient updated successfully',
             data: {
                 patient,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function listPatientsByClinicController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { clinicId } = req.params as { clinicId: string };
+        const query = res.locals.validatedQuery as ListPatientsQueryInput;
+
+        const patients = await patientService.listPatientsByClinic(clinicId, query);
+
+        res.status(200).json({
+            success: true,
+            message: 'Patients fetched successfully',
+            data: {
+                patients,
             },
         });
     } catch (error) {
