@@ -81,6 +81,19 @@ export const updatePatientSchema = z
         message: 'At least one patient field is required for update',
     });
 
+export const listPatientsQuerySchema = z
+    .object({
+        search: z.string().trim().min(1, 'Search cannot be empty').optional(),
+
+        isActive: z
+            .enum(['true', 'false'])
+            .transform((value) => value === 'true')
+            .optional(),
+    })
+    .strict();
+
+export type ListPatientsQuerySchemaInput = z.infer<typeof listPatientsQuerySchema>;
+
 export type ClinicIdParamsSchemaInput = z.infer<typeof clinicIdParamsSchema>;
 
 export type ClinicPatientIdParamsSchemaInput = z.infer<typeof clinicPatientIdParamsSchema>;
