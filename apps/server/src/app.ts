@@ -6,6 +6,7 @@ import { healthRouter } from './modules/health/health.routes.js';
 import { clinicRouter } from './modules/clinics/clinic.routes.js';
 import { doctorRouter } from './modules/doctors/doctor.routes.js';
 import { patientRouter } from './modules/patients/patient.routes.js';
+import { appointmentRouter } from './modules/appointments/appointment.routes.js';
 
 export const app = express();
 
@@ -21,6 +22,7 @@ app.use('/api/health', healthRouter);
 app.use('/api/clinics', clinicRouter);
 app.use('/api/clinics', doctorRouter);
 app.use('/api/clinics', patientRouter);
+app.use('/api/clinics', appointmentRouter);
 
 app.use(errorHandler);
 
