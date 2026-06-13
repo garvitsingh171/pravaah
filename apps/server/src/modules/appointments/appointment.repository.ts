@@ -1,12 +1,102 @@
 import { prisma } from '../../config/prisma.js';
-import { AppointmentStatus } from '../../generated/prisma/client.js';
-import type { CreateAppointmentInput } from './appointment.types.js';
+import { AppointmentStatus, Prisma } from '../../generated/prisma/client.js';
+import type { CreateAppointmentInput, ListAppointmentsQueryInput } from './appointment.types.js';
+
+const getDateRange = (date: string): { gte: Date; lt: Date } => {
+    const start = new Date(`${date}T00:00:00.000+05:30`);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+
+    return {
+        gte: start,
+        lt: end,
+    };
+};
 
 export const appointmentRepository = {
     findClinicById(clinicId: string) {
         return prisma.clinic.findUnique({
             where: {
                 id: clinicId,
+            },
+        });
+    },
+
+    findAppointmentsByClinicId(clinicId: string, filters: ListAppointmentsQueryInput) {
+        const where: Prisma.AppointmentWhereInput = {
+            clinicId,
+        };
+
+        if (filters.date !== undefined) {
+            where.scheduledAt = getDateRange(filters.date);
+        }
+
+        if (filters.doctorId !== undefined) {
+            where.doctorId = filters.doctorId;
+        }
+
+        if (filters.patientId !== undefined) {
+            where.patientId = filters.patientId;
+        }
+
+        if (filters.status !== undefined) {
+            where.status = filters.status;
+        }
+
+        return prisma.appointment.findMany({
+            where,
+            include: {
+                doctor: {
+                    select: {
+                        id: true,
+                        fullName: true,
+                        specialization: true,
+                        qualification: true,
+                        registrationNumber: true,
+                        phone: true,
+                        email: true,
+                        gender: true,
+                        experienceYears: true,
+                        isActive: true,
+                    },
+                },
+                patient: {
+                    select: {
+                        id: true,
+                        fullName: true,
+                        phone: true,
+                        email: true,
+                        gender: true,
+                        dateOfBirth: true,
+                        age: true,
+                        address: true,
+                        city: true,
+                        emergencyContactName: true,
+                        emergencyContactPhone: true,
+                        isActive: true,
+                    },
+                },
+                createdBy: {
+                    select: {
+                        id: true,
+                        fullName: true,
+                        email: true,
+                        role: true,
+                    },
+                },
+                queueEntry: {
+                    select: {
+                        id: true,
+                        position: true,
+                        status: true,
+                        queuedAt: true,
+                        calledAt: true,
+                        completedAt: true,
+                    },
+                },
+            },
+            orderBy: {
+                scheduledAt: 'asc',
             },
         });
     },
