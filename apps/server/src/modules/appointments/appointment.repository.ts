@@ -3,6 +3,50 @@ import { AppointmentStatus } from '../../generated/prisma/client.js';
 import type { CreateAppointmentInput } from './appointment.types.js';
 
 export const appointmentRepository = {
+    findClinicById(clinicId: string) {
+        return prisma.clinic.findUnique({
+            where: {
+                id: clinicId,
+            },
+        });
+    },
+
+    findDoctorById(doctorId: string) {
+        return prisma.doctor.findUnique({
+            where: {
+                id: doctorId,
+            },
+        });
+    },
+
+    findPatientById(patientId: string) {
+        return prisma.patient.findUnique({
+            where: {
+                id: patientId,
+            },
+        });
+    },
+
+    findActiveDoctorClinicLink(clinicId: string, doctorId: string) {
+        return prisma.doctorClinic.findFirst({
+            where: {
+                clinicId,
+                doctorId,
+                isActive: true,
+            },
+        });
+    },
+
+    findActivePatientClinicLink(clinicId: string, patientId: string) {
+        return prisma.patientClinic.findFirst({
+            where: {
+                clinicId,
+                patientId,
+                isActive: true,
+            },
+        });
+    },
+
     findDoctorAppointmentAtTime(
         clinicId: string,
         doctorId: string,
