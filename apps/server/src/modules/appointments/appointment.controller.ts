@@ -41,3 +41,25 @@ export async function createAppointmentController(
         next(error);
     }
 }
+
+export async function listAppointmentsController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { clinicId } = req.params as { clinicId: string };
+
+        const appointments = await appointmentService.listAppointments(clinicId);
+
+        res.status(200).json({
+            success: true,
+            message: 'Appointments fetched successfully',
+            data: {
+                appointments,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+}

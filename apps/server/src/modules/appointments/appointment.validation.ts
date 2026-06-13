@@ -27,5 +27,8 @@ export const createAppointmentSchema = z
     })
     .strict();
 
+export const listAppointmentsQuerySchema = z.object({}).strict();
+
 export type ClinicIdParamsSchemaInput = z.infer<typeof clinicIdParamsSchema>;
 export type CreateAppointmentSchemaInput = z.infer<typeof createAppointmentSchema>;
+export type ListAppointmentsQuerySchemaInput = z.infer<typeof listAppointmentsQuerySchema>;

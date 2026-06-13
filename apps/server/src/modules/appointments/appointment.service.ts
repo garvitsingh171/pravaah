@@ -92,4 +92,18 @@ export const appointmentService = {
 
         return appointmentRepository.create(clinicId, createdByUserId, input);
     },
+
+    async listAppointments(clinicId: string) {
+        const clinic = await appointmentRepository.findClinicById(clinicId);
+
+        if (!clinic) {
+            throw new AppError(404, 'CLINIC_NOT_FOUND', 'Clinic not found');
+        }
+
+        if (!clinic.isActive) {
+            throw new AppError(400, 'CLINIC_INACTIVE', 'Clinic is inactive');
+        }
+
+        return appointmentRepository.findAppointmentsByClinicId(clinicId);
+    },
 };

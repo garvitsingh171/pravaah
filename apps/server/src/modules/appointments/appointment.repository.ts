@@ -11,6 +11,67 @@ export const appointmentRepository = {
         });
     },
 
+    findAppointmentsByClinicId(clinicId: string) {
+        return prisma.appointment.findMany({
+            where: {
+                clinicId,
+            },
+            include: {
+                doctor: {
+                    select: {
+                        id: true,
+                        fullName: true,
+                        specialization: true,
+                        qualification: true,
+                        registrationNumber: true,
+                        phone: true,
+                        email: true,
+                        gender: true,
+                        experienceYears: true,
+                        isActive: true,
+                    },
+                },
+                patient: {
+                    select: {
+                        id: true,
+                        fullName: true,
+                        phone: true,
+                        email: true,
+                        gender: true,
+                        dateOfBirth: true,
+                        age: true,
+                        address: true,
+                        city: true,
+                        emergencyContactName: true,
+                        emergencyContactPhone: true,
+                        isActive: true,
+                    },
+                },
+                createdBy: {
+                    select: {
+                        id: true,
+                        fullName: true,
+                        email: true,
+                        role: true,
+                    },
+                },
+                queueEntry: {
+                    select: {
+                        id: true,
+                        position: true,
+                        status: true,
+                        queuedAt: true,
+                        calledAt: true,
+                        completedAt: true,
+                    },
+                },
+            },
+            orderBy: {
+                scheduledAt: 'asc',
+            },
+        });
+    },
+
     findDoctorById(doctorId: string) {
         return prisma.doctor.findUnique({
             where: {
