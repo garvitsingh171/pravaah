@@ -7,6 +7,8 @@ const uuidSchema = z
         'Invalid id'
     );
 
+const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format');
+
 export const clinicIdParamsSchema = z.object({
     clinicId: uuidSchema,
 });
@@ -27,7 +29,25 @@ export const createAppointmentSchema = z
     })
     .strict();
 
-export const listAppointmentsQuerySchema = z.object({}).strict();
+export const listAppointmentsQuerySchema = z
+    .object({
+        date: dateSchema.optional(),
+        doctorId: uuidSchema.optional(),
+        patientId: uuidSchema.optional(),
+        status: z
+            .enum([
+                'SCHEDULED',
+                'CONFIRMED',
+                'ARRIVED',
+                'IN_QUEUE',
+                'CALLED',
+                'COMPLETED',
+                'CANCELLED',
+                'NO_SHOW',
+            ])
+            .optional(),
+    })
+    .strict();
 
 export type ClinicIdParamsSchemaInput = z.infer<typeof clinicIdParamsSchema>;
 export type CreateAppointmentSchemaInput = z.infer<typeof createAppointmentSchema>;

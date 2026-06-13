@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { AppError } from '../../utils/AppError.js';
 import { appointmentService } from './appointment.service.js';
-import type { CreateAppointmentInput } from './appointment.types.js';
+import type { CreateAppointmentInput, ListAppointmentsQueryInput } from './appointment.types.js';
 
 type AuthenticatedRequest = Request & {
     user?: {
@@ -49,8 +49,9 @@ export async function listAppointmentsController(
 ): Promise<void> {
     try {
         const { clinicId } = req.params as { clinicId: string };
+        const query = req.query as ListAppointmentsQueryInput;
 
-        const appointments = await appointmentService.listAppointments(clinicId);
+        const appointments = await appointmentService.listAppointments(clinicId, query);
 
         res.status(200).json({
             success: true,

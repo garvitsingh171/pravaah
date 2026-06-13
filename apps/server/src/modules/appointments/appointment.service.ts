@@ -1,7 +1,7 @@
 import { AppointmentStatus, Prisma } from '../../generated/prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
 import { appointmentRepository } from './appointment.repository.js';
-import type { CreateAppointmentInput } from './appointment.types.js';
+import type { CreateAppointmentInput, ListAppointmentsQueryInput } from './appointment.types.js';
 
 const conflictingAppointmentStatuses = [
     AppointmentStatus.SCHEDULED,
@@ -93,7 +93,7 @@ export const appointmentService = {
         return appointmentRepository.create(clinicId, createdByUserId, input);
     },
 
-    async listAppointments(clinicId: string) {
+    async listAppointments(clinicId: string, filters: ListAppointmentsQueryInput) {
         const clinic = await appointmentRepository.findClinicById(clinicId);
 
         if (!clinic) {
@@ -104,6 +104,6 @@ export const appointmentService = {
             throw new AppError(400, 'CLINIC_INACTIVE', 'Clinic is inactive');
         }
 
-        return appointmentRepository.findAppointmentsByClinicId(clinicId);
+        return appointmentRepository.findAppointmentsByClinicId(clinicId, filters);
     },
 };

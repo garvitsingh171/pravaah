@@ -1,6 +1,17 @@
 import { prisma } from '../../config/prisma.js';
-import { AppointmentStatus } from '../../generated/prisma/client.js';
-import type { CreateAppointmentInput } from './appointment.types.js';
+import { AppointmentStatus, Prisma } from '../../generated/prisma/client.js';
+import type { CreateAppointmentInput, ListAppointmentsQueryInput } from './appointment.types.js';
+
+const getDateRange = (date: string): { gte: Date; lt: Date } => {
+    const start = new Date(`${date}T00:00:00.000+05:30`);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+
+    return {
+        gte: start,
+        lt: end,
+    };
+};
 
 export const appointmentRepository = {
     findClinicById(clinicId: string) {
@@ -11,11 +22,29 @@ export const appointmentRepository = {
         });
     },
 
-    findAppointmentsByClinicId(clinicId: string) {
+    findAppointmentsByClinicId(clinicId: string, filters: ListAppointmentsQueryInput) {
+        const where: Prisma.AppointmentWhereInput = {
+            clinicId,
+        };
+
+        if (filters.date !== undefined) {
+            where.scheduledAt = getDateRange(filters.date);
+        }
+
+        if (filters.doctorId !== undefined) {
+            where.doctorId = filters.doctorId;
+        }
+
+        if (filters.patientId !== undefined) {
+            where.patientId = filters.patientId;
+        }
+
+        if (filters.status !== undefined) {
+            where.status = filters.status;
+        }
+
         return prisma.appointment.findMany({
-            where: {
-                clinicId,
-            },
+            where,
             include: {
                 doctor: {
                     select: {
