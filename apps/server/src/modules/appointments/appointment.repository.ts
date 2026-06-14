@@ -1,5 +1,5 @@
 import { prisma } from '../../config/prisma.js';
-import { AppointmentStatus, Prisma } from '../../generated/prisma/client.js';
+import { AppointmentStatus, Prisma, QueueStatus } from '../../generated/prisma/client.js';
 import type { CreateAppointmentInput, ListAppointmentsQueryInput } from './appointment.types.js';
 
 const getDateRange = (date: string): { gte: Date; lt: Date } => {
@@ -11,6 +11,33 @@ const getDateRange = (date: string): { gte: Date; lt: Date } => {
         gte: start,
         lt: end,
     };
+};
+
+const appointmentStatusToQueueStatus: Partial<Record<AppointmentStatus, QueueStatus>> = {
+    ARRIVED: 'ARRIVED',
+    IN_QUEUE: 'WAITING',
+    CALLED: 'CALLED',
+    COMPLETED: 'COMPLETED',
+    CANCELLED: 'CANCELLED',
+    NO_SHOW: 'NO_SHOW',
+};
+
+const getQueueTimestampUpdates = (queueStatus: QueueStatus): Prisma.QueueEntryUpdateInput => {
+    const now = new Date();
+
+    if (queueStatus === 'CALLED') {
+        return {
+            calledAt: now,
+        };
+    }
+
+    if (queueStatus === 'COMPLETED') {
+        return {
+            completedAt: now,
+        };
+    }
+
+    return {};
 };
 
 export const appointmentRepository = {
@@ -152,6 +179,96 @@ export const appointmentRepository = {
                     in: statuses,
                 },
             },
+        });
+    },
+
+    findAppointmentById(appointmentId: string) {
+        return prisma.appointment.findUnique({
+            where: {
+                id: appointmentId,
+            },
+            include: {
+                queueEntry: true,
+            },
+        });
+    },
+
+    updateAppointmentStatus(appointmentId: string, status: AppointmentStatus) {
+        const queueStatus = appointmentStatusToQueueStatus[status];
+
+        return prisma.$transaction(async (tx) => {
+            const updatedAppointment = await tx.appointment.update({
+                where: {
+                    id: appointmentId,
+                },
+                data: {
+                    status,
+                },
+                include: {
+                    doctor: {
+                        select: {
+                            id: true,
+                            fullName: true,
+                            specialization: true,
+                            qualification: true,
+                            registrationNumber: true,
+                            phone: true,
+                            email: true,
+                            gender: true,
+                            experienceYears: true,
+                            isActive: true,
+                        },
+                    },
+                    patient: {
+                        select: {
+                            id: true,
+                            fullName: true,
+                            phone: true,
+                            email: true,
+                            gender: true,
+                            dateOfBirth: true,
+                            age: true,
+                            address: true,
+                            city: true,
+                            emergencyContactName: true,
+                            emergencyContactPhone: true,
+                            isActive: true,
+                        },
+                    },
+                    createdBy: {
+                        select: {
+                            id: true,
+                            fullName: true,
+                            email: true,
+                            role: true,
+                        },
+                    },
+                    queueEntry: {
+                        select: {
+                            id: true,
+                            position: true,
+                            status: true,
+                            queuedAt: true,
+                            calledAt: true,
+                            completedAt: true,
+                        },
+                    },
+                },
+            });
+
+            if (queueStatus !== undefined) {
+                await tx.queueEntry.updateMany({
+                    where: {
+                        appointmentId,
+                    },
+                    data: {
+                        status: queueStatus,
+                        ...getQueueTimestampUpdates(queueStatus),
+                    },
+                });
+            }
+
+            return updatedAppointment;
         });
     },
 

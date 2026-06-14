@@ -1,7 +1,13 @@
 import type { Request, Response, NextFunction } from 'express';
 import { AppError } from '../../utils/AppError.js';
 import { appointmentService } from './appointment.service.js';
-import type { CreateAppointmentInput, ListAppointmentsQueryInput } from './appointment.types.js';
+import type {
+    CreateAppointmentInput,
+    ListAppointmentsQueryInput,
+    AppointmentIdParamsInput,
+    UpdateAppointmentStatusInput,
+} from './appointment.types.js';
+import type { AppointmentStatus } from '../../generated/prisma/client.js';
 
 type AuthenticatedRequest = Request & {
     user?: {
@@ -58,6 +64,32 @@ export async function listAppointmentsController(
             message: 'Appointments fetched successfully',
             data: {
                 appointments,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function updateAppointmentStatusController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { appointmentId } = req.params as AppointmentIdParamsInput;
+        const { status } = req.body as UpdateAppointmentStatusInput;
+
+        const appointment = await appointmentService.updateAppointmentStatus(
+            appointmentId,
+            status as AppointmentStatus
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'Appointment status updated successfully',
+            data: {
+                appointment,
             },
         });
     } catch (error) {

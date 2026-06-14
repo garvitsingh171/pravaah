@@ -11,6 +11,8 @@ const conflictingAppointmentStatuses = [
     AppointmentStatus.CALLED,
 ];
 
+const finalAppointmentStatuses: AppointmentStatus[] = ['COMPLETED', 'CANCELLED', 'NO_SHOW'];
+
 async function validateAppointmentClinicOwnership(
     clinicId: string,
     doctorId: string,
@@ -105,5 +107,26 @@ export const appointmentService = {
         }
 
         return appointmentRepository.findAppointmentsByClinicId(clinicId, filters);
+    },
+
+    async updateAppointmentStatus(appointmentId: string, status: AppointmentStatus) {
+        const appointment = await appointmentRepository.findAppointmentById(appointmentId);
+
+        if (!appointment) {
+            throw new AppError(404, 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
+        }
+
+        if (
+            finalAppointmentStatuses.includes(appointment.status) &&
+            appointment.status !== status
+        ) {
+            throw new AppError(
+                409,
+                'APPOINTMENT_STATUS_FINAL',
+                'Completed, cancelled, or no-show appointments cannot be changed to another status'
+            );
+        }
+
+        return appointmentRepository.updateAppointmentStatus(appointmentId, status);
     },
 };
