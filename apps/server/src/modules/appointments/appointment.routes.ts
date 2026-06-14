@@ -6,16 +6,17 @@ import {
     updateAppointmentStatusController,
 } from './appointment.controller.js';
 import {
+    appointmentIdParamsSchema,
     clinicIdParamsSchema,
     createAppointmentSchema,
     listAppointmentsQuerySchema,
-    appointmentIdParamsSchema,
     updateAppointmentStatusSchema,
 } from './appointment.validation.js';
 
+const clinicAppointmentRouter = Router();
 const appointmentRouter = Router();
 
-appointmentRouter.post(
+clinicAppointmentRouter.post(
     '/:clinicId/appointments',
     validateRequest({
         params: clinicIdParamsSchema,
@@ -24,7 +25,7 @@ appointmentRouter.post(
     createAppointmentController
 );
 
-appointmentRouter.get(
+clinicAppointmentRouter.get(
     '/:clinicId/appointments',
     validateRequest({
         params: clinicIdParamsSchema,
@@ -42,4 +43,4 @@ appointmentRouter.patch(
     updateAppointmentStatusController
 );
 
-export { appointmentRouter };
+export { appointmentRouter, clinicAppointmentRouter };
