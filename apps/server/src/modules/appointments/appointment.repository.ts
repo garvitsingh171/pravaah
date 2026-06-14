@@ -22,23 +22,58 @@ const appointmentStatusToQueueStatus: Partial<Record<AppointmentStatus, QueueSta
     NO_SHOW: 'NO_SHOW',
 };
 
-const getQueueTimestampUpdates = (queueStatus: QueueStatus): Prisma.QueueEntryUpdateInput => {
-    const now = new Date();
+const finalAppointmentStatuses: AppointmentStatus[] = ['COMPLETED', 'CANCELLED', 'NO_SHOW'];
 
-    if (queueStatus === 'CALLED') {
-        return {
-            calledAt: now,
-        };
-    }
-
-    if (queueStatus === 'COMPLETED') {
-        return {
-            completedAt: now,
-        };
-    }
-
-    return {};
-};
+const appointmentDetailsInclude = {
+    doctor: {
+        select: {
+            id: true,
+            fullName: true,
+            specialization: true,
+            qualification: true,
+            registrationNumber: true,
+            phone: true,
+            email: true,
+            gender: true,
+            experienceYears: true,
+            isActive: true,
+        },
+    },
+    patient: {
+        select: {
+            id: true,
+            fullName: true,
+            phone: true,
+            email: true,
+            gender: true,
+            dateOfBirth: true,
+            age: true,
+            address: true,
+            city: true,
+            emergencyContactName: true,
+            emergencyContactPhone: true,
+            isActive: true,
+        },
+    },
+    createdBy: {
+        select: {
+            id: true,
+            fullName: true,
+            email: true,
+            role: true,
+        },
+    },
+    queueEntry: {
+        select: {
+            id: true,
+            position: true,
+            status: true,
+            queuedAt: true,
+            calledAt: true,
+            completedAt: true,
+        },
+    },
+} satisfies Prisma.AppointmentInclude;
 
 export const appointmentRepository = {
     findClinicById(clinicId: string) {
@@ -197,64 +232,48 @@ export const appointmentRepository = {
         const queueStatus = appointmentStatusToQueueStatus[status];
 
         return prisma.$transaction(async (tx) => {
-            const updatedAppointment = await tx.appointment.update({
+            const updateResult = await tx.appointment.updateMany({
                 where: {
                     id: appointmentId,
+                    OR: [
+                        {
+                            status,
+                        },
+                        {
+                            status: {
+                                notIn: finalAppointmentStatuses,
+                            },
+                        },
+                    ],
                 },
                 data: {
                     status,
                 },
-                include: {
-                    doctor: {
-                        select: {
-                            id: true,
-                            fullName: true,
-                            specialization: true,
-                            qualification: true,
-                            registrationNumber: true,
-                            phone: true,
-                            email: true,
-                            gender: true,
-                            experienceYears: true,
-                            isActive: true,
-                        },
-                    },
-                    patient: {
-                        select: {
-                            id: true,
-                            fullName: true,
-                            phone: true,
-                            email: true,
-                            gender: true,
-                            dateOfBirth: true,
-                            age: true,
-                            address: true,
-                            city: true,
-                            emergencyContactName: true,
-                            emergencyContactPhone: true,
-                            isActive: true,
-                        },
-                    },
-                    createdBy: {
-                        select: {
-                            id: true,
-                            fullName: true,
-                            email: true,
-                            role: true,
-                        },
-                    },
-                    queueEntry: {
-                        select: {
-                            id: true,
-                            position: true,
-                            status: true,
-                            queuedAt: true,
-                            calledAt: true,
-                            completedAt: true,
-                        },
-                    },
-                },
             });
+
+            if (updateResult.count === 0) {
+                const existingAppointment = await tx.appointment.findUnique({
+                    where: {
+                        id: appointmentId,
+                    },
+                    select: {
+                        id: true,
+                        status: true,
+                    },
+                });
+
+                if (!existingAppointment) {
+                    return {
+                        appointment: null,
+                        failureReason: 'NOT_FOUND' as const,
+                    };
+                }
+
+                return {
+                    appointment: null,
+                    failureReason: 'FINAL_STATUS_CONFLICT' as const,
+                };
+            }
 
             if (queueStatus !== undefined) {
                 await tx.queueEntry.updateMany({
@@ -263,12 +282,45 @@ export const appointmentRepository = {
                     },
                     data: {
                         status: queueStatus,
-                        ...getQueueTimestampUpdates(queueStatus),
                     },
                 });
+
+                if (queueStatus === 'CALLED') {
+                    await tx.queueEntry.updateMany({
+                        where: {
+                            appointmentId,
+                            calledAt: null,
+                        },
+                        data: {
+                            calledAt: new Date(),
+                        },
+                    });
+                }
+
+                if (queueStatus === 'COMPLETED') {
+                    await tx.queueEntry.updateMany({
+                        where: {
+                            appointmentId,
+                            completedAt: null,
+                        },
+                        data: {
+                            completedAt: new Date(),
+                        },
+                    });
+                }
             }
 
-            return updatedAppointment;
+            const appointment = await tx.appointment.findUnique({
+                where: {
+                    id: appointmentId,
+                },
+                include: appointmentDetailsInclude,
+            });
+
+            return {
+                appointment,
+                failureReason: null,
+            };
         });
     },
 

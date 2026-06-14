@@ -1,17 +1,15 @@
-import { AppointmentStatus, Prisma } from '../../generated/prisma/client.js';
+import { AppointmentStatus } from '../../generated/prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
 import { appointmentRepository } from './appointment.repository.js';
 import type { CreateAppointmentInput, ListAppointmentsQueryInput } from './appointment.types.js';
 
-const conflictingAppointmentStatuses = [
+const conflictingAppointmentStatuses: AppointmentStatus[] = [
     AppointmentStatus.SCHEDULED,
     AppointmentStatus.CONFIRMED,
     AppointmentStatus.ARRIVED,
     AppointmentStatus.IN_QUEUE,
     AppointmentStatus.CALLED,
 ];
-
-const finalAppointmentStatuses: AppointmentStatus[] = ['COMPLETED', 'CANCELLED', 'NO_SHOW'];
 
 async function validateAppointmentClinicOwnership(
     clinicId: string,
@@ -106,20 +104,59 @@ export const appointmentService = {
             throw new AppError(400, 'CLINIC_INACTIVE', 'Clinic is inactive');
         }
 
+        if (filters.doctorId !== undefined) {
+            const doctor = await appointmentRepository.findDoctorById(filters.doctorId);
+
+            if (!doctor) {
+                throw new AppError(404, 'DOCTOR_NOT_FOUND', 'Doctor not found');
+            }
+
+            const doctorClinicLink = await appointmentRepository.findActiveDoctorClinicLink(
+                clinicId,
+                filters.doctorId
+            );
+
+            if (!doctorClinicLink) {
+                throw new AppError(
+                    403,
+                    'DOCTOR_NOT_LINKED_TO_CLINIC',
+                    'Doctor is not linked to this clinic'
+                );
+            }
+        }
+
+        if (filters.patientId !== undefined) {
+            const patient = await appointmentRepository.findPatientById(filters.patientId);
+
+            if (!patient) {
+                throw new AppError(404, 'PATIENT_NOT_FOUND', 'Patient not found');
+            }
+
+            const patientClinicLink = await appointmentRepository.findActivePatientClinicLink(
+                clinicId,
+                filters.patientId
+            );
+
+            if (!patientClinicLink) {
+                throw new AppError(
+                    403,
+                    'PATIENT_NOT_LINKED_TO_CLINIC',
+                    'Patient is not linked to this clinic'
+                );
+            }
+        }
+
         return appointmentRepository.findAppointmentsByClinicId(clinicId, filters);
     },
 
     async updateAppointmentStatus(appointmentId: string, status: AppointmentStatus) {
-        const appointment = await appointmentRepository.findAppointmentById(appointmentId);
+        const result = await appointmentRepository.updateAppointmentStatus(appointmentId, status);
 
-        if (!appointment) {
+        if (result.failureReason === 'NOT_FOUND') {
             throw new AppError(404, 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
         }
 
-        if (
-            finalAppointmentStatuses.includes(appointment.status) &&
-            appointment.status !== status
-        ) {
+        if (result.failureReason === 'FINAL_STATUS_CONFLICT') {
             throw new AppError(
                 409,
                 'APPOINTMENT_STATUS_FINAL',
@@ -127,6 +164,14 @@ export const appointmentService = {
             );
         }
 
-        return appointmentRepository.updateAppointmentStatus(appointmentId, status);
+        if (!result.appointment) {
+            throw new AppError(
+                500,
+                'APPOINTMENT_STATUS_UPDATE_FAILED',
+                'Appointment status update failed'
+            );
+        }
+
+        return result.appointment;
     },
 };
