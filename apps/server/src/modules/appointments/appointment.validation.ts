@@ -13,6 +13,10 @@ export const clinicIdParamsSchema = z.object({
     clinicId: uuidSchema,
 });
 
+export const appointmentIdParamsSchema = z.object({
+    appointmentId: uuidSchema,
+});
+
 export const createAppointmentSchema = z
     .object({
         doctorId: uuidSchema,
@@ -26,6 +30,21 @@ export const createAppointmentSchema = z
         reason: z.string().optional(),
         notes: z.string().optional(),
         bookingSource: z.enum(['RECEPTION', 'PHONE', 'WEB', 'WALK_IN']).default('RECEPTION'),
+    })
+    .strict();
+
+export const updateAppointmentStatusSchema = z
+    .object({
+        status: z.enum([
+            'SCHEDULED',
+            'CONFIRMED',
+            'ARRIVED',
+            'IN_QUEUE',
+            'CALLED',
+            'COMPLETED',
+            'CANCELLED',
+            'NO_SHOW',
+        ]),
     })
     .strict();
 
@@ -52,3 +71,5 @@ export const listAppointmentsQuerySchema = z
 export type ClinicIdParamsSchemaInput = z.infer<typeof clinicIdParamsSchema>;
 export type CreateAppointmentSchemaInput = z.infer<typeof createAppointmentSchema>;
 export type ListAppointmentsQuerySchemaInput = z.infer<typeof listAppointmentsQuerySchema>;
+export type AppointmentIdParamsSchemaInput = z.infer<typeof appointmentIdParamsSchema>;
+export type UpdateAppointmentStatusSchemaInput = z.infer<typeof updateAppointmentStatusSchema>;
