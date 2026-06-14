@@ -314,7 +314,56 @@ export const appointmentRepository = {
                 where: {
                     id: appointmentId,
                 },
-                include: appointmentDetailsInclude,
+                include: {
+                    doctor: {
+                        select: {
+                            id: true,
+                            fullName: true,
+                            specialization: true,
+                            qualification: true,
+                            registrationNumber: true,
+                            phone: true,
+                            email: true,
+                            gender: true,
+                            experienceYears: true,
+                            isActive: true,
+                        },
+                    },
+                    patient: {
+                        select: {
+                            id: true,
+                            fullName: true,
+                            phone: true,
+                            email: true,
+                            gender: true,
+                            dateOfBirth: true,
+                            age: true,
+                            address: true,
+                            city: true,
+                            emergencyContactName: true,
+                            emergencyContactPhone: true,
+                            isActive: true,
+                        },
+                    },
+                    createdBy: {
+                        select: {
+                            id: true,
+                            fullName: true,
+                            email: true,
+                            role: true,
+                        },
+                    },
+                    queueEntry: {
+                        select: {
+                            id: true,
+                            position: true,
+                            status: true,
+                            queuedAt: true,
+                            calledAt: true,
+                            completedAt: true,
+                        },
+                    },
+                },
             });
 
             return {
