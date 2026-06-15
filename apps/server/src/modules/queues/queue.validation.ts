@@ -13,11 +13,7 @@ const dateSchema = z
     .refine((value) => {
         const [yearText, monthText, dayText] = value.split('-');
 
-        if (
-            yearText === undefined ||
-            monthText === undefined ||
-            dayText === undefined
-        ) {
+        if (yearText === undefined || monthText === undefined || dayText === undefined) {
             return false;
         }
 

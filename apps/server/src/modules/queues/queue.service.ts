@@ -2,6 +2,10 @@ import { AppError } from '../../utils/AppError.js';
 import { queueRepository } from './queue.repository.js';
 
 export const queueService = {
+    calculateNextQueuePosition(highestPosition: number | null): number {
+        return (highestPosition ?? 0) + 1;
+    },
+
     async listQueueByClinicDate(userId: string, clinicId: string, date: string) {
         const user = await queueRepository.findUserById(userId);
 

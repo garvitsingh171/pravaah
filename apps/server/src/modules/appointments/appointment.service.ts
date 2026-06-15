@@ -1,5 +1,7 @@
 import { AppointmentStatus } from '../../generated/prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
+import { queueRepository } from '../queues/queue.repository.js';
+import { queueService } from '../queues/queue.service.js';
 import { appointmentRepository } from './appointment.repository.js';
 import type { CreateAppointmentInput, ListAppointmentsQueryInput } from './appointment.types.js';
 
@@ -96,12 +98,35 @@ export const appointmentService = {
             );
         }
 
-        return appointmentRepository.createWithQueueEntry(
-            clinicId,
-            createdByUserId,
-            input,
-            clinicTimezone
-        );
+        return appointmentRepository.runInTransaction(async (tx) => {
+            const highestPosition = await queueRepository.findHighestQueuePosition(
+                tx,
+                clinicId,
+                input.doctorId,
+                scheduledAt,
+                clinicTimezone
+            );
+
+            const nextPosition = queueService.calculateNextQueuePosition(highestPosition);
+
+            const appointment = await appointmentRepository.createAppointment(
+                tx,
+                clinicId,
+                createdByUserId,
+                input
+            );
+
+            await queueRepository.createQueueEntry(
+                tx,
+                clinicId,
+                appointment.id,
+                input.doctorId,
+                input.patientId,
+                nextPosition
+            );
+
+            return appointment;
+        });
     },
 
     async listAppointments(clinicId: string, filters: ListAppointmentsQueryInput) {

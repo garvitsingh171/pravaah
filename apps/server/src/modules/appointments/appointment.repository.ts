@@ -297,65 +297,29 @@ export const appointmentRepository = {
         });
     },
 
-    createWithQueueEntry(
+    runInTransaction<T>(operation: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+        return prisma.$transaction(operation);
+    },
+
+    createAppointment(
+        tx: Prisma.TransactionClient,
         clinicId: string,
         createdByUserId: string,
-        data: CreateAppointmentInput,
-        clinicTimezone: string
+        data: CreateAppointmentInput
     ) {
-        const scheduledAt = new Date(data.scheduledAt);
-        const queueDate = getDateInTimeZone(scheduledAt, clinicTimezone);
-
-        return prisma.$transaction(async (tx) => {
-            const lockKey = `${clinicId}:${data.doctorId}:${queueDate}`;
-
-            await tx.$queryRaw`
-            SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))
-        `;
-
-            const [positionResult] = await tx.$queryRaw<Array<{ maxPosition: number | null }>>`
-            SELECT MAX(queue_entry."position")::int AS "maxPosition"
-            FROM "queue_entries" AS queue_entry
-            INNER JOIN "appointments" AS appointment
-                ON appointment."id" = queue_entry."appointmentId"
-            WHERE queue_entry."clinicId" = ${clinicId}::uuid
-                AND queue_entry."doctorId" = ${data.doctorId}::uuid
-                AND (
-                    appointment."scheduledAt" AT TIME ZONE ${clinicTimezone}
-                )::date = (
-                    ${scheduledAt}::timestamptz AT TIME ZONE ${clinicTimezone}
-                )::date
-        `;
-
-            const nextPosition = (positionResult?.maxPosition ?? 0) + 1;
-
-            const appointment = await tx.appointment.create({
-                data: {
-                    clinicId,
-                    doctorId: data.doctorId,
-                    patientId: data.patientId,
-                    scheduledAt,
-                    durationMinutes: data.durationMinutes,
-                    status: AppointmentStatus.SCHEDULED,
-                    reason: data.reason ?? null,
-                    notes: data.notes ?? null,
-                    bookingSource: data.bookingSource,
-                    createdByUserId,
-                },
-            });
-
-            await tx.queueEntry.create({
-                data: {
-                    clinicId,
-                    appointmentId: appointment.id,
-                    doctorId: data.doctorId,
-                    patientId: data.patientId,
-                    position: nextPosition,
-                    status: QueueStatus.WAITING,
-                },
-            });
-
-            return appointment;
+        return tx.appointment.create({
+            data: {
+                clinicId,
+                doctorId: data.doctorId,
+                patientId: data.patientId,
+                scheduledAt: new Date(data.scheduledAt),
+                durationMinutes: data.durationMinutes,
+                status: AppointmentStatus.SCHEDULED,
+                reason: data.reason ?? null,
+                notes: data.notes ?? null,
+                bookingSource: data.bookingSource,
+                createdByUserId,
+            },
         });
     },
 };
