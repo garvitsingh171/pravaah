@@ -13,6 +13,19 @@ const getDateRange = (date: string): { gte: Date; lt: Date } => {
     };
 };
 
+const getDateInTimeZone = (date: Date, timeZone: string): string => {
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).formatToParts(date);
+
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+
+    return `${values.year}-${values.month}-${values.day}`;
+};
+
 const getScheduledDate = (scheduledAt: Date): string => {
     return new Intl.DateTimeFormat('en-CA', {
         timeZone: 'Asia/Kolkata',
@@ -284,25 +297,37 @@ export const appointmentRepository = {
         });
     },
 
-    createWithQueueEntry(clinicId: string, createdByUserId: string, data: CreateAppointmentInput) {
+    createWithQueueEntry(
+        clinicId: string,
+        createdByUserId: string,
+        data: CreateAppointmentInput,
+        clinicTimezone: string
+    ) {
         const scheduledAt = new Date(data.scheduledAt);
-        const scheduledDateRange = getDateRange(getScheduledDate(scheduledAt));
+        const queueDate = getDateInTimeZone(scheduledAt, clinicTimezone);
 
         return prisma.$transaction(async (tx) => {
-            const highestPositionResult = await tx.queueEntry.aggregate({
-                where: {
-                    clinicId,
-                    doctorId: data.doctorId,
-                    appointment: {
-                        scheduledAt: scheduledDateRange,
-                    },
-                },
-                _max: {
-                    position: true,
-                },
-            });
+            const lockKey = `${clinicId}:${data.doctorId}:${queueDate}`;
 
-            const nextPosition = (highestPositionResult._max.position ?? 0) + 1;
+            await tx.$queryRaw`
+            SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))
+        `;
+
+            const [positionResult] = await tx.$queryRaw<Array<{ maxPosition: number | null }>>`
+            SELECT MAX(queue_entry."position")::int AS "maxPosition"
+            FROM "queue_entries" AS queue_entry
+            INNER JOIN "appointments" AS appointment
+                ON appointment."id" = queue_entry."appointmentId"
+            WHERE queue_entry."clinicId" = ${clinicId}::uuid
+                AND queue_entry."doctorId" = ${data.doctorId}::uuid
+                AND (
+                    appointment."scheduledAt" AT TIME ZONE ${clinicTimezone}
+                )::date = (
+                    ${scheduledAt}::timestamptz AT TIME ZONE ${clinicTimezone}
+                )::date
+        `;
+
+            const nextPosition = (positionResult?.maxPosition ?? 0) + 1;
 
             const appointment = await tx.appointment.create({
                 data: {

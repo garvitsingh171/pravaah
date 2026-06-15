@@ -15,7 +15,7 @@ async function validateAppointmentClinicOwnership(
     clinicId: string,
     doctorId: string,
     patientId: string
-): Promise<void> {
+): Promise<string> {
     const clinic = await appointmentRepository.findClinicById(clinicId);
 
     if (!clinic) {
@@ -63,6 +63,8 @@ async function validateAppointmentClinicOwnership(
             'Patient is not linked to this clinic'
         );
     }
+
+    return clinic.timezone;
 }
 
 export const appointmentService = {
@@ -71,7 +73,11 @@ export const appointmentService = {
         createdByUserId: string,
         input: CreateAppointmentInput
     ) {
-        await validateAppointmentClinicOwnership(clinicId, input.doctorId, input.patientId);
+        const clinicTimezone = await validateAppointmentClinicOwnership(
+            clinicId,
+            input.doctorId,
+            input.patientId
+        );
 
         const scheduledAt = new Date(input.scheduledAt);
 
@@ -90,7 +96,12 @@ export const appointmentService = {
             );
         }
 
-        return appointmentRepository.createWithQueueEntry(clinicId, createdByUserId, input);
+        return appointmentRepository.createWithQueueEntry(
+            clinicId,
+            createdByUserId,
+            input,
+            clinicTimezone
+        );
     },
 
     async listAppointments(clinicId: string, filters: ListAppointmentsQueryInput) {
