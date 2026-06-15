@@ -6,7 +6,21 @@ export const queueService = {
         return (highestPosition ?? 0) + 1;
     },
 
-    async listQueueByClinicDate(clinicId: string, date: string) {
+    async listQueueByClinicDate(userId: string, clinicId: string, date: string) {
+        const user = await queueRepository.findUserById(userId);
+
+        if (!user || user.status !== 'ACTIVE') {
+            throw new AppError(401, 'UNAUTHENTICATED', 'Authentication is required');
+        }
+
+        if (user.clinicId !== clinicId) {
+            throw new AppError(
+                403,
+                'CLINIC_ACCESS_DENIED',
+                'You do not have access to this clinic'
+            );
+        }
+
         const clinic = await queueRepository.findClinicById(clinicId);
 
         if (!clinic) {
