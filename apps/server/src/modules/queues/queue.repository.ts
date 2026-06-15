@@ -42,6 +42,19 @@ export const queueRepository = {
         });
     },
 
+    findUserById(userId: string) {
+        return prisma.user.findUnique({
+            where: {
+                id: userId,
+            },
+            select: {
+                id: true,
+                clinicId: true,
+                status: true,
+            },
+        });
+    },
+
     async findQueueByClinicDate(clinicId: string, date: string, clinicTimezone: string) {
         const [dateRange] = await prisma.$queryRaw<Array<{ start: Date; end: Date }>>`
             SELECT
