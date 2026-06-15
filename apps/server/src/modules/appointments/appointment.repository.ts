@@ -13,6 +13,15 @@ const getDateRange = (date: string): { gte: Date; lt: Date } => {
     };
 };
 
+const getScheduledDate = (scheduledAt: Date): string => {
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(scheduledAt);
+};
+
 const appointmentStatusToQueueStatus: Partial<Record<AppointmentStatus, QueueStatus>> = {
     ARRIVED: 'ARRIVED',
     IN_QUEUE: 'WAITING',
@@ -275,20 +284,53 @@ export const appointmentRepository = {
         });
     },
 
-    create(clinicId: string, createdByUserId: string, data: CreateAppointmentInput) {
-        return prisma.appointment.create({
-            data: {
-                clinicId,
-                doctorId: data.doctorId,
-                patientId: data.patientId,
-                scheduledAt: new Date(data.scheduledAt),
-                durationMinutes: data.durationMinutes,
-                status: AppointmentStatus.SCHEDULED,
-                reason: data.reason ?? null,
-                notes: data.notes ?? null,
-                bookingSource: data.bookingSource,
-                createdByUserId,
-            },
+    createWithQueueEntry(clinicId: string, createdByUserId: string, data: CreateAppointmentInput) {
+        const scheduledAt = new Date(data.scheduledAt);
+        const scheduledDateRange = getDateRange(getScheduledDate(scheduledAt));
+
+        return prisma.$transaction(async (tx) => {
+            const highestPositionResult = await tx.queueEntry.aggregate({
+                where: {
+                    clinicId,
+                    doctorId: data.doctorId,
+                    appointment: {
+                        scheduledAt: scheduledDateRange,
+                    },
+                },
+                _max: {
+                    position: true,
+                },
+            });
+
+            const nextPosition = (highestPositionResult._max.position ?? 0) + 1;
+
+            const appointment = await tx.appointment.create({
+                data: {
+                    clinicId,
+                    doctorId: data.doctorId,
+                    patientId: data.patientId,
+                    scheduledAt,
+                    durationMinutes: data.durationMinutes,
+                    status: AppointmentStatus.SCHEDULED,
+                    reason: data.reason ?? null,
+                    notes: data.notes ?? null,
+                    bookingSource: data.bookingSource,
+                    createdByUserId,
+                },
+            });
+
+            await tx.queueEntry.create({
+                data: {
+                    clinicId,
+                    appointmentId: appointment.id,
+                    doctorId: data.doctorId,
+                    patientId: data.patientId,
+                    position: nextPosition,
+                    status: QueueStatus.WAITING,
+                },
+            });
+
+            return appointment;
         });
     },
 };

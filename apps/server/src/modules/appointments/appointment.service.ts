@@ -90,7 +90,7 @@ export const appointmentService = {
             );
         }
 
-        return appointmentRepository.create(clinicId, createdByUserId, input);
+        return appointmentRepository.createWithQueueEntry(clinicId, createdByUserId, input);
     },
 
     async listAppointments(clinicId: string, filters: ListAppointmentsQueryInput) {
