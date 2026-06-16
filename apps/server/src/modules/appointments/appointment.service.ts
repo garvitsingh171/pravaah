@@ -186,7 +186,21 @@ export const appointmentService = {
     },
 
     async updateAppointmentStatus(appointmentId: string, status: AppointmentStatus) {
-        const result = await appointmentRepository.updateAppointmentStatus(appointmentId, status);
+        let result: Awaited<ReturnType<typeof appointmentRepository.updateAppointmentStatus>>;
+
+        try {
+            result = await appointmentRepository.updateAppointmentStatus(appointmentId, status);
+        } catch (error) {
+            if (error instanceof Error && error.message === 'QUEUE_STATUS_SYNC_CONFLICT') {
+                throw new AppError(
+                    409,
+                    'STATUS_SYNC_CONFLICT',
+                    'Status changed while updating. Please refresh and try again.'
+                );
+            }
+
+            throw error;
+        }
 
         if (result.failureReason === 'NOT_FOUND') {
             throw new AppError(404, 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
@@ -197,6 +211,14 @@ export const appointmentService = {
                 409,
                 'APPOINTMENT_STATUS_FINAL',
                 'Completed, cancelled, or no-show appointments cannot be changed to another status'
+            );
+        }
+
+        if (result.failureReason === 'QUEUE_ENTRY_NOT_FOUND') {
+            throw new AppError(
+                409,
+                'QUEUE_ENTRY_NOT_FOUND',
+                'Linked queue entry was not found for this appointment'
             );
         }
 
