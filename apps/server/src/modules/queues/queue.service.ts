@@ -99,13 +99,31 @@ export const queueService = {
             timestampUpdates.completedAt = now;
         }
 
-        return queueRepository.updateQueueEntryStatus(
-            queueEntryId,
-            queueEntry.appointmentId,
-            status,
-            queueStatusToAppointmentStatus[status],
-            timestampUpdates
-        );
+        try {
+            return await queueRepository.updateQueueEntryStatus(
+                queueEntryId,
+                queueEntry.appointmentId,
+                clinicId,
+                status,
+                queueStatusToAppointmentStatus[status],
+                timestampUpdates
+            );
+        } catch (error) {
+            if (
+                error instanceof Error &&
+                ['QUEUE_STATUS_UPDATE_CONFLICT', 'APPOINTMENT_STATUS_SYNC_CONFLICT'].includes(
+                    error.message
+                )
+            ) {
+                throw new AppError(
+                    409,
+                    'STATUS_SYNC_CONFLICT',
+                    'Status changed while updating. Please refresh and try again.'
+                );
+            }
+
+            throw error;
+        }
     },
 
     async reorderQueue(userId: string, clinicId: string, date: string, queueEntryIds: string[]) {

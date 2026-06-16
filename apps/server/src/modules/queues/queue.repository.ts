@@ -43,6 +43,18 @@ const getClinicDateRange = async (date: string, clinicTimezone: string) => {
     return dateRange;
 };
 
+const finalQueueStatuses: QueueStatus[] = [
+    QueueStatus.COMPLETED,
+    QueueStatus.CANCELLED,
+    QueueStatus.NO_SHOW,
+];
+
+const finalAppointmentStatuses: AppointmentStatus[] = [
+    AppointmentStatus.COMPLETED,
+    AppointmentStatus.CANCELLED,
+    AppointmentStatus.NO_SHOW,
+];
+
 export const queueRepository = {
     findClinicById(clinicId: string) {
         return prisma.clinic.findUnique({
@@ -155,33 +167,93 @@ export const queueRepository = {
         });
     },
 
-    updateQueueEntryStatus(
+    async updateQueueEntryStatus(
         queueEntryId: string,
         appointmentId: string,
+        clinicId: string,
         status: QueueStatus,
         appointmentStatus: AppointmentStatus,
         timestampUpdates: { calledAt?: Date; completedAt?: Date }
     ) {
-        const queueUpdateData: Prisma.QueueEntryUpdateInput = {
-            status,
-            ...timestampUpdates,
-        };
-
         return prisma.$transaction(async (tx) => {
-            await tx.appointment.update({
+            const queueUpdateResult = await tx.queueEntry.updateMany({
+                where: {
+                    id: queueEntryId,
+                    clinicId,
+                    OR: [
+                        {
+                            status,
+                        },
+                        {
+                            status: {
+                                notIn: finalQueueStatuses,
+                            },
+                        },
+                    ],
+                },
+                data: {
+                    status,
+                },
+            });
+
+            if (queueUpdateResult.count !== 1) {
+                throw new Error('QUEUE_STATUS_UPDATE_CONFLICT');
+            }
+
+            if (timestampUpdates.calledAt !== undefined) {
+                await tx.queueEntry.updateMany({
+                    where: {
+                        id: queueEntryId,
+                        clinicId,
+                        calledAt: null,
+                    },
+                    data: {
+                        calledAt: timestampUpdates.calledAt,
+                    },
+                });
+            }
+
+            if (timestampUpdates.completedAt !== undefined) {
+                await tx.queueEntry.updateMany({
+                    where: {
+                        id: queueEntryId,
+                        clinicId,
+                        completedAt: null,
+                    },
+                    data: {
+                        completedAt: timestampUpdates.completedAt,
+                    },
+                });
+            }
+
+            const appointmentUpdateResult = await tx.appointment.updateMany({
                 where: {
                     id: appointmentId,
+                    clinicId,
+                    OR: [
+                        {
+                            status: appointmentStatus,
+                        },
+                        {
+                            status: {
+                                notIn: finalAppointmentStatuses,
+                            },
+                        },
+                    ],
                 },
                 data: {
                     status: appointmentStatus,
                 },
             });
 
-            return tx.queueEntry.update({
+            if (appointmentUpdateResult.count !== 1) {
+                throw new Error('APPOINTMENT_STATUS_SYNC_CONFLICT');
+            }
+
+            return tx.queueEntry.findUniqueOrThrow({
                 where: {
                     id: queueEntryId,
                 },
-                data: queueUpdateData,
                 include: queueEntryDetailsInclude,
             });
         });
