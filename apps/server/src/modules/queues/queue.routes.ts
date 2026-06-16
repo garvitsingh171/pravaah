@@ -1,7 +1,15 @@
 import { Router } from 'express';
 import { validateRequest } from '../../utils/validateRequest.js';
-import { listQueueByClinicDateController } from './queue.controller.js';
-import { listQueueQuerySchema, queueClinicIdParamsSchema } from './queue.validation.js';
+import {
+    listQueueByClinicDateController,
+    updateQueueStatusController,
+} from './queue.controller.js';
+import {
+    listQueueQuerySchema,
+    queueClinicIdParamsSchema,
+    queueStatusUpdateParamsSchema,
+    updateQueueStatusBodySchema,
+} from './queue.validation.js';
 
 const queueRouter = Router();
 
@@ -12,6 +20,15 @@ queueRouter.get(
         query: listQueueQuerySchema,
     }),
     listQueueByClinicDateController
+);
+
+queueRouter.patch(
+    '/:clinicId/queue/:queueEntryId/status',
+    validateRequest({
+        params: queueStatusUpdateParamsSchema,
+        body: updateQueueStatusBodySchema,
+    }),
+    updateQueueStatusController
 );
 
 export { queueRouter };

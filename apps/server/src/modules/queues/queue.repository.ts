@@ -90,6 +90,27 @@ export const queueRepository = {
         });
     },
 
+    findQueueEntryById(queueEntryId: string) {
+        return prisma.queueEntry.findUnique({
+            where: {
+                id: queueEntryId,
+            },
+            include: queueEntryDetailsInclude,
+        });
+    },
+
+    updateQueueEntryStatus(queueEntryId: string, status: QueueStatus) {
+        return prisma.queueEntry.update({
+            where: {
+                id: queueEntryId,
+            },
+            data: {
+                status,
+            },
+            include: queueEntryDetailsInclude,
+        });
+    },
+
     async findHighestQueuePosition(
         tx: Prisma.TransactionClient,
         clinicId: string,
