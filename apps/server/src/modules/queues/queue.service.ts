@@ -1,4 +1,4 @@
-import { QueueStatus } from '../../generated/prisma/client.js';
+import { AppointmentStatus, QueueStatus } from '../../generated/prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
 import { queueRepository } from './queue.repository.js';
 
@@ -7,6 +7,15 @@ const finalQueueStatuses: QueueStatus[] = [
     QueueStatus.CANCELLED,
     QueueStatus.NO_SHOW,
 ];
+
+const queueStatusToAppointmentStatus: Record<QueueStatus, AppointmentStatus> = {
+    ARRIVED: AppointmentStatus.ARRIVED,
+    WAITING: AppointmentStatus.IN_QUEUE,
+    CALLED: AppointmentStatus.CALLED,
+    COMPLETED: AppointmentStatus.COMPLETED,
+    CANCELLED: AppointmentStatus.CANCELLED,
+    NO_SHOW: AppointmentStatus.NO_SHOW,
+};
 
 export const queueService = {
     calculateNextQueuePosition(highestPosition: number | null): number {
@@ -93,6 +102,11 @@ export const queueService = {
             );
         }
 
-        return queueRepository.updateQueueEntryStatus(queueEntryId, status);
+        return queueRepository.updateQueueEntryStatus(
+            queueEntryId,
+            queueEntry.appointmentId,
+            status,
+            queueStatusToAppointmentStatus[status]
+        );
     },
 };
