@@ -5,6 +5,7 @@ import type {
     ListQueueQueryInput,
     QueueClinicIdParamsInput,
     QueueStatusUpdateParamsInput,
+    ReorderQueueBodyInput,
     UpdateQueueStatusBodyInput,
 } from './queue.types.js';
 
@@ -74,6 +75,40 @@ export async function updateQueueStatusController(
             message: 'Queue status updated successfully',
             data: {
                 queueEntry,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function reorderQueueController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const authenticatedReq = req as AuthenticatedRequest;
+
+        if (!authenticatedReq.user?.id) {
+            throw new AppError(401, 'UNAUTHENTICATED', 'Authentication is required');
+        }
+
+        const { clinicId } = req.params as QueueClinicIdParamsInput;
+        const { date, queueEntryIds } = req.body as ReorderQueueBodyInput;
+
+        const queueEntries = await queueService.reorderQueue(
+            authenticatedReq.user.id,
+            clinicId,
+            date,
+            queueEntryIds
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'Queue reordered successfully',
+            data: {
+                queueEntries,
             },
         });
     } catch (error) {
