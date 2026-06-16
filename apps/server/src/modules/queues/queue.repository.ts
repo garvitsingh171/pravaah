@@ -1,5 +1,5 @@
 import { prisma } from '../../config/prisma.js';
-import { Prisma, QueueStatus } from '../../generated/prisma/client.js';
+import { AppointmentStatus, Prisma, QueueStatus } from '../../generated/prisma/client.js';
 
 const queueEntryDetailsInclude = {
     appointment: {
@@ -87,6 +87,57 @@ export const queueRepository = {
                     },
                 },
             ],
+        });
+    },
+
+    findQueueEntryById(queueEntryId: string) {
+        return prisma.queueEntry.findUnique({
+            where: {
+                id: queueEntryId,
+            },
+            include: queueEntryDetailsInclude,
+        });
+    },
+
+    updateQueueEntryStatus(
+        queueEntryId: string,
+        appointmentId: string,
+        status: QueueStatus,
+        appointmentStatus: AppointmentStatus
+    ) {
+        const now = new Date();
+
+        const queueUpdateData: Prisma.QueueEntryUpdateInput = {
+            status,
+        };
+
+        const appointmentUpdateData: Prisma.AppointmentUpdateInput = {
+            status: appointmentStatus,
+        };
+
+        if (status === QueueStatus.CALLED) {
+            queueUpdateData.calledAt = now;
+        }
+
+        if (status === QueueStatus.COMPLETED) {
+            queueUpdateData.completedAt = now;
+        }
+
+        return prisma.$transaction(async (tx) => {
+            await tx.appointment.update({
+                where: {
+                    id: appointmentId,
+                },
+                data: appointmentUpdateData,
+            });
+
+            return tx.queueEntry.update({
+                where: {
+                    id: queueEntryId,
+                },
+                data: queueUpdateData,
+                include: queueEntryDetailsInclude,
+            });
         });
     },
 

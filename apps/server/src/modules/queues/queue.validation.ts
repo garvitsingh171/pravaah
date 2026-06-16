@@ -34,11 +34,24 @@ export const queueClinicIdParamsSchema = z.object({
     clinicId: uuidSchema,
 });
 
+export const queueStatusUpdateParamsSchema = z.object({
+    clinicId: uuidSchema,
+    queueEntryId: uuidSchema,
+});
+
 export const listQueueQuerySchema = z
     .object({
         date: dateSchema,
     })
     .strict();
 
+export const updateQueueStatusBodySchema = z
+    .object({
+        status: z.enum(['ARRIVED', 'WAITING', 'CALLED', 'COMPLETED', 'CANCELLED', 'NO_SHOW']),
+    })
+    .strict();
+
 export type QueueClinicIdParamsSchemaInput = z.infer<typeof queueClinicIdParamsSchema>;
+export type QueueStatusUpdateParamsSchemaInput = z.infer<typeof queueStatusUpdateParamsSchema>;
 export type ListQueueQuerySchemaInput = z.infer<typeof listQueueQuerySchema>;
+export type UpdateQueueStatusBodySchemaInput = z.infer<typeof updateQueueStatusBodySchema>;

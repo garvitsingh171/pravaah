@@ -1,7 +1,12 @@
 import type { Request, Response, NextFunction } from 'express';
 import { AppError } from '../../utils/AppError.js';
 import { queueService } from './queue.service.js';
-import type { ListQueueQueryInput, QueueClinicIdParamsInput } from './queue.types.js';
+import type {
+    ListQueueQueryInput,
+    QueueClinicIdParamsInput,
+    QueueStatusUpdateParamsInput,
+    UpdateQueueStatusBodyInput,
+} from './queue.types.js';
 
 type AuthenticatedRequest = Request & {
     user?: {
@@ -35,6 +40,40 @@ export async function listQueueByClinicDateController(
             message: 'Queue fetched successfully',
             data: {
                 queueEntries,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function updateQueueStatusController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const authenticatedReq = req as AuthenticatedRequest;
+
+        if (!authenticatedReq.user?.id) {
+            throw new AppError(401, 'UNAUTHENTICATED', 'Authentication is required');
+        }
+
+        const { clinicId, queueEntryId } = req.params as QueueStatusUpdateParamsInput;
+        const { status } = req.body as UpdateQueueStatusBodyInput;
+
+        const queueEntry = await queueService.updateQueueStatus(
+            authenticatedReq.user.id,
+            clinicId,
+            queueEntryId,
+            status
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'Queue status updated successfully',
+            data: {
+                queueEntry,
             },
         });
     } catch (error) {
