@@ -33,6 +33,16 @@ const queueEntryDetailsInclude = {
     },
 } satisfies Prisma.QueueEntryInclude;
 
+const getClinicDateRange = async (date: string, clinicTimezone: string) => {
+    const [dateRange] = await prisma.$queryRaw<Array<{ start: Date; end: Date }>>`
+        SELECT
+            (${date}::date::timestamp AT TIME ZONE ${clinicTimezone}) AS "start",
+            ((${date}::date + 1)::timestamp AT TIME ZONE ${clinicTimezone}) AS "end"
+    `;
+
+    return dateRange;
+};
+
 export const queueRepository = {
     findClinicById(clinicId: string) {
         return prisma.clinic.findUnique({
@@ -56,11 +66,7 @@ export const queueRepository = {
     },
 
     async findQueueByClinicDate(clinicId: string, date: string, clinicTimezone: string) {
-        const [dateRange] = await prisma.$queryRaw<Array<{ start: Date; end: Date }>>`
-            SELECT
-                (${date}::date::timestamp AT TIME ZONE ${clinicTimezone}) AS "start",
-                ((${date}::date + 1)::timestamp AT TIME ZONE ${clinicTimezone}) AS "end"
-        `;
+        const dateRange = await getClinicDateRange(date, clinicTimezone);
 
         if (!dateRange) {
             return [];
@@ -69,6 +75,45 @@ export const queueRepository = {
         return prisma.queueEntry.findMany({
             where: {
                 clinicId,
+                appointment: {
+                    scheduledAt: {
+                        gte: dateRange.start,
+                        lt: dateRange.end,
+                    },
+                },
+            },
+            include: queueEntryDetailsInclude,
+            orderBy: [
+                {
+                    position: 'asc',
+                },
+                {
+                    appointment: {
+                        scheduledAt: 'asc',
+                    },
+                },
+            ],
+        });
+    },
+
+    async findActiveQueueByClinicDate(
+        clinicId: string,
+        date: string,
+        clinicTimezone: string,
+        activeStatuses: QueueStatus[]
+    ) {
+        const dateRange = await getClinicDateRange(date, clinicTimezone);
+
+        if (!dateRange) {
+            return [];
+        }
+
+        return prisma.queueEntry.findMany({
+            where: {
+                clinicId,
+                status: {
+                    in: activeStatuses,
+                },
                 appointment: {
                     scheduledAt: {
                         gte: dateRange.start,
@@ -99,36 +144,37 @@ export const queueRepository = {
         });
     },
 
+    findQueueEntriesByIds(queueEntryIds: string[]) {
+        return prisma.queueEntry.findMany({
+            where: {
+                id: {
+                    in: queueEntryIds,
+                },
+            },
+            include: queueEntryDetailsInclude,
+        });
+    },
+
     updateQueueEntryStatus(
         queueEntryId: string,
         appointmentId: string,
         status: QueueStatus,
-        appointmentStatus: AppointmentStatus
+        appointmentStatus: AppointmentStatus,
+        timestampUpdates: { calledAt?: Date; completedAt?: Date }
     ) {
-        const now = new Date();
-
         const queueUpdateData: Prisma.QueueEntryUpdateInput = {
             status,
+            ...timestampUpdates,
         };
-
-        const appointmentUpdateData: Prisma.AppointmentUpdateInput = {
-            status: appointmentStatus,
-        };
-
-        if (status === QueueStatus.CALLED) {
-            queueUpdateData.calledAt = now;
-        }
-
-        if (status === QueueStatus.COMPLETED) {
-            queueUpdateData.completedAt = now;
-        }
 
         return prisma.$transaction(async (tx) => {
             await tx.appointment.update({
                 where: {
                     id: appointmentId,
                 },
-                data: appointmentUpdateData,
+                data: {
+                    status: appointmentStatus,
+                },
             });
 
             return tx.queueEntry.update({
@@ -137,6 +183,55 @@ export const queueRepository = {
                 },
                 data: queueUpdateData,
                 include: queueEntryDetailsInclude,
+            });
+        });
+    },
+
+    reorderQueueEntries(queueEntryIds: string[]) {
+        return prisma.$transaction(async (tx) => {
+            await Promise.all(
+                queueEntryIds.map((queueEntryId, index) =>
+                    tx.queueEntry.update({
+                        where: {
+                            id: queueEntryId,
+                        },
+                        data: {
+                            position: 1_000_000 + index,
+                        },
+                    })
+                )
+            );
+
+            await Promise.all(
+                queueEntryIds.map((queueEntryId, index) =>
+                    tx.queueEntry.update({
+                        where: {
+                            id: queueEntryId,
+                        },
+                        data: {
+                            position: index + 1,
+                        },
+                    })
+                )
+            );
+
+            return tx.queueEntry.findMany({
+                where: {
+                    id: {
+                        in: queueEntryIds,
+                    },
+                },
+                include: queueEntryDetailsInclude,
+                orderBy: [
+                    {
+                        position: 'asc',
+                    },
+                    {
+                        appointment: {
+                            scheduledAt: 'asc',
+                        },
+                    },
+                ],
             });
         });
     },

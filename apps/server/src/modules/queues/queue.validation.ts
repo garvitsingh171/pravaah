@@ -51,7 +51,21 @@ export const updateQueueStatusBodySchema = z
     })
     .strict();
 
+export const reorderQueueBodySchema = z
+    .object({
+        date: dateSchema,
+        queueEntryIds: z
+            .array(uuidSchema)
+            .min(1, 'At least one queue entry id is required')
+            .refine(
+                (queueEntryIds) => new Set(queueEntryIds).size === queueEntryIds.length,
+                'Queue entry ids must be unique'
+            ),
+    })
+    .strict();
+
 export type QueueClinicIdParamsSchemaInput = z.infer<typeof queueClinicIdParamsSchema>;
 export type QueueStatusUpdateParamsSchemaInput = z.infer<typeof queueStatusUpdateParamsSchema>;
 export type ListQueueQuerySchemaInput = z.infer<typeof listQueueQuerySchema>;
 export type UpdateQueueStatusBodySchemaInput = z.infer<typeof updateQueueStatusBodySchema>;
+export type ReorderQueueBodySchemaInput = z.infer<typeof reorderQueueBodySchema>;
