@@ -187,38 +187,58 @@ export const queueRepository = {
         });
     },
 
-    reorderQueueEntries(queueEntryIds: string[]) {
+    async reorderQueueEntries(
+        clinicId: string,
+        queueEntryIds: string[],
+        activeStatuses: QueueStatus[]
+    ) {
         return prisma.$transaction(async (tx) => {
-            await Promise.all(
-                queueEntryIds.map((queueEntryId, index) =>
-                    tx.queueEntry.update({
-                        where: {
-                            id: queueEntryId,
+            for (const [index, queueEntryId] of queueEntryIds.entries()) {
+                const updatedQueueEntry = await tx.queueEntry.updateMany({
+                    where: {
+                        id: queueEntryId,
+                        clinicId,
+                        status: {
+                            in: activeStatuses,
                         },
-                        data: {
-                            position: 1_000_000 + index,
-                        },
-                    })
-                )
-            );
+                    },
+                    data: {
+                        position: 1_000_000 + index,
+                    },
+                });
 
-            await Promise.all(
-                queueEntryIds.map((queueEntryId, index) =>
-                    tx.queueEntry.update({
-                        where: {
-                            id: queueEntryId,
+                if (updatedQueueEntry.count !== 1) {
+                    throw new Error('QUEUE_REORDER_CONFLICT');
+                }
+            }
+
+            for (const [index, queueEntryId] of queueEntryIds.entries()) {
+                const updatedQueueEntry = await tx.queueEntry.updateMany({
+                    where: {
+                        id: queueEntryId,
+                        clinicId,
+                        status: {
+                            in: activeStatuses,
                         },
-                        data: {
-                            position: index + 1,
-                        },
-                    })
-                )
-            );
+                    },
+                    data: {
+                        position: index + 1,
+                    },
+                });
+
+                if (updatedQueueEntry.count !== 1) {
+                    throw new Error('QUEUE_REORDER_CONFLICT');
+                }
+            }
 
             return tx.queueEntry.findMany({
                 where: {
                     id: {
                         in: queueEntryIds,
+                    },
+                    clinicId,
+                    status: {
+                        in: activeStatuses,
                     },
                 },
                 include: queueEntryDetailsInclude,

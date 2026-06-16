@@ -174,6 +174,22 @@ export const queueService = {
             );
         }
 
-        return queueRepository.reorderQueueEntries(queueEntryIds);
+        try {
+            return await queueRepository.reorderQueueEntries(
+                clinicId,
+                queueEntryIds,
+                activeQueueStatuses
+            );
+        } catch (error) {
+            if (error instanceof Error && error.message === 'QUEUE_REORDER_CONFLICT') {
+                throw new AppError(
+                    409,
+                    'QUEUE_REORDER_CONFLICT',
+                    'Queue changed while reordering. Please refresh and try again.'
+                );
+            }
+
+            throw error;
+        }
     },
 };
