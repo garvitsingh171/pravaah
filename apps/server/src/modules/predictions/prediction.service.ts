@@ -38,8 +38,7 @@ export const predictNoShowRisk = (input: NoShowPredictionInput): NoShowPredictio
     let score = 0;
     const reasons: NoShowPredictionReason[] = [];
 
-    const bookedAt = input.bookedAt ?? new Date();
-    const hoursUntilAppointment = getHoursBetween(bookedAt, input.scheduledAt);
+    const hoursUntilAppointment = getHoursBetween(input.bookedAt, input.scheduledAt);
 
     const patientNoShowCount = input.patientNoShowCount ?? 0;
     const patientCompletedAppointmentCount = input.patientCompletedAppointmentCount ?? 0;

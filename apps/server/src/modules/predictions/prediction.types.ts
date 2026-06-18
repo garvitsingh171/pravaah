@@ -9,7 +9,7 @@ export type NoShowPredictionReasonCode =
 
 export type NoShowPredictionInput = {
     scheduledAt: Date;
-    bookedAt?: Date;
+    bookedAt: Date;
     patientNoShowCount?: number;
     patientCompletedAppointmentCount?: number;
 };
