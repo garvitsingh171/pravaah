@@ -1,5 +1,6 @@
 import { AppointmentStatus } from '../../generated/prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
+import { predictNoShowRisk } from '../predictions/prediction.service.js';
 import { queueRepository } from '../queues/queue.repository.js';
 import { queueService } from '../queues/queue.service.js';
 import { appointmentRepository } from './appointment.repository.js';
@@ -13,11 +14,18 @@ const conflictingAppointmentStatuses: AppointmentStatus[] = [
     AppointmentStatus.CALLED,
 ];
 
+type ActivePatientClinicLink = NonNullable<
+    Awaited<ReturnType<typeof appointmentRepository.findActivePatientClinicLink>>
+>;
+
 async function validateAppointmentClinicOwnership(
     clinicId: string,
     doctorId: string,
     patientId: string
-): Promise<string> {
+): Promise<{
+    clinicTimezone: string;
+    patientClinicLink: ActivePatientClinicLink;
+}> {
     const clinic = await appointmentRepository.findClinicById(clinicId);
 
     if (!clinic) {
@@ -66,7 +74,10 @@ async function validateAppointmentClinicOwnership(
         );
     }
 
-    return clinic.timezone;
+    return {
+        clinicTimezone: clinic.timezone,
+        patientClinicLink,
+    };
 }
 
 export const appointmentService = {
@@ -75,7 +86,7 @@ export const appointmentService = {
         createdByUserId: string,
         input: CreateAppointmentInput
     ) {
-        const clinicTimezone = await validateAppointmentClinicOwnership(
+        const { clinicTimezone, patientClinicLink } = await validateAppointmentClinicOwnership(
             clinicId,
             input.doctorId,
             input.patientId
@@ -116,6 +127,19 @@ export const appointmentService = {
                 input
             );
 
+            const patientNoShowCount = patientClinicLink.totalNoShows ?? 0;
+            const patientCompletedAppointmentCount = Math.max(
+                (patientClinicLink.totalAppointments ?? 0) - patientNoShowCount,
+                0
+            );
+
+            const noShowPrediction = predictNoShowRisk({
+                scheduledAt: appointment.scheduledAt,
+                bookedAt: appointment.createdAt,
+                patientNoShowCount,
+                patientCompletedAppointmentCount,
+            });
+
             await queueRepository.createQueueEntry(
                 tx,
                 clinicId,
@@ -125,7 +149,10 @@ export const appointmentService = {
                 nextPosition
             );
 
-            return appointment;
+            return {
+                appointment,
+                noShowPrediction,
+            };
         });
     },
 
