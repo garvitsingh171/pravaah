@@ -155,8 +155,14 @@ describe('appointmentService.createAppointment', () => {
 
         expect(result).toEqual({
             appointment,
-            noShowPrediction,
+            noShowPrediction: {
+                riskLevel: 'MEDIUM',
+                reasons: ['Patient has no previous appointment history.'],
+            },
         });
+
+        expect(result.noShowPrediction).not.toHaveProperty('score');
+        expect(typeof result.noShowPrediction.reasons[0]).toBe('string');
     });
 
     it('uses maintained appointment history while generating no-show prediction', async () => {
@@ -260,6 +266,10 @@ describe('appointmentService.createAppointment', () => {
             patientCompletedAppointmentCount: 3,
         });
 
-        expect(result.noShowPrediction).toEqual(noShowPrediction);
+        expect(result.noShowPrediction).toEqual({
+            riskLevel: 'HIGH',
+            reasons: ['Patient has multiple previous no-show appointments.'],
+        });
+        expect(result.noShowPrediction).not.toHaveProperty('score');
     });
 });
