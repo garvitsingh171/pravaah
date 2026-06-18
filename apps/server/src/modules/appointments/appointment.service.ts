@@ -14,18 +14,11 @@ const conflictingAppointmentStatuses: AppointmentStatus[] = [
     AppointmentStatus.CALLED,
 ];
 
-type ActivePatientClinicLink = NonNullable<
-    Awaited<ReturnType<typeof appointmentRepository.findActivePatientClinicLink>>
->;
-
 async function validateAppointmentClinicOwnership(
     clinicId: string,
     doctorId: string,
     patientId: string
-): Promise<{
-    clinicTimezone: string;
-    patientClinicLink: ActivePatientClinicLink;
-}> {
+): Promise<string> {
     const clinic = await appointmentRepository.findClinicById(clinicId);
 
     if (!clinic) {
@@ -74,10 +67,7 @@ async function validateAppointmentClinicOwnership(
         );
     }
 
-    return {
-        clinicTimezone: clinic.timezone,
-        patientClinicLink,
-    };
+    return clinic.timezone;
 }
 
 export const appointmentService = {
@@ -86,7 +76,7 @@ export const appointmentService = {
         createdByUserId: string,
         input: CreateAppointmentInput
     ) {
-        const { clinicTimezone, patientClinicLink } = await validateAppointmentClinicOwnership(
+        const clinicTimezone = await validateAppointmentClinicOwnership(
             clinicId,
             input.doctorId,
             input.patientId
@@ -109,6 +99,15 @@ export const appointmentService = {
             );
         }
 
+        const [patientNoShowCount, patientCompletedAppointmentCount] = await Promise.all([
+            appointmentRepository.countPatientAppointmentsByStatus(clinicId, input.patientId, [
+                AppointmentStatus.NO_SHOW,
+            ]),
+            appointmentRepository.countPatientAppointmentsByStatus(clinicId, input.patientId, [
+                AppointmentStatus.COMPLETED,
+            ]),
+        ]);
+
         return appointmentRepository.runInTransaction(async (tx) => {
             const highestPosition = await queueRepository.findHighestQueuePosition(
                 tx,
@@ -125,12 +124,6 @@ export const appointmentService = {
                 clinicId,
                 createdByUserId,
                 input
-            );
-
-            const patientNoShowCount = patientClinicLink.totalNoShows ?? 0;
-            const patientCompletedAppointmentCount = Math.max(
-                (patientClinicLink.totalAppointments ?? 0) - patientNoShowCount,
-                0
             );
 
             const noShowPrediction = predictNoShowRisk({

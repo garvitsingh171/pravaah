@@ -9,6 +9,7 @@ const mockAppointmentRepository = vi.hoisted(() => ({
     findActiveDoctorClinicLink: vi.fn(),
     findActivePatientClinicLink: vi.fn(),
     findDoctorAppointmentAtTime: vi.fn(),
+    countPatientAppointmentsByStatus: vi.fn(),
     runInTransaction: vi.fn(),
     createAppointment: vi.fn(),
 }));
@@ -113,11 +114,13 @@ describe('appointmentService.createAppointment', () => {
             clinicId,
             patientId: input.patientId,
             isActive: true,
-            totalAppointments: 0,
-            totalNoShows: 0,
         });
 
         mockAppointmentRepository.findDoctorAppointmentAtTime.mockResolvedValue(null);
+
+        mockAppointmentRepository.countPatientAppointmentsByStatus
+            .mockResolvedValueOnce(0)
+            .mockResolvedValueOnce(0);
 
         mockQueueRepository.findHighestQueuePosition.mockResolvedValue(null);
         mockQueueService.calculateNextQueuePosition.mockReturnValue(1);
@@ -130,6 +133,18 @@ describe('appointmentService.createAppointment', () => {
         mockPredictNoShowRisk.mockReturnValue(noShowPrediction);
 
         const result = await appointmentService.createAppointment(clinicId, createdByUserId, input);
+
+        expect(mockAppointmentRepository.countPatientAppointmentsByStatus).toHaveBeenCalledWith(
+            clinicId,
+            input.patientId,
+            ['NO_SHOW']
+        );
+
+        expect(mockAppointmentRepository.countPatientAppointmentsByStatus).toHaveBeenCalledWith(
+            clinicId,
+            input.patientId,
+            ['COMPLETED']
+        );
 
         expect(mockPredictNoShowRisk).toHaveBeenCalledWith({
             scheduledAt: appointmentScheduledAt,
@@ -144,7 +159,7 @@ describe('appointmentService.createAppointment', () => {
         });
     });
 
-    it('uses patient clinic history while generating no-show prediction', async () => {
+    it('uses maintained appointment history while generating no-show prediction', async () => {
         const clinicId = 'clinic-id';
         const createdByUserId = 'user-id';
 
@@ -206,11 +221,13 @@ describe('appointmentService.createAppointment', () => {
             clinicId,
             patientId: input.patientId,
             isActive: true,
-            totalAppointments: 5,
-            totalNoShows: 2,
         });
 
         mockAppointmentRepository.findDoctorAppointmentAtTime.mockResolvedValue(null);
+
+        mockAppointmentRepository.countPatientAppointmentsByStatus
+            .mockResolvedValueOnce(2)
+            .mockResolvedValueOnce(3);
 
         mockQueueRepository.findHighestQueuePosition.mockResolvedValue(3);
         mockQueueService.calculateNextQueuePosition.mockReturnValue(4);
@@ -223,6 +240,18 @@ describe('appointmentService.createAppointment', () => {
         mockPredictNoShowRisk.mockReturnValue(noShowPrediction);
 
         const result = await appointmentService.createAppointment(clinicId, createdByUserId, input);
+
+        expect(mockAppointmentRepository.countPatientAppointmentsByStatus).toHaveBeenCalledWith(
+            clinicId,
+            input.patientId,
+            ['NO_SHOW']
+        );
+
+        expect(mockAppointmentRepository.countPatientAppointmentsByStatus).toHaveBeenCalledWith(
+            clinicId,
+            input.patientId,
+            ['COMPLETED']
+        );
 
         expect(mockPredictNoShowRisk).toHaveBeenCalledWith({
             scheduledAt: appointmentScheduledAt,
