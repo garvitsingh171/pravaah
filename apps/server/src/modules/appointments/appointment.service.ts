@@ -1,5 +1,6 @@
 import { AppointmentStatus } from '../../generated/prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
+import { predictNoShowRisk } from '../predictions/prediction.service.js';
 import { queueRepository } from '../queues/queue.repository.js';
 import { queueService } from '../queues/queue.service.js';
 import { appointmentRepository } from './appointment.repository.js';
@@ -98,6 +99,15 @@ export const appointmentService = {
             );
         }
 
+        const [patientNoShowCount, patientCompletedAppointmentCount] = await Promise.all([
+            appointmentRepository.countPatientAppointmentsByStatus(clinicId, input.patientId, [
+                AppointmentStatus.NO_SHOW,
+            ]),
+            appointmentRepository.countPatientAppointmentsByStatus(clinicId, input.patientId, [
+                AppointmentStatus.COMPLETED,
+            ]),
+        ]);
+
         return appointmentRepository.runInTransaction(async (tx) => {
             const highestPosition = await queueRepository.findHighestQueuePosition(
                 tx,
@@ -116,6 +126,13 @@ export const appointmentService = {
                 input
             );
 
+            const noShowPrediction = predictNoShowRisk({
+                scheduledAt: appointment.scheduledAt,
+                bookedAt: appointment.createdAt,
+                patientNoShowCount,
+                patientCompletedAppointmentCount,
+            });
+
             await queueRepository.createQueueEntry(
                 tx,
                 clinicId,
@@ -125,7 +142,10 @@ export const appointmentService = {
                 nextPosition
             );
 
-            return appointment;
+            return {
+                appointment,
+                noShowPrediction,
+            };
         });
     },
 

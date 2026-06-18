@@ -200,6 +200,22 @@ export const appointmentRepository = {
         });
     },
 
+    countPatientAppointmentsByStatus(
+        clinicId: string,
+        patientId: string,
+        statuses: AppointmentStatus[]
+    ) {
+        return prisma.appointment.count({
+            where: {
+                clinicId,
+                patientId,
+                status: {
+                    in: statuses,
+                },
+            },
+        });
+    },
+
     findAppointmentById(appointmentId: string) {
         return prisma.appointment.findUnique({
             where: {
