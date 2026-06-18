@@ -60,6 +60,16 @@ export type AppointmentSummary = BaseEntity & {
     reason?: string;
 };
 
+export type AppointmentBookingNoShowPrediction = {
+    riskLevel: RiskLevel;
+    reasons: string[];
+};
+
+export type CreateAppointmentResponseData = {
+    appointment: AppointmentSummary;
+    noShowPrediction: AppointmentBookingNoShowPrediction;
+};
+
 export type QueueEntrySummary = BaseEntity & {
     clinicId: string;
     appointmentId: string;
