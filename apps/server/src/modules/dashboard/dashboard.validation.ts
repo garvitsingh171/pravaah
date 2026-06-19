@@ -35,5 +35,12 @@ export const dashboardSummaryQuerySchema = z
     })
     .strict();
 
+export const highRiskAppointmentsQuerySchema = z
+    .object({
+        date: dateSchema.optional(),
+    })
+    .strict();
+
 export type DashboardClinicIdParamsSchemaInput = z.infer<typeof dashboardClinicIdParamsSchema>;
 export type DashboardSummaryQuerySchemaInput = z.infer<typeof dashboardSummaryQuerySchema>;
+export type HighRiskAppointmentsQuerySchemaInput = z.infer<typeof highRiskAppointmentsQuerySchema>;

@@ -1,5 +1,109 @@
 import { prisma } from '../../config/prisma.js';
-import { AppointmentStatus } from '../../generated/prisma/client.js';
+import { AppointmentStatus, Prisma } from '../../generated/prisma/client.js';
+
+const appointmentDetailsSelect = {
+    id: true,
+    patientId: true,
+    scheduledAt: true,
+    durationMinutes: true,
+    status: true,
+    bookingSource: true,
+    reason: true,
+    createdAt: true,
+    doctor: {
+        select: {
+            id: true,
+            fullName: true,
+            specialization: true,
+            qualification: true,
+        },
+    },
+    patient: {
+        select: {
+            id: true,
+            fullName: true,
+            phone: true,
+            email: true,
+            gender: true,
+            age: true,
+        },
+    },
+} satisfies Prisma.AppointmentSelect;
+
+const activityAppointmentSelect = {
+    id: true,
+    scheduledAt: true,
+    durationMinutes: true,
+    status: true,
+    bookingSource: true,
+    reason: true,
+    createdAt: true,
+    updatedAt: true,
+    doctor: {
+        select: {
+            id: true,
+            fullName: true,
+            specialization: true,
+            qualification: true,
+        },
+    },
+    patient: {
+        select: {
+            id: true,
+            fullName: true,
+            phone: true,
+            email: true,
+            gender: true,
+            age: true,
+        },
+    },
+} satisfies Prisma.AppointmentSelect;
+
+const activityQueueSelect = {
+    id: true,
+    position: true,
+    status: true,
+    queuedAt: true,
+    calledAt: true,
+    completedAt: true,
+    updatedAt: true,
+    appointment: {
+        select: {
+            id: true,
+            scheduledAt: true,
+            durationMinutes: true,
+            status: true,
+            bookingSource: true,
+            reason: true,
+        },
+    },
+    doctor: {
+        select: {
+            id: true,
+            fullName: true,
+            specialization: true,
+            qualification: true,
+        },
+    },
+    patient: {
+        select: {
+            id: true,
+            fullName: true,
+            phone: true,
+            email: true,
+            gender: true,
+            age: true,
+        },
+    },
+} satisfies Prisma.QueueEntrySelect;
+
+const activeAppointmentStatuses: AppointmentStatus[] = [
+    AppointmentStatus.SCHEDULED,
+    AppointmentStatus.CONFIRMED,
+    AppointmentStatus.ARRIVED,
+    AppointmentStatus.IN_QUEUE,
+    AppointmentStatus.CALLED,
+];
 
 const getClinicDateRange = async (date: string, clinicTimezone: string) => {
     const [dateRange] = await prisma.$queryRaw<Array<{ start: Date; end: Date }>>`
@@ -12,6 +116,8 @@ const getClinicDateRange = async (date: string, clinicTimezone: string) => {
 };
 
 export const dashboardRepository = {
+    getClinicDateRange,
+
     findUserById(userId: string) {
         return prisma.user.findUnique({
             where: {
@@ -94,19 +200,42 @@ export const dashboardRepository = {
                     lt: dateRange.end,
                 },
                 status: {
-                    in: [
-                        AppointmentStatus.SCHEDULED,
-                        AppointmentStatus.CONFIRMED,
-                        AppointmentStatus.ARRIVED,
-                        AppointmentStatus.IN_QUEUE,
-                        AppointmentStatus.CALLED,
-                    ],
+                    in: activeAppointmentStatuses,
                 },
             },
             select: {
                 patientId: true,
                 scheduledAt: true,
                 createdAt: true,
+            },
+        });
+    },
+
+    async findHighRiskAppointmentCandidates(
+        clinicId: string,
+        date: string,
+        clinicTimezone: string
+    ) {
+        const dateRange = await getClinicDateRange(date, clinicTimezone);
+
+        if (!dateRange) {
+            return [];
+        }
+
+        return prisma.appointment.findMany({
+            where: {
+                clinicId,
+                scheduledAt: {
+                    gte: dateRange.start,
+                    lt: dateRange.end,
+                },
+                status: {
+                    in: activeAppointmentStatuses,
+                },
+            },
+            select: appointmentDetailsSelect,
+            orderBy: {
+                scheduledAt: 'asc',
             },
         });
     },
@@ -129,6 +258,73 @@ export const dashboardRepository = {
             },
             _count: {
                 status: true,
+            },
+        });
+    },
+
+    async findAppointmentActivityCandidates(
+        clinicId: string,
+        dateRange: { start: Date; end: Date }
+    ) {
+        return prisma.appointment.findMany({
+            where: {
+                clinicId,
+                OR: [
+                    {
+                        createdAt: {
+                            gte: dateRange.start,
+                            lt: dateRange.end,
+                        },
+                    },
+                    {
+                        updatedAt: {
+                            gte: dateRange.start,
+                            lt: dateRange.end,
+                        },
+                    },
+                ],
+            },
+            select: activityAppointmentSelect,
+            orderBy: {
+                updatedAt: 'desc',
+            },
+        });
+    },
+
+    async findQueueActivityCandidates(clinicId: string, dateRange: { start: Date; end: Date }) {
+        return prisma.queueEntry.findMany({
+            where: {
+                clinicId,
+                OR: [
+                    {
+                        queuedAt: {
+                            gte: dateRange.start,
+                            lt: dateRange.end,
+                        },
+                    },
+                    {
+                        calledAt: {
+                            gte: dateRange.start,
+                            lt: dateRange.end,
+                        },
+                    },
+                    {
+                        completedAt: {
+                            gte: dateRange.start,
+                            lt: dateRange.end,
+                        },
+                    },
+                    {
+                        updatedAt: {
+                            gte: dateRange.start,
+                            lt: dateRange.end,
+                        },
+                    },
+                ],
+            },
+            select: activityQueueSelect,
+            orderBy: {
+                updatedAt: 'desc',
             },
         });
     },
