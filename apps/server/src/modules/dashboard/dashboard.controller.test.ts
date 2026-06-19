@@ -3,13 +3,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockDashboardService = vi.hoisted(() => ({
     getDashboardSummary: vi.fn(),
+    getHighRiskAppointments: vi.fn(),
+    getTodayActivity: vi.fn(),
 }));
 
 vi.mock('./dashboard.service.js', () => ({
     dashboardService: mockDashboardService,
 }));
 
-import { getDashboardSummaryController } from './dashboard.controller.js';
+import {
+    getDashboardSummaryController,
+    getHighRiskAppointmentsController,
+    getTodayActivityController,
+} from './dashboard.controller.js';
 
 describe('getDashboardSummaryController', () => {
     beforeEach(() => {
@@ -88,5 +94,164 @@ describe('getDashboardSummaryController', () => {
         });
         expect(dashboardSummary).not.toHaveProperty('appointments');
         expect(dashboardSummary).not.toHaveProperty('queueEntries');
+    });
+});
+
+describe('getHighRiskAppointmentsController', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('returns high-risk appointments without internal score details', async () => {
+        const result = {
+            clinicId: 'clinic-id',
+            date: '2026-06-19',
+            highRiskAppointments: [
+                {
+                    appointment: {
+                        id: 'appointment-id',
+                        scheduledAt: new Date('2026-06-19T05:00:00.000Z'),
+                        durationMinutes: 15,
+                        status: 'SCHEDULED',
+                        bookingSource: 'RECEPTION',
+                        reason: 'Fever',
+                    },
+                    doctor: {
+                        id: 'doctor-id',
+                        fullName: 'Dr. Asha Rao',
+                        specialization: 'General Medicine',
+                        qualification: 'MBBS',
+                    },
+                    patient: {
+                        id: 'patient-id',
+                        fullName: 'Rohan Mehta',
+                        phone: '9999999999',
+                        email: null,
+                        gender: null,
+                        age: 34,
+                    },
+                    prediction: {
+                        riskLevel: 'HIGH' as const,
+                        reasons: ['Patient has multiple previous no-show appointments.'],
+                    },
+                },
+            ],
+        };
+
+        const req = {
+            params: {
+                clinicId: 'clinic-id',
+            },
+            user: {
+                id: 'user-id',
+            },
+        } as unknown as Request;
+
+        const json = vi.fn();
+        const status = vi.fn(() => ({ json }));
+        const res = {
+            locals: {
+                validatedQuery: {
+                    date: '2026-06-19',
+                },
+            },
+            status,
+        } as unknown as Response;
+        const next = vi.fn() as NextFunction;
+
+        mockDashboardService.getHighRiskAppointments.mockResolvedValue(result);
+
+        await getHighRiskAppointmentsController(req, res, next);
+
+        expect(mockDashboardService.getHighRiskAppointments).toHaveBeenCalledWith(
+            'user-id',
+            'clinic-id',
+            '2026-06-19'
+        );
+
+        expect(status).toHaveBeenCalledWith(200);
+        expect(json).toHaveBeenCalledWith({
+            success: true,
+            message: 'High-risk appointments fetched successfully',
+            data: result,
+        });
+        expect(result.highRiskAppointments).toEqual([
+            expect.objectContaining({
+                prediction: expect.not.objectContaining({
+                    score: expect.any(Number),
+                }),
+            }),
+        ]);
+    });
+});
+
+describe('getTodayActivityController', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('returns today activity response shape', async () => {
+        const result = {
+            clinicId: 'clinic-id',
+            date: '2026-06-19',
+            activityItems: [
+                {
+                    id: 'queue:queue-id:called',
+                    type: 'PATIENT_CALLED',
+                    timestamp: new Date('2026-06-19T06:00:00.000Z'),
+                    appointment: {
+                        id: 'appointment-id',
+                        scheduledAt: new Date('2026-06-19T05:00:00.000Z'),
+                        durationMinutes: 15,
+                        status: 'CALLED',
+                        bookingSource: 'RECEPTION',
+                        reason: 'Fever',
+                    },
+                    doctor: {
+                        id: 'doctor-id',
+                        fullName: 'Dr. Asha Rao',
+                        specialization: 'General Medicine',
+                        qualification: 'MBBS',
+                    },
+                    patient: {
+                        id: 'patient-id',
+                        fullName: 'Rohan Mehta',
+                        phone: '9999999999',
+                        email: null,
+                        gender: null,
+                        age: 34,
+                    },
+                },
+            ],
+        };
+
+        const req = {
+            params: {
+                clinicId: 'clinic-id',
+            },
+            user: {
+                id: 'user-id',
+            },
+        } as unknown as Request;
+
+        const json = vi.fn();
+        const status = vi.fn(() => ({ json }));
+        const res = {
+            status,
+        } as unknown as Response;
+        const next = vi.fn() as NextFunction;
+
+        mockDashboardService.getTodayActivity.mockResolvedValue(result);
+
+        await getTodayActivityController(req, res, next);
+
+        expect(mockDashboardService.getTodayActivity).toHaveBeenCalledWith('user-id', 'clinic-id');
+
+        expect(status).toHaveBeenCalledWith(200);
+        expect(json).toHaveBeenCalledWith({
+            success: true,
+            message: "Today's clinic activity fetched successfully",
+            data: result,
+        });
     });
 });

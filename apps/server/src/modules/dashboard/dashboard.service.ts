@@ -6,10 +6,16 @@ import { dashboardRepository } from './dashboard.repository.js';
 import type {
     AppointmentRiskSource,
     AppointmentStatusCount,
+    ClinicDateRange,
+    DashboardActivityAppointmentSource,
+    DashboardActivityItem,
+    DashboardActivityQueueSource,
     DashboardAppointmentSummary,
+    DashboardHighRiskAppointment,
     DashboardNoShowRiskSummary,
     DashboardQueueSummary,
     DashboardSummary,
+    HighRiskAppointmentCandidate,
     PatientStatusCount,
     QueueStatusCount,
 } from './dashboard.types.js';
@@ -142,6 +148,208 @@ const buildNoShowRiskSummary = (
     return summary;
 };
 
+const getPatientStatusCounts = async (
+    clinicId: string,
+    appointments: AppointmentRiskSource[]
+): Promise<PatientStatusCount[]> => {
+    const patientIds = [...new Set(appointments.map((appointment) => appointment.patientId))];
+
+    if (patientIds.length === 0) {
+        return [];
+    }
+
+    return dashboardRepository.countPatientAppointmentsByStatuses(clinicId, patientIds, [
+        AppointmentStatus.NO_SHOW,
+        AppointmentStatus.COMPLETED,
+    ]);
+};
+
+const buildHighRiskAppointments = (
+    appointments: HighRiskAppointmentCandidate[],
+    patientStatusCounts: PatientStatusCount[]
+): DashboardHighRiskAppointment[] => {
+    const patientHistory = buildPatientHistoryMap(patientStatusCounts);
+
+    return appointments.flatMap((appointment) => {
+        const history = patientHistory.get(appointment.patientId) ?? {
+            noShowCount: 0,
+            completedCount: 0,
+        };
+
+        const prediction = predictNoShowRisk({
+            scheduledAt: appointment.scheduledAt,
+            bookedAt: appointment.createdAt,
+            patientNoShowCount: history.noShowCount,
+            patientCompletedAppointmentCount: history.completedCount,
+        });
+
+        if (prediction.riskLevel !== 'HIGH') {
+            return [];
+        }
+
+        return [
+            {
+                appointment: {
+                    id: appointment.id,
+                    scheduledAt: appointment.scheduledAt,
+                    durationMinutes: appointment.durationMinutes,
+                    status: appointment.status,
+                    bookingSource: appointment.bookingSource,
+                    reason: appointment.reason,
+                },
+                doctor: appointment.doctor,
+                patient: appointment.patient,
+                prediction: {
+                    riskLevel: prediction.riskLevel,
+                    reasons: prediction.reasons.map((reason) => reason.message),
+                },
+            },
+        ];
+    });
+};
+
+const isInDateRange = (timestamp: Date | null, dateRange: ClinicDateRange): timestamp is Date => {
+    if (!timestamp) {
+        return false;
+    }
+
+    return (
+        timestamp.getTime() >= dateRange.start.getTime() &&
+        timestamp.getTime() < dateRange.end.getTime()
+    );
+};
+
+const buildAppointmentActivityItems = (
+    appointments: DashboardActivityAppointmentSource[],
+    dateRange: ClinicDateRange
+): DashboardActivityItem[] => {
+    return appointments.flatMap((appointment) => {
+        const appointmentDetails = {
+            id: appointment.id,
+            scheduledAt: appointment.scheduledAt,
+            durationMinutes: appointment.durationMinutes,
+            status: appointment.status,
+            bookingSource: appointment.bookingSource,
+            reason: appointment.reason,
+        };
+
+        const activityItems: DashboardActivityItem[] = [];
+
+        if (isInDateRange(appointment.createdAt, dateRange)) {
+            activityItems.push({
+                id: `appointment:${appointment.id}:booked`,
+                type: 'APPOINTMENT_BOOKED',
+                timestamp: appointment.createdAt,
+                appointment: appointmentDetails,
+                doctor: appointment.doctor,
+                patient: appointment.patient,
+            });
+        }
+
+        if (
+            appointment.status === AppointmentStatus.CANCELLED &&
+            isInDateRange(appointment.updatedAt, dateRange)
+        ) {
+            activityItems.push({
+                id: `appointment:${appointment.id}:cancelled`,
+                type: 'APPOINTMENT_CANCELLED',
+                timestamp: appointment.updatedAt,
+                appointment: appointmentDetails,
+                doctor: appointment.doctor,
+                patient: appointment.patient,
+            });
+        }
+
+        if (
+            appointment.status === AppointmentStatus.NO_SHOW &&
+            isInDateRange(appointment.updatedAt, dateRange)
+        ) {
+            activityItems.push({
+                id: `appointment:${appointment.id}:no-show`,
+                type: 'APPOINTMENT_NO_SHOW',
+                timestamp: appointment.updatedAt,
+                appointment: appointmentDetails,
+                doctor: appointment.doctor,
+                patient: appointment.patient,
+            });
+        }
+
+        return activityItems;
+    });
+};
+
+const buildQueueActivityItems = (
+    queueEntries: DashboardActivityQueueSource[],
+    dateRange: ClinicDateRange
+): DashboardActivityItem[] => {
+    return queueEntries.flatMap((queueEntry) => {
+        const activityItems: DashboardActivityItem[] = [];
+
+        if (isInDateRange(queueEntry.queuedAt, dateRange)) {
+            activityItems.push({
+                id: `queue:${queueEntry.id}:joined`,
+                type: 'QUEUE_JOINED',
+                timestamp: queueEntry.queuedAt,
+                appointment: queueEntry.appointment,
+                doctor: queueEntry.doctor,
+                patient: queueEntry.patient,
+            });
+        }
+
+        if (isInDateRange(queueEntry.calledAt, dateRange)) {
+            activityItems.push({
+                id: `queue:${queueEntry.id}:called`,
+                type: 'PATIENT_CALLED',
+                timestamp: queueEntry.calledAt,
+                appointment: queueEntry.appointment,
+                doctor: queueEntry.doctor,
+                patient: queueEntry.patient,
+            });
+        }
+
+        if (isInDateRange(queueEntry.completedAt, dateRange)) {
+            activityItems.push({
+                id: `queue:${queueEntry.id}:completed`,
+                type: 'VISIT_COMPLETED',
+                timestamp: queueEntry.completedAt,
+                appointment: queueEntry.appointment,
+                doctor: queueEntry.doctor,
+                patient: queueEntry.patient,
+            });
+        }
+
+        if (
+            queueEntry.status === QueueStatus.CANCELLED &&
+            isInDateRange(queueEntry.updatedAt, dateRange)
+        ) {
+            activityItems.push({
+                id: `queue:${queueEntry.id}:cancelled`,
+                type: 'QUEUE_CANCELLED',
+                timestamp: queueEntry.updatedAt,
+                appointment: queueEntry.appointment,
+                doctor: queueEntry.doctor,
+                patient: queueEntry.patient,
+            });
+        }
+
+        if (
+            queueEntry.status === QueueStatus.NO_SHOW &&
+            isInDateRange(queueEntry.updatedAt, dateRange)
+        ) {
+            activityItems.push({
+                id: `queue:${queueEntry.id}:no-show`,
+                type: 'QUEUE_NO_SHOW',
+                timestamp: queueEntry.updatedAt,
+                appointment: queueEntry.appointment,
+                doctor: queueEntry.doctor,
+                patient: queueEntry.patient,
+            });
+        }
+
+        return activityItems;
+    });
+};
+
 export const dashboardService = {
     async getDashboardSummary(
         userId: string,
@@ -161,18 +369,7 @@ export const dashboardService = {
             ),
         ]);
 
-        const patientIds = [
-            ...new Set(riskAppointments.map((appointment) => appointment.patientId)),
-        ];
-
-        const patientStatusCounts =
-            patientIds.length > 0
-                ? await dashboardRepository.countPatientAppointmentsByStatuses(
-                      clinicId,
-                      patientIds,
-                      [AppointmentStatus.NO_SHOW, AppointmentStatus.COMPLETED]
-                  )
-                : [];
+        const patientStatusCounts = await getPatientStatusCounts(clinicId, riskAppointments);
 
         return {
             clinicId,
@@ -180,6 +377,78 @@ export const dashboardService = {
             appointmentSummary: buildAppointmentSummary(appointmentStatusCounts),
             queueSummary: buildQueueSummary(queueStatusCounts),
             noShowRiskSummary: buildNoShowRiskSummary(riskAppointments, patientStatusCounts),
+        };
+    },
+
+    async getHighRiskAppointments(
+        userId: string,
+        clinicId: string,
+        requestedDate?: string
+    ): Promise<{
+        clinicId: string;
+        date: string;
+        highRiskAppointments: DashboardHighRiskAppointment[];
+    }> {
+        const clinic = await verifyClinicAccess(userId, clinicId);
+        const selectedDate = requestedDate ?? getDateInTimeZone(new Date(), clinic.timezone);
+
+        const appointmentCandidates = await dashboardRepository.findHighRiskAppointmentCandidates(
+            clinicId,
+            selectedDate,
+            clinic.timezone
+        );
+
+        const patientStatusCounts = await getPatientStatusCounts(clinicId, appointmentCandidates);
+
+        return {
+            clinicId,
+            date: selectedDate,
+            highRiskAppointments: buildHighRiskAppointments(
+                appointmentCandidates,
+                patientStatusCounts
+            ),
+        };
+    },
+
+    async getTodayActivity(
+        userId: string,
+        clinicId: string
+    ): Promise<{
+        clinicId: string;
+        date: string;
+        activityItems: DashboardActivityItem[];
+    }> {
+        const clinic = await verifyClinicAccess(userId, clinicId);
+        const selectedDate = getDateInTimeZone(new Date(), clinic.timezone);
+        const dateRange = await dashboardRepository.getClinicDateRange(
+            selectedDate,
+            clinic.timezone
+        );
+
+        if (!dateRange) {
+            return {
+                clinicId,
+                date: selectedDate,
+                activityItems: [],
+            };
+        }
+
+        const [appointments, queueEntries] = await Promise.all([
+            dashboardRepository.findAppointmentActivityCandidates(clinicId, dateRange),
+            dashboardRepository.findQueueActivityCandidates(clinicId, dateRange),
+        ]);
+
+        const activityItems = [
+            ...buildAppointmentActivityItems(appointments, dateRange),
+            ...buildQueueActivityItems(queueEntries, dateRange),
+        ].sort((firstItem, secondItem) => {
+            return secondItem.timestamp.getTime() - firstItem.timestamp.getTime();
+        });
+
+        return {
+            clinicId,
+            date: selectedDate,
+            activityItems,
         };
     },
 };
