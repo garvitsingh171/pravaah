@@ -489,6 +489,78 @@ describe('dashboardService.getTodayActivity', () => {
         });
     });
 
+    it('does not derive queue arrival activity from updatedAt', async () => {
+        const dateRange = {
+            start: new Date('2026-06-18T18:30:00.000Z'),
+            end: new Date('2026-06-19T18:30:00.000Z'),
+        };
+
+        const appointment = {
+            id: 'appointment-id',
+            scheduledAt: new Date('2026-06-19T05:00:00.000Z'),
+            durationMinutes: 15,
+            status: 'ARRIVED',
+            bookingSource: 'RECEPTION',
+            reason: 'Fever',
+        };
+
+        const doctor = {
+            id: 'doctor-id',
+            fullName: 'Dr. Asha Rao',
+            specialization: 'General Medicine',
+            qualification: 'MBBS',
+        };
+
+        const patient = {
+            id: 'patient-id',
+            fullName: 'Rohan Mehta',
+            phone: '9999999999',
+            email: null,
+            gender: null,
+            age: 34,
+        };
+
+        mockDashboardRepository.findUserById.mockResolvedValue({
+            id: 'user-id',
+            clinicId: 'clinic-id',
+            status: 'ACTIVE',
+        });
+
+        mockDashboardRepository.findClinicById.mockResolvedValue({
+            id: 'clinic-id',
+            isActive: true,
+            timezone: 'Asia/Kolkata',
+        });
+
+        mockDashboardRepository.getClinicDateRange.mockResolvedValue(dateRange);
+        mockDashboardRepository.findAppointmentActivityCandidates.mockResolvedValue([]);
+        mockDashboardRepository.findQueueActivityCandidates.mockResolvedValue([
+            {
+                id: 'queue-id',
+                position: 2,
+                status: 'ARRIVED',
+                queuedAt: new Date('2026-06-19T03:00:00.000Z'),
+                calledAt: null,
+                completedAt: null,
+                updatedAt: new Date('2026-06-19T06:00:00.000Z'),
+                appointment,
+                doctor,
+                patient,
+            },
+        ]);
+
+        const result = await dashboardService.getTodayActivity('user-id', 'clinic-id');
+
+        expect(result.activityItems.map((activityItem) => activityItem.type)).toEqual([
+            'QUEUE_JOINED',
+        ]);
+        expect(result.activityItems).not.toEqual([
+            expect.objectContaining({
+                type: 'QUEUE_ARRIVED',
+            }),
+        ]);
+    });
+
     it('rejects users outside the requested clinic', async () => {
         mockDashboardRepository.findUserById.mockResolvedValue({
             id: 'user-id',

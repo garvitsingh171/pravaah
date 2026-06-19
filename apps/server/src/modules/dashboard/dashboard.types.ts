@@ -135,7 +135,6 @@ export type DashboardActivityType =
     | 'APPOINTMENT_CANCELLED'
     | 'APPOINTMENT_NO_SHOW'
     | 'QUEUE_JOINED'
-    | 'QUEUE_ARRIVED'
     | 'PATIENT_CALLED'
     | 'VISIT_COMPLETED'
     | 'QUEUE_CANCELLED'

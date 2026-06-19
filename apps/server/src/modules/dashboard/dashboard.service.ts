@@ -296,20 +296,6 @@ const buildQueueActivityItems = (
             });
         }
 
-        if (
-            queueEntry.status === QueueStatus.ARRIVED &&
-            isInDateRange(queueEntry.updatedAt, dateRange)
-        ) {
-            activityItems.push({
-                id: `queue:${queueEntry.id}:arrived`,
-                type: 'QUEUE_ARRIVED',
-                timestamp: queueEntry.updatedAt,
-                appointment: queueEntry.appointment,
-                doctor: queueEntry.doctor,
-                patient: queueEntry.patient,
-            });
-        }
-
         if (isInDateRange(queueEntry.calledAt, dateRange)) {
             activityItems.push({
                 id: `queue:${queueEntry.id}:called`,
