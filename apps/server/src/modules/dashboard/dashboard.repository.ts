@@ -295,6 +295,12 @@ export const dashboardRepository = {
         return prisma.queueEntry.findMany({
             where: {
                 clinicId,
+                appointment: {
+                    scheduledAt: {
+                        gte: dateRange.start,
+                        lt: dateRange.end,
+                    },
+                },
                 OR: [
                     {
                         queuedAt: {
