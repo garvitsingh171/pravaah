@@ -1,40 +1,15 @@
-type NavigationItem = {
+export type NavigationItem = {
     label: string;
     href: string;
 };
 
-const clinicNavigationItems: NavigationItem[] = [
-    {
-        label: 'Dashboard',
-        href: '/dashboard',
-    },
-    {
-        label: 'Doctors',
-        href: '/doctors',
-    },
-    {
-        label: 'Patients',
-        href: '/patients',
-    },
-    {
-        label: 'Appointments',
-        href: '/appointments',
-    },
-    {
-        label: 'Queue',
-        href: '/queue',
-    },
-    {
-        label: 'Clinic Settings',
-        href: '/clinic-settings',
-    },
-];
-
 type SidebarProps = {
     activeHref: string;
+    navigationItems: NavigationItem[];
+    onNavigate?: (href: string) => void;
 };
 
-function Sidebar({ activeHref }: SidebarProps) {
+function Sidebar({ activeHref, navigationItems, onNavigate }: SidebarProps) {
     return (
         <aside className="border-b border-slate-200 bg-white px-4 py-5 md:min-h-screen md:w-64 md:border-b-0 md:border-r md:py-6">
             <div className="mb-5 md:mb-8">
@@ -45,7 +20,7 @@ function Sidebar({ activeHref }: SidebarProps) {
             </div>
 
             <nav className="flex gap-2 overflow-x-auto md:flex-col md:overflow-visible">
-                {clinicNavigationItems.map((item) => {
+                {navigationItems.map((item) => {
                     const isActive = item.href === activeHref;
 
                     return (
@@ -53,6 +28,14 @@ function Sidebar({ activeHref }: SidebarProps) {
                             key={item.href}
                             href={item.href}
                             aria-current={isActive ? 'page' : undefined}
+                            onClick={(event) => {
+                                if (!onNavigate) {
+                                    return;
+                                }
+
+                                event.preventDefault();
+                                onNavigate(item.href);
+                            }}
                             className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition md:w-full ${
                                 isActive
                                     ? 'bg-blue-50 text-blue-700'
