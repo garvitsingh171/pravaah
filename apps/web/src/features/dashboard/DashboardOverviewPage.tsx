@@ -1,4 +1,4 @@
-import { ErrorMessage, LoadingState } from '../../components/feedback';
+import { LoadingState } from '../../components/feedback';
 
 function DashboardOverviewPage() {
     return (
@@ -12,14 +12,8 @@ function DashboardOverviewPage() {
                 queue activity, completed visits, and high-risk appointment summaries here.
             </p>
 
-            <div className="mt-6 grid gap-4 lg:grid-cols-2">
+            <div className="mt-6 max-w-md">
                 <LoadingState message="Loading dashboard summary..." />
-
-                <ErrorMessage
-                    title="Dashboard data unavailable"
-                    message="Backend errors will be shown here when dashboard requests fail."
-                    code="DASHBOARD_REQUEST_FAILED"
-                />
             </div>
         </section>
     );
