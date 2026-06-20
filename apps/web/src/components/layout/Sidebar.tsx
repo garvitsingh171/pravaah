@@ -1,40 +1,15 @@
-type NavigationItem = {
-    label: string;
-    href: string;
-};
+import { NavLink } from 'react-router-dom';
 
-const clinicNavigationItems: NavigationItem[] = [
-    {
-        label: 'Dashboard',
-        href: '/dashboard',
-    },
-    {
-        label: 'Doctors',
-        href: '/doctors',
-    },
-    {
-        label: 'Patients',
-        href: '/patients',
-    },
-    {
-        label: 'Appointments',
-        href: '/appointments',
-    },
-    {
-        label: 'Queue',
-        href: '/queue',
-    },
-    {
-        label: 'Clinic Settings',
-        href: '/clinic-settings',
-    },
-];
+export type NavigationItem = {
+    title: string;
+    path: string;
+};
 
 type SidebarProps = {
-    activeHref: string;
+    navigationItems: NavigationItem[];
 };
 
-function Sidebar({ activeHref }: SidebarProps) {
+function Sidebar({ navigationItems }: SidebarProps) {
     return (
         <aside className="border-b border-slate-200 bg-white px-4 py-5 md:min-h-screen md:w-64 md:border-b-0 md:border-r md:py-6">
             <div className="mb-5 md:mb-8">
@@ -45,22 +20,22 @@ function Sidebar({ activeHref }: SidebarProps) {
             </div>
 
             <nav className="flex gap-2 overflow-x-auto md:flex-col md:overflow-visible">
-                {clinicNavigationItems.map((item) => {
-                    const isActive = item.href === activeHref;
-
+                {navigationItems.map((item) => {
                     return (
-                        <a
-                            key={item.href}
-                            href={item.href}
-                            aria-current={isActive ? 'page' : undefined}
-                            className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition md:w-full ${
-                                isActive
-                                    ? 'bg-blue-50 text-blue-700'
-                                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                            }`}
+                        <NavLink
+                            key={item.path}
+                            to={item.path}
+                            end
+                            className={({ isActive }) =>
+                                `whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition md:w-full ${
+                                    isActive
+                                        ? 'bg-blue-50 text-blue-700'
+                                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                                }`
+                            }
                         >
-                            {item.label}
-                        </a>
+                            {item.title}
+                        </NavLink>
                     );
                 })}
             </nav>
