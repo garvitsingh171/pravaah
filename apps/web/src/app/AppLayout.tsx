@@ -1,38 +1,23 @@
-import type { ReactNode } from 'react';
-import type { NavigationItem } from '../components/layout/Sidebar';
+import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from '../components/layout/Sidebar';
 import Topbar from '../components/layout/Topbar';
+import { getRouteForPath, navigationRoutes } from '../routes/dashboardRoutes';
 
-type AppLayoutProps = {
-    children?: ReactNode;
-    currentPath: string;
-    navigationItems: NavigationItem[];
-    pageTitle: string;
-    onNavigate?: (href: string) => void;
-    userContext?: string;
-};
+function AppLayout() {
+    const location = useLocation();
+    const currentRoute = getRouteForPath(location.pathname);
 
-function AppLayout({
-    children,
-    currentPath,
-    navigationItems,
-    pageTitle,
-    onNavigate,
-    userContext = 'Clinic Staff',
-}: AppLayoutProps) {
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900">
             <div className="flex min-h-screen flex-col md:flex-row">
-                <Sidebar
-                    activeHref={currentPath}
-                    navigationItems={navigationItems}
-                    onNavigate={onNavigate}
-                />
+                <Sidebar navigationItems={navigationRoutes} />
 
                 <div className="flex min-h-screen flex-1 flex-col">
-                    <Topbar title={pageTitle} userContext={userContext} />
+                    <Topbar title={currentRoute.title} userContext="Clinic Staff" />
 
-                    <main className="flex-1 p-4 md:p-6">{children}</main>
+                    <main className="flex-1 p-4 md:p-6">
+                        <Outlet />
+                    </main>
                 </div>
             </div>
         </div>
