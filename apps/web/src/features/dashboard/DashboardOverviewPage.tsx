@@ -1,3 +1,5 @@
+import { LoadingState } from '../../components/feedback';
+
 function DashboardOverviewPage() {
     return (
         <section className="rounded-lg border border-dashed border-slate-300 bg-white p-6 md:p-8">
@@ -9,6 +11,10 @@ function DashboardOverviewPage() {
                 Placeholder page for the clinic overview. Future work can add appointment counts,
                 queue activity, completed visits, and high-risk appointment summaries here.
             </p>
+
+            <div className="mt-6 max-w-md">
+                <LoadingState message="Loading dashboard summary..." />
+            </div>
         </section>
     );
 }
