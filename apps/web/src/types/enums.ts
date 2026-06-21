@@ -53,3 +53,11 @@ export const BookingSource = {
 } as const;
 
 export type BookingSource = (typeof BookingSource)[keyof typeof BookingSource];
+
+export const Gender = {
+    MALE: 'MALE',
+    FEMALE: 'FEMALE',
+    OTHER: 'OTHER',
+} as const;
+
+export type Gender = (typeof Gender)[keyof typeof Gender];

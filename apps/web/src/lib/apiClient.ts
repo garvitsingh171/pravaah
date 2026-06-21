@@ -46,7 +46,16 @@ const resolveBaseUrl = (baseUrl?: string): string => {
 };
 
 const buildUrl = (baseUrl: string, path: string, query?: QueryParams): string => {
-    const url = new URL(`${baseUrl}/${trimLeadingSlash(path)}`);
+    let url: URL;
+
+    try {
+        url = new URL(`${baseUrl}/${trimLeadingSlash(path)}`);
+    } catch {
+        throw new ApiClientError({
+            code: 'API_BASE_URL_INVALID',
+            message: 'Frontend API base URL is invalid.',
+        });
+    }
 
     if (query) {
         Object.entries(query).forEach(([key, value]) => {
@@ -107,6 +116,29 @@ const resolveAuthToken = async (
     return tokenProvider;
 };
 
+const createNetworkError = (error: unknown): ApiClientError => {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+        return new ApiClientError({
+            code: 'API_REQUEST_ABORTED',
+            message: 'The request was cancelled.',
+        });
+    }
+
+    if (error instanceof TypeError) {
+        return new ApiClientError({
+            code: 'API_NETWORK_ERROR',
+            message:
+                'Could not reach the Pravaah API. Check that the backend server is running and VITE_API_BASE_URL is correct.',
+            details: error.message,
+        });
+    }
+
+    return new ApiClientError({
+        code: 'API_NETWORK_ERROR',
+        message: 'Could not reach the Pravaah API.',
+    });
+};
+
 export type ApiClientErrorOptions = {
     code: string;
     message: string;
@@ -134,12 +166,11 @@ export const isApiClientError = (error: unknown): error is ApiClientError => {
 };
 
 export const createApiClient = (clientOptions: ApiClientOptions = {}) => {
-    const baseUrl = resolveBaseUrl(clientOptions.baseUrl);
-
     const request = async <TData>(
         path: string,
         { method, body, query, headers, authToken, signal }: RequestOptions
     ): Promise<TData> => {
+        const baseUrl = resolveBaseUrl(clientOptions.baseUrl);
         const token = await resolveAuthToken(authToken, clientOptions.getAuthToken);
         const requestHeaders = new Headers(headers);
 
@@ -153,12 +184,22 @@ export const createApiClient = (clientOptions: ApiClientOptions = {}) => {
             requestHeaders.set('Authorization', `Bearer ${token}`);
         }
 
-        const response = await fetch(buildUrl(baseUrl, path, query), {
-            method,
-            headers: requestHeaders,
-            body: body === undefined ? undefined : JSON.stringify(body),
-            signal,
-        });
+        let response: Response;
+
+        try {
+            response = await fetch(buildUrl(baseUrl, path, query), {
+                method,
+                headers: requestHeaders,
+                body: body === undefined ? undefined : JSON.stringify(body),
+                signal,
+            });
+        } catch (error) {
+            if (isApiClientError(error)) {
+                throw error;
+            }
+
+            throw createNetworkError(error);
+        }
 
         const payload = await parseJsonResponse(response);
 
