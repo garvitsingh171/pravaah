@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import AppointmentsPage from '../features/appointments/AppointmentsPage';
 import ClinicSettingsPage from '../features/clinics/ClinicSettingsPage';
 import DashboardOverviewPage from '../features/dashboard/DashboardOverviewPage';
+import DoctorCreatePage from '../features/doctors/DoctorCreatePage';
 import DoctorsPage from '../features/doctors/DoctorsPage';
 import PatientsPage from '../features/patients/PatientsPage';
 import QueuePage from '../features/queues/QueuePage';
@@ -26,6 +27,12 @@ export const dashboardRoutes: AppRoute[] = [
         title: 'Doctors',
         element: <DoctorsPage />,
         showInNavigation: true,
+    },
+    {
+        path: '/doctors/new',
+        title: 'Add Doctor',
+        element: <DoctorCreatePage />,
+        showInNavigation: false,
     },
     {
         path: '/patients',

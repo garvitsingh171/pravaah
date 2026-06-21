@@ -1,6 +1,7 @@
 import type {
     AppointmentStatus,
     BookingSource,
+    Gender,
     QueueStatus,
     RiskLevel,
     UserRole,
@@ -24,20 +25,26 @@ export type UserSummary = BaseEntity & {
 export type ClinicSummary = BaseEntity & {
     name: string;
     slug: string;
-    phone?: string;
-    email?: string;
-    city?: string;
-    state?: string;
-    country?: string;
-    timezone?: string;
+    phone?: string | null;
+    email?: string | null;
+    city?: string | null;
+    state?: string | null;
+    country?: string | null;
+    timezone?: string | null;
     isActive: boolean;
 };
 
 export type DoctorSummary = BaseEntity & {
+    doctorClinicId?: string;
+    clinicLinkIsActive?: boolean;
     fullName: string;
-    specialization?: string;
-    phone?: string;
-    email?: string;
+    specialization?: string | null;
+    qualification?: string | null;
+    registrationNumber?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    gender?: Gender | null;
+    experienceYears?: number | null;
     isActive: boolean;
 };
 
