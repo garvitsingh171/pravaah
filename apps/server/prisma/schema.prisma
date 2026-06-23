@@ -84,11 +84,12 @@ model Clinic {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  users          User[]
-  doctorClinics  DoctorClinic[]
-  patientClinics PatientClinic[]
-  appointments   Appointment[]
-  queueEntries   QueueEntry[]
+  users             User[]
+  doctorClinics     DoctorClinic[]
+  patientClinics    PatientClinic[]
+  appointments      Appointment[]
+  queueEntries      QueueEntry[]
+  noShowPredictions NoShowPrediction[]
 
   @@index([isActive])
   @@index([city])
@@ -175,9 +176,10 @@ model Patient {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  patientClinics PatientClinic[]
-  appointments   Appointment[]
-  queueEntries   QueueEntry[]
+  patientClinics    PatientClinic[]
+  appointments      Appointment[]
+  queueEntries      QueueEntry[]
+  noShowPredictions NoShowPrediction[]
 
   @@index([phone])
   @@index([fullName])
@@ -224,11 +226,12 @@ model Appointment {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
-  clinic     Clinic      @relation(fields: [clinicId], references: [id], onDelete: Restrict)
-  doctor     Doctor      @relation(fields: [doctorId], references: [id], onDelete: Restrict)
-  patient    Patient     @relation(fields: [patientId], references: [id], onDelete: Restrict)
-  createdBy  User        @relation("AppointmentCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
-  queueEntry QueueEntry?
+  clinic           Clinic            @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  doctor           Doctor            @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+  patient          Patient           @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  createdBy        User              @relation("AppointmentCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  queueEntry       QueueEntry?
+  noShowPrediction NoShowPrediction?
 
   @@index([clinicId, scheduledAt])
   @@index([clinicId, doctorId, scheduledAt])
@@ -260,4 +263,24 @@ model QueueEntry {
   @@index([clinicId, doctorId, position])
   @@index([clinicId, queuedAt])
   @@map("queue_entries")
+}
+
+model NoShowPrediction {
+  id            String    @id @default(uuid()) @db.Uuid
+  appointmentId String    @unique @db.Uuid
+  clinicId      String    @db.Uuid
+  patientId     String    @db.Uuid
+  riskLevel     RiskLevel
+  score         Int
+  reasons       Json
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Restrict)
+  clinic      Clinic      @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  patient     Patient     @relation(fields: [patientId], references: [id], onDelete: Restrict)
+
+  @@index([clinicId])
+  @@index([patientId])
+  @@map("no_show_predictions")
 }
