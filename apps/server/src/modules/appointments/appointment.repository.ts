@@ -1,6 +1,14 @@
 import { prisma } from '../../config/prisma.js';
 import { AppointmentStatus, Prisma, QueueStatus } from '../../generated/prisma/client.js';
-import type { CreateAppointmentInput, ListAppointmentsQueryInput } from './appointment.types.js';
+import type {
+    NoShowPredictionOutput,
+    NoShowPredictionReason,
+} from '../predictions/prediction.types.js';
+import type {
+    AppointmentBookingNoShowPrediction,
+    CreateAppointmentInput,
+    ListAppointmentsQueryInput,
+} from './appointment.types.js';
 
 const getDateRange = (date: string): { gte: Date; lt: Date } => {
     const start = new Date(`${date}T00:00:00.000+05:30`);
@@ -106,6 +114,18 @@ const appointmentDetailsInclude = {
         },
     },
 } satisfies Prisma.AppointmentInclude;
+
+const noShowPredictionBookingSelect = {
+    id: true,
+    appointmentId: true,
+    clinicId: true,
+    patientId: true,
+    riskLevel: true,
+    score: true,
+    reasons: true,
+    createdAt: true,
+    updatedAt: true,
+} satisfies Prisma.NoShowPredictionSelect;
 
 export const appointmentRepository = {
     findClinicById(clinicId: string) {
@@ -388,5 +408,28 @@ export const appointmentRepository = {
                 createdByUserId,
             },
         });
+    },
+
+    createNoShowPrediction(
+        tx: Prisma.TransactionClient,
+        clinicId: string,
+        appointmentId: string,
+        patientId: string,
+        prediction: NoShowPredictionOutput
+    ): Promise<AppointmentBookingNoShowPrediction> {
+        return tx.noShowPrediction.create({
+            data: {
+                appointmentId,
+                clinicId,
+                patientId,
+                riskLevel: prediction.riskLevel,
+                score: prediction.score,
+                reasons: prediction.reasons,
+            },
+            select: noShowPredictionBookingSelect,
+        }).then((storedPrediction) => ({
+            ...storedPrediction,
+            reasons: storedPrediction.reasons as NoShowPredictionReason[],
+        }));
     },
 };
