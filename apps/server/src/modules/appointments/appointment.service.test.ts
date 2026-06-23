@@ -12,6 +12,7 @@ const mockAppointmentRepository = vi.hoisted(() => ({
     countPatientAppointmentsByStatus: vi.fn(),
     runInTransaction: vi.fn(),
     createAppointment: vi.fn(),
+    createNoShowPrediction: vi.fn(),
 }));
 
 const mockQueueRepository = vi.hoisted(() => ({
@@ -89,6 +90,26 @@ describe('appointmentService.createAppointment', () => {
                 },
             ],
         };
+        const storedNoShowPrediction = {
+            id: 'no-show-prediction-id',
+            appointmentId: appointment.id,
+            clinicId,
+            patientId: input.patientId,
+            riskLevel: noShowPrediction.riskLevel,
+            score: noShowPrediction.score,
+            reasons: noShowPrediction.reasons,
+            createdAt: new Date('2026-06-18T10:00:01.000Z'),
+            updatedAt: new Date('2026-06-18T10:00:01.000Z'),
+        };
+        const queueEntry = {
+            id: 'queue-entry-id',
+            clinicId,
+            appointmentId: appointment.id,
+            doctorId: input.doctorId,
+            patientId: input.patientId,
+            position: 1,
+            status: 'WAITING',
+        };
 
         mockAppointmentRepository.findClinicById.mockResolvedValue({
             id: clinicId,
@@ -126,9 +147,8 @@ describe('appointmentService.createAppointment', () => {
         mockQueueService.calculateNextQueuePosition.mockReturnValue(1);
 
         mockAppointmentRepository.createAppointment.mockResolvedValue(appointment);
-        mockQueueRepository.createQueueEntry.mockResolvedValue({
-            id: 'queue-entry-id',
-        });
+        mockQueueRepository.createQueueEntry.mockResolvedValue(queueEntry);
+        mockAppointmentRepository.createNoShowPrediction.mockResolvedValue(storedNoShowPrediction);
 
         mockPredictNoShowRisk.mockReturnValue(noShowPrediction);
 
@@ -153,16 +173,26 @@ describe('appointmentService.createAppointment', () => {
             patientCompletedAppointmentCount: 0,
         });
 
+        expect(mockAppointmentRepository.createNoShowPrediction).toHaveBeenCalledWith(
+            mockTx,
+            clinicId,
+            appointment.id,
+            input.patientId,
+            noShowPrediction
+        );
+
         expect(result).toEqual({
             appointment,
-            noShowPrediction: {
-                riskLevel: 'MEDIUM',
-                reasons: ['Patient has no previous appointment history.'],
-            },
+            queueEntry,
+            noShowPrediction: storedNoShowPrediction,
         });
 
-        expect(result.noShowPrediction).not.toHaveProperty('score');
-        expect(typeof result.noShowPrediction.reasons[0]).toBe('string');
+        expect(result.noShowPrediction.score).toBe(35);
+        expect(result.noShowPrediction.reasons[0]).toEqual({
+            code: 'NEW_PATIENT',
+            message: 'Patient has no previous appointment history.',
+            scoreImpact: 15,
+        });
     });
 
     it('uses maintained appointment history while generating no-show prediction', async () => {
@@ -202,6 +232,26 @@ describe('appointmentService.createAppointment', () => {
                 },
             ],
         };
+        const storedNoShowPrediction = {
+            id: 'no-show-prediction-id',
+            appointmentId: appointment.id,
+            clinicId,
+            patientId: input.patientId,
+            riskLevel: noShowPrediction.riskLevel,
+            score: noShowPrediction.score,
+            reasons: noShowPrediction.reasons,
+            createdAt: new Date('2026-06-18T10:00:01.000Z'),
+            updatedAt: new Date('2026-06-18T10:00:01.000Z'),
+        };
+        const queueEntry = {
+            id: 'queue-entry-id',
+            clinicId,
+            appointmentId: appointment.id,
+            doctorId: input.doctorId,
+            patientId: input.patientId,
+            position: 4,
+            status: 'WAITING',
+        };
 
         mockAppointmentRepository.findClinicById.mockResolvedValue({
             id: clinicId,
@@ -239,9 +289,8 @@ describe('appointmentService.createAppointment', () => {
         mockQueueService.calculateNextQueuePosition.mockReturnValue(4);
 
         mockAppointmentRepository.createAppointment.mockResolvedValue(appointment);
-        mockQueueRepository.createQueueEntry.mockResolvedValue({
-            id: 'queue-entry-id',
-        });
+        mockQueueRepository.createQueueEntry.mockResolvedValue(queueEntry);
+        mockAppointmentRepository.createNoShowPrediction.mockResolvedValue(storedNoShowPrediction);
 
         mockPredictNoShowRisk.mockReturnValue(noShowPrediction);
 
@@ -266,10 +315,16 @@ describe('appointmentService.createAppointment', () => {
             patientCompletedAppointmentCount: 3,
         });
 
-        expect(result.noShowPrediction).toEqual({
-            riskLevel: 'HIGH',
-            reasons: ['Patient has multiple previous no-show appointments.'],
-        });
-        expect(result.noShowPrediction).not.toHaveProperty('score');
+        expect(mockAppointmentRepository.createNoShowPrediction).toHaveBeenCalledWith(
+            mockTx,
+            clinicId,
+            appointment.id,
+            input.patientId,
+            noShowPrediction
+        );
+
+        expect(result.noShowPrediction).toEqual(storedNoShowPrediction);
+        expect(result.queueEntry).toEqual(queueEntry);
+        expect(result.noShowPrediction.score).toBe(60);
     });
 });

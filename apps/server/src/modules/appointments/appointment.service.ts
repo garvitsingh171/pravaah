@@ -1,15 +1,10 @@
 import { AppointmentStatus } from '../../generated/prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
 import { predictNoShowRisk } from '../predictions/prediction.service.js';
-import type { NoShowPredictionOutput } from '../predictions/prediction.types.js';
 import { queueRepository } from '../queues/queue.repository.js';
 import { queueService } from '../queues/queue.service.js';
 import { appointmentRepository } from './appointment.repository.js';
-import type {
-    AppointmentBookingNoShowPrediction,
-    CreateAppointmentInput,
-    ListAppointmentsQueryInput,
-} from './appointment.types.js';
+import type { CreateAppointmentInput, ListAppointmentsQueryInput } from './appointment.types.js';
 
 const conflictingAppointmentStatuses: AppointmentStatus[] = [
     AppointmentStatus.SCHEDULED,
@@ -18,15 +13,6 @@ const conflictingAppointmentStatuses: AppointmentStatus[] = [
     AppointmentStatus.IN_QUEUE,
     AppointmentStatus.CALLED,
 ];
-
-function buildAppointmentBookingPrediction(
-    prediction: NoShowPredictionOutput
-): AppointmentBookingNoShowPrediction {
-    return {
-        riskLevel: prediction.riskLevel,
-        reasons: prediction.reasons.map((reason) => reason.message),
-    };
-}
 
 async function validateAppointmentClinicOwnership(
     clinicId: string,
@@ -147,7 +133,7 @@ export const appointmentService = {
                 patientCompletedAppointmentCount,
             });
 
-            await queueRepository.createQueueEntry(
+            const queueEntry = await queueRepository.createQueueEntry(
                 tx,
                 clinicId,
                 appointment.id,
@@ -156,9 +142,18 @@ export const appointmentService = {
                 nextPosition
             );
 
+            const storedNoShowPrediction = await appointmentRepository.createNoShowPrediction(
+                tx,
+                clinicId,
+                appointment.id,
+                appointment.patientId,
+                noShowPrediction
+            );
+
             return {
                 appointment,
-                noShowPrediction: buildAppointmentBookingPrediction(noShowPrediction),
+                queueEntry,
+                noShowPrediction: storedNoShowPrediction,
             };
         });
     },

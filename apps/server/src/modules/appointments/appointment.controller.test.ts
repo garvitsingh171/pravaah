@@ -34,8 +34,35 @@ describe('createAppointmentController', () => {
         };
 
         const noShowPrediction = {
+            id: 'no-show-prediction-id',
+            appointmentId: appointment.id,
+            clinicId: appointment.clinicId,
+            patientId: appointment.patientId,
             riskLevel: 'MEDIUM' as const,
-            reasons: ['Patient has no previous appointment history.'],
+            score: 35,
+            reasons: [
+                {
+                    code: 'NEW_PATIENT' as const,
+                    message: 'Patient has no previous appointment history.',
+                    scoreImpact: 15,
+                },
+            ],
+            createdAt: new Date('2026-06-18T10:00:01.000Z'),
+            updatedAt: new Date('2026-06-18T10:00:01.000Z'),
+        };
+        const queueEntry = {
+            id: 'queue-entry-id',
+            clinicId: appointment.clinicId,
+            appointmentId: appointment.id,
+            doctorId: appointment.doctorId,
+            patientId: appointment.patientId,
+            position: 1,
+            status: 'WAITING',
+            queuedAt: new Date('2026-06-18T10:00:00.000Z'),
+            calledAt: null,
+            completedAt: null,
+            createdAt: new Date('2026-06-18T10:00:00.000Z'),
+            updatedAt: new Date('2026-06-18T10:00:00.000Z'),
         };
 
         const body = {
@@ -66,6 +93,7 @@ describe('createAppointmentController', () => {
 
         mockAppointmentService.createAppointment.mockResolvedValue({
             appointment,
+            queueEntry,
             noShowPrediction,
         });
 
@@ -83,10 +111,17 @@ describe('createAppointmentController', () => {
             message: 'Appointment created successfully',
             data: {
                 appointment,
+                queueEntry,
                 noShowPrediction,
             },
         });
-        expect(noShowPrediction).not.toHaveProperty('score');
-        expect(noShowPrediction.reasons).toEqual(['Patient has no previous appointment history.']);
+        expect(noShowPrediction.score).toBe(35);
+        expect(noShowPrediction.reasons).toEqual([
+            {
+                code: 'NEW_PATIENT',
+                message: 'Patient has no previous appointment history.',
+                scoreImpact: 15,
+            },
+        ]);
     });
 });
