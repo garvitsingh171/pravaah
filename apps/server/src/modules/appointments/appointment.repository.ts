@@ -10,37 +10,14 @@ import type {
     ListAppointmentsQueryInput,
 } from './appointment.types.js';
 
-const getDateRange = (date: string): { gte: Date; lt: Date } => {
-    const start = new Date(`${date}T00:00:00.000+05:30`);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 1);
+const getClinicDateRange = async (date: string, clinicTimezone: string) => {
+    const [dateRange] = await prisma.$queryRaw<Array<{ start: Date; end: Date }>>`
+        SELECT
+            (${date}::date::timestamp AT TIME ZONE ${clinicTimezone}) AS "start",
+            ((${date}::date + 1)::timestamp AT TIME ZONE ${clinicTimezone}) AS "end"
+    `;
 
-    return {
-        gte: start,
-        lt: end,
-    };
-};
-
-const getDateInTimeZone = (date: Date, timeZone: string): string => {
-    const parts = new Intl.DateTimeFormat('en-US', {
-        timeZone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-    }).formatToParts(date);
-
-    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-
-    return `${values.year}-${values.month}-${values.day}`;
-};
-
-const getScheduledDate = (scheduledAt: Date): string => {
-    return new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Asia/Kolkata',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-    }).format(scheduledAt);
+    return dateRange;
 };
 
 const appointmentStatusToQueueStatus: Partial<Record<AppointmentStatus, QueueStatus>> = {
@@ -136,13 +113,26 @@ export const appointmentRepository = {
         });
     },
 
-    findAppointmentsByClinicId(clinicId: string, filters: ListAppointmentsQueryInput) {
+    async findAppointmentsByClinicId(
+        clinicId: string,
+        filters: ListAppointmentsQueryInput,
+        clinicTimezone: string
+    ) {
         const where: Prisma.AppointmentWhereInput = {
             clinicId,
         };
 
         if (filters.date !== undefined) {
-            where.scheduledAt = getDateRange(filters.date);
+            const dateRange = await getClinicDateRange(filters.date, clinicTimezone);
+
+            if (!dateRange) {
+                return [];
+            }
+
+            where.scheduledAt = {
+                gte: dateRange.start,
+                lt: dateRange.end,
+            };
         }
 
         if (filters.doctorId !== undefined) {
@@ -202,13 +192,36 @@ export const appointmentRepository = {
         });
     },
 
+    acquireAppointmentSlotLock(
+        tx: Prisma.TransactionClient,
+        clinicId: string,
+        doctorId: string,
+        scheduledAt: Date
+    ) {
+        return tx.$queryRaw`
+            SELECT pg_advisory_xact_lock(
+                hashtextextended(
+                    concat(
+                        ${clinicId},
+                        ':',
+                        ${doctorId},
+                        ':',
+                        ${scheduledAt.toISOString()}
+                    ),
+                    0
+                )
+            )
+        `;
+    },
+
     findDoctorAppointmentAtTime(
+        tx: Prisma.TransactionClient,
         clinicId: string,
         doctorId: string,
         scheduledAt: Date,
         statuses: AppointmentStatus[]
     ) {
-        return prisma.appointment.findFirst({
+        return tx.appointment.findFirst({
             where: {
                 clinicId,
                 doctorId,
@@ -417,19 +430,21 @@ export const appointmentRepository = {
         patientId: string,
         prediction: NoShowPredictionOutput
     ): Promise<AppointmentBookingNoShowPrediction> {
-        return tx.noShowPrediction.create({
-            data: {
-                appointmentId,
-                clinicId,
-                patientId,
-                riskLevel: prediction.riskLevel,
-                score: prediction.score,
-                reasons: prediction.reasons,
-            },
-            select: noShowPredictionBookingSelect,
-        }).then((storedPrediction) => ({
-            ...storedPrediction,
-            reasons: storedPrediction.reasons as NoShowPredictionReason[],
-        }));
+        return tx.noShowPrediction
+            .create({
+                data: {
+                    appointmentId,
+                    clinicId,
+                    patientId,
+                    riskLevel: prediction.riskLevel,
+                    score: prediction.score,
+                    reasons: prediction.reasons,
+                },
+                select: noShowPredictionBookingSelect,
+            })
+            .then((storedPrediction) => ({
+                ...storedPrediction,
+                reasons: storedPrediction.reasons as NoShowPredictionReason[],
+            }));
     },
 };

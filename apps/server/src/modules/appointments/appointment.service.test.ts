@@ -8,6 +8,7 @@ const mockAppointmentRepository = vi.hoisted(() => ({
     findPatientById: vi.fn(),
     findActiveDoctorClinicLink: vi.fn(),
     findActivePatientClinicLink: vi.fn(),
+    acquireAppointmentSlotLock: vi.fn(),
     findDoctorAppointmentAtTime: vi.fn(),
     countPatientAppointmentsByStatus: vi.fn(),
     runInTransaction: vi.fn(),
@@ -137,11 +138,12 @@ describe('appointmentService.createAppointment', () => {
             isActive: true,
         });
 
-        mockAppointmentRepository.findDoctorAppointmentAtTime.mockResolvedValue(null);
-
         mockAppointmentRepository.countPatientAppointmentsByStatus
             .mockResolvedValueOnce(0)
             .mockResolvedValueOnce(0);
+
+        mockAppointmentRepository.acquireAppointmentSlotLock.mockResolvedValue(undefined);
+        mockAppointmentRepository.findDoctorAppointmentAtTime.mockResolvedValue(null);
 
         mockQueueRepository.findHighestQueuePosition.mockResolvedValue(null);
         mockQueueService.calculateNextQueuePosition.mockReturnValue(1);
@@ -172,6 +174,21 @@ describe('appointmentService.createAppointment', () => {
             patientNoShowCount: 0,
             patientCompletedAppointmentCount: 0,
         });
+
+        expect(mockAppointmentRepository.acquireAppointmentSlotLock).toHaveBeenCalledWith(
+            mockTx,
+            clinicId,
+            input.doctorId,
+            appointmentScheduledAt
+        );
+
+        expect(mockAppointmentRepository.findDoctorAppointmentAtTime).toHaveBeenCalledWith(
+            mockTx,
+            clinicId,
+            input.doctorId,
+            appointmentScheduledAt,
+            ['SCHEDULED', 'CONFIRMED', 'ARRIVED', 'IN_QUEUE', 'CALLED']
+        );
 
         expect(mockAppointmentRepository.createNoShowPrediction).toHaveBeenCalledWith(
             mockTx,
@@ -279,11 +296,12 @@ describe('appointmentService.createAppointment', () => {
             isActive: true,
         });
 
-        mockAppointmentRepository.findDoctorAppointmentAtTime.mockResolvedValue(null);
-
         mockAppointmentRepository.countPatientAppointmentsByStatus
             .mockResolvedValueOnce(2)
             .mockResolvedValueOnce(3);
+
+        mockAppointmentRepository.acquireAppointmentSlotLock.mockResolvedValue(undefined);
+        mockAppointmentRepository.findDoctorAppointmentAtTime.mockResolvedValue(null);
 
         mockQueueRepository.findHighestQueuePosition.mockResolvedValue(3);
         mockQueueService.calculateNextQueuePosition.mockReturnValue(4);
@@ -326,5 +344,83 @@ describe('appointmentService.createAppointment', () => {
         expect(result.noShowPrediction).toEqual(storedNoShowPrediction);
         expect(result.queueEntry).toEqual(queueEntry);
         expect(result.noShowPrediction.score).toBe(60);
+    });
+
+    it('rejects a conflicting slot after acquiring the transaction lock', async () => {
+        const clinicId = 'clinic-id';
+        const createdByUserId = 'user-id';
+        const appointmentScheduledAt = new Date('2026-06-20T10:00:00.000Z');
+
+        const input = {
+            doctorId: 'doctor-id',
+            patientId: 'patient-id',
+            scheduledAt: appointmentScheduledAt.toISOString(),
+            durationMinutes: 15,
+            reason: 'Follow up',
+            notes: 'Regular follow up',
+            bookingSource: 'RECEPTION' as const,
+        };
+
+        mockAppointmentRepository.findClinicById.mockResolvedValue({
+            id: clinicId,
+            isActive: true,
+            timezone: 'Asia/Kolkata',
+        });
+
+        mockAppointmentRepository.findDoctorById.mockResolvedValue({
+            id: input.doctorId,
+        });
+
+        mockAppointmentRepository.findPatientById.mockResolvedValue({
+            id: input.patientId,
+        });
+
+        mockAppointmentRepository.findActiveDoctorClinicLink.mockResolvedValue({
+            clinicId,
+            doctorId: input.doctorId,
+            isActive: true,
+        });
+
+        mockAppointmentRepository.findActivePatientClinicLink.mockResolvedValue({
+            clinicId,
+            patientId: input.patientId,
+            isActive: true,
+        });
+
+        mockAppointmentRepository.countPatientAppointmentsByStatus
+            .mockResolvedValueOnce(0)
+            .mockResolvedValueOnce(0);
+
+        mockAppointmentRepository.acquireAppointmentSlotLock.mockResolvedValue(undefined);
+        mockAppointmentRepository.findDoctorAppointmentAtTime.mockResolvedValue({
+            id: 'existing-appointment-id',
+        });
+
+        await expect(
+            appointmentService.createAppointment(clinicId, createdByUserId, input)
+        ).rejects.toMatchObject({
+            statusCode: 409,
+            code: 'APPOINTMENT_SLOT_CONFLICT',
+            message: 'This doctor already has an appointment in this time slot.',
+        });
+
+        expect(mockAppointmentRepository.acquireAppointmentSlotLock).toHaveBeenCalledWith(
+            mockTx,
+            clinicId,
+            input.doctorId,
+            appointmentScheduledAt
+        );
+
+        expect(mockAppointmentRepository.findDoctorAppointmentAtTime).toHaveBeenCalledWith(
+            mockTx,
+            clinicId,
+            input.doctorId,
+            appointmentScheduledAt,
+            ['SCHEDULED', 'CONFIRMED', 'ARRIVED', 'IN_QUEUE', 'CALLED']
+        );
+
+        expect(mockAppointmentRepository.createAppointment).not.toHaveBeenCalled();
+        expect(mockQueueRepository.createQueueEntry).not.toHaveBeenCalled();
+        expect(mockAppointmentRepository.createNoShowPrediction).not.toHaveBeenCalled();
     });
 });

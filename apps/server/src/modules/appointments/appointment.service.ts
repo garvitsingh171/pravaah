@@ -1,4 +1,4 @@
-import { AppointmentStatus } from '../../generated/prisma/client.js';
+import { AppointmentStatus, Prisma } from '../../generated/prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
 import { predictNoShowRisk } from '../predictions/prediction.service.js';
 import { queueRepository } from '../queues/queue.repository.js';
@@ -13,6 +13,13 @@ const conflictingAppointmentStatuses: AppointmentStatus[] = [
     AppointmentStatus.IN_QUEUE,
     AppointmentStatus.CALLED,
 ];
+
+const createAppointmentSlotConflictError = () =>
+    new AppError(
+        409,
+        'APPOINTMENT_SLOT_CONFLICT',
+        'This doctor already has an appointment in this time slot.'
+    );
 
 async function validateAppointmentClinicOwnership(
     clinicId: string,
@@ -84,21 +91,6 @@ export const appointmentService = {
 
         const scheduledAt = new Date(input.scheduledAt);
 
-        const existingDoctorAppointment = await appointmentRepository.findDoctorAppointmentAtTime(
-            clinicId,
-            input.doctorId,
-            scheduledAt,
-            conflictingAppointmentStatuses
-        );
-
-        if (existingDoctorAppointment) {
-            throw new AppError(
-                409,
-                'APPOINTMENT_SLOT_CONFLICT',
-                'This doctor already has an appointment in this time slot.'
-            );
-        }
-
         const [patientNoShowCount, patientCompletedAppointmentCount] = await Promise.all([
             appointmentRepository.countPatientAppointmentsByStatus(clinicId, input.patientId, [
                 AppointmentStatus.NO_SHOW,
@@ -108,54 +100,82 @@ export const appointmentService = {
             ]),
         ]);
 
-        return appointmentRepository.runInTransaction(async (tx) => {
-            const highestPosition = await queueRepository.findHighestQueuePosition(
-                tx,
-                clinicId,
-                input.doctorId,
-                scheduledAt,
-                clinicTimezone
-            );
+        try {
+            return await appointmentRepository.runInTransaction(async (tx) => {
+                await appointmentRepository.acquireAppointmentSlotLock(
+                    tx,
+                    clinicId,
+                    input.doctorId,
+                    scheduledAt
+                );
 
-            const nextPosition = queueService.calculateNextQueuePosition(highestPosition);
+                const existingDoctorAppointment =
+                    await appointmentRepository.findDoctorAppointmentAtTime(
+                        tx,
+                        clinicId,
+                        input.doctorId,
+                        scheduledAt,
+                        conflictingAppointmentStatuses
+                    );
 
-            const appointment = await appointmentRepository.createAppointment(
-                tx,
-                clinicId,
-                createdByUserId,
-                input
-            );
+                if (existingDoctorAppointment) {
+                    throw createAppointmentSlotConflictError();
+                }
 
-            const noShowPrediction = predictNoShowRisk({
-                scheduledAt: appointment.scheduledAt,
-                bookedAt: appointment.createdAt,
-                patientNoShowCount,
-                patientCompletedAppointmentCount,
+                const highestPosition = await queueRepository.findHighestQueuePosition(
+                    tx,
+                    clinicId,
+                    input.doctorId,
+                    scheduledAt,
+                    clinicTimezone
+                );
+
+                const nextPosition = queueService.calculateNextQueuePosition(highestPosition);
+
+                const appointment = await appointmentRepository.createAppointment(
+                    tx,
+                    clinicId,
+                    createdByUserId,
+                    input
+                );
+
+                const noShowPrediction = predictNoShowRisk({
+                    scheduledAt: appointment.scheduledAt,
+                    bookedAt: appointment.createdAt,
+                    patientNoShowCount,
+                    patientCompletedAppointmentCount,
+                });
+
+                const queueEntry = await queueRepository.createQueueEntry(
+                    tx,
+                    clinicId,
+                    appointment.id,
+                    input.doctorId,
+                    input.patientId,
+                    nextPosition
+                );
+
+                const storedNoShowPrediction = await appointmentRepository.createNoShowPrediction(
+                    tx,
+                    clinicId,
+                    appointment.id,
+                    appointment.patientId,
+                    noShowPrediction
+                );
+
+                return {
+                    appointment,
+                    queueEntry,
+                    noShowPrediction: storedNoShowPrediction,
+                };
             });
+        } catch (error) {
+            if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+                throw createAppointmentSlotConflictError();
+            }
 
-            const queueEntry = await queueRepository.createQueueEntry(
-                tx,
-                clinicId,
-                appointment.id,
-                input.doctorId,
-                input.patientId,
-                nextPosition
-            );
-
-            const storedNoShowPrediction = await appointmentRepository.createNoShowPrediction(
-                tx,
-                clinicId,
-                appointment.id,
-                appointment.patientId,
-                noShowPrediction
-            );
-
-            return {
-                appointment,
-                queueEntry,
-                noShowPrediction: storedNoShowPrediction,
-            };
-        });
+            throw error;
+        }
     },
 
     async listAppointments(clinicId: string, filters: ListAppointmentsQueryInput) {
@@ -211,7 +231,7 @@ export const appointmentService = {
             }
         }
 
-        return appointmentRepository.findAppointmentsByClinicId(clinicId, filters);
+        return appointmentRepository.findAppointmentsByClinicId(clinicId, filters, clinic.timezone);
     },
 
     async updateAppointmentStatus(appointmentId: string, status: AppointmentStatus) {
