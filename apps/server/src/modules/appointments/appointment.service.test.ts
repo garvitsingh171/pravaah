@@ -30,6 +30,21 @@ const mockAccessService = vi.hoisted(() => ({
 }));
 
 const mockPredictNoShowRisk = vi.hoisted(() => vi.fn());
+const mockToNoShowPredictionResponse = vi.hoisted(() =>
+    vi.fn((prediction) => {
+        if (!prediction) {
+            return null;
+        }
+
+        return {
+            id: prediction.id,
+            riskLevel: prediction.riskLevel,
+            reasons: Array.isArray(prediction.reasons) ? prediction.reasons : [],
+            createdAt: prediction.createdAt,
+            updatedAt: prediction.updatedAt,
+        };
+    })
+);
 
 vi.mock('./appointment.repository.js', () => ({
     appointmentRepository: mockAppointmentRepository,
@@ -49,6 +64,7 @@ vi.mock('../auth/access.service.js', () => ({
 
 vi.mock('../predictions/prediction.service.js', () => ({
     predictNoShowRisk: mockPredictNoShowRisk,
+    toNoShowPredictionResponse: mockToNoShowPredictionResponse,
 }));
 
 import { appointmentService } from './appointment.service.js';

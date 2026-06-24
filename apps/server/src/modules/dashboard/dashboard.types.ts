@@ -42,6 +42,22 @@ export type NoShowRiskLevelCount = {
     };
 };
 
+export type AppointmentPredictionBackfillCandidate = {
+    id: string;
+    clinicId: string;
+    patientId: string;
+    scheduledAt: Date;
+    createdAt: Date;
+};
+
+export type PatientStatusCount = {
+    patientId: string;
+    status: AppointmentStatus;
+    _count: {
+        status: number;
+    };
+};
+
 export type ClinicDateRange = {
     start: Date;
     end: Date;

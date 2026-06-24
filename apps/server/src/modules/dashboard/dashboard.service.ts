@@ -1,9 +1,13 @@
 import { AppointmentStatus, QueueStatus } from '../../generated/prisma/client.js';
 import { accessService } from '../auth/access.service.js';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
-import { toNoShowPredictionResponse } from '../predictions/prediction.service.js';
+import {
+    predictNoShowRisk,
+    toNoShowPredictionResponse,
+} from '../predictions/prediction.service.js';
 import { dashboardRepository } from './dashboard.repository.js';
 import type {
+    AppointmentPredictionBackfillCandidate,
     AppointmentStatusCount,
     ClinicDateRange,
     DashboardActivityAppointmentSource,
@@ -16,6 +20,7 @@ import type {
     DashboardSummary,
     HighRiskAppointmentCandidate,
     NoShowRiskLevelCount,
+    PatientStatusCount,
     QueueStatusCount,
 } from './dashboard.types.js';
 
@@ -79,6 +84,95 @@ const buildNoShowRiskSummary = (
     }
 
     return summary;
+};
+
+const buildPatientHistoryMap = (statusCounts: PatientStatusCount[]) => {
+    const historyByPatientId = new Map<
+        string,
+        {
+            noShowCount: number;
+            completedCount: number;
+        }
+    >();
+
+    for (const statusCount of statusCounts) {
+        const existingHistory = historyByPatientId.get(statusCount.patientId) ?? {
+            noShowCount: 0,
+            completedCount: 0,
+        };
+
+        if (statusCount.status === AppointmentStatus.NO_SHOW) {
+            existingHistory.noShowCount = statusCount._count.status;
+        }
+
+        if (statusCount.status === AppointmentStatus.COMPLETED) {
+            existingHistory.completedCount = statusCount._count.status;
+        }
+
+        historyByPatientId.set(statusCount.patientId, existingHistory);
+    }
+
+    return historyByPatientId;
+};
+
+const getPatientStatusCounts = async (
+    clinicId: string,
+    appointments: AppointmentPredictionBackfillCandidate[]
+): Promise<PatientStatusCount[]> => {
+    const patientIds = [...new Set(appointments.map((appointment) => appointment.patientId))];
+
+    if (patientIds.length === 0) {
+        return [];
+    }
+
+    return dashboardRepository.countPatientAppointmentsByStatuses(clinicId, patientIds, [
+        AppointmentStatus.NO_SHOW,
+        AppointmentStatus.COMPLETED,
+    ]);
+};
+
+const backfillMissingNoShowPredictions = async (
+    clinicId: string,
+    date: string,
+    clinicTimezone: string
+): Promise<void> => {
+    const appointments = await dashboardRepository.findAppointmentsMissingNoShowPrediction(
+        clinicId,
+        date,
+        clinicTimezone
+    );
+
+    if (appointments.length === 0) {
+        return;
+    }
+
+    const patientStatusCounts = await getPatientStatusCounts(clinicId, appointments);
+    const patientHistory = buildPatientHistoryMap(patientStatusCounts);
+
+    const predictions = appointments.map((appointment) => {
+        const history = patientHistory.get(appointment.patientId) ?? {
+            noShowCount: 0,
+            completedCount: 0,
+        };
+
+        const prediction = predictNoShowRisk({
+            scheduledAt: appointment.scheduledAt,
+            bookedAt: appointment.createdAt,
+            patientNoShowCount: history.noShowCount,
+            patientCompletedAppointmentCount: history.completedCount,
+        });
+
+        return {
+            appointmentId: appointment.id,
+            clinicId: appointment.clinicId,
+            patientId: appointment.patientId,
+            riskLevel: prediction.riskLevel,
+            score: prediction.score,
+            reasons: prediction.reasons,
+        };
+    });
+
+    await dashboardRepository.createNoShowPredictions(predictions);
 };
 
 const buildHighRiskAppointments = (
@@ -260,6 +354,8 @@ export const dashboardService = {
         const clinic = await accessService.verifyClinicAccess(user, clinicId);
         const selectedDate = requestedDate ?? getDateInTimeZone(new Date(), clinic.timezone);
 
+        await backfillMissingNoShowPredictions(clinicId, selectedDate, clinic.timezone);
+
         const [appointmentStatusCounts, queueStatusCounts, riskLevelCounts] = await Promise.all([
             dashboardRepository.countAppointmentsByStatus(clinicId, selectedDate, clinic.timezone),
             dashboardRepository.countQueueEntriesByStatus(clinicId, selectedDate, clinic.timezone),
@@ -290,6 +386,8 @@ export const dashboardService = {
     }> {
         const clinic = await accessService.verifyClinicAccess(user, clinicId);
         const selectedDate = requestedDate ?? getDateInTimeZone(new Date(), clinic.timezone);
+
+        await backfillMissingNoShowPredictions(clinicId, selectedDate, clinic.timezone);
 
         const appointmentCandidates = await dashboardRepository.findHighRiskAppointmentCandidates(
             clinicId,

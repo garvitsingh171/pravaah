@@ -5,6 +5,9 @@ const mockDashboardRepository = vi.hoisted(() => ({
     countAppointmentsByStatus: vi.fn(),
     countQueueEntriesByStatus: vi.fn(),
     countNoShowPredictionsByRiskLevel: vi.fn(),
+    findAppointmentsMissingNoShowPrediction: vi.fn(),
+    countPatientAppointmentsByStatuses: vi.fn(),
+    createNoShowPredictions: vi.fn(),
     findHighRiskAppointmentCandidates: vi.fn(),
     getClinicDateRange: vi.fn(),
     findAppointmentActivityCandidates: vi.fn(),
@@ -36,6 +39,11 @@ const authenticatedUser = {
 describe('dashboardService.getDashboardSummary', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+
+        mockDashboardRepository.findAppointmentsMissingNoShowPrediction.mockResolvedValue([]);
+        mockDashboardRepository.createNoShowPredictions.mockResolvedValue({
+            count: 0,
+        });
     });
 
     it('returns clinic-scoped appointment, queue, and no-show risk counts', async () => {
@@ -111,6 +119,7 @@ describe('dashboardService.getDashboardSummary', () => {
             '2026-06-19',
             'Asia/Kolkata'
         );
+        expect(mockDashboardRepository.createNoShowPredictions).not.toHaveBeenCalled();
 
         expect(result).toEqual({
             clinicId: 'clinic-id',
@@ -156,11 +165,92 @@ describe('dashboardService.getDashboardSummary', () => {
 
         expect(mockDashboardRepository.countAppointmentsByStatus).not.toHaveBeenCalled();
     });
+
+    it('backfills missing stored predictions before reading risk summary counts', async () => {
+        const scheduledAt = new Date('2026-06-19T05:00:00.000Z');
+        const createdAt = new Date('2026-06-18T05:00:00.000Z');
+
+        mockAccessService.verifyClinicAccess.mockResolvedValue({
+            id: 'clinic-id',
+            isActive: true,
+            timezone: 'Asia/Kolkata',
+        });
+
+        mockDashboardRepository.findAppointmentsMissingNoShowPrediction.mockResolvedValue([
+            {
+                id: 'legacy-appointment-id',
+                clinicId: 'clinic-id',
+                patientId: 'patient-1',
+                scheduledAt,
+                createdAt,
+            },
+        ]);
+
+        mockDashboardRepository.countPatientAppointmentsByStatuses.mockResolvedValue([
+            {
+                patientId: 'patient-1',
+                status: 'NO_SHOW',
+                _count: {
+                    status: 2,
+                },
+            },
+        ]);
+
+        mockDashboardRepository.countAppointmentsByStatus.mockResolvedValue([]);
+        mockDashboardRepository.countQueueEntriesByStatus.mockResolvedValue([]);
+        mockDashboardRepository.countNoShowPredictionsByRiskLevel.mockResolvedValue([
+            {
+                riskLevel: 'HIGH',
+                _count: {
+                    riskLevel: 1,
+                },
+            },
+        ]);
+
+        const result = await dashboardService.getDashboardSummary(
+            authenticatedUser,
+            'clinic-id',
+            '2026-06-19'
+        );
+
+        expect(
+            mockDashboardRepository.findAppointmentsMissingNoShowPrediction
+        ).toHaveBeenCalledWith('clinic-id', '2026-06-19', 'Asia/Kolkata');
+        expect(mockDashboardRepository.countPatientAppointmentsByStatuses).toHaveBeenCalledWith(
+            'clinic-id',
+            ['patient-1'],
+            ['NO_SHOW', 'COMPLETED']
+        );
+        expect(mockDashboardRepository.createNoShowPredictions).toHaveBeenCalledWith([
+            expect.objectContaining({
+                appointmentId: 'legacy-appointment-id',
+                clinicId: 'clinic-id',
+                patientId: 'patient-1',
+                riskLevel: 'HIGH',
+                score: 60,
+            }),
+        ]);
+        expect(mockDashboardRepository.countNoShowPredictionsByRiskLevel).toHaveBeenCalledWith(
+            'clinic-id',
+            '2026-06-19',
+            'Asia/Kolkata'
+        );
+        expect(result.noShowRiskSummary).toEqual({
+            low: 0,
+            medium: 0,
+            high: 1,
+        });
+    });
 });
 
 describe('dashboardService.getHighRiskAppointments', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+
+        mockDashboardRepository.findAppointmentsMissingNoShowPrediction.mockResolvedValue([]);
+        mockDashboardRepository.createNoShowPredictions.mockResolvedValue({
+            count: 0,
+        });
     });
 
     it('returns only HIGH risk appointments for the requested clinic', async () => {

@@ -205,6 +205,68 @@ export const dashboardRepository = {
         });
     },
 
+    async findAppointmentsMissingNoShowPrediction(
+        clinicId: string,
+        date: string,
+        clinicTimezone: string
+    ) {
+        const dateRange = await getClinicDateRange(date, clinicTimezone);
+
+        if (!dateRange) {
+            return [];
+        }
+
+        return prisma.appointment.findMany({
+            where: {
+                clinicId,
+                scheduledAt: {
+                    gte: dateRange.start,
+                    lt: dateRange.end,
+                },
+                status: {
+                    in: activeAppointmentStatuses,
+                },
+                noShowPrediction: null,
+            },
+            select: {
+                id: true,
+                clinicId: true,
+                patientId: true,
+                scheduledAt: true,
+                createdAt: true,
+            },
+        });
+    },
+
+    countPatientAppointmentsByStatuses(
+        clinicId: string,
+        patientIds: string[],
+        statuses: AppointmentStatus[]
+    ) {
+        return prisma.appointment.groupBy({
+            by: ['patientId', 'status'],
+            where: {
+                clinicId,
+                patientId: {
+                    in: patientIds,
+                },
+                status: {
+                    in: statuses,
+                },
+            },
+            _count: {
+                status: true,
+            },
+        });
+    },
+
+    createNoShowPredictions(predictions: Prisma.NoShowPredictionCreateManyInput[]) {
+        return prisma.noShowPrediction.createMany({
+            data: predictions,
+            skipDuplicates: true,
+        });
+    },
+
     async findHighRiskAppointmentCandidates(
         clinicId: string,
         date: string,
