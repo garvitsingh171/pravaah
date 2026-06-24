@@ -1,6 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { AppointmentStatus } from '../../generated/prisma/client.js';
-import { AppError } from '../../utils/AppError.js';
 import { appointmentService } from './appointment.service.js';
 import type {
     CreateAppointmentInput,
@@ -8,12 +7,6 @@ import type {
     AppointmentIdParamsInput,
     UpdateAppointmentStatusInput,
 } from './appointment.types.js';
-
-type AuthenticatedRequest = Request & {
-    user?: {
-        id: string;
-    };
-};
 
 export async function createAppointmentController(
     req: Request,
@@ -24,15 +17,9 @@ export async function createAppointmentController(
         const { clinicId } = req.params as { clinicId: string };
         const appointmentData = req.body as CreateAppointmentInput;
 
-        const authenticatedReq = req as AuthenticatedRequest;
-
-        if (!authenticatedReq.user?.id) {
-            throw new AppError(401, 'UNAUTHENTICATED', 'Authentication is required');
-        }
-
         const result = await appointmentService.createAppointment(
             clinicId,
-            authenticatedReq.user.id,
+            req.user!.id,
             appointmentData
         );
 
@@ -79,6 +66,7 @@ export async function updateAppointmentStatusController(
         const { status } = req.body as UpdateAppointmentStatusInput;
 
         const appointment = await appointmentService.updateAppointmentStatus(
+            req.user,
             appointmentId,
             status as AppointmentStatus
         );

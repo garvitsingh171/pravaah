@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import { clerkMiddleware } from '@clerk/express';
 import { errorHandler } from './middleware/errorHandler.js';
 import { env } from './config/env.js';
 import { healthRouter } from './modules/health/health.routes.js';
@@ -14,6 +15,8 @@ import { queueRouter } from './modules/queues/queue.routes.js';
 import { dashboardRouter } from './modules/dashboard/dashboard.routes.js';
 
 export const app = express();
+
+app.use(clerkMiddleware());
 
 app.use(
     cors({

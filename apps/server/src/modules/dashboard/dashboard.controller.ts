@@ -1,5 +1,4 @@
 import type { Request, Response, NextFunction } from 'express';
-import { AppError } from '../../utils/AppError.js';
 import { dashboardService } from './dashboard.service.js';
 import type {
     DashboardClinicIdParamsInput,
@@ -7,29 +6,17 @@ import type {
     HighRiskAppointmentsQueryInput,
 } from './dashboard.types.js';
 
-type AuthenticatedRequest = Request & {
-    user?: {
-        id: string;
-    };
-};
-
 export async function getDashboardSummaryController(
     req: Request,
     res: Response,
     next: NextFunction
 ): Promise<void> {
     try {
-        const authenticatedReq = req as AuthenticatedRequest;
-
-        if (!authenticatedReq.user?.id) {
-            throw new AppError(401, 'UNAUTHENTICATED', 'Authentication is required');
-        }
-
         const { clinicId } = req.params as DashboardClinicIdParamsInput;
         const { date } = res.locals.validatedQuery as DashboardSummaryQueryInput;
 
         const dashboardSummary = await dashboardService.getDashboardSummary(
-            authenticatedReq.user.id,
+            req.user,
             clinicId,
             date
         );
@@ -52,20 +39,10 @@ export async function getHighRiskAppointmentsController(
     next: NextFunction
 ): Promise<void> {
     try {
-        const authenticatedReq = req as AuthenticatedRequest;
-
-        if (!authenticatedReq.user?.id) {
-            throw new AppError(401, 'UNAUTHENTICATED', 'Authentication is required');
-        }
-
         const { clinicId } = req.params as DashboardClinicIdParamsInput;
         const { date } = res.locals.validatedQuery as HighRiskAppointmentsQueryInput;
 
-        const result = await dashboardService.getHighRiskAppointments(
-            authenticatedReq.user.id,
-            clinicId,
-            date
-        );
+        const result = await dashboardService.getHighRiskAppointments(req.user, clinicId, date);
 
         res.status(200).json({
             success: true,
@@ -83,15 +60,9 @@ export async function getTodayActivityController(
     next: NextFunction
 ): Promise<void> {
     try {
-        const authenticatedReq = req as AuthenticatedRequest;
-
-        if (!authenticatedReq.user?.id) {
-            throw new AppError(401, 'UNAUTHENTICATED', 'Authentication is required');
-        }
-
         const { clinicId } = req.params as DashboardClinicIdParamsInput;
 
-        const result = await dashboardService.getTodayActivity(authenticatedReq.user.id, clinicId);
+        const result = await dashboardService.getTodayActivity(req.user, clinicId);
 
         res.status(200).json({
             success: true,

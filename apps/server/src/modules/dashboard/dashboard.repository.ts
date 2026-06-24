@@ -118,27 +118,6 @@ const getClinicDateRange = async (date: string, clinicTimezone: string) => {
 export const dashboardRepository = {
     getClinicDateRange,
 
-    findUserById(userId: string) {
-        return prisma.user.findUnique({
-            where: {
-                id: userId,
-            },
-            select: {
-                id: true,
-                clinicId: true,
-                status: true,
-            },
-        });
-    },
-
-    findClinicById(clinicId: string) {
-        return prisma.clinic.findUnique({
-            where: {
-                id: clinicId,
-            },
-        });
-    },
-
     async countAppointmentsByStatus(clinicId: string, date: string, clinicTimezone: string) {
         const dateRange = await getClinicDateRange(date, clinicTimezone);
 

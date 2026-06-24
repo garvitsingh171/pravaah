@@ -25,6 +25,10 @@ const mockQueueService = vi.hoisted(() => ({
     calculateNextQueuePosition: vi.fn(),
 }));
 
+const mockAccessService = vi.hoisted(() => ({
+    verifyAppointmentClinicAccess: vi.fn(),
+}));
+
 const mockPredictNoShowRisk = vi.hoisted(() => vi.fn());
 
 vi.mock('./appointment.repository.js', () => ({
@@ -37,6 +41,10 @@ vi.mock('../queues/queue.repository.js', () => ({
 
 vi.mock('../queues/queue.service.js', () => ({
     queueService: mockQueueService,
+}));
+
+vi.mock('../auth/access.service.js', () => ({
+    accessService: mockAccessService,
 }));
 
 vi.mock('../predictions/prediction.service.js', () => ({

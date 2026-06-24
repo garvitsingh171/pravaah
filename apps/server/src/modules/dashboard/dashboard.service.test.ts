@@ -2,8 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppError } from '../../utils/AppError.js';
 
 const mockDashboardRepository = vi.hoisted(() => ({
-    findUserById: vi.fn(),
-    findClinicById: vi.fn(),
     countAppointmentsByStatus: vi.fn(),
     countQueueEntriesByStatus: vi.fn(),
     findAppointmentsForRiskSummary: vi.fn(),
@@ -14,10 +12,18 @@ const mockDashboardRepository = vi.hoisted(() => ({
     findQueueActivityCandidates: vi.fn(),
 }));
 
+const mockAccessService = vi.hoisted(() => ({
+    verifyClinicAccess: vi.fn(),
+}));
+
 const mockPredictNoShowRisk = vi.hoisted(() => vi.fn());
 
 vi.mock('./dashboard.repository.js', () => ({
     dashboardRepository: mockDashboardRepository,
+}));
+
+vi.mock('../auth/access.service.js', () => ({
+    accessService: mockAccessService,
 }));
 
 vi.mock('../predictions/prediction.service.js', () => ({
@@ -26,19 +32,21 @@ vi.mock('../predictions/prediction.service.js', () => ({
 
 import { dashboardService } from './dashboard.service.js';
 
+const authenticatedUser = {
+    id: 'user-id',
+    clerkUserId: 'clerk-user-id',
+    role: 'ADMIN' as const,
+    status: 'ACTIVE' as const,
+    clinicId: 'clinic-id',
+};
+
 describe('dashboardService.getDashboardSummary', () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
     it('returns clinic-scoped appointment, queue, and no-show risk counts', async () => {
-        mockDashboardRepository.findUserById.mockResolvedValue({
-            id: 'user-id',
-            clinicId: 'clinic-id',
-            status: 'ACTIVE',
-        });
-
-        mockDashboardRepository.findClinicById.mockResolvedValue({
+        mockAccessService.verifyClinicAccess.mockResolvedValue({
             id: 'clinic-id',
             isActive: true,
             timezone: 'Asia/Kolkata',
@@ -117,7 +125,7 @@ describe('dashboardService.getDashboardSummary', () => {
             });
 
         const result = await dashboardService.getDashboardSummary(
-            'user-id',
+            authenticatedUser,
             'clinic-id',
             '2026-06-19'
         );
@@ -183,19 +191,17 @@ describe('dashboardService.getDashboardSummary', () => {
     });
 
     it('rejects users outside the requested clinic', async () => {
-        mockDashboardRepository.findUserById.mockResolvedValue({
-            id: 'user-id',
-            clinicId: 'other-clinic-id',
-            status: 'ACTIVE',
-        });
+        mockAccessService.verifyClinicAccess.mockRejectedValue(
+            new AppError(403, 'CLINIC_ACCESS_DENIED', 'You do not have access to this clinic')
+        );
 
         await expect(
-            dashboardService.getDashboardSummary('user-id', 'clinic-id', '2026-06-19')
+            dashboardService.getDashboardSummary(authenticatedUser, 'clinic-id', '2026-06-19')
         ).rejects.toMatchObject(
             new AppError(403, 'CLINIC_ACCESS_DENIED', 'You do not have access to this clinic')
         );
 
-        expect(mockDashboardRepository.findClinicById).not.toHaveBeenCalled();
+        expect(mockDashboardRepository.countAppointmentsByStatus).not.toHaveBeenCalled();
     });
 });
 
@@ -205,13 +211,7 @@ describe('dashboardService.getHighRiskAppointments', () => {
     });
 
     it('returns only HIGH risk appointments for the requested clinic', async () => {
-        mockDashboardRepository.findUserById.mockResolvedValue({
-            id: 'user-id',
-            clinicId: 'clinic-id',
-            status: 'ACTIVE',
-        });
-
-        mockDashboardRepository.findClinicById.mockResolvedValue({
+        mockAccessService.verifyClinicAccess.mockResolvedValue({
             id: 'clinic-id',
             isActive: true,
             timezone: 'Asia/Kolkata',
@@ -310,7 +310,7 @@ describe('dashboardService.getHighRiskAppointments', () => {
             });
 
         const result = await dashboardService.getHighRiskAppointments(
-            'user-id',
+            authenticatedUser,
             'clinic-id',
             '2026-06-19'
         );
@@ -370,14 +370,12 @@ describe('dashboardService.getHighRiskAppointments', () => {
     });
 
     it('rejects users outside the requested clinic', async () => {
-        mockDashboardRepository.findUserById.mockResolvedValue({
-            id: 'user-id',
-            clinicId: 'other-clinic-id',
-            status: 'ACTIVE',
-        });
+        mockAccessService.verifyClinicAccess.mockRejectedValue(
+            new AppError(403, 'CLINIC_ACCESS_DENIED', 'You do not have access to this clinic')
+        );
 
         await expect(
-            dashboardService.getHighRiskAppointments('user-id', 'clinic-id', '2026-06-19')
+            dashboardService.getHighRiskAppointments(authenticatedUser, 'clinic-id', '2026-06-19')
         ).rejects.toMatchObject(
             new AppError(403, 'CLINIC_ACCESS_DENIED', 'You do not have access to this clinic')
         );
@@ -422,13 +420,7 @@ describe('dashboardService.getTodayActivity', () => {
             age: 34,
         };
 
-        mockDashboardRepository.findUserById.mockResolvedValue({
-            id: 'user-id',
-            clinicId: 'clinic-id',
-            status: 'ACTIVE',
-        });
-
-        mockDashboardRepository.findClinicById.mockResolvedValue({
+        mockAccessService.verifyClinicAccess.mockResolvedValue({
             id: 'clinic-id',
             isActive: true,
             timezone: 'Asia/Kolkata',
@@ -459,7 +451,7 @@ describe('dashboardService.getTodayActivity', () => {
             },
         ]);
 
-        const result = await dashboardService.getTodayActivity('user-id', 'clinic-id');
+        const result = await dashboardService.getTodayActivity(authenticatedUser, 'clinic-id');
 
         expect(mockDashboardRepository.getClinicDateRange).toHaveBeenCalledWith(
             expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
@@ -520,13 +512,7 @@ describe('dashboardService.getTodayActivity', () => {
             age: 34,
         };
 
-        mockDashboardRepository.findUserById.mockResolvedValue({
-            id: 'user-id',
-            clinicId: 'clinic-id',
-            status: 'ACTIVE',
-        });
-
-        mockDashboardRepository.findClinicById.mockResolvedValue({
+        mockAccessService.verifyClinicAccess.mockResolvedValue({
             id: 'clinic-id',
             isActive: true,
             timezone: 'Asia/Kolkata',
@@ -549,7 +535,7 @@ describe('dashboardService.getTodayActivity', () => {
             },
         ]);
 
-        const result = await dashboardService.getTodayActivity('user-id', 'clinic-id');
+        const result = await dashboardService.getTodayActivity(authenticatedUser, 'clinic-id');
 
         expect(result.activityItems.map((activityItem) => activityItem.type)).toEqual([
             'QUEUE_JOINED',
@@ -562,14 +548,12 @@ describe('dashboardService.getTodayActivity', () => {
     });
 
     it('rejects users outside the requested clinic', async () => {
-        mockDashboardRepository.findUserById.mockResolvedValue({
-            id: 'user-id',
-            clinicId: 'other-clinic-id',
-            status: 'ACTIVE',
-        });
+        mockAccessService.verifyClinicAccess.mockRejectedValue(
+            new AppError(403, 'CLINIC_ACCESS_DENIED', 'You do not have access to this clinic')
+        );
 
         await expect(
-            dashboardService.getTodayActivity('user-id', 'clinic-id')
+            dashboardService.getTodayActivity(authenticatedUser, 'clinic-id')
         ).rejects.toMatchObject(
             new AppError(403, 'CLINIC_ACCESS_DENIED', 'You do not have access to this clinic')
         );
