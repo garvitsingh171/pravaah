@@ -2,6 +2,8 @@ import { AppointmentStatus, QueueStatus } from '../../generated/prisma/client.js
 import { AppError } from '../../utils/AppError.js';
 import { accessService } from '../auth/access.service.js';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
+import { toNoShowPredictionResponse } from '../predictions/prediction.service.js';
+import type { StoredNoShowPredictionForResponse } from '../predictions/prediction.types.js';
 import { queueRepository } from './queue.repository.js';
 
 const finalQueueStatuses: QueueStatus[] = [
@@ -25,6 +27,24 @@ const queueStatusToAppointmentStatus: Record<QueueStatus, AppointmentStatus> = {
     NO_SHOW: AppointmentStatus.NO_SHOW,
 };
 
+type QueueEntryWithAppointmentPrediction = {
+    appointment: {
+        noShowPrediction: StoredNoShowPredictionForResponse | null;
+    };
+};
+
+const withQueueNoShowPredictionResponse = <T extends QueueEntryWithAppointmentPrediction>(
+    queueEntry: T
+) => {
+    const { noShowPrediction, ...appointment } = queueEntry.appointment;
+
+    return {
+        ...queueEntry,
+        appointment,
+        noShowPrediction: toNoShowPredictionResponse(noShowPrediction),
+    };
+};
+
 export const queueService = {
     calculateNextQueuePosition(highestPosition: number | null): number {
         return (highestPosition ?? 0) + 1;
@@ -37,7 +57,13 @@ export const queueService = {
     ) {
         const clinic = await accessService.verifyClinicAccess(user, clinicId);
 
-        return queueRepository.findQueueByClinicDate(clinicId, date, clinic.timezone);
+        const queueEntries = await queueRepository.findQueueByClinicDate(
+            clinicId,
+            date,
+            clinic.timezone
+        );
+
+        return queueEntries.map(withQueueNoShowPredictionResponse);
     },
 
     async updateQueueStatus(
@@ -82,7 +108,7 @@ export const queueService = {
         }
 
         try {
-            return await queueRepository.updateQueueEntryStatus(
+            const updatedQueueEntry = await queueRepository.updateQueueEntryStatus(
                 queueEntryId,
                 queueEntry.appointmentId,
                 clinicId,
@@ -90,6 +116,8 @@ export const queueService = {
                 queueStatusToAppointmentStatus[status],
                 timestampUpdates
             );
+
+            return withQueueNoShowPredictionResponse(updatedQueueEntry);
         } catch (error) {
             if (
                 error instanceof Error &&
@@ -180,11 +208,13 @@ export const queueService = {
         }
 
         try {
-            return await queueRepository.reorderQueueEntries(
+            const queueEntries = await queueRepository.reorderQueueEntries(
                 clinicId,
                 queueEntryIds,
                 activeQueueStatuses
             );
+
+            return queueEntries.map(withQueueNoShowPredictionResponse);
         } catch (error) {
             if (error instanceof Error && error.message === 'QUEUE_REORDER_CONFLICT') {
                 throw new AppError(

@@ -39,11 +39,7 @@ describe('createAppointmentController', () => {
 
         const noShowPrediction = {
             id: 'no-show-prediction-id',
-            appointmentId: appointment.id,
-            clinicId: appointment.clinicId,
-            patientId: appointment.patientId,
             riskLevel: 'MEDIUM' as const,
-            score: 35,
             reasons: [
                 {
                     code: 'NEW_PATIENT' as const,
@@ -53,6 +49,10 @@ describe('createAppointmentController', () => {
             ],
             createdAt: new Date('2026-06-18T10:00:01.000Z'),
             updatedAt: new Date('2026-06-18T10:00:01.000Z'),
+        };
+        const appointmentResponse = {
+            ...appointment,
+            noShowPrediction,
         };
         const queueEntry = {
             id: 'queue-entry-id',
@@ -96,7 +96,7 @@ describe('createAppointmentController', () => {
         const next = vi.fn() as NextFunction;
 
         mockAppointmentService.createAppointment.mockResolvedValue({
-            appointment,
+            appointment: appointmentResponse,
             queueEntry,
             noShowPrediction,
         });
@@ -114,12 +114,15 @@ describe('createAppointmentController', () => {
             success: true,
             message: 'Appointment created successfully',
             data: {
-                appointment,
+                appointment: appointmentResponse,
                 queueEntry,
                 noShowPrediction,
             },
         });
-        expect(noShowPrediction.score).toBe(35);
+        expect(noShowPrediction).not.toHaveProperty('score');
+        expect(noShowPrediction).not.toHaveProperty('appointmentId');
+        expect(noShowPrediction).not.toHaveProperty('clinicId');
+        expect(noShowPrediction).not.toHaveProperty('patientId');
         expect(noShowPrediction.reasons).toEqual([
             {
                 code: 'NEW_PATIENT',

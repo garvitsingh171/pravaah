@@ -2,13 +2,9 @@ import { prisma } from '../../config/prisma.js';
 import { AppointmentStatus, Prisma, QueueStatus } from '../../generated/prisma/client.js';
 import type {
     NoShowPredictionOutput,
-    NoShowPredictionReason,
+    StoredNoShowPredictionForResponse,
 } from '../predictions/prediction.types.js';
-import type {
-    AppointmentBookingNoShowPrediction,
-    CreateAppointmentInput,
-    ListAppointmentsQueryInput,
-} from './appointment.types.js';
+import type { CreateAppointmentInput, ListAppointmentsQueryInput } from './appointment.types.js';
 
 const getClinicDateRange = async (date: string, clinicTimezone: string) => {
     const [dateRange] = await prisma.$queryRaw<Array<{ start: Date; end: Date }>>`
@@ -43,11 +39,7 @@ const finalQueueStatuses: QueueStatus[] = [
 
 const noShowPredictionBookingSelect = {
     id: true,
-    appointmentId: true,
-    clinicId: true,
-    patientId: true,
     riskLevel: true,
-    score: true,
     reasons: true,
     createdAt: true,
     updatedAt: true,
@@ -432,22 +424,17 @@ export const appointmentRepository = {
         appointmentId: string,
         patientId: string,
         prediction: NoShowPredictionOutput
-    ): Promise<AppointmentBookingNoShowPrediction> {
-        return tx.noShowPrediction
-            .create({
-                data: {
-                    appointmentId,
-                    clinicId,
-                    patientId,
-                    riskLevel: prediction.riskLevel,
-                    score: prediction.score,
-                    reasons: prediction.reasons,
-                },
-                select: noShowPredictionBookingSelect,
-            })
-            .then((storedPrediction) => ({
-                ...storedPrediction,
-                reasons: storedPrediction.reasons as NoShowPredictionReason[],
-            }));
+    ): Promise<StoredNoShowPredictionForResponse> {
+        return tx.noShowPrediction.create({
+            data: {
+                appointmentId,
+                clinicId,
+                patientId,
+                riskLevel: prediction.riskLevel,
+                score: prediction.score,
+                reasons: prediction.reasons,
+            },
+            select: noShowPredictionBookingSelect,
+        });
     },
 };

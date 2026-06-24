@@ -1,5 +1,13 @@
 import { prisma } from '../../config/prisma.js';
-import { AppointmentStatus, Prisma } from '../../generated/prisma/client.js';
+import { AppointmentStatus, Prisma, RiskLevel } from '../../generated/prisma/client.js';
+
+const noShowPredictionDashboardSelect = {
+    id: true,
+    riskLevel: true,
+    reasons: true,
+    createdAt: true,
+    updatedAt: true,
+} satisfies Prisma.NoShowPredictionSelect;
 
 const appointmentDetailsSelect = {
     id: true,
@@ -9,7 +17,6 @@ const appointmentDetailsSelect = {
     status: true,
     bookingSource: true,
     reason: true,
-    createdAt: true,
     doctor: {
         select: {
             id: true,
@@ -27,6 +34,9 @@ const appointmentDetailsSelect = {
             gender: true,
             age: true,
         },
+    },
+    noShowPrediction: {
+        select: noShowPredictionDashboardSelect,
     },
 } satisfies Prisma.AppointmentSelect;
 
@@ -164,7 +174,42 @@ export const dashboardRepository = {
         });
     },
 
-    async findAppointmentsForRiskSummary(clinicId: string, date: string, clinicTimezone: string) {
+    async countNoShowPredictionsByRiskLevel(
+        clinicId: string,
+        date: string,
+        clinicTimezone: string
+    ) {
+        const dateRange = await getClinicDateRange(date, clinicTimezone);
+
+        if (!dateRange) {
+            return [];
+        }
+
+        return prisma.noShowPrediction.groupBy({
+            by: ['riskLevel'],
+            where: {
+                clinicId,
+                appointment: {
+                    scheduledAt: {
+                        gte: dateRange.start,
+                        lt: dateRange.end,
+                    },
+                    status: {
+                        in: activeAppointmentStatuses,
+                    },
+                },
+            },
+            _count: {
+                riskLevel: true,
+            },
+        });
+    },
+
+    async findAppointmentsMissingNoShowPrediction(
+        clinicId: string,
+        date: string,
+        clinicTimezone: string
+    ) {
         const dateRange = await getClinicDateRange(date, clinicTimezone);
 
         if (!dateRange) {
@@ -181,12 +226,44 @@ export const dashboardRepository = {
                 status: {
                     in: activeAppointmentStatuses,
                 },
+                noShowPrediction: null,
             },
             select: {
+                id: true,
+                clinicId: true,
                 patientId: true,
                 scheduledAt: true,
                 createdAt: true,
             },
+        });
+    },
+
+    countPatientAppointmentsByStatuses(
+        clinicId: string,
+        patientIds: string[],
+        statuses: AppointmentStatus[]
+    ) {
+        return prisma.appointment.groupBy({
+            by: ['patientId', 'status'],
+            where: {
+                clinicId,
+                patientId: {
+                    in: patientIds,
+                },
+                status: {
+                    in: statuses,
+                },
+            },
+            _count: {
+                status: true,
+            },
+        });
+    },
+
+    createNoShowPredictions(predictions: Prisma.NoShowPredictionCreateManyInput[]) {
+        return prisma.noShowPrediction.createMany({
+            data: predictions,
+            skipDuplicates: true,
         });
     },
 
@@ -211,32 +288,15 @@ export const dashboardRepository = {
                 status: {
                     in: activeAppointmentStatuses,
                 },
+                noShowPrediction: {
+                    is: {
+                        riskLevel: RiskLevel.HIGH,
+                    },
+                },
             },
             select: appointmentDetailsSelect,
             orderBy: {
                 scheduledAt: 'asc',
-            },
-        });
-    },
-
-    countPatientAppointmentsByStatuses(
-        clinicId: string,
-        patientIds: string[],
-        statuses: AppointmentStatus[]
-    ) {
-        return prisma.appointment.groupBy({
-            by: ['patientId', 'status'],
-            where: {
-                clinicId,
-                patientId: {
-                    in: patientIds,
-                },
-                status: {
-                    in: statuses,
-                },
-            },
-            _count: {
-                status: true,
             },
         });
     },
