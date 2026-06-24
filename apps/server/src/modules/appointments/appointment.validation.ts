@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { calendarDateRegex, isValidCalendarDate } from '../../utils/dateValidation.js';
 
 const uuidSchema = z
     .string()
@@ -9,26 +10,8 @@ const uuidSchema = z
 
 const dateSchema = z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format')
-    .refine((value) => {
-        const [yearText, monthText, dayText] = value.split('-');
-
-        if (yearText === undefined || monthText === undefined || dayText === undefined) {
-            return false;
-        }
-
-        const year = Number(yearText);
-        const month = Number(monthText);
-        const day = Number(dayText);
-
-        const parsedDate = new Date(Date.UTC(year, month - 1, day));
-
-        return (
-            parsedDate.getUTCFullYear() === year &&
-            parsedDate.getUTCMonth() === month - 1 &&
-            parsedDate.getUTCDate() === day
-        );
-    }, 'Invalid calendar date');
+    .regex(calendarDateRegex, 'Date must be in YYYY-MM-DD format')
+    .refine(isValidCalendarDate, 'Invalid calendar date');
 
 export const clinicIdParamsSchema = z.object({
     clinicId: uuidSchema,

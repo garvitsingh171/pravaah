@@ -40,7 +40,7 @@ export async function listAppointmentsController(
 ): Promise<void> {
     try {
         const { clinicId } = req.params as { clinicId: string };
-        const query = req.query as ListAppointmentsQueryInput;
+        const query = res.locals.validatedQuery as ListAppointmentsQueryInput;
 
         const appointments = await appointmentService.listAppointments(clinicId, query);
 
