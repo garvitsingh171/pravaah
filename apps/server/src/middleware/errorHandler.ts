@@ -36,6 +36,17 @@ export const errorHandler: ErrorRequestHandler = (error: HttpError, _req, res, _
         return;
     }
 
+    if (error.status === 401 || error.statusCode === 401) {
+        res.status(401).json({
+            success: false,
+            error: {
+                code: 'UNAUTHENTICATED',
+                message: 'Missing or invalid authentication token',
+            },
+        });
+        return;
+    }
+
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2002') {
             res.status(409).json({

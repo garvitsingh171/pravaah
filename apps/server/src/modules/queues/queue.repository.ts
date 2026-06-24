@@ -56,27 +56,6 @@ const finalAppointmentStatuses: AppointmentStatus[] = [
 ];
 
 export const queueRepository = {
-    findClinicById(clinicId: string) {
-        return prisma.clinic.findUnique({
-            where: {
-                id: clinicId,
-            },
-        });
-    },
-
-    findUserById(userId: string) {
-        return prisma.user.findUnique({
-            where: {
-                id: userId,
-            },
-            select: {
-                id: true,
-                clinicId: true,
-                status: true,
-            },
-        });
-    },
-
     async findQueueByClinicDate(clinicId: string, date: string, clinicTimezone: string) {
         const dateRange = await getClinicDateRange(date, clinicTimezone);
 

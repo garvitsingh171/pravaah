@@ -1,5 +1,7 @@
 import { AppointmentStatus, Prisma } from '../../generated/prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
+import { accessService } from '../auth/access.service.js';
+import type { AuthenticatedUser } from '../auth/auth.types.js';
 import { predictNoShowRisk } from '../predictions/prediction.service.js';
 import { queueRepository } from '../queues/queue.repository.js';
 import { queueService } from '../queues/queue.service.js';
@@ -234,7 +236,13 @@ export const appointmentService = {
         return appointmentRepository.findAppointmentsByClinicId(clinicId, filters, clinic.timezone);
     },
 
-    async updateAppointmentStatus(appointmentId: string, status: AppointmentStatus) {
+    async updateAppointmentStatus(
+        user: AuthenticatedUser | undefined,
+        appointmentId: string,
+        status: AppointmentStatus
+    ) {
+        await accessService.verifyAppointmentClinicAccess(user, appointmentId);
+
         let result: Awaited<ReturnType<typeof appointmentRepository.updateAppointmentStatus>>;
 
         try {

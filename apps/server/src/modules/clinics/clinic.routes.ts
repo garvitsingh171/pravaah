@@ -1,5 +1,10 @@
 import { Router } from 'express';
 import { validateRequest } from '../../utils/validateRequest.js';
+import {
+    authenticateRequest,
+    requireAdminRole,
+    requireClinicAccess,
+} from '../auth/auth.middleware.js';
 import { createClinicController, updateClinicController } from './clinic.controller.js';
 import {
     createClinicSchema,
@@ -9,14 +14,23 @@ import {
 
 const clinicRouter = Router();
 
-clinicRouter.post('/', validateRequest({ body: createClinicSchema }), createClinicController);
+clinicRouter.post(
+    '/',
+    authenticateRequest,
+    validateRequest({ body: createClinicSchema }),
+    requireAdminRole,
+    createClinicController
+);
 
 clinicRouter.patch(
     '/:clinicId',
+    authenticateRequest,
     validateRequest({
         params: clinicIdParamsSchema,
         body: updateClinicSchema,
     }),
+    requireClinicAccess,
+    requireAdminRole,
     updateClinicController
 );
 

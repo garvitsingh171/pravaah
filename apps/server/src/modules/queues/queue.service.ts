@@ -1,5 +1,7 @@
 import { AppointmentStatus, QueueStatus } from '../../generated/prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
+import { accessService } from '../auth/access.service.js';
+import type { AuthenticatedUser } from '../auth/auth.types.js';
 import { queueRepository } from './queue.repository.js';
 
 const finalQueueStatuses: QueueStatus[] = [
@@ -23,48 +25,28 @@ const queueStatusToAppointmentStatus: Record<QueueStatus, AppointmentStatus> = {
     NO_SHOW: AppointmentStatus.NO_SHOW,
 };
 
-const verifyClinicAccess = async (userId: string, clinicId: string) => {
-    const user = await queueRepository.findUserById(userId);
-
-    if (!user || user.status !== 'ACTIVE') {
-        throw new AppError(401, 'UNAUTHENTICATED', 'Authentication is required');
-    }
-
-    if (user.clinicId !== clinicId) {
-        throw new AppError(403, 'CLINIC_ACCESS_DENIED', 'You do not have access to this clinic');
-    }
-
-    const clinic = await queueRepository.findClinicById(clinicId);
-
-    if (!clinic) {
-        throw new AppError(404, 'CLINIC_NOT_FOUND', 'Clinic not found');
-    }
-
-    if (!clinic.isActive) {
-        throw new AppError(400, 'CLINIC_INACTIVE', 'Clinic is inactive');
-    }
-
-    return clinic;
-};
-
 export const queueService = {
     calculateNextQueuePosition(highestPosition: number | null): number {
         return (highestPosition ?? 0) + 1;
     },
 
-    async listQueueByClinicDate(userId: string, clinicId: string, date: string) {
-        const clinic = await verifyClinicAccess(userId, clinicId);
+    async listQueueByClinicDate(
+        user: AuthenticatedUser | undefined,
+        clinicId: string,
+        date: string
+    ) {
+        const clinic = await accessService.verifyClinicAccess(user, clinicId);
 
         return queueRepository.findQueueByClinicDate(clinicId, date, clinic.timezone);
     },
 
     async updateQueueStatus(
-        userId: string,
+        user: AuthenticatedUser | undefined,
         clinicId: string,
         queueEntryId: string,
         status: QueueStatus
     ) {
-        await verifyClinicAccess(userId, clinicId);
+        await accessService.verifyClinicAccess(user, clinicId);
 
         const queueEntry = await queueRepository.findQueueEntryById(queueEntryId);
 
@@ -126,8 +108,13 @@ export const queueService = {
         }
     },
 
-    async reorderQueue(userId: string, clinicId: string, date: string, queueEntryIds: string[]) {
-        const clinic = await verifyClinicAccess(userId, clinicId);
+    async reorderQueue(
+        user: AuthenticatedUser | undefined,
+        clinicId: string,
+        date: string,
+        queueEntryIds: string[]
+    ) {
+        const clinic = await accessService.verifyClinicAccess(user, clinicId);
 
         const requestedQueueEntries = await queueRepository.findQueueEntriesByIds(queueEntryIds);
 

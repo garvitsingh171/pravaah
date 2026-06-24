@@ -1,5 +1,6 @@
 import { AppointmentStatus, QueueStatus } from '../../generated/prisma/client.js';
-import { AppError } from '../../utils/AppError.js';
+import { accessService } from '../auth/access.service.js';
+import type { AuthenticatedUser } from '../auth/auth.types.js';
 import { predictNoShowRisk } from '../predictions/prediction.service.js';
 import type { NoShowRiskLevel } from '../predictions/prediction.types.js';
 import { dashboardRepository } from './dashboard.repository.js';
@@ -27,30 +28,6 @@ const getDateInTimeZone = (date: Date, timeZone: string): string => {
         month: '2-digit',
         day: '2-digit',
     }).format(date);
-};
-
-const verifyClinicAccess = async (userId: string, clinicId: string) => {
-    const user = await dashboardRepository.findUserById(userId);
-
-    if (!user || user.status !== 'ACTIVE') {
-        throw new AppError(401, 'UNAUTHENTICATED', 'Authentication is required');
-    }
-
-    if (user.clinicId !== clinicId) {
-        throw new AppError(403, 'CLINIC_ACCESS_DENIED', 'You do not have access to this clinic');
-    }
-
-    const clinic = await dashboardRepository.findClinicById(clinicId);
-
-    if (!clinic) {
-        throw new AppError(404, 'CLINIC_NOT_FOUND', 'Clinic not found');
-    }
-
-    if (!clinic.isActive) {
-        throw new AppError(400, 'CLINIC_INACTIVE', 'Clinic is inactive');
-    }
-
-    return clinic;
 };
 
 const buildAppointmentSummary = (
@@ -352,11 +329,11 @@ const buildQueueActivityItems = (
 
 export const dashboardService = {
     async getDashboardSummary(
-        userId: string,
+        user: AuthenticatedUser | undefined,
         clinicId: string,
         requestedDate?: string
     ): Promise<DashboardSummary> {
-        const clinic = await verifyClinicAccess(userId, clinicId);
+        const clinic = await accessService.verifyClinicAccess(user, clinicId);
         const selectedDate = requestedDate ?? getDateInTimeZone(new Date(), clinic.timezone);
 
         const [appointmentStatusCounts, queueStatusCounts, riskAppointments] = await Promise.all([
@@ -381,7 +358,7 @@ export const dashboardService = {
     },
 
     async getHighRiskAppointments(
-        userId: string,
+        user: AuthenticatedUser | undefined,
         clinicId: string,
         requestedDate?: string
     ): Promise<{
@@ -389,7 +366,7 @@ export const dashboardService = {
         date: string;
         highRiskAppointments: DashboardHighRiskAppointment[];
     }> {
-        const clinic = await verifyClinicAccess(userId, clinicId);
+        const clinic = await accessService.verifyClinicAccess(user, clinicId);
         const selectedDate = requestedDate ?? getDateInTimeZone(new Date(), clinic.timezone);
 
         const appointmentCandidates = await dashboardRepository.findHighRiskAppointmentCandidates(
@@ -411,14 +388,14 @@ export const dashboardService = {
     },
 
     async getTodayActivity(
-        userId: string,
+        user: AuthenticatedUser | undefined,
         clinicId: string
     ): Promise<{
         clinicId: string;
         date: string;
         activityItems: DashboardActivityItem[];
     }> {
-        const clinic = await verifyClinicAccess(userId, clinicId);
+        const clinic = await accessService.verifyClinicAccess(user, clinicId);
         const selectedDate = getDateInTimeZone(new Date(), clinic.timezone);
         const dateRange = await dashboardRepository.getClinicDateRange(
             selectedDate,

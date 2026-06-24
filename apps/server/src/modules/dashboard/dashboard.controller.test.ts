@@ -59,6 +59,10 @@ describe('getDashboardSummaryController', () => {
             },
             user: {
                 id: 'user-id',
+                clerkUserId: 'clerk-user-id',
+                role: 'ADMIN',
+                status: 'ACTIVE',
+                clinicId: 'clinic-id',
             },
         } as unknown as Request;
 
@@ -79,7 +83,7 @@ describe('getDashboardSummaryController', () => {
         await getDashboardSummaryController(req, res, next);
 
         expect(mockDashboardService.getDashboardSummary).toHaveBeenCalledWith(
-            'user-id',
+            req.user,
             'clinic-id',
             '2026-06-19'
         );
@@ -144,6 +148,10 @@ describe('getHighRiskAppointmentsController', () => {
             },
             user: {
                 id: 'user-id',
+                clerkUserId: 'clerk-user-id',
+                role: 'ADMIN',
+                status: 'ACTIVE',
+                clinicId: 'clinic-id',
             },
         } as unknown as Request;
 
@@ -164,7 +172,7 @@ describe('getHighRiskAppointmentsController', () => {
         await getHighRiskAppointmentsController(req, res, next);
 
         expect(mockDashboardService.getHighRiskAppointments).toHaveBeenCalledWith(
-            'user-id',
+            req.user,
             'clinic-id',
             '2026-06-19'
         );
@@ -231,6 +239,10 @@ describe('getTodayActivityController', () => {
             },
             user: {
                 id: 'user-id',
+                clerkUserId: 'clerk-user-id',
+                role: 'ADMIN',
+                status: 'ACTIVE',
+                clinicId: 'clinic-id',
             },
         } as unknown as Request;
 
@@ -245,7 +257,7 @@ describe('getTodayActivityController', () => {
 
         await getTodayActivityController(req, res, next);
 
-        expect(mockDashboardService.getTodayActivity).toHaveBeenCalledWith('user-id', 'clinic-id');
+        expect(mockDashboardService.getTodayActivity).toHaveBeenCalledWith(req.user, 'clinic-id');
 
         expect(status).toHaveBeenCalledWith(200);
         expect(json).toHaveBeenCalledWith({
