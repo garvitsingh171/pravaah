@@ -9,11 +9,7 @@ export const authenticateRequest: RequestHandler = async (req, _res, next) => {
         const auth = getAuth(req);
 
         if (!auth.isAuthenticated || !auth.userId) {
-            throw new AppError(
-                401,
-                'UNAUTHENTICATED',
-                'Missing or invalid authentication token'
-            );
+            throw new AppError(401, 'UNAUTHENTICATED', 'Missing or invalid authentication token');
         }
 
         req.user = await authService.getActiveUserByClerkUserId(auth.userId);

@@ -57,12 +57,6 @@ function DoctorsPage() {
     const [doctorListState, setDoctorListState] = useState<DoctorListState>(emptyDoctorListState);
 
     const loadDoctors = useCallback(async (signal?: AbortSignal) => {
-        setDoctorListState((currentState) => ({
-            status: 'loading',
-            doctors: currentState.doctors,
-            error: null,
-        }));
-
         try {
             const clinicId = getActiveClinicId();
             const data = await listDoctors(clinicId, signal);
@@ -104,15 +98,63 @@ function DoctorsPage() {
         }
     }, []);
 
+    const handleRetry = () => {
+        setDoctorListState((currentState) => ({
+            status: 'loading',
+            doctors: currentState.doctors,
+            error: null,
+        }));
+
+        void loadDoctors();
+    };
+
     useEffect(() => {
         const abortController = new AbortController();
+        const clinicId = getActiveClinicId();
 
-        void loadDoctors(abortController.signal);
+        listDoctors(clinicId, abortController.signal)
+            .then((data) => {
+                setDoctorListState({
+                    status: 'success',
+                    doctors: data.doctors,
+                    error: null,
+                });
+            })
+            .catch((error: unknown) => {
+                if (error instanceof Error && error.name === 'AbortError') {
+                    return;
+                }
+
+                if (isApiClientError(error)) {
+                    if (error.code === 'API_REQUEST_ABORTED') {
+                        return;
+                    }
+
+                    setDoctorListState({
+                        status: 'error',
+                        doctors: [],
+                        error: {
+                            message: error.message,
+                            code: error.code,
+                        },
+                    });
+                    return;
+                }
+
+                setDoctorListState({
+                    status: 'error',
+                    doctors: [],
+                    error: {
+                        message: 'Doctors could not be loaded. Please try again.',
+                        code: 'DOCTOR_LIST_FAILED',
+                    },
+                });
+            });
 
         return () => {
             abortController.abort();
         };
-    }, [loadDoctors]);
+    }, []);
 
     useEffect(() => {
         if (locationState?.statusMessage) {
@@ -168,7 +210,7 @@ function DoctorsPage() {
                     title="Doctors could not be loaded"
                     message={doctorListState.error.message}
                     code={doctorListState.error.code}
-                    onRetry={() => void loadDoctors()}
+                    onRetry={handleRetry}
                 />
             ) : null}
 

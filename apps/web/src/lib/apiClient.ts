@@ -8,6 +8,8 @@ type AuthTokenProvider =
     | string
     | (() => string | null | undefined | Promise<string | null | undefined>);
 
+type DefaultAuthTokenProvider = ApiClientOptions['getAuthToken'];
+
 export type ApiRequestOptions = {
     body?: unknown;
     query?: QueryParams;
@@ -248,4 +250,12 @@ export const createApiClient = (clientOptions: ApiClientOptions = {}) => {
     };
 };
 
-export const apiClient = createApiClient();
+let apiClientAuthTokenProvider: DefaultAuthTokenProvider;
+
+export const setApiClientAuthTokenProvider = (provider: DefaultAuthTokenProvider): void => {
+    apiClientAuthTokenProvider = provider;
+};
+
+export const apiClient = createApiClient({
+    getAuthToken: () => apiClientAuthTokenProvider?.(),
+});

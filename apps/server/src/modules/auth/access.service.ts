@@ -29,6 +29,14 @@ export const accessService = {
     async verifyClinicAccess(user: AuthenticatedUser | undefined, clinicId: string) {
         const authenticatedUser = this.requireAuthenticatedUser(user);
 
+        if (authenticatedUser.clinicId !== clinicId) {
+            throw new AppError(
+                403,
+                'CLINIC_ACCESS_DENIED',
+                'You do not have access to this clinic'
+            );
+        }
+
         const clinic = await accessRepository.findClinicById(clinicId);
 
         if (!clinic) {
@@ -37,14 +45,6 @@ export const accessService = {
 
         if (!clinic.isActive) {
             throw new AppError(400, 'CLINIC_INACTIVE', 'Clinic is inactive');
-        }
-
-        if (authenticatedUser.clinicId !== clinicId) {
-            throw new AppError(
-                403,
-                'CLINIC_ACCESS_DENIED',
-                'You do not have access to this clinic'
-            );
         }
 
         return clinic;
