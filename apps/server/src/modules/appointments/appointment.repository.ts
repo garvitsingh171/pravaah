@@ -41,6 +41,18 @@ const finalQueueStatuses: QueueStatus[] = [
     QueueStatus.NO_SHOW,
 ];
 
+const noShowPredictionBookingSelect = {
+    id: true,
+    appointmentId: true,
+    clinicId: true,
+    patientId: true,
+    riskLevel: true,
+    score: true,
+    reasons: true,
+    createdAt: true,
+    updatedAt: true,
+} satisfies Prisma.NoShowPredictionSelect;
+
 const appointmentDetailsInclude = {
     doctor: {
         select: {
@@ -90,19 +102,10 @@ const appointmentDetailsInclude = {
             completedAt: true,
         },
     },
+    noShowPrediction: {
+        select: noShowPredictionBookingSelect,
+    },
 } satisfies Prisma.AppointmentInclude;
-
-const noShowPredictionBookingSelect = {
-    id: true,
-    appointmentId: true,
-    clinicId: true,
-    patientId: true,
-    riskLevel: true,
-    score: true,
-    reasons: true,
-    createdAt: true,
-    updatedAt: true,
-} satisfies Prisma.NoShowPredictionSelect;
 
 export const appointmentRepository = {
     findClinicById(clinicId: string) {
