@@ -25,3 +25,19 @@ export type NoShowPredictionOutput = {
     score: number;
     reasons: NoShowPredictionReason[];
 };
+
+export type StoredNoShowPredictionForResponse = {
+    id: string;
+    riskLevel: NoShowRiskLevel;
+    reasons: unknown;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type NoShowPredictionResponse = {
+    id: string;
+    riskLevel: NoShowRiskLevel;
+    reasons: unknown[];
+    createdAt: Date;
+    updatedAt: Date;
+};

@@ -101,11 +101,7 @@ describe('appointmentService.createAppointment', () => {
         };
         const storedNoShowPrediction = {
             id: 'no-show-prediction-id',
-            appointmentId: appointment.id,
-            clinicId,
-            patientId: input.patientId,
             riskLevel: noShowPrediction.riskLevel,
-            score: noShowPrediction.score,
             reasons: noShowPrediction.reasons,
             createdAt: new Date('2026-06-18T10:00:01.000Z'),
             updatedAt: new Date('2026-06-18T10:00:01.000Z'),
@@ -207,12 +203,19 @@ describe('appointmentService.createAppointment', () => {
         );
 
         expect(result).toEqual({
-            appointment,
+            appointment: {
+                ...appointment,
+                noShowPrediction: storedNoShowPrediction,
+            },
             queueEntry,
             noShowPrediction: storedNoShowPrediction,
         });
 
-        expect(result.noShowPrediction.score).toBe(35);
+        expect(result.noShowPrediction).not.toHaveProperty('score');
+        expect(result.noShowPrediction).not.toHaveProperty('appointmentId');
+        expect(result.noShowPrediction).not.toHaveProperty('clinicId');
+        expect(result.noShowPrediction).not.toHaveProperty('patientId');
+        expect(result.appointment.noShowPrediction).toEqual(storedNoShowPrediction);
         expect(result.noShowPrediction.reasons[0]).toEqual({
             code: 'NEW_PATIENT',
             message: 'Patient has no previous appointment history.',
@@ -259,11 +262,7 @@ describe('appointmentService.createAppointment', () => {
         };
         const storedNoShowPrediction = {
             id: 'no-show-prediction-id',
-            appointmentId: appointment.id,
-            clinicId,
-            patientId: input.patientId,
             riskLevel: noShowPrediction.riskLevel,
-            score: noShowPrediction.score,
             reasons: noShowPrediction.reasons,
             createdAt: new Date('2026-06-18T10:00:01.000Z'),
             updatedAt: new Date('2026-06-18T10:00:01.000Z'),
@@ -350,8 +349,9 @@ describe('appointmentService.createAppointment', () => {
         );
 
         expect(result.noShowPrediction).toEqual(storedNoShowPrediction);
+        expect(result.appointment.noShowPrediction).toEqual(storedNoShowPrediction);
         expect(result.queueEntry).toEqual(queueEntry);
-        expect(result.noShowPrediction.score).toBe(60);
+        expect(result.noShowPrediction).not.toHaveProperty('score');
     });
 
     it('rejects a conflicting slot after acquiring the transaction lock', async () => {

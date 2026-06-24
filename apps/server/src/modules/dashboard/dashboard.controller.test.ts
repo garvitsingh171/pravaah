@@ -134,9 +134,18 @@ describe('getHighRiskAppointmentsController', () => {
                         gender: null,
                         age: 34,
                     },
-                    prediction: {
+                    noShowPrediction: {
+                        id: 'no-show-prediction-id',
                         riskLevel: 'HIGH' as const,
-                        reasons: ['Patient has multiple previous no-show appointments.'],
+                        reasons: [
+                            {
+                                code: 'PREVIOUS_NO_SHOW_HISTORY',
+                                message: 'Patient has multiple previous no-show appointments.',
+                                scoreImpact: 40,
+                            },
+                        ],
+                        createdAt: new Date('2026-06-18T10:00:01.000Z'),
+                        updatedAt: new Date('2026-06-18T10:00:01.000Z'),
                     },
                 },
             ],
@@ -185,7 +194,7 @@ describe('getHighRiskAppointmentsController', () => {
         });
         expect(result.highRiskAppointments).toEqual([
             expect.objectContaining({
-                prediction: expect.not.objectContaining({
+                noShowPrediction: expect.not.objectContaining({
                     score: expect.any(Number),
                 }),
             }),

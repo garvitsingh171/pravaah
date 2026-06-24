@@ -3,7 +3,12 @@ import type {
     BookingSource,
     Gender,
     QueueStatus,
+    RiskLevel,
 } from '../../generated/prisma/client.js';
+import type {
+    NoShowPredictionResponse,
+    StoredNoShowPredictionForResponse,
+} from '../predictions/prediction.types.js';
 import type {
     DashboardClinicIdParamsSchemaInput,
     DashboardSummaryQuerySchemaInput,
@@ -30,17 +35,10 @@ export type QueueStatusCount = {
     };
 };
 
-export type AppointmentRiskSource = {
-    patientId: string;
-    scheduledAt: Date;
-    createdAt: Date;
-};
-
-export type PatientStatusCount = {
-    patientId: string;
-    status: AppointmentStatus;
+export type NoShowRiskLevelCount = {
+    riskLevel: RiskLevel;
     _count: {
-        status: number;
+        riskLevel: number;
     };
 };
 
@@ -74,24 +72,24 @@ export type DashboardPatientDetails = {
     age: number | null;
 };
 
-export type HighRiskAppointmentCandidate = AppointmentRiskSource & {
+export type HighRiskAppointmentCandidate = {
     id: string;
+    patientId: string;
+    scheduledAt: Date;
     durationMinutes: number;
     status: AppointmentStatus;
     bookingSource: BookingSource;
     reason: string | null;
     doctor: DashboardDoctorDetails;
     patient: DashboardPatientDetails;
+    noShowPrediction: StoredNoShowPredictionForResponse | null;
 };
 
 export type DashboardHighRiskAppointment = {
     appointment: DashboardAppointmentDetails;
     doctor: DashboardDoctorDetails;
     patient: DashboardPatientDetails;
-    prediction: {
-        riskLevel: 'HIGH';
-        reasons: string[];
-    };
+    noShowPrediction: NoShowPredictionResponse;
 };
 
 export type DashboardAppointmentSummary = {

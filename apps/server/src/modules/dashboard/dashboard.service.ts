@@ -1,11 +1,9 @@
 import { AppointmentStatus, QueueStatus } from '../../generated/prisma/client.js';
 import { accessService } from '../auth/access.service.js';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
-import { predictNoShowRisk } from '../predictions/prediction.service.js';
-import type { NoShowRiskLevel } from '../predictions/prediction.types.js';
+import { toNoShowPredictionResponse } from '../predictions/prediction.service.js';
 import { dashboardRepository } from './dashboard.repository.js';
 import type {
-    AppointmentRiskSource,
     AppointmentStatusCount,
     ClinicDateRange,
     DashboardActivityAppointmentSource,
@@ -17,7 +15,7 @@ import type {
     DashboardQueueSummary,
     DashboardSummary,
     HighRiskAppointmentCandidate,
-    PatientStatusCount,
+    NoShowRiskLevelCount,
     QueueStatusCount,
 } from './dashboard.types.js';
 
@@ -66,101 +64,30 @@ const buildQueueSummary = (statusCounts: QueueStatusCount[]): DashboardQueueSumm
     };
 };
 
-const buildPatientHistoryMap = (statusCounts: PatientStatusCount[]) => {
-    const historyByPatientId = new Map<
-        string,
-        {
-            noShowCount: number;
-            completedCount: number;
-        }
-    >();
-
-    for (const statusCount of statusCounts) {
-        const existingHistory = historyByPatientId.get(statusCount.patientId) ?? {
-            noShowCount: 0,
-            completedCount: 0,
-        };
-
-        if (statusCount.status === AppointmentStatus.NO_SHOW) {
-            existingHistory.noShowCount = statusCount._count.status;
-        }
-
-        if (statusCount.status === AppointmentStatus.COMPLETED) {
-            existingHistory.completedCount = statusCount._count.status;
-        }
-
-        historyByPatientId.set(statusCount.patientId, existingHistory);
-    }
-
-    return historyByPatientId;
-};
-
 const buildNoShowRiskSummary = (
-    appointments: AppointmentRiskSource[],
-    patientStatusCounts: PatientStatusCount[]
+    riskLevelCounts: NoShowRiskLevelCount[]
 ): DashboardNoShowRiskSummary => {
-    const patientHistory = buildPatientHistoryMap(patientStatusCounts);
-    const summary: Record<Lowercase<NoShowRiskLevel>, number> = {
+    const summary: DashboardNoShowRiskSummary = {
         low: 0,
         medium: 0,
         high: 0,
     };
 
-    for (const appointment of appointments) {
-        const history = patientHistory.get(appointment.patientId) ?? {
-            noShowCount: 0,
-            completedCount: 0,
-        };
-
-        const prediction = predictNoShowRisk({
-            scheduledAt: appointment.scheduledAt,
-            bookedAt: appointment.createdAt,
-            patientNoShowCount: history.noShowCount,
-            patientCompletedAppointmentCount: history.completedCount,
-        });
-
-        summary[prediction.riskLevel.toLowerCase() as Lowercase<NoShowRiskLevel>] += 1;
+    for (const riskLevelCount of riskLevelCounts) {
+        summary[riskLevelCount.riskLevel.toLowerCase() as keyof DashboardNoShowRiskSummary] =
+            riskLevelCount._count.riskLevel;
     }
 
     return summary;
 };
 
-const getPatientStatusCounts = async (
-    clinicId: string,
-    appointments: AppointmentRiskSource[]
-): Promise<PatientStatusCount[]> => {
-    const patientIds = [...new Set(appointments.map((appointment) => appointment.patientId))];
-
-    if (patientIds.length === 0) {
-        return [];
-    }
-
-    return dashboardRepository.countPatientAppointmentsByStatuses(clinicId, patientIds, [
-        AppointmentStatus.NO_SHOW,
-        AppointmentStatus.COMPLETED,
-    ]);
-};
-
 const buildHighRiskAppointments = (
-    appointments: HighRiskAppointmentCandidate[],
-    patientStatusCounts: PatientStatusCount[]
+    appointments: HighRiskAppointmentCandidate[]
 ): DashboardHighRiskAppointment[] => {
-    const patientHistory = buildPatientHistoryMap(patientStatusCounts);
-
     return appointments.flatMap((appointment) => {
-        const history = patientHistory.get(appointment.patientId) ?? {
-            noShowCount: 0,
-            completedCount: 0,
-        };
+        const noShowPrediction = toNoShowPredictionResponse(appointment.noShowPrediction);
 
-        const prediction = predictNoShowRisk({
-            scheduledAt: appointment.scheduledAt,
-            bookedAt: appointment.createdAt,
-            patientNoShowCount: history.noShowCount,
-            patientCompletedAppointmentCount: history.completedCount,
-        });
-
-        if (prediction.riskLevel !== 'HIGH') {
+        if (!noShowPrediction || noShowPrediction.riskLevel !== 'HIGH') {
             return [];
         }
 
@@ -176,10 +103,7 @@ const buildHighRiskAppointments = (
                 },
                 doctor: appointment.doctor,
                 patient: appointment.patient,
-                prediction: {
-                    riskLevel: prediction.riskLevel,
-                    reasons: prediction.reasons.map((reason) => reason.message),
-                },
+                noShowPrediction,
             },
         ];
     });
@@ -336,24 +260,22 @@ export const dashboardService = {
         const clinic = await accessService.verifyClinicAccess(user, clinicId);
         const selectedDate = requestedDate ?? getDateInTimeZone(new Date(), clinic.timezone);
 
-        const [appointmentStatusCounts, queueStatusCounts, riskAppointments] = await Promise.all([
+        const [appointmentStatusCounts, queueStatusCounts, riskLevelCounts] = await Promise.all([
             dashboardRepository.countAppointmentsByStatus(clinicId, selectedDate, clinic.timezone),
             dashboardRepository.countQueueEntriesByStatus(clinicId, selectedDate, clinic.timezone),
-            dashboardRepository.findAppointmentsForRiskSummary(
+            dashboardRepository.countNoShowPredictionsByRiskLevel(
                 clinicId,
                 selectedDate,
                 clinic.timezone
             ),
         ]);
 
-        const patientStatusCounts = await getPatientStatusCounts(clinicId, riskAppointments);
-
         return {
             clinicId,
             date: selectedDate,
             appointmentSummary: buildAppointmentSummary(appointmentStatusCounts),
             queueSummary: buildQueueSummary(queueStatusCounts),
-            noShowRiskSummary: buildNoShowRiskSummary(riskAppointments, patientStatusCounts),
+            noShowRiskSummary: buildNoShowRiskSummary(riskLevelCounts),
         };
     },
 
@@ -375,15 +297,10 @@ export const dashboardService = {
             clinic.timezone
         );
 
-        const patientStatusCounts = await getPatientStatusCounts(clinicId, appointmentCandidates);
-
         return {
             clinicId,
             date: selectedDate,
-            highRiskAppointments: buildHighRiskAppointments(
-                appointmentCandidates,
-                patientStatusCounts
-            ),
+            highRiskAppointments: buildHighRiskAppointments(appointmentCandidates),
         };
     },
 

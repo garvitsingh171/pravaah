@@ -5,7 +5,6 @@ import type {
     AppointmentIdParamsSchemaInput,
     UpdateAppointmentStatusSchemaInput,
 } from './appointment.validation.js';
-import type { NoShowPredictionReason, NoShowRiskLevel } from '../predictions/prediction.types.js';
 
 export type ClinicIdParams = ClinicIdParamsSchemaInput;
 
@@ -16,15 +15,3 @@ export type ListAppointmentsQueryInput = ListAppointmentsQuerySchemaInput;
 export type AppointmentIdParamsInput = AppointmentIdParamsSchemaInput;
 
 export type UpdateAppointmentStatusInput = UpdateAppointmentStatusSchemaInput;
-
-export type AppointmentBookingNoShowPrediction = {
-    id: string;
-    appointmentId: string;
-    clinicId: string;
-    patientId: string;
-    riskLevel: NoShowRiskLevel;
-    score: number;
-    reasons: NoShowPredictionReason[];
-    createdAt: Date;
-    updatedAt: Date;
-};

@@ -1,6 +1,14 @@
 import { prisma } from '../../config/prisma.js';
 import { AppointmentStatus, Prisma, QueueStatus } from '../../generated/prisma/client.js';
 
+const noShowPredictionQueueSelect = {
+    id: true,
+    riskLevel: true,
+    reasons: true,
+    createdAt: true,
+    updatedAt: true,
+} satisfies Prisma.NoShowPredictionSelect;
+
 const queueEntryDetailsInclude = {
     appointment: {
         select: {
@@ -11,6 +19,9 @@ const queueEntryDetailsInclude = {
             bookingSource: true,
             reason: true,
             notes: true,
+            noShowPrediction: {
+                select: noShowPredictionQueueSelect,
+            },
         },
     },
     doctor: {

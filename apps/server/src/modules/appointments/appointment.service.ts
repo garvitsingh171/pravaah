@@ -2,7 +2,11 @@ import { AppointmentStatus, Prisma } from '../../generated/prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
 import { accessService } from '../auth/access.service.js';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
-import { predictNoShowRisk } from '../predictions/prediction.service.js';
+import {
+    predictNoShowRisk,
+    toNoShowPredictionResponse,
+} from '../predictions/prediction.service.js';
+import type { StoredNoShowPredictionForResponse } from '../predictions/prediction.types.js';
 import { queueRepository } from '../queues/queue.repository.js';
 import { queueService } from '../queues/queue.service.js';
 import { appointmentRepository } from './appointment.repository.js';
@@ -22,6 +26,15 @@ const createAppointmentSlotConflictError = () =>
         'APPOINTMENT_SLOT_CONFLICT',
         'This doctor already has an appointment in this time slot.'
     );
+
+const withNoShowPredictionResponse = <
+    T extends { noShowPrediction: StoredNoShowPredictionForResponse | null },
+>(
+    appointment: T
+) => ({
+    ...appointment,
+    noShowPrediction: toNoShowPredictionResponse(appointment.noShowPrediction),
+});
 
 async function validateAppointmentClinicOwnership(
     clinicId: string,
@@ -164,11 +177,15 @@ export const appointmentService = {
                     appointment.patientId,
                     noShowPrediction
                 );
+                const noShowPredictionResponse = toNoShowPredictionResponse(storedNoShowPrediction);
 
                 return {
-                    appointment,
+                    appointment: {
+                        ...appointment,
+                        noShowPrediction: noShowPredictionResponse,
+                    },
                     queueEntry,
-                    noShowPrediction: storedNoShowPrediction,
+                    noShowPrediction: noShowPredictionResponse,
                 };
             });
         } catch (error) {
@@ -233,7 +250,13 @@ export const appointmentService = {
             }
         }
 
-        return appointmentRepository.findAppointmentsByClinicId(clinicId, filters, clinic.timezone);
+        const appointments = await appointmentRepository.findAppointmentsByClinicId(
+            clinicId,
+            filters,
+            clinic.timezone
+        );
+
+        return appointments.map(withNoShowPredictionResponse);
     },
 
     async updateAppointmentStatus(
@@ -287,6 +310,6 @@ export const appointmentService = {
             );
         }
 
-        return result.appointment;
+        return withNoShowPredictionResponse(result.appointment);
     },
 };

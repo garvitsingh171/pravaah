@@ -4,9 +4,8 @@ import { AppError } from '../../utils/AppError.js';
 const mockDashboardRepository = vi.hoisted(() => ({
     countAppointmentsByStatus: vi.fn(),
     countQueueEntriesByStatus: vi.fn(),
-    findAppointmentsForRiskSummary: vi.fn(),
+    countNoShowPredictionsByRiskLevel: vi.fn(),
     findHighRiskAppointmentCandidates: vi.fn(),
-    countPatientAppointmentsByStatuses: vi.fn(),
     getClinicDateRange: vi.fn(),
     findAppointmentActivityCandidates: vi.fn(),
     findQueueActivityCandidates: vi.fn(),
@@ -16,18 +15,12 @@ const mockAccessService = vi.hoisted(() => ({
     verifyClinicAccess: vi.fn(),
 }));
 
-const mockPredictNoShowRisk = vi.hoisted(() => vi.fn());
-
 vi.mock('./dashboard.repository.js', () => ({
     dashboardRepository: mockDashboardRepository,
 }));
 
 vi.mock('../auth/access.service.js', () => ({
     accessService: mockAccessService,
-}));
-
-vi.mock('../predictions/prediction.service.js', () => ({
-    predictNoShowRisk: mockPredictNoShowRisk,
 }));
 
 import { dashboardService } from './dashboard.service.js';
@@ -82,47 +75,20 @@ describe('dashboardService.getDashboardSummary', () => {
             },
         ]);
 
-        mockDashboardRepository.findAppointmentsForRiskSummary.mockResolvedValue([
+        mockDashboardRepository.countNoShowPredictionsByRiskLevel.mockResolvedValue([
             {
-                patientId: 'patient-1',
-                scheduledAt: new Date('2026-06-19T05:00:00.000Z'),
-                createdAt: new Date('2026-06-19T01:00:00.000Z'),
-            },
-            {
-                patientId: 'patient-2',
-                scheduledAt: new Date('2026-06-19T07:00:00.000Z'),
-                createdAt: new Date('2026-06-18T07:00:00.000Z'),
-            },
-        ]);
-
-        mockDashboardRepository.countPatientAppointmentsByStatuses.mockResolvedValue([
-            {
-                patientId: 'patient-1',
-                status: 'NO_SHOW',
-                _count: {
-                    status: 2,
-                },
-            },
-            {
-                patientId: 'patient-2',
-                status: 'COMPLETED',
-                _count: {
-                    status: 3,
-                },
-            },
-        ]);
-
-        mockPredictNoShowRisk
-            .mockReturnValueOnce({
                 riskLevel: 'HIGH',
-                score: 60,
-                reasons: [],
-            })
-            .mockReturnValueOnce({
+                _count: {
+                    riskLevel: 1,
+                },
+            },
+            {
                 riskLevel: 'LOW',
-                score: 0,
-                reasons: [],
-            });
+                _count: {
+                    riskLevel: 1,
+                },
+            },
+        ]);
 
         const result = await dashboardService.getDashboardSummary(
             authenticatedUser,
@@ -140,24 +106,11 @@ describe('dashboardService.getDashboardSummary', () => {
             '2026-06-19',
             'Asia/Kolkata'
         );
-        expect(mockDashboardRepository.countPatientAppointmentsByStatuses).toHaveBeenCalledWith(
+        expect(mockDashboardRepository.countNoShowPredictionsByRiskLevel).toHaveBeenCalledWith(
             'clinic-id',
-            ['patient-1', 'patient-2'],
-            ['NO_SHOW', 'COMPLETED']
+            '2026-06-19',
+            'Asia/Kolkata'
         );
-
-        expect(mockPredictNoShowRisk).toHaveBeenCalledWith({
-            scheduledAt: new Date('2026-06-19T05:00:00.000Z'),
-            bookedAt: new Date('2026-06-19T01:00:00.000Z'),
-            patientNoShowCount: 2,
-            patientCompletedAppointmentCount: 0,
-        });
-        expect(mockPredictNoShowRisk).toHaveBeenCalledWith({
-            scheduledAt: new Date('2026-06-19T07:00:00.000Z'),
-            bookedAt: new Date('2026-06-18T07:00:00.000Z'),
-            patientNoShowCount: 0,
-            patientCompletedAppointmentCount: 3,
-        });
 
         expect(result).toEqual({
             clinicId: 'clinic-id',
@@ -241,6 +194,19 @@ describe('dashboardService.getHighRiskAppointments', () => {
                     gender: null,
                     age: 34,
                 },
+                noShowPrediction: {
+                    id: 'high-risk-prediction-id',
+                    riskLevel: 'HIGH',
+                    reasons: [
+                        {
+                            code: 'PREVIOUS_NO_SHOW_HISTORY',
+                            message: 'Patient has multiple previous no-show appointments.',
+                            scoreImpact: 40,
+                        },
+                    ],
+                    createdAt: new Date('2026-06-18T10:00:01.000Z'),
+                    updatedAt: new Date('2026-06-18T10:00:01.000Z'),
+                },
             },
             {
                 id: 'medium-risk-appointment-id',
@@ -265,49 +231,21 @@ describe('dashboardService.getHighRiskAppointments', () => {
                     gender: 'FEMALE',
                     age: 29,
                 },
-            },
-        ]);
-
-        mockDashboardRepository.countPatientAppointmentsByStatuses.mockResolvedValue([
-            {
-                patientId: 'patient-1',
-                status: 'NO_SHOW',
-                _count: {
-                    status: 2,
-                },
-            },
-            {
-                patientId: 'patient-2',
-                status: 'COMPLETED',
-                _count: {
-                    status: 3,
+                noShowPrediction: {
+                    id: 'medium-risk-prediction-id',
+                    riskLevel: 'MEDIUM',
+                    reasons: [
+                        {
+                            code: 'SHORT_NOTICE_BOOKING',
+                            message: 'Appointment was booked with less than 24 hours notice.',
+                            scoreImpact: 20,
+                        },
+                    ],
+                    createdAt: new Date('2026-06-18T10:00:01.000Z'),
+                    updatedAt: new Date('2026-06-18T10:00:01.000Z'),
                 },
             },
         ]);
-
-        mockPredictNoShowRisk
-            .mockReturnValueOnce({
-                riskLevel: 'HIGH',
-                score: 60,
-                reasons: [
-                    {
-                        code: 'PREVIOUS_NO_SHOW_HISTORY',
-                        message: 'Patient has multiple previous no-show appointments.',
-                        scoreImpact: 40,
-                    },
-                ],
-            })
-            .mockReturnValueOnce({
-                riskLevel: 'MEDIUM',
-                score: 35,
-                reasons: [
-                    {
-                        code: 'SHORT_NOTICE_BOOKING',
-                        message: 'Appointment was booked with less than 24 hours notice.',
-                        scoreImpact: 20,
-                    },
-                ],
-            });
 
         const result = await dashboardService.getHighRiskAppointments(
             authenticatedUser,
@@ -319,11 +257,6 @@ describe('dashboardService.getHighRiskAppointments', () => {
             'clinic-id',
             '2026-06-19',
             'Asia/Kolkata'
-        );
-        expect(mockDashboardRepository.countPatientAppointmentsByStatuses).toHaveBeenCalledWith(
-            'clinic-id',
-            ['patient-1', 'patient-2'],
-            ['NO_SHOW', 'COMPLETED']
         );
 
         expect(result).toEqual({
@@ -353,16 +286,25 @@ describe('dashboardService.getHighRiskAppointments', () => {
                         gender: null,
                         age: 34,
                     },
-                    prediction: {
+                    noShowPrediction: {
+                        id: 'high-risk-prediction-id',
                         riskLevel: 'HIGH',
-                        reasons: ['Patient has multiple previous no-show appointments.'],
+                        reasons: [
+                            {
+                                code: 'PREVIOUS_NO_SHOW_HISTORY',
+                                message: 'Patient has multiple previous no-show appointments.',
+                                scoreImpact: 40,
+                            },
+                        ],
+                        createdAt: new Date('2026-06-18T10:00:01.000Z'),
+                        updatedAt: new Date('2026-06-18T10:00:01.000Z'),
                     },
                 },
             ],
         });
         expect(result.highRiskAppointments).toEqual([
             expect.objectContaining({
-                prediction: expect.not.objectContaining({
+                noShowPrediction: expect.not.objectContaining({
                     score: expect.any(Number),
                 }),
             }),

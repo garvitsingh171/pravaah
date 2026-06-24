@@ -2,7 +2,9 @@ import type {
     NoShowPredictionInput,
     NoShowPredictionOutput,
     NoShowPredictionReason,
+    NoShowPredictionResponse,
     NoShowRiskLevel,
+    StoredNoShowPredictionForResponse,
 } from './prediction.types.js';
 
 const MINIMUM_SCORE = 0;
@@ -110,3 +112,26 @@ export const predictNoShowRisk = (input: NoShowPredictionInput): NoShowPredictio
         reasons,
     };
 };
+
+export function toNoShowPredictionResponse(
+    prediction: StoredNoShowPredictionForResponse
+): NoShowPredictionResponse;
+export function toNoShowPredictionResponse(prediction: null | undefined): null;
+export function toNoShowPredictionResponse(
+    prediction: StoredNoShowPredictionForResponse | null | undefined
+): NoShowPredictionResponse | null;
+export function toNoShowPredictionResponse(
+    prediction: StoredNoShowPredictionForResponse | null | undefined
+): NoShowPredictionResponse | null {
+    if (!prediction) {
+        return null;
+    }
+
+    return {
+        id: prediction.id,
+        riskLevel: prediction.riskLevel,
+        reasons: Array.isArray(prediction.reasons) ? prediction.reasons : [],
+        createdAt: prediction.createdAt,
+        updatedAt: prediction.updatedAt,
+    };
+}
