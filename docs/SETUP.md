@@ -83,9 +83,15 @@ NODE_ENV=development
 ```txt
 VITE_API_BASE_URL=http://localhost:5000/api
 VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+VITE_DEFAULT_CLINIC_ID=optional_demo_clinic_uuid
 ```
 
 Only public frontend-safe values should use the `VITE_` prefix.
+
+`VITE_DEFAULT_CLINIC_ID` is an MVP/demo fallback. The web app first checks
+`localStorage` for `pravaah.activeClinicId`, then falls back to
+`VITE_DEFAULT_CLINIC_ID`. If neither exists, signed-in users see a setup error
+instead of unclear clinic-scoped API failures.
 
 ### 6.3 Backend
 

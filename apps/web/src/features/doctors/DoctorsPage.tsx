@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useActiveClinic } from '../../app/activeClinicContext';
 import { ErrorMessage, LoadingState } from '../../components/feedback';
-import { getActiveClinicId, isApiClientError } from '../../lib';
+import { isApiClientError } from '../../lib';
 import type { DoctorSummary } from '../../types';
 import { listDoctors } from './doctorApi';
 
@@ -49,54 +50,45 @@ const getDoctorStatusClassName = (doctor: DoctorSummary): string => {
         : 'bg-slate-100 text-slate-600 ring-slate-200';
 };
 
+const getDoctorListErrorState = (error: unknown): DoctorListState | null => {
+    if (error instanceof Error && error.name === 'AbortError') {
+        return null;
+    }
+
+    if (isApiClientError(error)) {
+        if (error.code === 'API_REQUEST_ABORTED') {
+            return null;
+        }
+
+        return {
+            status: 'error',
+            doctors: [],
+            error: {
+                message: error.message,
+                code: error.code,
+            },
+        };
+    }
+
+    return {
+        status: 'error',
+        doctors: [],
+        error: {
+            message: 'Doctors could not be loaded. Please try again.',
+            code: 'DOCTOR_LIST_FAILED',
+        },
+    };
+};
+
 function DoctorsPage() {
     const navigate = useNavigate();
     const location = useLocation();
+    const { clinicId } = useActiveClinic();
     const locationState = location.state as DoctorsLocationState | null;
     const [statusMessage, setStatusMessage] = useState(locationState?.statusMessage ?? null);
     const [doctorListState, setDoctorListState] = useState<DoctorListState>(emptyDoctorListState);
 
-    const loadDoctors = useCallback(async (signal?: AbortSignal) => {
-        try {
-            const clinicId = getActiveClinicId();
-            const data = await listDoctors(clinicId, signal);
-
-            setDoctorListState({
-                status: 'success',
-                doctors: data.doctors,
-                error: null,
-            });
-        } catch (error) {
-            if (error instanceof Error && error.name === 'AbortError') {
-                return;
-            }
-
-            if (isApiClientError(error)) {
-                if (error.code === 'API_REQUEST_ABORTED') {
-                    return;
-                }
-
-                setDoctorListState({
-                    status: 'error',
-                    doctors: [],
-                    error: {
-                        message: error.message,
-                        code: error.code,
-                    },
-                });
-                return;
-            }
-
-            setDoctorListState({
-                status: 'error',
-                doctors: [],
-                error: {
-                    message: 'Doctors could not be loaded. Please try again.',
-                    code: 'DOCTOR_LIST_FAILED',
-                },
-            });
-        }
-    }, []);
+    const loadDoctors = useCallback((signal?: AbortSignal) => listDoctors(clinicId, signal), [clinicId]);
 
     const handleRetry = () => {
         setDoctorListState((currentState) => ({
@@ -105,14 +97,7 @@ function DoctorsPage() {
             error: null,
         }));
 
-        void loadDoctors();
-    };
-
-    useEffect(() => {
-        const abortController = new AbortController();
-        const clinicId = getActiveClinicId();
-
-        listDoctors(clinicId, abortController.signal)
+        void loadDoctors()
             .then((data) => {
                 setDoctorListState({
                     status: 'success',
@@ -121,40 +106,37 @@ function DoctorsPage() {
                 });
             })
             .catch((error: unknown) => {
-                if (error instanceof Error && error.name === 'AbortError') {
-                    return;
+                const errorState = getDoctorListErrorState(error);
+
+                if (errorState) {
+                    setDoctorListState(errorState);
                 }
+            });
+    };
 
-                if (isApiClientError(error)) {
-                    if (error.code === 'API_REQUEST_ABORTED') {
-                        return;
-                    }
+    useEffect(() => {
+        const abortController = new AbortController();
 
-                    setDoctorListState({
-                        status: 'error',
-                        doctors: [],
-                        error: {
-                            message: error.message,
-                            code: error.code,
-                        },
-                    });
-                    return;
-                }
-
+        void loadDoctors(abortController.signal)
+            .then((data) => {
                 setDoctorListState({
-                    status: 'error',
-                    doctors: [],
-                    error: {
-                        message: 'Doctors could not be loaded. Please try again.',
-                        code: 'DOCTOR_LIST_FAILED',
-                    },
+                    status: 'success',
+                    doctors: data.doctors,
+                    error: null,
                 });
+            })
+            .catch((error: unknown) => {
+                const errorState = getDoctorListErrorState(error);
+
+                if (errorState) {
+                    setDoctorListState(errorState);
+                }
             });
 
         return () => {
             abortController.abort();
         };
-    }, []);
+    }, [loadDoctors]);
 
     useEffect(() => {
         if (locationState?.statusMessage) {
