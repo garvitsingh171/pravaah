@@ -76,14 +76,28 @@ const finalQueueStatuses: QueueStatusType[] = [
     QueueStatus.NO_SHOW,
 ];
 
-const activeQueueStatusActions: QueueStatusAction[] = [
-    { status: QueueStatus.WAITING, label: queueStatusActionLabels.WAITING },
-    { status: QueueStatus.ARRIVED, label: queueStatusActionLabels.ARRIVED },
-    { status: QueueStatus.CALLED, label: queueStatusActionLabels.CALLED },
-    { status: QueueStatus.COMPLETED, label: queueStatusActionLabels.COMPLETED },
-    { status: QueueStatus.CANCELLED, label: queueStatusActionLabels.CANCELLED },
-    { status: QueueStatus.NO_SHOW, label: queueStatusActionLabels.NO_SHOW },
-];
+const queueStatusActionsByCurrentStatus: Record<QueueStatusType, QueueStatusAction[]> = {
+    WAITING: [
+        { status: QueueStatus.CALLED, label: queueStatusActionLabels.CALLED },
+        { status: QueueStatus.COMPLETED, label: queueStatusActionLabels.COMPLETED },
+        { status: QueueStatus.CANCELLED, label: queueStatusActionLabels.CANCELLED },
+        { status: QueueStatus.NO_SHOW, label: queueStatusActionLabels.NO_SHOW },
+    ],
+    ARRIVED: [
+        { status: QueueStatus.WAITING, label: queueStatusActionLabels.WAITING },
+        { status: QueueStatus.CALLED, label: queueStatusActionLabels.CALLED },
+        { status: QueueStatus.CANCELLED, label: queueStatusActionLabels.CANCELLED },
+        { status: QueueStatus.NO_SHOW, label: queueStatusActionLabels.NO_SHOW },
+    ],
+    CALLED: [
+        { status: QueueStatus.COMPLETED, label: queueStatusActionLabels.COMPLETED },
+        { status: QueueStatus.CANCELLED, label: queueStatusActionLabels.CANCELLED },
+        { status: QueueStatus.NO_SHOW, label: queueStatusActionLabels.NO_SHOW },
+    ],
+    COMPLETED: [],
+    CANCELLED: [],
+    NO_SHOW: [],
+};
 
 const getTodayDateInputValue = (): string => {
     const today = new Date();
@@ -208,11 +222,7 @@ const getPredictionReasonMessages = (reasons: unknown[]): string[] => {
 };
 
 const getQueueStatusActions = (currentStatus: QueueStatusType): QueueStatusAction[] => {
-    if (finalQueueStatuses.includes(currentStatus)) {
-        return [];
-    }
-
-    return activeQueueStatusActions.filter((action) => action.status !== currentStatus);
+    return queueStatusActionsByCurrentStatus[currentStatus];
 };
 
 function QueueStatusBadge({ status }: { status: QueueStatusType }) {
