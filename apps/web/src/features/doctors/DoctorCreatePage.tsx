@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useActiveClinic } from '../../app/activeClinicContext';
 import { ErrorMessage } from '../../components/feedback';
-import { getActiveClinicId, isApiClientError } from '../../lib';
+import { isApiClientError } from '../../lib';
 import type { Gender } from '../../types';
 import DoctorForm, { type DoctorFormFieldErrors, type DoctorFormValues } from './DoctorForm';
 import { createDoctor, type CreateDoctorRequest } from './doctorApi';
@@ -111,6 +112,7 @@ const getBackendFieldErrors = (details: unknown): DoctorFormFieldErrors => {
 
 function DoctorCreatePage() {
     const navigate = useNavigate();
+    const { clinicId } = useActiveClinic();
     const [values, setValues] = useState<DoctorFormValues>(emptyFormValues);
     const [fieldErrors, setFieldErrors] = useState<DoctorFormFieldErrors>({});
     const [formError, setFormError] = useState<string | null>(null);
@@ -148,8 +150,6 @@ function DoctorCreatePage() {
         setIsSubmitting(true);
 
         try {
-            const clinicId = getActiveClinicId();
-
             await createDoctor(clinicId, toCreateDoctorRequest(values));
 
             navigate('/doctors', {

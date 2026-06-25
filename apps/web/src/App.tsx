@@ -1,5 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import AppLayout from './app/AppLayout';
+import ProtectedAppShell from './app/ProtectedAppShell';
 import { dashboardRoutes, defaultDashboardPath } from './routes/dashboardRoutes';
 import NotFoundPage from './routes/NotFoundPage';
 
@@ -7,7 +7,7 @@ function App() {
     return (
         <BrowserRouter>
             <Routes>
-                <Route element={<AppLayout />}>
+                <Route element={<ProtectedAppShell />}>
                     <Route index element={<Navigate to={defaultDashboardPath} replace />} />
                     {dashboardRoutes.map((route) => (
                         <Route
