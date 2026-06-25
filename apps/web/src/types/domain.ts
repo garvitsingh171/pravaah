@@ -49,10 +49,24 @@ export type DoctorSummary = BaseEntity & {
 };
 
 export type PatientSummary = BaseEntity & {
+    patientClinicId?: string;
+    clinicLinkIsActive?: boolean;
     fullName: string;
     phone: string;
-    email?: string;
-    city?: string;
+    email?: string | null;
+    gender?: Gender | null;
+    dateOfBirth?: string | null;
+    age?: number | null;
+    address?: string | null;
+    city?: string | null;
+    emergencyContactName?: string | null;
+    emergencyContactPhone?: string | null;
+    notes?: string | null;
+    distanceFromClinicKm?: number | string | null;
+    totalAppointments?: number;
+    totalNoShows?: number;
+    totalLateArrivals?: number;
+    lastVisitAt?: string | null;
     isActive: boolean;
 };
 
