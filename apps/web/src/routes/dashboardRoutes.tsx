@@ -4,6 +4,7 @@ import ClinicSettingsPage from '../features/clinics/ClinicSettingsPage';
 import DashboardOverviewPage from '../features/dashboard/DashboardOverviewPage';
 import DoctorCreatePage from '../features/doctors/DoctorCreatePage';
 import DoctorsPage from '../features/doctors/DoctorsPage';
+import PatientCreatePage from '../features/patients/PatientCreatePage';
 import PatientsPage from '../features/patients/PatientsPage';
 import QueuePage from '../features/queues/QueuePage';
 import NotFoundPage from './NotFoundPage';
@@ -39,6 +40,12 @@ export const dashboardRoutes: AppRoute[] = [
         title: 'Patients',
         element: <PatientsPage />,
         showInNavigation: true,
+    },
+    {
+        path: '/patients/new',
+        title: 'Add Patient',
+        element: <PatientCreatePage />,
+        showInNavigation: false,
     },
     {
         path: '/appointments',

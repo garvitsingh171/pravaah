@@ -88,7 +88,10 @@ function DoctorsPage() {
     const [statusMessage, setStatusMessage] = useState(locationState?.statusMessage ?? null);
     const [doctorListState, setDoctorListState] = useState<DoctorListState>(emptyDoctorListState);
 
-    const loadDoctors = useCallback((signal?: AbortSignal) => listDoctors(clinicId, signal), [clinicId]);
+    const loadDoctors = useCallback(
+        (signal?: AbortSignal) => listDoctors(clinicId, signal),
+        [clinicId]
+    );
 
     const handleRetry = () => {
         setDoctorListState((currentState) => ({
