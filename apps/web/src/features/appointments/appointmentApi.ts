@@ -1,5 +1,13 @@
 import { apiClient } from '../../lib';
-import type { AppointmentSummary, BookingSource, QueueEntrySummary, RiskLevel } from '../../types';
+import type {
+    AppointmentStatus,
+    AppointmentSummary,
+    BookingSource,
+    DoctorSummary,
+    PatientSummary,
+    QueueEntrySummary,
+    RiskLevel,
+} from '../../types';
 
 export type CreateAppointmentRequest = {
     doctorId: string;
@@ -19,6 +27,29 @@ export type AppointmentNoShowPrediction = {
     updatedAt?: string;
 };
 
+export type AppointmentListItem = Omit<AppointmentSummary, 'reason'> & {
+    reason?: string | null;
+    notes?: string | null;
+    doctor: Pick<DoctorSummary, 'id' | 'fullName' | 'specialization'>;
+    patient: Pick<PatientSummary, 'id' | 'fullName' | 'phone' | 'email'>;
+    queueEntry?:
+        | (Pick<QueueEntrySummary, 'id' | 'position' | 'status' | 'queuedAt'> & {
+              calledAt?: string | null;
+              completedAt?: string | null;
+          })
+        | null;
+    noShowPrediction?: AppointmentNoShowPrediction | null;
+};
+
+export type AppointmentListFilters = {
+    date?: string;
+    status?: AppointmentStatus;
+};
+
+export type AppointmentListResponseData = {
+    appointments: AppointmentListItem[];
+};
+
 export type CreateAppointmentResponseData = {
     appointment: Omit<AppointmentSummary, 'reason'> & {
         reason?: string | null;
@@ -29,6 +60,10 @@ export type CreateAppointmentResponseData = {
     noShowPrediction: AppointmentNoShowPrediction | null;
 };
 
+export type UpdateAppointmentStatusResponseData = {
+    appointment: AppointmentListItem;
+};
+
 const getAppointmentCollectionPath = (clinicId: string): string => {
     return `/clinics/${encodeURIComponent(clinicId)}/appointments`;
 };
@@ -37,5 +72,28 @@ export const createAppointment = (clinicId: string, payload: CreateAppointmentRe
     return apiClient.post<CreateAppointmentResponseData>(
         getAppointmentCollectionPath(clinicId),
         payload
+    );
+};
+
+export const listAppointments = (
+    clinicId: string,
+    filters: AppointmentListFilters,
+    signal?: AbortSignal
+) => {
+    return apiClient.get<AppointmentListResponseData>(getAppointmentCollectionPath(clinicId), {
+        query: {
+            date: filters.date,
+            status: filters.status,
+        },
+        signal,
+    });
+};
+
+export const updateAppointmentStatus = (appointmentId: string, status: AppointmentStatus) => {
+    return apiClient.patch<UpdateAppointmentStatusResponseData>(
+        `/appointments/${encodeURIComponent(appointmentId)}/status`,
+        {
+            status,
+        }
     );
 };
