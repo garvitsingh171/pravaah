@@ -29,6 +29,7 @@ export type NoShowPredictionOutput = {
 export type StoredNoShowPredictionForResponse = {
     id: string;
     riskLevel: NoShowRiskLevel;
+    score: number;
     reasons: unknown;
     createdAt: Date;
     updatedAt: Date;
@@ -37,6 +38,7 @@ export type StoredNoShowPredictionForResponse = {
 export type NoShowPredictionResponse = {
     id: string;
     riskLevel: NoShowRiskLevel;
+    score: number;
     reasons: unknown[];
     createdAt: Date;
     updatedAt: Date;

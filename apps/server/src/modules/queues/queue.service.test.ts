@@ -40,6 +40,7 @@ describe('queueService.listQueueByClinicDate', () => {
         const noShowPrediction = {
             id: 'no-show-prediction-id',
             riskLevel: 'HIGH' as const,
+            score: 60,
             reasons: [
                 {
                     code: 'PREVIOUS_NO_SHOW_HISTORY',
@@ -116,7 +117,7 @@ describe('queueService.listQueueByClinicDate', () => {
         expect(result).toHaveLength(1);
         expect(result[0]?.noShowPrediction).toEqual(noShowPrediction);
         expect(result[0]?.appointment).not.toHaveProperty('noShowPrediction');
-        expect(result[0]?.noShowPrediction).not.toHaveProperty('score');
+        expect(result[0]?.noShowPrediction).toHaveProperty('score', 60);
         expect(result[0]?.noShowPrediction).not.toHaveProperty('appointmentId');
     });
 });

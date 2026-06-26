@@ -287,6 +287,7 @@ describe('dashboardService.getHighRiskAppointments', () => {
                 noShowPrediction: {
                     id: 'high-risk-prediction-id',
                     riskLevel: 'HIGH',
+                    score: 60,
                     reasons: [
                         {
                             code: 'PREVIOUS_NO_SHOW_HISTORY',
@@ -324,6 +325,7 @@ describe('dashboardService.getHighRiskAppointments', () => {
                 noShowPrediction: {
                     id: 'medium-risk-prediction-id',
                     riskLevel: 'MEDIUM',
+                    score: 35,
                     reasons: [
                         {
                             code: 'SHORT_NOTICE_BOOKING',
@@ -379,6 +381,7 @@ describe('dashboardService.getHighRiskAppointments', () => {
                     noShowPrediction: {
                         id: 'high-risk-prediction-id',
                         riskLevel: 'HIGH',
+                        score: 60,
                         reasons: [
                             {
                                 code: 'PREVIOUS_NO_SHOW_HISTORY',
@@ -394,8 +397,8 @@ describe('dashboardService.getHighRiskAppointments', () => {
         });
         expect(result.highRiskAppointments).toEqual([
             expect.objectContaining({
-                noShowPrediction: expect.not.objectContaining({
-                    score: expect.any(Number),
+                noShowPrediction: expect.objectContaining({
+                    score: 60,
                 }),
             }),
         ]);

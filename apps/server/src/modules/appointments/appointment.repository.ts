@@ -40,6 +40,7 @@ const finalQueueStatuses: QueueStatus[] = [
 const noShowPredictionBookingSelect = {
     id: true,
     riskLevel: true,
+    score: true,
     reasons: true,
     createdAt: true,
     updatedAt: true,

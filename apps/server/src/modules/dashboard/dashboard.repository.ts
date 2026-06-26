@@ -4,6 +4,7 @@ import { AppointmentStatus, Prisma, RiskLevel } from '../../generated/prisma/cli
 const noShowPredictionDashboardSelect = {
     id: true,
     riskLevel: true,
+    score: true,
     reasons: true,
     createdAt: true,
     updatedAt: true,

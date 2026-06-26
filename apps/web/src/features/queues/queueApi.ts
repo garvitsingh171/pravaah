@@ -11,7 +11,11 @@ import type {
 export type QueueNoShowPrediction = {
     id?: string;
     riskLevel: RiskLevel;
+    score?: number;
+    riskScore?: number;
     reasons: unknown[];
+    modelVersion?: string;
+    generatedAt?: string;
     createdAt?: string;
     updatedAt?: string;
 };

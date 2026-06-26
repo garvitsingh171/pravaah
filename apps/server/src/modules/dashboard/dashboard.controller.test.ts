@@ -106,7 +106,7 @@ describe('getHighRiskAppointmentsController', () => {
         vi.clearAllMocks();
     });
 
-    it('returns high-risk appointments without internal score details', async () => {
+    it('returns high-risk appointments with public prediction score details', async () => {
         const result = {
             clinicId: 'clinic-id',
             date: '2026-06-19',
@@ -137,6 +137,7 @@ describe('getHighRiskAppointmentsController', () => {
                     noShowPrediction: {
                         id: 'no-show-prediction-id',
                         riskLevel: 'HIGH' as const,
+                        score: 60,
                         reasons: [
                             {
                                 code: 'PREVIOUS_NO_SHOW_HISTORY',
@@ -194,8 +195,8 @@ describe('getHighRiskAppointmentsController', () => {
         });
         expect(result.highRiskAppointments).toEqual([
             expect.objectContaining({
-                noShowPrediction: expect.not.objectContaining({
-                    score: expect.any(Number),
+                noShowPrediction: expect.objectContaining({
+                    score: 60,
                 }),
             }),
         ]);

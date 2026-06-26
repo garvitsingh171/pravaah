@@ -39,6 +39,7 @@ const mockToNoShowPredictionResponse = vi.hoisted(() =>
         return {
             id: prediction.id,
             riskLevel: prediction.riskLevel,
+            score: prediction.score,
             reasons: Array.isArray(prediction.reasons) ? prediction.reasons : [],
             createdAt: prediction.createdAt,
             updatedAt: prediction.updatedAt,
@@ -118,6 +119,7 @@ describe('appointmentService.createAppointment', () => {
         const storedNoShowPrediction = {
             id: 'no-show-prediction-id',
             riskLevel: noShowPrediction.riskLevel,
+            score: noShowPrediction.score,
             reasons: noShowPrediction.reasons,
             createdAt: new Date('2026-06-18T10:00:01.000Z'),
             updatedAt: new Date('2026-06-18T10:00:01.000Z'),
@@ -227,7 +229,7 @@ describe('appointmentService.createAppointment', () => {
             noShowPrediction: storedNoShowPrediction,
         });
 
-        expect(result.noShowPrediction).not.toHaveProperty('score');
+        expect(result.noShowPrediction).toHaveProperty('score', 35);
         expect(result.noShowPrediction).not.toHaveProperty('appointmentId');
         expect(result.noShowPrediction).not.toHaveProperty('clinicId');
         expect(result.noShowPrediction).not.toHaveProperty('patientId');
@@ -279,6 +281,7 @@ describe('appointmentService.createAppointment', () => {
         const storedNoShowPrediction = {
             id: 'no-show-prediction-id',
             riskLevel: noShowPrediction.riskLevel,
+            score: noShowPrediction.score,
             reasons: noShowPrediction.reasons,
             createdAt: new Date('2026-06-18T10:00:01.000Z'),
             updatedAt: new Date('2026-06-18T10:00:01.000Z'),
@@ -367,7 +370,7 @@ describe('appointmentService.createAppointment', () => {
         expect(result.noShowPrediction).toEqual(storedNoShowPrediction);
         expect(result.appointment.noShowPrediction).toEqual(storedNoShowPrediction);
         expect(result.queueEntry).toEqual(queueEntry);
-        expect(result.noShowPrediction).not.toHaveProperty('score');
+        expect(result.noShowPrediction).toHaveProperty('score', 60);
     });
 
     it('rejects a conflicting slot after acquiring the transaction lock', async () => {

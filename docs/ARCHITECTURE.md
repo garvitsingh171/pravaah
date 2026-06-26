@@ -365,7 +365,8 @@ The MVP includes one AI-assisted feature:
 
 > Starter No-Show Risk Prediction
 
-This should be built as an explainable rule-based scoring service.
+This should be built as an explainable rule-based scoring service for clinic-side Admin and Staff users.
+For the MVP, Pravaah does not use a trained machine-learning model for no-show prediction.
 
 Example input factors:
 
@@ -380,16 +381,29 @@ Example output:
 
 ```json
 {
-    "riskScore": 72,
+    "score": 72,
     "riskLevel": "HIGH",
     "reasons": [
         "Patient has previous no-shows",
         "Patient lives far from the clinic",
         "Appointment was booked on the same day"
-    ],
-    "modelVersion": "starter-rule-v1"
+    ]
 }
 ```
+
+If the backend stores a rule/model version or generated timestamp, the UI should display it in the
+risk detail view. If those fields are not returned, the UI should use a safe "not available" fallback.
+
+The frontend can use this stored prediction output to show:
+
+- low, medium, and high no-show risk badges
+- human-readable prediction reasons
+- staff-friendly suggested actions
+- risk detail views for appointment and queue workflows
+
+Suggested actions are advisory only. They should help staff decide what to review or follow up on,
+such as considering a manual confirmation call for a high-risk appointment. They must not make
+final operational decisions for the clinic.
 
 ### 11.1 AI boundary
 
@@ -398,8 +412,9 @@ Allowed in MVP:
 - rule-based risk score
 - low/medium/high risk level
 - human-readable reasons
+- staff-assistive suggested actions
 - storage in `NoShowPrediction`
-- display in appointment and queue views
+- display in appointment and queue views as badges and explanation details
 
 Not allowed in MVP:
 
@@ -410,6 +425,10 @@ Not allowed in MVP:
 - automatic cancellation
 - fully automatic queue reordering
 - WhatsApp/voice automation
+
+These excluded items are not part of the MVP AI feature or the no-show risk UI issue. They belong
+only in future roadmap discussions after the core appointment, queue, and starter prediction flow is
+stable.
 
 ## 12. Main product workflow
 

@@ -130,6 +130,7 @@ export function toNoShowPredictionResponse(
     return {
         id: prediction.id,
         riskLevel: prediction.riskLevel,
+        score: prediction.score,
         reasons: Array.isArray(prediction.reasons) ? prediction.reasons : [],
         createdAt: prediction.createdAt,
         updatedAt: prediction.updatedAt,
