@@ -1,12 +1,12 @@
 import { useAuth } from '@clerk/react';
 import type { PropsWithChildren } from 'react';
-import { useEffect } from 'react';
+import { useLayoutEffect } from 'react';
 import { setApiClientAuthTokenProvider } from '../lib';
 
 function ApiAuthProvider({ children }: PropsWithChildren) {
     const { getToken } = useAuth();
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         setApiClientAuthTokenProvider(() => getToken());
 
         return () => {
