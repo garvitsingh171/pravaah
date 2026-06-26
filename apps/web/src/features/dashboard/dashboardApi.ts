@@ -65,7 +65,11 @@ export type DashboardPatientDetails = Pick<
 export type DashboardNoShowPrediction = {
     id?: string;
     riskLevel: RiskLevel;
+    score?: number;
+    riskScore?: number;
     reasons: unknown[];
+    modelVersion?: string;
+    generatedAt?: string;
     createdAt?: string;
     updatedAt?: string;
 };

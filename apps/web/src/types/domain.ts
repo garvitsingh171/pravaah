@@ -83,6 +83,8 @@ export type AppointmentSummary = BaseEntity & {
 
 export type AppointmentBookingNoShowPrediction = {
     riskLevel: RiskLevel;
+    score?: number;
+    riskScore?: number;
     reasons: string[];
 };
 
@@ -105,9 +107,10 @@ export type NoShowPredictionSummary = BaseEntity & {
     appointmentId: string;
     clinicId: string;
     patientId: string;
-    riskScore: number;
+    score?: number;
+    riskScore?: number;
     riskLevel: RiskLevel;
     reasons: string[];
-    modelVersion: string;
-    generatedAt: string;
+    modelVersion?: string;
+    generatedAt?: string;
 };

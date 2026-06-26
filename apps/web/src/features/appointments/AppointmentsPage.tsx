@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useActiveClinic } from '../../app/activeClinicContext';
 import { ErrorMessage, LoadingState } from '../../components/feedback';
@@ -15,6 +15,7 @@ import {
     createAppointment,
     listAppointments,
     updateAppointmentStatus,
+    type AppointmentNoShowPrediction,
     type AppointmentListFilters,
     type AppointmentListItem,
     type CreateAppointmentRequest,
@@ -411,7 +412,11 @@ const getRiskBadgeClassName = (riskLevel: RiskLevel): string => {
     return classNames[riskLevel];
 };
 
-const getPredictionReasonMessages = (reasons: unknown[]): string[] => {
+const getPredictionReasonMessages = (reasons: unknown[] | null | undefined): string[] => {
+    if (!Array.isArray(reasons)) {
+        return [];
+    }
+
     return reasons.reduce<string[]>((messages, reason) => {
         if (
             typeof reason === 'object' &&
@@ -429,6 +434,70 @@ const getPredictionReasonMessages = (reasons: unknown[]): string[] => {
 
         return messages;
     }, []);
+};
+
+const getPredictionReasonCodes = (reasons: unknown[] | null | undefined): string[] => {
+    if (!Array.isArray(reasons)) {
+        return [];
+    }
+
+    return reasons.reduce<string[]>((codes, reason) => {
+        if (
+            typeof reason === 'object' &&
+            reason !== null &&
+            'code' in reason &&
+            typeof reason.code === 'string'
+        ) {
+            codes.push(reason.code);
+        }
+
+        return codes;
+    }, []);
+};
+
+const getPredictionScore = (prediction: AppointmentNoShowPrediction): number | null => {
+    const score = prediction.riskScore ?? prediction.score;
+
+    return typeof score === 'number' && Number.isFinite(score) ? score : null;
+};
+
+const getSuggestedActions = (prediction: AppointmentNoShowPrediction): string[] => {
+    const reasonCodes = new Set(getPredictionReasonCodes(prediction.reasons));
+    const suggestions: string[] = [];
+
+    if (prediction.riskLevel === 'HIGH') {
+        suggestions.push('Consider a manual confirmation call before the appointment time.');
+        suggestions.push('Keep this appointment visible during staff review of the day.');
+    } else if (prediction.riskLevel === 'MEDIUM') {
+        suggestions.push('Consider a manual check-in or confirmation if staff capacity allows.');
+        suggestions.push('Watch the appointment during normal queue preparation.');
+    } else {
+        suggestions.push('Standard reception follow-up is likely enough for this appointment.');
+    }
+
+    if (reasonCodes.has('PREVIOUS_NO_SHOW_HISTORY')) {
+        suggestions.push('Review patient attendance history before deciding any follow-up.');
+    }
+
+    if (reasonCodes.has('SHORT_NOTICE_BOOKING')) {
+        suggestions.push('Confirm the appointment time clearly if staff speak with the patient.');
+    }
+
+    if (reasonCodes.has('LONG_ADVANCE_BOOKING')) {
+        suggestions.push(
+            'Consider a closer-to-date manual confirmation if clinic workload allows.'
+        );
+    }
+
+    if (reasonCodes.has('NEW_PATIENT')) {
+        suggestions.push('Verify contact details during normal reception workflow.');
+    }
+
+    if (reasonCodes.has('STRONG_ATTENDANCE_HISTORY')) {
+        suggestions.push('Treat the lower risk as supportive context, not a final decision.');
+    }
+
+    return [...new Set(suggestions)];
 };
 
 const getAppointmentListFilters = (
@@ -453,27 +522,156 @@ function StatusBadge({ status }: { status: AppointmentStatus }) {
     );
 }
 
-function RiskBadge({ appointment }: { appointment: AppointmentListItem }) {
+function RiskLevelBadge({ riskLevel }: { riskLevel: RiskLevel }) {
+    return (
+        <span
+            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${getRiskBadgeClassName(
+                riskLevel
+            )}`}
+        >
+            {riskLevel.toLowerCase()} risk
+        </span>
+    );
+}
+
+function RiskBadge({
+    appointment,
+    isExpanded,
+    onToggle,
+}: {
+    appointment: AppointmentListItem;
+    isExpanded: boolean;
+    onToggle: () => void;
+}) {
     const prediction = appointment.noShowPrediction;
 
     if (!prediction) {
-        return <span className="text-slate-500">Not available</span>;
+        return (
+            <div>
+                <span className="text-slate-500">Not available</span>
+                <button
+                    type="button"
+                    className="mt-2 block text-xs font-semibold text-blue-700 underline decoration-blue-200 underline-offset-2 hover:text-blue-800"
+                    onClick={onToggle}
+                >
+                    {isExpanded ? 'Hide details' : 'View details'}
+                </button>
+            </div>
+        );
     }
 
     const reasonMessages = getPredictionReasonMessages(prediction.reasons);
 
     return (
         <div>
-            <span
-                className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${getRiskBadgeClassName(
-                    prediction.riskLevel
-                )}`}
-            >
-                {prediction.riskLevel.toLowerCase()} risk
-            </span>
+            <RiskLevelBadge riskLevel={prediction.riskLevel} />
             {reasonMessages[0] ? (
                 <p className="mt-2 max-w-xs text-xs text-slate-500">{reasonMessages[0]}</p>
             ) : null}
+            <button
+                type="button"
+                className="mt-2 text-xs font-semibold text-blue-700 underline decoration-blue-200 underline-offset-2 hover:text-blue-800"
+                onClick={onToggle}
+            >
+                {isExpanded ? 'Hide details' : 'View details'}
+            </button>
+        </div>
+    );
+}
+
+function PredictionDetailPanel({ appointment }: { appointment: AppointmentListItem }) {
+    const prediction = appointment.noShowPrediction;
+
+    if (!prediction) {
+        return (
+            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-5">
+                <h3 className="text-sm font-semibold text-slate-900">
+                    No no-show prediction available
+                </h3>
+                <p className="mt-2 max-w-2xl text-sm text-slate-600">
+                    This appointment does not include prediction data from the backend yet. Staff
+                    can continue managing the appointment manually.
+                </p>
+            </div>
+        );
+    }
+
+    const score = getPredictionScore(prediction);
+    const reasonMessages = getPredictionReasonMessages(prediction.reasons);
+    const suggestedActions = getSuggestedActions(prediction);
+    const generatedAt = prediction.generatedAt ?? prediction.createdAt;
+
+    return (
+        <div className="rounded-lg border border-blue-100 bg-blue-50/40 p-5">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                        Starter no-show risk
+                    </p>
+                    <h3 className="mt-1 text-base font-semibold text-slate-900">
+                        Explainable prediction for {appointment.patient.fullName}
+                    </h3>
+                    <p className="mt-2 max-w-2xl text-sm text-slate-600">
+                        These suggestions are recommendations for Admin/Staff review. They do not
+                        change appointment status, cancel visits, or reorder the queue.
+                    </p>
+                </div>
+
+                <RiskLevelBadge riskLevel={prediction.riskLevel} />
+            </div>
+
+            <dl className="mt-5 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-md border border-slate-200 bg-white p-3">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Risk score
+                    </dt>
+                    <dd className="mt-1 text-sm font-semibold text-slate-900">
+                        {score === null ? 'Not available' : `${score}/100`}
+                    </dd>
+                </div>
+                <div className="rounded-md border border-slate-200 bg-white p-3">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Rule version
+                    </dt>
+                    <dd className="mt-1 text-sm font-semibold text-slate-900">
+                        {prediction.modelVersion?.trim() || 'Not available'}
+                    </dd>
+                </div>
+                <div className="rounded-md border border-slate-200 bg-white p-3">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Generated
+                    </dt>
+                    <dd className="mt-1 text-sm font-semibold text-slate-900">
+                        {generatedAt ? formatAppointmentDateTime(generatedAt) : 'Not available'}
+                    </dd>
+                </div>
+            </dl>
+
+            <div className="mt-5 grid gap-5 lg:grid-cols-2">
+                <div>
+                    <h4 className="text-sm font-semibold text-slate-900">Prediction reasons</h4>
+                    {reasonMessages.length > 0 ? (
+                        <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700">
+                            {reasonMessages.map((reason) => (
+                                <li key={reason}>{reason}</li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="mt-3 text-sm text-slate-600">
+                            The backend did not return explanation reasons for this prediction.
+                        </p>
+                    )}
+                </div>
+
+                <div>
+                    <h4 className="text-sm font-semibold text-slate-900">Suggested actions</h4>
+                    <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700">
+                        {suggestedActions.map((action) => (
+                            <li key={action}>{action}</li>
+                        ))}
+                    </ul>
+                </div>
+            </div>
         </div>
     );
 }
@@ -490,6 +688,9 @@ function AppointmentsPage() {
         code?: string;
     } | null>(null);
     const [statusUpdateMessage, setStatusUpdateMessage] = useState<string | null>(null);
+    const [expandedPredictionAppointmentId, setExpandedPredictionAppointmentId] = useState<
+        string | null
+    >(null);
     const [values, setValues] = useState<AppointmentBookingFormValues>(emptyFormValues);
     const [fieldErrors, setFieldErrors] = useState<AppointmentBookingFormFieldErrors>({});
     const [referenceState, setReferenceState] =
@@ -588,6 +789,7 @@ function AppointmentsPage() {
         }));
         setStatusUpdateError(null);
         setStatusUpdateMessage(null);
+        setExpandedPredictionAppointmentId(null);
     };
 
     const handleDateFilterChange = (value: string) => {
@@ -926,96 +1128,125 @@ function AppointmentsPage() {
                                     const statusActions =
                                         statusActionsByCurrentStatus[appointment.status];
                                     const isUpdating = updatingAppointmentId === appointment.id;
+                                    const isRiskExpanded =
+                                        expandedPredictionAppointmentId === appointment.id;
 
                                     return (
-                                        <tr key={appointment.id} className="align-top">
-                                            <td className="px-4 py-4 text-slate-700">
-                                                <p className="font-semibold text-slate-900">
-                                                    {formatAppointmentDateTime(
-                                                        appointment.scheduledAt
-                                                    )}
-                                                </p>
-                                                <p className="mt-1 text-xs text-slate-500">
-                                                    {formatDuration(appointment.durationMinutes)}
-                                                </p>
-                                            </td>
-                                            <td className="px-4 py-4">
-                                                <p className="font-semibold text-slate-900">
-                                                    {appointment.patient.fullName}
-                                                </p>
-                                                <p className="mt-1 text-slate-600">
-                                                    {getOptionalText(appointment.patient.phone)}
-                                                </p>
-                                            </td>
-                                            <td className="px-4 py-4">
-                                                <p className="font-semibold text-slate-900">
-                                                    {appointment.doctor.fullName}
-                                                </p>
-                                                <p className="mt-1 text-slate-600">
-                                                    {getOptionalText(
-                                                        appointment.doctor.specialization
-                                                    )}
-                                                </p>
-                                            </td>
-                                            <td className="px-4 py-4">
-                                                <StatusBadge status={appointment.status} />
-                                                {appointment.queueEntry ? (
-                                                    <p className="mt-2 text-xs text-slate-500">
-                                                        Queue #{appointment.queueEntry.position}
+                                        <Fragment key={appointment.id}>
+                                            <tr className="align-top">
+                                                <td className="px-4 py-4 text-slate-700">
+                                                    <p className="font-semibold text-slate-900">
+                                                        {formatAppointmentDateTime(
+                                                            appointment.scheduledAt
+                                                        )}
                                                     </p>
-                                                ) : null}
-                                            </td>
-                                            <td className="px-4 py-4 text-slate-700">
-                                                <p>{getOptionalText(appointment.reason)}</p>
-                                                {appointment.notes ? (
-                                                    <p className="mt-2 max-w-xs text-xs text-slate-500">
-                                                        {appointment.notes}
+                                                    <p className="mt-1 text-xs text-slate-500">
+                                                        {formatDuration(
+                                                            appointment.durationMinutes
+                                                        )}
                                                     </p>
-                                                ) : null}
-                                            </td>
-                                            <td className="px-4 py-4">
-                                                <RiskBadge appointment={appointment} />
-                                            </td>
-                                            <td className="px-4 py-4">
-                                                {statusActions.length > 0 ? (
-                                                    <select
-                                                        className="w-40 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
-                                                        value=""
-                                                        onChange={(event) => {
-                                                            const nextStatus = event.target
-                                                                .value as AppointmentStatus;
+                                                </td>
+                                                <td className="px-4 py-4">
+                                                    <p className="font-semibold text-slate-900">
+                                                        {appointment.patient.fullName}
+                                                    </p>
+                                                    <p className="mt-1 text-slate-600">
+                                                        {getOptionalText(appointment.patient.phone)}
+                                                    </p>
+                                                </td>
+                                                <td className="px-4 py-4">
+                                                    <p className="font-semibold text-slate-900">
+                                                        {appointment.doctor.fullName}
+                                                    </p>
+                                                    <p className="mt-1 text-slate-600">
+                                                        {getOptionalText(
+                                                            appointment.doctor.specialization
+                                                        )}
+                                                    </p>
+                                                </td>
+                                                <td className="px-4 py-4">
+                                                    <StatusBadge status={appointment.status} />
+                                                    {appointment.queueEntry ? (
+                                                        <p className="mt-2 text-xs text-slate-500">
+                                                            Queue #{appointment.queueEntry.position}
+                                                        </p>
+                                                    ) : null}
+                                                </td>
+                                                <td className="px-4 py-4 text-slate-700">
+                                                    <p>{getOptionalText(appointment.reason)}</p>
+                                                    {appointment.notes ? (
+                                                        <p className="mt-2 max-w-xs text-xs text-slate-500">
+                                                            {appointment.notes}
+                                                        </p>
+                                                    ) : null}
+                                                </td>
+                                                <td className="px-4 py-4">
+                                                    <RiskBadge
+                                                        appointment={appointment}
+                                                        isExpanded={isRiskExpanded}
+                                                        onToggle={() =>
+                                                            setExpandedPredictionAppointmentId(
+                                                                isRiskExpanded
+                                                                    ? null
+                                                                    : appointment.id
+                                                            )
+                                                        }
+                                                    />
+                                                </td>
+                                                <td className="px-4 py-4">
+                                                    {statusActions.length > 0 ? (
+                                                        <select
+                                                            className="w-40 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                                                            value=""
+                                                            onChange={(event) => {
+                                                                const nextStatus = event.target
+                                                                    .value as AppointmentStatus;
 
-                                                            if (nextStatus) {
-                                                                void handleStatusUpdate(
-                                                                    appointment,
-                                                                    nextStatus
-                                                                );
-                                                            }
-                                                        }}
-                                                        disabled={isUpdating}
-                                                        aria-label={`Update status for ${appointment.patient.fullName}`}
-                                                    >
-                                                        <option value="">
-                                                            {isUpdating
-                                                                ? 'Updating...'
-                                                                : 'Update status'}
-                                                        </option>
-                                                        {statusActions.map((action) => (
-                                                            <option
-                                                                key={action.status}
-                                                                value={action.status}
-                                                            >
-                                                                {action.label}
+                                                                if (nextStatus) {
+                                                                    void handleStatusUpdate(
+                                                                        appointment,
+                                                                        nextStatus
+                                                                    );
+                                                                }
+                                                            }}
+                                                            disabled={isUpdating}
+                                                            aria-label={`Update status for ${appointment.patient.fullName}`}
+                                                        >
+                                                            <option value="">
+                                                                {isUpdating
+                                                                    ? 'Updating...'
+                                                                    : 'Update status'}
                                                             </option>
-                                                        ))}
-                                                    </select>
-                                                ) : (
-                                                    <span className="text-sm text-slate-500">
-                                                        Final status
-                                                    </span>
-                                                )}
-                                            </td>
-                                        </tr>
+                                                            {statusActions.map((action) => (
+                                                                <option
+                                                                    key={action.status}
+                                                                    value={action.status}
+                                                                >
+                                                                    {action.label}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    ) : (
+                                                        <span className="text-sm text-slate-500">
+                                                            Final status
+                                                        </span>
+                                                    )}
+                                                </td>
+                                            </tr>
+
+                                            {isRiskExpanded ? (
+                                                <tr>
+                                                    <td
+                                                        colSpan={7}
+                                                        className="bg-slate-50 px-4 py-4"
+                                                    >
+                                                        <PredictionDetailPanel
+                                                            appointment={appointment}
+                                                        />
+                                                    </td>
+                                                </tr>
+                                            ) : null}
+                                        </Fragment>
                                     );
                                 })}
                             </tbody>

@@ -4,6 +4,7 @@ import { AppointmentStatus, Prisma, QueueStatus } from '../../generated/prisma/c
 const noShowPredictionQueueSelect = {
     id: true,
     riskLevel: true,
+    score: true,
     reasons: true,
     createdAt: true,
     updatedAt: true,

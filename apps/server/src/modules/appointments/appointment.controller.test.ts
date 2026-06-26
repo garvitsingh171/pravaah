@@ -40,6 +40,7 @@ describe('createAppointmentController', () => {
         const noShowPrediction = {
             id: 'no-show-prediction-id',
             riskLevel: 'MEDIUM' as const,
+            score: 35,
             reasons: [
                 {
                     code: 'NEW_PATIENT' as const,
@@ -119,7 +120,7 @@ describe('createAppointmentController', () => {
                 noShowPrediction,
             },
         });
-        expect(noShowPrediction).not.toHaveProperty('score');
+        expect(noShowPrediction).toHaveProperty('score', 35);
         expect(noShowPrediction).not.toHaveProperty('appointmentId');
         expect(noShowPrediction).not.toHaveProperty('clinicId');
         expect(noShowPrediction).not.toHaveProperty('patientId');
