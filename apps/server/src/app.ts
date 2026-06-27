@@ -3,6 +3,7 @@ import cors from 'cors';
 import { clerkMiddleware } from '@clerk/express';
 import { errorHandler } from './middleware/errorHandler.js';
 import { env } from './config/env.js';
+import { authRouter } from './modules/auth/auth.routes.js';
 import { healthRouter } from './modules/health/health.routes.js';
 import { clinicRouter } from './modules/clinics/clinic.routes.js';
 import { doctorRouter } from './modules/doctors/doctor.routes.js';
@@ -27,6 +28,7 @@ app.use(
 app.use(express.json());
 
 app.use('/api/health', healthRouter);
+app.use('/api/auth', authRouter);
 app.use('/api/clinics', clinicRouter);
 app.use('/api/clinics', doctorRouter);
 app.use('/api/clinics', patientRouter);

@@ -45,3 +45,13 @@ export const requireAdminRole: RequestHandler = (req, _res, next) => {
         next(error);
     }
 };
+
+export const requireClinicStaffRole: RequestHandler = (req, _res, next) => {
+    try {
+        accessService.requireClinicStaff(req.user);
+
+        next();
+    } catch (error) {
+        next(error);
+    }
+};

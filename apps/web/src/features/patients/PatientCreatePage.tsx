@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useActiveClinic } from '../../app/activeClinicContext';
 import { ErrorMessage } from '../../components/feedback';
-import { getActiveClinicId, isApiClientError } from '../../lib';
+import { isApiClientError } from '../../lib';
 import type { Gender } from '../../types';
 import PatientForm, { type PatientFormFieldErrors, type PatientFormValues } from './PatientForm';
 import { createPatient, type CreatePatientRequest } from './patientApi';
@@ -182,6 +183,7 @@ const getBackendFieldErrors = (details: unknown): PatientFormFieldErrors => {
 
 function PatientCreatePage() {
     const navigate = useNavigate();
+    const { clinicId } = useActiveClinic();
     const [values, setValues] = useState<PatientFormValues>(emptyFormValues);
     const [fieldErrors, setFieldErrors] = useState<PatientFormFieldErrors>({});
     const [formError, setFormError] = useState<string | null>(null);
@@ -222,8 +224,6 @@ function PatientCreatePage() {
         setIsSubmitting(true);
 
         try {
-            const clinicId = getActiveClinicId();
-
             await createPatient(clinicId, toCreatePatientRequest(values));
 
             navigate('/patients', {

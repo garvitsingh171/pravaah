@@ -1,6 +1,10 @@
 import { Router } from 'express';
 import { validateRequest } from '../../utils/validateRequest.js';
-import { authenticateRequest, requireClinicAccess } from '../auth/auth.middleware.js';
+import {
+    authenticateRequest,
+    requireClinicAccess,
+    requireClinicStaffRole,
+} from '../auth/auth.middleware.js';
 import {
     createPatientController,
     listPatientsByClinicController,
@@ -24,6 +28,7 @@ patientRouter.post(
         body: createPatientSchema,
     }),
     requireClinicAccess,
+    requireClinicStaffRole,
     createPatientController
 );
 
@@ -35,6 +40,7 @@ patientRouter.patch(
         body: updatePatientSchema,
     }),
     requireClinicAccess,
+    requireClinicStaffRole,
     updatePatientController
 );
 
@@ -46,6 +52,7 @@ patientRouter.get(
         query: listPatientsQuerySchema,
     }),
     requireClinicAccess,
+    requireClinicStaffRole,
     listPatientsByClinicController
 );
 

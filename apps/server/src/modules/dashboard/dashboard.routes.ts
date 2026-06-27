@@ -1,6 +1,10 @@
 import { Router } from 'express';
 import { validateRequest } from '../../utils/validateRequest.js';
-import { authenticateRequest, requireClinicAccess } from '../auth/auth.middleware.js';
+import {
+    authenticateRequest,
+    requireClinicAccess,
+    requireClinicStaffRole,
+} from '../auth/auth.middleware.js';
 import {
     getDashboardSummaryController,
     getHighRiskAppointmentsController,
@@ -22,6 +26,7 @@ dashboardRouter.get(
         query: dashboardSummaryQuerySchema,
     }),
     requireClinicAccess,
+    requireClinicStaffRole,
     getDashboardSummaryController
 );
 
@@ -33,6 +38,7 @@ dashboardRouter.get(
         query: highRiskAppointmentsQuerySchema,
     }),
     requireClinicAccess,
+    requireClinicStaffRole,
     getHighRiskAppointmentsController
 );
 
@@ -43,6 +49,7 @@ dashboardRouter.get(
         params: dashboardClinicIdParamsSchema,
     }),
     requireClinicAccess,
+    requireClinicStaffRole,
     getTodayActivityController
 );
 

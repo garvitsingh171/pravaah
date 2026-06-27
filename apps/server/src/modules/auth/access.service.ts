@@ -26,6 +26,19 @@ export const accessService = {
         return authenticatedUser;
     },
 
+    requireClinicStaff(user: AuthenticatedUser | undefined): AuthenticatedUser {
+        const authenticatedUser = this.requireAuthenticatedUser(user);
+
+        if (
+            authenticatedUser.role !== UserRole.ADMIN &&
+            authenticatedUser.role !== UserRole.STAFF
+        ) {
+            throw new AppError(403, 'CLINIC_STAFF_REQUIRED', 'Clinic staff access is required');
+        }
+
+        return authenticatedUser;
+    },
+
     async verifyClinicAccess(user: AuthenticatedUser | undefined, clinicId: string) {
         const authenticatedUser = this.requireAuthenticatedUser(user);
 

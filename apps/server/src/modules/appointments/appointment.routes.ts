@@ -1,6 +1,10 @@
 import { Router } from 'express';
 import { validateRequest } from '../../utils/validateRequest.js';
-import { authenticateRequest, requireClinicAccess } from '../auth/auth.middleware.js';
+import {
+    authenticateRequest,
+    requireClinicAccess,
+    requireClinicStaffRole,
+} from '../auth/auth.middleware.js';
 import {
     createAppointmentController,
     listAppointmentsController,
@@ -25,6 +29,7 @@ clinicAppointmentRouter.post(
         body: createAppointmentSchema,
     }),
     requireClinicAccess,
+    requireClinicStaffRole,
     createAppointmentController
 );
 
@@ -36,6 +41,7 @@ clinicAppointmentRouter.get(
         query: listAppointmentsQuerySchema,
     }),
     requireClinicAccess,
+    requireClinicStaffRole,
     listAppointmentsController
 );
 
@@ -46,6 +52,7 @@ appointmentRouter.patch(
         params: appointmentIdParamsSchema,
         body: updateAppointmentStatusSchema,
     }),
+    requireClinicStaffRole,
     updateAppointmentStatusController
 );
 

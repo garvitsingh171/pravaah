@@ -1,7 +1,9 @@
 import { z } from 'zod';
 import { calendarDateRegex, isValidCalendarDate } from '../../utils/dateValidation.js';
 
-const uuidSchema = z.string().uuid('Invalid id');
+const uuidSchema = z
+    .string()
+    .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, 'Invalid id');
 
 const dateSchema = z
     .string()

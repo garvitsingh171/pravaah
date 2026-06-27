@@ -87,11 +87,27 @@ VITE_DEFAULT_CLINIC_ID=optional_demo_clinic_uuid
 ```
 
 Only public frontend-safe values should use the `VITE_` prefix.
+Put these values in `apps/web/.env` for the Vite dev server.
 
-`VITE_DEFAULT_CLINIC_ID` is an MVP/demo fallback. The web app first checks
-`localStorage` for `pravaah.activeClinicId`, then falls back to
-`VITE_DEFAULT_CLINIC_ID`. If neither exists, signed-in users see a setup error
-instead of unclear clinic-scoped API failures.
+`VITE_DEFAULT_CLINIC_ID` is an MVP/demo fallback clinic context. For signed-in
+users, the web app resolves active clinic context in this order:
+
+1. The authenticated internal Pravaah user returned by `GET /api/auth/me`, when
+   that user has a `clinicId` linked to an active clinic.
+2. `localStorage` key `pravaah.activeClinicId`, when a clinic has been selected.
+3. `VITE_DEFAULT_CLINIC_ID`, for local/demo usage.
+
+The backend remains the final authority. Every clinic-scoped API still checks
+that the Clerk-authenticated internal user is ACTIVE and belongs to the requested
+clinic. A stale or incorrect `localStorage` clinic ID will be rejected by the
+backend.
+
+Restart the Vite dev server after changing `apps/web/.env`; Vite reads
+`VITE_*` environment variables when the dev server starts.
+
+`VITE_DEFAULT_CLINIC_ID` must be a PostgreSQL UUID-shaped value. It does not
+need to be a specific UUID version, but it must match an existing active clinic
+when used.
 
 ### 6.3 Backend
 
@@ -99,11 +115,44 @@ instead of unclear clinic-scoped API failures.
 PORT=5000
 CLIENT_URL=http://localhost:5173
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DATABASE
+CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
 CLERK_SECRET_KEY=your_clerk_secret_key
 CLERK_WEBHOOK_SECRET=your_clerk_webhook_secret_if_used
 ```
 
 Backend secrets must not be exposed to frontend.
+Put these values in `apps/server/.env` for the Express server and Prisma seed.
+
+### 6.4 Local seed/bootstrap
+
+Clerk authenticates the person, but Pravaah still requires an internal `User`
+row for role, status, and clinic access. For local development, seed the first
+admin user with your own Clerk user ID:
+
+```txt
+SEED_CLERK_USER_ID=user_xxxxxxxxxxxxxxxxx
+SEED_USER_EMAIL=local-admin@pravaah.local
+SEED_USER_FULL_NAME=Local Pravaah Admin
+SEED_DEMO_CLINIC_ID=00000000-0000-4000-8000-000000000000
+```
+
+`SEED_CLERK_USER_ID` is required when running the seed. `DEV_CLERK_USER_ID` is
+also accepted as a local alias. Find the value in the Clerk dashboard by opening
+your development Clerk application, going to Users, selecting your signed-in
+user, and copying the user ID that starts with `user_`.
+
+The seed creates an active demo clinic and an active internal `ADMIN` user linked
+to that clinic. Keep `VITE_DEFAULT_CLINIC_ID` in `apps/web/.env` equal to
+`SEED_DEMO_CLINIC_ID` when you want a demo fallback, or leave it unset and let
+the frontend use the authenticated user's active `clinicId` from `GET /api/auth/me`.
+
+Run the seed from `apps/server`. The seed loads `apps/server/.env`, validates
+`SEED_DEMO_CLINIC_ID` as a PostgreSQL UUID-shaped value, and prints the clinic id
+to copy into `apps/web/.env` if you use `VITE_DEFAULT_CLINIC_ID`.
+
+The seeded user must have `status=ACTIVE` and `clinicId` set. The related clinic
+must exist and have `isActive=true`. If you need to inspect these values locally,
+run Prisma Studio from `apps/server` and check the `User` and `Clinic` tables.
 
 ## 7. Neon PostgreSQL setup
 
@@ -158,6 +207,7 @@ After schema is defined:
 ```bash
 npx prisma migrate dev
 npx prisma generate
+npx prisma db seed
 ```
 
 Useful commands:
