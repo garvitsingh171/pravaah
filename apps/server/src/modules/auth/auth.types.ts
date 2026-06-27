@@ -7,3 +7,21 @@ export type AuthenticatedUser = {
     status: UserStatus;
     clinicId: string | null;
 };
+
+export type CurrentUserClinicSummary = {
+    id: string;
+    name: string;
+    slug: string;
+    isActive: boolean;
+    timezone: string;
+};
+
+export type CurrentUserProfile = {
+    id: string;
+    fullName: string;
+    email: string;
+    role: UserRole;
+    status: UserStatus;
+    clinicId: string | null;
+    clinic: CurrentUserClinicSummary | null;
+};

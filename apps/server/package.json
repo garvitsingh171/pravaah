@@ -9,7 +9,8 @@
         "start": "node dist/server.js",
         "check": "tsc --noEmit",
         "lint": "echo \"server lint not configured yet\"",
-        "test": "vitest run"
+        "test": "vitest run",
+        "seed": "prisma db seed"
     },
     "dependencies": {
         "@clerk/express": "^2.1.31",

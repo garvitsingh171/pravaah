@@ -1,6 +1,10 @@
 import { Router } from 'express';
 import { validateRequest } from '../../utils/validateRequest.js';
-import { authenticateRequest, requireClinicAccess } from '../auth/auth.middleware.js';
+import {
+    authenticateRequest,
+    requireClinicAccess,
+    requireClinicStaffRole,
+} from '../auth/auth.middleware.js';
 import {
     listQueueByClinicDateController,
     reorderQueueController,
@@ -24,6 +28,7 @@ queueRouter.get(
         query: listQueueQuerySchema,
     }),
     requireClinicAccess,
+    requireClinicStaffRole,
     listQueueByClinicDateController
 );
 
@@ -35,6 +40,7 @@ queueRouter.patch(
         body: reorderQueueBodySchema,
     }),
     requireClinicAccess,
+    requireClinicStaffRole,
     reorderQueueController
 );
 
@@ -46,6 +52,7 @@ queueRouter.patch(
         body: updateQueueStatusBodySchema,
     }),
     requireClinicAccess,
+    requireClinicStaffRole,
     updateQueueStatusController
 );
 

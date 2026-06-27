@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useActiveClinic } from '../../app/activeClinicContext';
 import { ErrorMessage, LoadingState } from '../../components/feedback';
-import { getActiveClinicId, isApiClientError } from '../../lib';
+import { isApiClientError } from '../../lib';
 import type { Gender, PatientSummary } from '../../types';
 import { listPatients } from './patientApi';
 
@@ -101,28 +102,40 @@ const getVisitSummary = (patient: PatientSummary): string => {
 function PatientsPage() {
     const navigate = useNavigate();
     const location = useLocation();
+    const { clinicId } = useActiveClinic();
     const locationState = location.state as PatientsLocationState | null;
     const [statusMessage, setStatusMessage] = useState(locationState?.statusMessage ?? null);
     const [patientListState, setPatientListState] =
         useState<PatientListState>(emptyPatientListState);
 
-    const loadPatients = useCallback(async (signal?: AbortSignal) => {
-        try {
-            const clinicId = getActiveClinicId();
-            const data = await listPatients(clinicId, signal);
+    const loadPatients = useCallback(
+        async (signal?: AbortSignal) => {
+            try {
+                const data = await listPatients(clinicId, signal);
 
-            setPatientListState({
-                status: 'success',
-                patients: data.patients,
-                error: null,
-            });
-        } catch (error) {
-            if (error instanceof Error && error.name === 'AbortError') {
-                return;
-            }
+                setPatientListState({
+                    status: 'success',
+                    patients: data.patients,
+                    error: null,
+                });
+            } catch (error) {
+                if (error instanceof Error && error.name === 'AbortError') {
+                    return;
+                }
 
-            if (isApiClientError(error)) {
-                if (error.code === 'API_REQUEST_ABORTED') {
+                if (isApiClientError(error)) {
+                    if (error.code === 'API_REQUEST_ABORTED') {
+                        return;
+                    }
+
+                    setPatientListState({
+                        status: 'error',
+                        patients: [],
+                        error: {
+                            message: error.message,
+                            code: error.code,
+                        },
+                    });
                     return;
                 }
 
@@ -130,23 +143,14 @@ function PatientsPage() {
                     status: 'error',
                     patients: [],
                     error: {
-                        message: error.message,
-                        code: error.code,
+                        message: 'Patients could not be loaded. Please try again.',
+                        code: 'PATIENT_LIST_FAILED',
                     },
                 });
-                return;
             }
-
-            setPatientListState({
-                status: 'error',
-                patients: [],
-                error: {
-                    message: 'Patients could not be loaded. Please try again.',
-                    code: 'PATIENT_LIST_FAILED',
-                },
-            });
-        }
-    }, []);
+        },
+        [clinicId]
+    );
 
     const handleRetry = () => {
         setPatientListState((currentState) => ({
@@ -160,7 +164,6 @@ function PatientsPage() {
 
     useEffect(() => {
         const abortController = new AbortController();
-        const clinicId = getActiveClinicId();
 
         listPatients(clinicId, abortController.signal)
             .then((data) => {
@@ -204,7 +207,7 @@ function PatientsPage() {
         return () => {
             abortController.abort();
         };
-    }, []);
+    }, [clinicId]);
 
     useEffect(() => {
         if (locationState?.statusMessage) {

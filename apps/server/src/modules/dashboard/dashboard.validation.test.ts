@@ -9,4 +9,12 @@ describe('dashboardClinicIdParamsSchema', () => {
 
         expect(result.success).toBe(true);
     });
+
+    it('accepts PostgreSQL UUID-shaped clinic ids without requiring RFC version bits', () => {
+        const result = dashboardClinicIdParamsSchema.safeParse({
+            clinicId: '00000000-0000-0000-0000-000000000000',
+        });
+
+        expect(result.success).toBe(true);
+    });
 });

@@ -15,4 +15,29 @@ export const authRepository = {
             },
         });
     },
+
+    findCurrentUserProfileById(id: string) {
+        return prisma.user.findUnique({
+            where: {
+                id,
+            },
+            select: {
+                id: true,
+                fullName: true,
+                email: true,
+                role: true,
+                status: true,
+                clinicId: true,
+                clinic: {
+                    select: {
+                        id: true,
+                        name: true,
+                        slug: true,
+                        isActive: true,
+                        timezone: true,
+                    },
+                },
+            },
+        });
+    },
 };

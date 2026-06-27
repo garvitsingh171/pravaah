@@ -22,6 +22,29 @@ const activeAdminUser: AuthenticatedUser = {
     clinicId: 'clinic-id',
 };
 
+describe('accessService.requireClinicStaff', () => {
+    it('allows Admin and Staff users', () => {
+        const activeStaffUser: AuthenticatedUser = {
+            ...activeAdminUser,
+            role: UserRole.STAFF,
+        };
+
+        expect(accessService.requireClinicStaff(activeAdminUser)).toEqual(activeAdminUser);
+        expect(accessService.requireClinicStaff(activeStaffUser)).toEqual(activeStaffUser);
+    });
+
+    it('denies non-clinic staff roles', () => {
+        const unsupportedRoleUser: AuthenticatedUser = {
+            ...activeAdminUser,
+            role: 'PATIENT' as UserRole,
+        };
+
+        expect(() => accessService.requireClinicStaff(unsupportedRoleUser)).toThrow(
+            new AppError(403, 'CLINIC_STAFF_REQUIRED', 'Clinic staff access is required')
+        );
+    });
+});
+
 describe('accessService.verifyClinicAccess', () => {
     beforeEach(() => {
         vi.clearAllMocks();
