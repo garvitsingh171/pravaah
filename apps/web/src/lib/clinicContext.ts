@@ -162,6 +162,7 @@ const readAuthenticatedUserClinicId = (
 export const resolveActiveClinicContext = (
     currentUser?: ActiveClinicCurrentUser | null
 ): ActiveClinicResolution => {
+    const hasAuthenticatedProfile = currentUser !== undefined && currentUser !== null;
     const authenticatedUserClinic = readAuthenticatedUserClinicId(currentUser);
     const storedClinic = readStoredClinicId();
     const environmentClinic = readDefaultClinicId();
@@ -172,6 +173,17 @@ export const resolveActiveClinicContext = (
                 clinicId: authenticatedUserClinic.clinicId,
                 source: 'authenticatedUser',
             },
+            sources: {
+                authenticatedUser: authenticatedUserClinic,
+                localStorage: storedClinic,
+                environment: environmentClinic,
+            },
+        };
+    }
+
+    if (hasAuthenticatedProfile) {
+        return {
+            activeClinic: null,
             sources: {
                 authenticatedUser: authenticatedUserClinic,
                 localStorage: storedClinic,
