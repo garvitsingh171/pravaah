@@ -1,10 +1,35 @@
 import { SignIn, useAuth } from '@clerk/react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { LoadingState } from '../../components/feedback';
 import { defaultDashboardPath } from '../../routes/dashboardRoutes';
 
+const redirectParamName = 'redirect_url';
+
+const getSafeRedirectPath = (redirectUrl: string | null): string => {
+    if (!redirectUrl) {
+        return defaultDashboardPath;
+    }
+
+    try {
+        const parsedUrl = new URL(redirectUrl, window.location.origin);
+
+        if (
+            parsedUrl.origin !== window.location.origin ||
+            parsedUrl.pathname.startsWith('/login')
+        ) {
+            return defaultDashboardPath;
+        }
+
+        return `${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
+    } catch {
+        return defaultDashboardPath;
+    }
+};
+
 function LoginPage() {
     const { isLoaded, isSignedIn } = useAuth();
+    const [searchParams] = useSearchParams();
+    const redirectPath = getSafeRedirectPath(searchParams.get(redirectParamName));
 
     if (!isLoaded) {
         return (
@@ -15,7 +40,7 @@ function LoginPage() {
     }
 
     if (isSignedIn) {
-        return <Navigate to={defaultDashboardPath} replace />;
+        return <Navigate to={redirectPath} replace />;
     }
 
     return (
@@ -40,7 +65,7 @@ function LoginPage() {
                     <SignIn
                         path="/login"
                         routing="path"
-                        fallbackRedirectUrl={defaultDashboardPath}
+                        fallbackRedirectUrl={redirectPath}
                         withSignUp={false}
                     />
                 </section>
