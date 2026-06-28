@@ -22,7 +22,7 @@ export const authService = {
         }
 
         if (user.status !== UserStatus.ACTIVE) {
-            throw new AppError(403, 'USER_INACTIVE', 'User account is not active');
+            throw new AppError(403, 'USER_NOT_ACTIVE', 'User is not active');
         }
 
         return user;
@@ -36,7 +36,7 @@ export const authService = {
         }
 
         if (authenticatedUser.status !== UserStatus.ACTIVE) {
-            throw new AppError(403, 'USER_INACTIVE', 'User account is not active');
+            throw new AppError(403, 'USER_NOT_ACTIVE', 'User is not active');
         }
 
         const user = await authRepository.findCurrentUserProfileById(authenticatedUser.id);
@@ -50,7 +50,7 @@ export const authService = {
         }
 
         if (user.status !== UserStatus.ACTIVE) {
-            throw new AppError(403, 'USER_INACTIVE', 'User account is not active');
+            throw new AppError(403, 'USER_NOT_ACTIVE', 'User is not active');
         }
 
         return user;

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { AppointmentStatus, UserRole, UserStatus } from '../../generated/prisma/client.js';
 
 const mockTx = {};
 
@@ -14,6 +15,7 @@ const mockAppointmentRepository = vi.hoisted(() => ({
     runInTransaction: vi.fn(),
     createAppointment: vi.fn(),
     createNoShowPrediction: vi.fn(),
+    updateAppointmentStatus: vi.fn(),
 }));
 
 const mockQueueRepository = vi.hoisted(() => ({
@@ -69,6 +71,14 @@ vi.mock('../predictions/prediction.service.js', () => ({
 }));
 
 import { appointmentService } from './appointment.service.js';
+
+const authenticatedUser = {
+    id: 'user-id',
+    clerkUserId: 'clerk-user-id',
+    role: UserRole.ADMIN,
+    status: UserStatus.ACTIVE,
+    clinicId: 'clinic-id',
+};
 
 describe('appointmentService.createAppointment', () => {
     beforeEach(() => {
@@ -449,5 +459,66 @@ describe('appointmentService.createAppointment', () => {
         expect(mockAppointmentRepository.createAppointment).not.toHaveBeenCalled();
         expect(mockQueueRepository.createQueueEntry).not.toHaveBeenCalled();
         expect(mockAppointmentRepository.createNoShowPrediction).not.toHaveBeenCalled();
+    });
+});
+
+describe('appointmentService.updateAppointmentStatus', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('updates appointment status using the clinic verified from access checks', async () => {
+        const appointment = {
+            id: 'appointment-id',
+            clinicId: 'clinic-id',
+            noShowPrediction: null,
+        };
+
+        mockAccessService.verifyAppointmentClinicAccess.mockResolvedValue({
+            id: 'appointment-id',
+            clinicId: 'clinic-id',
+        });
+        mockAppointmentRepository.updateAppointmentStatus.mockResolvedValue({
+            appointment,
+            failureReason: null,
+        });
+
+        await expect(
+            appointmentService.updateAppointmentStatus(
+                authenticatedUser,
+                'appointment-id',
+                AppointmentStatus.COMPLETED
+            )
+        ).resolves.toEqual({
+            id: 'appointment-id',
+            clinicId: 'clinic-id',
+            noShowPrediction: null,
+        });
+
+        expect(mockAccessService.verifyAppointmentClinicAccess).toHaveBeenCalledWith(
+            authenticatedUser,
+            'appointment-id'
+        );
+        expect(mockAppointmentRepository.updateAppointmentStatus).toHaveBeenCalledWith(
+            'appointment-id',
+            'clinic-id',
+            AppointmentStatus.COMPLETED
+        );
+    });
+
+    it('does not update appointment status when clinic access is denied', async () => {
+        mockAccessService.verifyAppointmentClinicAccess.mockRejectedValue(
+            new Error('CLINIC_ACCESS_DENIED')
+        );
+
+        await expect(
+            appointmentService.updateAppointmentStatus(
+                authenticatedUser,
+                'appointment-id',
+                AppointmentStatus.COMPLETED
+            )
+        ).rejects.toThrow('CLINIC_ACCESS_DENIED');
+
+        expect(mockAppointmentRepository.updateAppointmentStatus).not.toHaveBeenCalled();
     });
 });
