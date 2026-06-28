@@ -46,10 +46,6 @@ const hasEmailShape = (email: string): boolean => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 };
 
-const hasPhoneShape = (phone: string): boolean => {
-    return /^[+()\d\s-]{5,20}$/.test(phone);
-};
-
 const validateWholeNumber = (value: string, message: string): string | undefined => {
     if (!value.trim()) {
         return undefined;
@@ -89,8 +85,8 @@ const validatePatientForm = (values: PatientFormValues): PatientFormFieldErrors 
 
     if (!values.phone.trim()) {
         errors.phone = 'Patient phone number is required.';
-    } else if (!hasPhoneShape(values.phone.trim())) {
-        errors.phone = 'Enter a valid phone number.';
+    } else if (values.phone.trim().length < 5) {
+        errors.phone = 'Patient phone must be at least 5 characters long.';
     }
 
     if (values.email.trim() && !hasEmailShape(values.email.trim())) {

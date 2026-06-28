@@ -38,10 +38,6 @@ const hasEmailShape = (email: string): boolean => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 };
 
-const hasPhoneShape = (phone: string): boolean => {
-    return /^[+()\d\s-]{5,20}$/.test(phone);
-};
-
 const validateDoctorForm = (values: DoctorFormValues): DoctorFormFieldErrors => {
     const errors: DoctorFormFieldErrors = {};
 
@@ -49,10 +45,6 @@ const validateDoctorForm = (values: DoctorFormValues): DoctorFormFieldErrors => 
         errors.fullName = 'Doctor name is required.';
     } else if (values.fullName.trim().length < 2) {
         errors.fullName = 'Doctor name must be at least 2 characters long.';
-    }
-
-    if (values.phone.trim() && !hasPhoneShape(values.phone.trim())) {
-        errors.phone = 'Enter a valid phone number.';
     }
 
     if (values.email.trim() && !hasEmailShape(values.email.trim())) {
