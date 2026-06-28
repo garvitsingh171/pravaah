@@ -6,7 +6,7 @@ import type { AuthenticatedUser } from './auth.types.js';
 export const accessService = {
     requireAuthenticatedUser(user: AuthenticatedUser | undefined): AuthenticatedUser {
         if (!user) {
-            throw new AppError(401, 'UNAUTHENTICATED', 'Authentication is required');
+            throw new AppError(401, 'AUTHENTICATION_REQUIRED', 'Authentication is required');
         }
 
         if (user.status !== UserStatus.ACTIVE) {
