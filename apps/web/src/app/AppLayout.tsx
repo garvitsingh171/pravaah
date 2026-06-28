@@ -13,7 +13,7 @@ function AppLayout() {
                 <Sidebar navigationItems={navigationRoutes} />
 
                 <div className="flex min-h-screen flex-1 flex-col">
-                    <Topbar title={currentRoute.title} userContext="Clinic Staff" />
+                    <Topbar title={currentRoute.title} userContext="Clinic Admin/Staff" />
 
                     <main className="flex-1 p-4 md:p-6">
                         <Outlet />

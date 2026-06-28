@@ -1,4 +1,5 @@
-import { RedirectToSignIn, useAuth } from '@clerk/react';
+import { useAuth } from '@clerk/react';
+import { Navigate, useLocation } from 'react-router-dom';
 import { LoadingState } from '../components/feedback';
 import ActiveClinicProvider from './ActiveClinicProvider';
 import AppLayout from './AppLayout';
@@ -13,13 +14,17 @@ function FullPageLoadingState() {
 
 function ProtectedAppShell() {
     const { isLoaded, isSignedIn } = useAuth();
+    const location = useLocation();
 
     if (!isLoaded) {
         return <FullPageLoadingState />;
     }
 
     if (!isSignedIn) {
-        return <RedirectToSignIn />;
+        const returnTo = `${location.pathname}${location.search}${location.hash}`;
+        const loginPath = `/login?redirect_url=${encodeURIComponent(returnTo)}`;
+
+        return <Navigate to={loginPath} replace />;
     }
 
     return (
