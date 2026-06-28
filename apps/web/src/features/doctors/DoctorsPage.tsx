@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useActiveClinic } from '../../app/activeClinicContext';
-import { ErrorMessage, LoadingState } from '../../components/feedback';
+import { EmptyState, ErrorMessage, LoadingState, useToast } from '../../components/feedback';
 import { isApiClientError } from '../../lib';
 import type { DoctorSummary } from '../../types';
 import { listDoctors } from './doctorApi';
@@ -84,8 +84,8 @@ function DoctorsPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const { clinicId } = useActiveClinic();
+    const { showSuccessToast } = useToast();
     const locationState = location.state as DoctorsLocationState | null;
-    const [statusMessage, setStatusMessage] = useState(locationState?.statusMessage ?? null);
     const [doctorListState, setDoctorListState] = useState<DoctorListState>(emptyDoctorListState);
 
     const loadDoctors = useCallback(
@@ -143,9 +143,10 @@ function DoctorsPage() {
 
     useEffect(() => {
         if (locationState?.statusMessage) {
+            showSuccessToast(locationState.statusMessage);
             navigate(location.pathname, { replace: true, state: null });
         }
-    }, [location.pathname, locationState?.statusMessage, navigate]);
+    }, [location.pathname, locationState?.statusMessage, navigate, showSuccessToast]);
 
     const hasDoctors = doctorListState.status === 'success' && doctorListState.doctors.length > 0;
 
@@ -173,19 +174,6 @@ function DoctorsPage() {
                 </Link>
             </div>
 
-            {statusMessage ? (
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
-                    {statusMessage}
-                    <button
-                        type="button"
-                        className="ml-3 text-emerald-700 underline decoration-emerald-300 underline-offset-2"
-                        onClick={() => setStatusMessage(null)}
-                    >
-                        Dismiss
-                    </button>
-                </div>
-            ) : null}
-
             {doctorListState.status === 'loading' ? (
                 <LoadingState message="Loading doctors..." />
             ) : null}
@@ -200,19 +188,18 @@ function DoctorsPage() {
             ) : null}
 
             {doctorListState.status === 'success' && doctorListState.doctors.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center">
-                    <h2 className="text-lg font-semibold text-slate-900">No doctors yet</h2>
-                    <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
-                        Add the first doctor record for this clinic so staff can use it during
-                        appointment booking and queue workflows.
-                    </p>
-                    <Link
-                        to="/doctors/new"
-                        className="mt-5 inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-                    >
-                        Add doctor
-                    </Link>
-                </div>
+                <EmptyState
+                    title="No doctors added yet."
+                    message="Add the first doctor record for this clinic so staff can use it during appointment booking and queue workflows."
+                    action={
+                        <Link
+                            to="/doctors/new"
+                            className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+                        >
+                            Add doctor
+                        </Link>
+                    }
+                />
             ) : null}
 
             {hasDoctors ? (

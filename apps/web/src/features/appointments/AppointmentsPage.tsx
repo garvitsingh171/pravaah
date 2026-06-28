@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useActiveClinic } from '../../app/activeClinicContext';
-import { ErrorMessage, LoadingState } from '../../components/feedback';
+import { EmptyState, ErrorMessage, LoadingState, useToast } from '../../components/feedback';
 import { isApiClientError } from '../../lib';
 import { AppointmentStatus, BookingSource } from '../../types';
 import type { DoctorSummary, PatientSummary, RiskLevel } from '../../types';
@@ -102,8 +102,6 @@ const emptyAppointmentListState: AppointmentListState = {
     appointments: [],
     error: null,
 };
-
-const requiredText = 'This field is required.';
 
 const validationFieldMap: Partial<Record<string, keyof AppointmentBookingFormValues>> = {
     'body.doctorId': 'doctorId',
@@ -218,27 +216,35 @@ const validateAppointmentForm = (
     const errors: AppointmentBookingFormFieldErrors = {};
 
     if (!values.doctorId) {
-        errors.doctorId = requiredText;
+        errors.doctorId = 'Select a doctor before booking an appointment.';
     }
 
     if (!values.patientId) {
-        errors.patientId = requiredText;
+        errors.patientId = 'Select a patient before booking an appointment.';
     }
 
     if (!values.scheduledAt) {
-        errors.scheduledAt = requiredText;
+        errors.scheduledAt = 'Appointment date and time are required.';
     } else if (Number.isNaN(new Date(values.scheduledAt).getTime())) {
         errors.scheduledAt = 'Enter a valid appointment date and time.';
     }
 
     if (!values.durationMinutes.trim()) {
-        errors.durationMinutes = requiredText;
+        errors.durationMinutes = 'Appointment duration is required.';
     } else {
         const durationMinutes = Number(values.durationMinutes);
 
         if (!Number.isInteger(durationMinutes) || durationMinutes <= 0) {
             errors.durationMinutes = 'Duration minutes must be a positive whole number.';
         }
+    }
+
+    if (values.reason.trim().length > 500) {
+        errors.reason = 'Reason must be shorter than 500 characters.';
+    }
+
+    if (values.notes.trim().length > 500) {
+        errors.notes = 'Notes must be shorter than 500 characters.';
     }
 
     return errors;
@@ -678,6 +684,7 @@ function PredictionDetailPanel({ appointment }: { appointment: AppointmentListIt
 
 function AppointmentsPage() {
     const { clinicId } = useActiveClinic();
+    const { showErrorToast, showSuccessToast } = useToast();
     const [selectedDate, setSelectedDate] = useState(getTodayDateInputValue);
     const [selectedStatus, setSelectedStatus] = useState<AppointmentStatus | ''>('');
     const [appointmentListState, setAppointmentListState] =
@@ -897,6 +904,7 @@ function AppointmentsPage() {
                 scheduledAt: data.appointment.scheduledAt,
                 riskLevel: data.noShowPrediction?.riskLevel,
             });
+            showSuccessToast('Appointment booked successfully.');
 
             void loadAppointments()
                 .then((appointments) => {
@@ -909,8 +917,9 @@ function AppointmentsPage() {
                 .catch((error: unknown) => {
                     const errorState = getAppointmentListErrorState(error);
 
-                    if (errorState) {
+                    if (errorState?.status === 'error') {
                         setAppointmentListState(errorState);
+                        showErrorToast(errorState.error.message);
                     }
                 });
         } catch (error) {
@@ -924,11 +933,15 @@ function AppointmentsPage() {
                 );
                 setFormErrorCode(error.code);
                 setFormErrorDetails(getBackendValidationDetails(error.details));
+                showErrorToast(error.message);
                 return;
             }
 
-            setFormError('Appointment could not be booked. Please try again.');
+            const fallbackMessage = 'Appointment could not be booked. Please try again.';
+
+            setFormError(fallbackMessage);
             setFormErrorCode('APPOINTMENT_CREATE_FAILED');
+            showErrorToast(fallbackMessage);
         } finally {
             setIsSubmitting(false);
         }
@@ -970,19 +983,28 @@ function AppointmentsPage() {
             setStatusUpdateMessage(
                 `Status updated to ${statusLabels[data.appointment.status].toLowerCase()}.`
             );
+            showSuccessToast(
+                `Appointment status updated to ${statusLabels[
+                    data.appointment.status
+                ].toLowerCase()}.`
+            );
         } catch (error) {
             if (isApiClientError(error)) {
                 setStatusUpdateError({
                     message: error.message,
                     code: error.code,
                 });
+                showErrorToast(error.message);
                 return;
             }
 
+            const fallbackMessage = 'Appointment status could not be updated. Please try again.';
+
             setStatusUpdateError({
-                message: 'Appointment status could not be updated. Please try again.',
+                message: fallbackMessage,
                 code: 'APPOINTMENT_STATUS_UPDATE_FAILED',
             });
+            showErrorToast(fallbackMessage);
         } finally {
             setUpdatingAppointmentId(null);
         }
@@ -1100,12 +1122,10 @@ function AppointmentsPage() {
 
             {appointmentListState.status === 'success' &&
             appointmentListState.appointments.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center">
-                    <h2 className="text-lg font-semibold text-slate-900">No appointments found</h2>
-                    <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
-                        No appointments match the selected date and status filters.
-                    </p>
-                </div>
+                <EmptyState
+                    title="No appointments scheduled for this date."
+                    message="No appointments match the selected date and status filters."
+                />
             ) : null}
 
             {hasAppointments ? (
@@ -1284,37 +1304,33 @@ function AppointmentsPage() {
                 ) : null}
 
                 {referenceState.status === 'success' && referenceState.doctors.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center">
-                        <h3 className="text-lg font-semibold text-slate-900">
-                            No active doctors available
-                        </h3>
-                        <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
-                            Add or activate a doctor before booking appointments for this clinic.
-                        </p>
-                        <Link
-                            to="/doctors/new"
-                            className="mt-5 inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-                        >
-                            Add doctor
-                        </Link>
-                    </div>
+                    <EmptyState
+                        title="No active doctors available."
+                        message="Add or activate a doctor before booking appointments for this clinic."
+                        action={
+                            <Link
+                                to="/doctors/new"
+                                className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+                            >
+                                Add doctor
+                            </Link>
+                        }
+                    />
                 ) : null}
 
                 {referenceState.status === 'success' && referenceState.patients.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center">
-                        <h3 className="text-lg font-semibold text-slate-900">
-                            No active patients available
-                        </h3>
-                        <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
-                            Add a patient record before booking appointments for this clinic.
-                        </p>
-                        <Link
-                            to="/patients/new"
-                            className="mt-5 inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-                        >
-                            Add patient
-                        </Link>
-                    </div>
+                    <EmptyState
+                        title="No active patients available."
+                        message="Add a patient record before booking appointments for this clinic."
+                        action={
+                            <Link
+                                to="/patients/new"
+                                className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+                            >
+                                Add patient
+                            </Link>
+                        }
+                    />
                 ) : null}
 
                 {successState ? (

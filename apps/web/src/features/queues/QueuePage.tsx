@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useActiveClinic } from '../../app/activeClinicContext';
-import { ErrorMessage, LoadingState } from '../../components/feedback';
+import { EmptyState, ErrorMessage, LoadingState, useToast } from '../../components/feedback';
 import { isApiClientError } from '../../lib';
 import { QueueStatus } from '../../types';
 import type { QueueStatus as QueueStatusType, RiskLevel } from '../../types';
@@ -279,6 +279,7 @@ function QueueTimeline({ queueEntry }: { queueEntry: QueueListItem }) {
 
 function QueuePage() {
     const { clinicId } = useActiveClinic();
+    const { showErrorToast, showSuccessToast } = useToast();
     const todayDate = getTodayDateInputValue();
     const [queueListState, setQueueListState] = useState<QueueListState>(emptyQueueListState);
     const [updatingQueueEntryId, setUpdatingQueueEntryId] = useState<string | null>(null);
@@ -368,6 +369,11 @@ function QueuePage() {
                     data.queueEntry.status
                 ].toLowerCase()}.`
             );
+            showSuccessToast(
+                `Queue status updated to ${queueStatusLabels[
+                    data.queueEntry.status
+                ].toLowerCase()}.`
+            );
             refreshQueue();
         } catch (error) {
             if (isApiClientError(error)) {
@@ -375,13 +381,17 @@ function QueuePage() {
                     message: error.message,
                     code: error.code,
                 });
+                showErrorToast(error.message);
                 return;
             }
 
+            const fallbackMessage = 'Queue status could not be updated. Please try again.';
+
             setStatusUpdateError({
-                message: 'Queue status could not be updated. Please try again.',
+                message: fallbackMessage,
                 code: 'QUEUE_STATUS_UPDATE_FAILED',
             });
+            showErrorToast(fallbackMessage);
         } finally {
             setUpdatingQueueEntryId(null);
         }
@@ -485,14 +495,10 @@ function QueuePage() {
             ) : null}
 
             {queueListState.status === 'success' && queueListState.queueEntries.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center">
-                    <h2 className="text-lg font-semibold text-slate-900">
-                        No queue entries for today
-                    </h2>
-                    <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
-                        Book appointments for today to add patients into the clinic queue.
-                    </p>
-                </div>
+                <EmptyState
+                    title="No queue entries for today yet."
+                    message="Book appointments for today to add patients into the clinic queue."
+                />
             ) : null}
 
             {hasQueueEntries ? (

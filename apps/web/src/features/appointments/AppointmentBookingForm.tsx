@@ -1,4 +1,5 @@
 import type { FormEvent } from 'react';
+import { FieldError } from '../../components/feedback';
 import type { DoctorSummary, PatientSummary } from '../../types';
 
 export type AppointmentBookingFormValues = {
@@ -54,14 +55,6 @@ const getPatientOptionLabel = (patient: PatientSummary): string => {
 
 function RequiredMark() {
     return <span className="text-red-600">*</span>;
-}
-
-function FieldError({ message }: { message?: string }) {
-    if (!message) {
-        return null;
-    }
-
-    return <p className="mt-1 text-sm text-red-700">{message}</p>;
 }
 
 function AppointmentBookingForm({

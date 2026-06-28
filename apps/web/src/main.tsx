@@ -4,6 +4,7 @@ import { ClerkProvider } from '@clerk/react';
 import './index.css';
 import ApiAuthProvider from './app/ApiAuthProvider.tsx';
 import App from './App.tsx';
+import { ToastProvider } from './components/feedback';
 
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const signInUrl = '/login';
@@ -22,7 +23,9 @@ createRoot(document.getElementById('root')!).render(
             afterSignOutUrl={signInUrl}
         >
             <ApiAuthProvider>
-                <App />
+                <ToastProvider>
+                    <App />
+                </ToastProvider>
             </ApiAuthProvider>
         </ClerkProvider>
     </StrictMode>
