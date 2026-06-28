@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useActiveClinic } from '../../app/activeClinicContext';
-import { ErrorMessage, LoadingState } from '../../components/feedback';
+import { EmptyState, ErrorMessage, LoadingState } from '../../components/feedback';
 import { isApiClientError } from '../../lib';
 import type { RiskLevel } from '../../types';
 import {
@@ -235,14 +235,11 @@ function HighRiskAppointmentsCard({
             </div>
 
             {appointments.length === 0 ? (
-                <div className="mt-5 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
-                    <h3 className="text-base font-semibold text-slate-900">
-                        No high-risk appointments today
-                    </h3>
-                    <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
-                        Appointments with high no-show risk will appear here when the backend has
-                        matching prediction data.
-                    </p>
+                <div className="mt-5">
+                    <EmptyState
+                        title="No high-risk appointments today."
+                        message="Appointments with high no-show risk will appear here when the backend has matching prediction data."
+                    />
                 </div>
             ) : (
                 <div className="mt-5 divide-y divide-slate-200">
@@ -299,12 +296,11 @@ function TodayActivitySection({ activityItems }: { activityItems: DashboardActiv
             </div>
 
             {activityItems.length === 0 ? (
-                <div className="mt-5 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
-                    <h3 className="text-base font-semibold text-slate-900">No activity yet</h3>
-                    <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
-                        Bookings, arrivals, calls, completed visits, cancellations, and no-shows
-                        will appear here as staff work through the day.
-                    </p>
+                <div className="mt-5">
+                    <EmptyState
+                        title="No recent activity yet."
+                        message="Bookings, arrivals, calls, completed visits, cancellations, and no-shows will appear here as staff work through the day."
+                    />
                 </div>
             ) : (
                 <div className="mt-5 divide-y divide-slate-200">
@@ -468,15 +464,10 @@ function DashboardOverviewPage() {
                     </div>
 
                     {!hasDashboardData ? (
-                        <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center">
-                            <h2 className="text-lg font-semibold text-slate-900">
-                                Nothing scheduled for today
-                            </h2>
-                            <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
-                                Book today's first appointment to start filling the dashboard,
-                                queue, and activity feed.
-                            </p>
-                        </div>
+                        <EmptyState
+                            title="No dashboard activity for today."
+                            message="Book today's first appointment to start filling the dashboard, queue, and activity feed."
+                        />
                     ) : null}
 
                     <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">

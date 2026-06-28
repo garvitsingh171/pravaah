@@ -1,6 +1,7 @@
 import { SignIn, useAuth } from '@clerk/react';
-import { Navigate, useSearchParams } from 'react-router-dom';
-import { LoadingState } from '../../components/feedback';
+import { useEffect, useRef } from 'react';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { LoadingState, useToast } from '../../components/feedback';
 import { defaultDashboardPath } from '../../routes/dashboardRoutes';
 
 const redirectParamName = 'redirect_url';
@@ -29,7 +30,18 @@ const getSafeRedirectPath = (redirectUrl: string | null): string => {
 function LoginPage() {
     const { isLoaded, isSignedIn } = useAuth();
     const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
+    const { showSuccessToast } = useToast();
     const redirectPath = getSafeRedirectPath(searchParams.get(redirectParamName));
+    const hasShownSignOutToast = useRef(false);
+
+    useEffect(() => {
+        if (searchParams.get('signout') === 'success' && !hasShownSignOutToast.current) {
+            hasShownSignOutToast.current = true;
+            showSuccessToast('Signed out successfully.');
+            navigate('/login', { replace: true });
+        }
+    }, [navigate, searchParams, showSuccessToast]);
 
     if (!isLoaded) {
         return (

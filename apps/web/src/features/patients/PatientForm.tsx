@@ -1,4 +1,5 @@
 import type { FormEvent } from 'react';
+import { FieldError } from '../../components/feedback';
 import { Gender } from '../../types';
 
 export type PatientFormValues = {
@@ -39,14 +40,6 @@ const getFieldClassName = (hasError: boolean): string => {
 
 function RequiredMark() {
     return <span className="text-red-600">*</span>;
-}
-
-function FieldError({ message }: { message?: string }) {
-    if (!message) {
-        return null;
-    }
-
-    return <p className="mt-1 text-sm text-red-700">{message}</p>;
 }
 
 function PatientForm({

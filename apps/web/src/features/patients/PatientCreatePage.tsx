@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useActiveClinic } from '../../app/activeClinicContext';
-import { ErrorMessage } from '../../components/feedback';
+import { ErrorMessage, useToast } from '../../components/feedback';
 import { isApiClientError } from '../../lib';
 import type { Gender } from '../../types';
 import PatientForm, { type PatientFormFieldErrors, type PatientFormValues } from './PatientForm';
@@ -21,8 +21,6 @@ const emptyFormValues: PatientFormValues = {
     distanceFromClinicKm: '',
     notes: '',
 };
-
-const requiredText = 'This field is required.';
 
 const validationFieldMap: Partial<Record<string, keyof PatientFormValues>> = {
     'body.fullName': 'fullName',
@@ -80,13 +78,13 @@ const validatePatientForm = (values: PatientFormValues): PatientFormFieldErrors 
     const errors: PatientFormFieldErrors = {};
 
     if (!values.fullName.trim()) {
-        errors.fullName = requiredText;
+        errors.fullName = 'Patient name is required.';
     } else if (values.fullName.trim().length < 2) {
         errors.fullName = 'Patient name must be at least 2 characters long.';
     }
 
     if (!values.phone.trim()) {
-        errors.phone = requiredText;
+        errors.phone = 'Patient phone number is required.';
     } else if (values.phone.trim().length < 5) {
         errors.phone = 'Patient phone must be at least 5 characters long.';
     }
@@ -111,6 +109,10 @@ const validatePatientForm = (values: PatientFormValues): PatientFormFieldErrors 
 
     if (distanceError) {
         errors.distanceFromClinicKm = distanceError;
+    }
+
+    if (values.notes.trim().length > 500) {
+        errors.notes = 'Notes must be shorter than 500 characters.';
     }
 
     return errors;
@@ -184,6 +186,7 @@ const getBackendFieldErrors = (details: unknown): PatientFormFieldErrors => {
 function PatientCreatePage() {
     const navigate = useNavigate();
     const { clinicId } = useActiveClinic();
+    const { showErrorToast } = useToast();
     const [values, setValues] = useState<PatientFormValues>(emptyFormValues);
     const [fieldErrors, setFieldErrors] = useState<PatientFormFieldErrors>({});
     const [formError, setFormError] = useState<string | null>(null);
@@ -237,11 +240,15 @@ function PatientCreatePage() {
                 setFormError(error.message);
                 setFormErrorCode(error.code);
                 setFormErrorDetails(getBackendValidationDetails(error.details));
+                showErrorToast(error.message);
                 return;
             }
 
-            setFormError('Patient could not be created. Please try again.');
+            const fallbackMessage = 'Patient could not be created. Please try again.';
+
+            setFormError(fallbackMessage);
             setFormErrorCode('PATIENT_CREATE_FAILED');
+            showErrorToast(fallbackMessage);
         } finally {
             setIsSubmitting(false);
         }

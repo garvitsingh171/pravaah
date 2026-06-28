@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useActiveClinic } from '../../app/activeClinicContext';
-import { ErrorMessage } from '../../components/feedback';
+import { ErrorMessage, useToast } from '../../components/feedback';
 import { isApiClientError } from '../../lib';
 import type { Gender } from '../../types';
 import DoctorForm, { type DoctorFormFieldErrors, type DoctorFormValues } from './DoctorForm';
@@ -18,8 +18,6 @@ const emptyFormValues: DoctorFormValues = {
     experienceYears: '',
 };
 
-const requiredText = 'This field is required.';
-
 const validationFieldMap: Partial<Record<string, keyof DoctorFormValues>> = {
     'body.fullName': 'fullName',
     'body.specialization': 'specialization',
@@ -31,6 +29,11 @@ const validationFieldMap: Partial<Record<string, keyof DoctorFormValues>> = {
     'body.experienceYears': 'experienceYears',
 };
 
+type BackendValidationDetail = {
+    field: string;
+    message: string;
+};
+
 const hasEmailShape = (email: string): boolean => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 };
@@ -39,7 +42,7 @@ const validateDoctorForm = (values: DoctorFormValues): DoctorFormFieldErrors => 
     const errors: DoctorFormFieldErrors = {};
 
     if (!values.fullName.trim()) {
-        errors.fullName = requiredText;
+        errors.fullName = 'Doctor name is required.';
     } else if (values.fullName.trim().length < 2) {
         errors.fullName = 'Doctor name must be at least 2 characters long.';
     }
@@ -83,12 +86,12 @@ const toCreateDoctorRequest = (values: DoctorFormValues): CreateDoctorRequest =>
     };
 };
 
-const getBackendFieldErrors = (details: unknown): DoctorFormFieldErrors => {
+const getBackendValidationDetails = (details: unknown): BackendValidationDetail[] => {
     if (!Array.isArray(details)) {
-        return {};
+        return [];
     }
 
-    return details.reduce<DoctorFormFieldErrors>((errors, detail) => {
+    return details.reduce<BackendValidationDetail[]>((validationDetails, detail) => {
         if (
             typeof detail !== 'object' ||
             detail === null ||
@@ -97,9 +100,20 @@ const getBackendFieldErrors = (details: unknown): DoctorFormFieldErrors => {
             typeof detail.field !== 'string' ||
             typeof detail.message !== 'string'
         ) {
-            return errors;
+            return validationDetails;
         }
 
+        validationDetails.push({
+            field: detail.field,
+            message: detail.message,
+        });
+
+        return validationDetails;
+    }, []);
+};
+
+const getBackendFieldErrors = (details: unknown): DoctorFormFieldErrors => {
+    return getBackendValidationDetails(details).reduce<DoctorFormFieldErrors>((errors, detail) => {
         const field = validationFieldMap[detail.field];
 
         if (field) {
@@ -113,10 +127,12 @@ const getBackendFieldErrors = (details: unknown): DoctorFormFieldErrors => {
 function DoctorCreatePage() {
     const navigate = useNavigate();
     const { clinicId } = useActiveClinic();
+    const { showErrorToast } = useToast();
     const [values, setValues] = useState<DoctorFormValues>(emptyFormValues);
     const [fieldErrors, setFieldErrors] = useState<DoctorFormFieldErrors>({});
     const [formError, setFormError] = useState<string | null>(null);
     const [formErrorCode, setFormErrorCode] = useState<string | undefined>();
+    const [formErrorDetails, setFormErrorDetails] = useState<BackendValidationDetail[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleChange = (field: keyof DoctorFormValues, value: string) => {
@@ -130,6 +146,7 @@ function DoctorCreatePage() {
         }));
         setFormError(null);
         setFormErrorCode(undefined);
+        setFormErrorDetails([]);
     };
 
     const handleCancel = () => {
@@ -142,6 +159,7 @@ function DoctorCreatePage() {
         setFieldErrors(nextFieldErrors);
         setFormError(null);
         setFormErrorCode(undefined);
+        setFormErrorDetails([]);
 
         if (Object.keys(nextFieldErrors).length > 0) {
             return;
@@ -164,11 +182,16 @@ function DoctorCreatePage() {
                 setFieldErrors(backendFieldErrors);
                 setFormError(error.message);
                 setFormErrorCode(error.code);
+                setFormErrorDetails(getBackendValidationDetails(error.details));
+                showErrorToast(error.message);
                 return;
             }
 
-            setFormError('Doctor could not be created. Please try again.');
+            const fallbackMessage = 'Doctor could not be created. Please try again.';
+
+            setFormError(fallbackMessage);
             setFormErrorCode('DOCTOR_CREATE_FAILED');
+            showErrorToast(fallbackMessage);
         } finally {
             setIsSubmitting(false);
         }
@@ -202,6 +225,7 @@ function DoctorCreatePage() {
                     title="Doctor was not created"
                     message={formError}
                     code={formErrorCode}
+                    details={formErrorDetails}
                 />
             ) : null}
 
