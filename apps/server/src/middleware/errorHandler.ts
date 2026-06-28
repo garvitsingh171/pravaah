@@ -9,7 +9,7 @@ type HttpError = Error & {
     expose?: boolean;
 };
 
-export const errorHandler: ErrorRequestHandler = (error: HttpError, _req, res, _next) => {
+export const errorHandler: ErrorRequestHandler = (error: HttpError, req, res, _next) => {
     if (error instanceof AppError) {
         res.status(error.statusCode).json({
             success: false,
@@ -37,11 +37,15 @@ export const errorHandler: ErrorRequestHandler = (error: HttpError, _req, res, _
     }
 
     if (error.status === 401 || error.statusCode === 401) {
+        const hasAuthorizationHeader = Boolean(req.header('authorization'));
+
         res.status(401).json({
             success: false,
             error: {
-                code: 'UNAUTHENTICATED',
-                message: 'Missing or invalid authentication token',
+                code: hasAuthorizationHeader ? 'INVALID_AUTH_TOKEN' : 'AUTHENTICATION_REQUIRED',
+                message: hasAuthorizationHeader
+                    ? 'Authentication token is invalid or expired'
+                    : 'Authentication is required',
             },
         });
         return;

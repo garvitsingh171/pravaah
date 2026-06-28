@@ -32,7 +32,7 @@ export const authService = {
         authenticatedUser: AuthenticatedUser | undefined
     ): Promise<CurrentUserProfile> {
         if (!authenticatedUser) {
-            throw new AppError(401, 'UNAUTHENTICATED', 'Authentication is required');
+            throw new AppError(401, 'AUTHENTICATION_REQUIRED', 'Authentication is required');
         }
 
         if (authenticatedUser.status !== UserStatus.ACTIVE) {

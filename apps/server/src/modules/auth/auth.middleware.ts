@@ -4,12 +4,39 @@ import { AppError } from '../../utils/AppError.js';
 import { accessService } from './access.service.js';
 import { authService } from './auth.service.js';
 
+const bearerAuthorizationHeaderPattern = /^Bearer\s+\S+$/i;
+
+const hasBearerAuthorizationHeader = (authorizationHeader: string | undefined): boolean => {
+    return (
+        authorizationHeader !== undefined &&
+        bearerAuthorizationHeaderPattern.test(authorizationHeader)
+    );
+};
+
 export const authenticateRequest: RequestHandler = async (req, _res, next) => {
     try {
+        const authorizationHeader = req.header('authorization');
+
+        if (!authorizationHeader) {
+            throw new AppError(401, 'AUTHENTICATION_REQUIRED', 'Authentication is required');
+        }
+
+        if (!hasBearerAuthorizationHeader(authorizationHeader)) {
+            throw new AppError(
+                401,
+                'INVALID_AUTH_TOKEN',
+                'Authentication token is invalid or expired'
+            );
+        }
+
         const auth = getAuth(req);
 
         if (!auth.isAuthenticated || !auth.userId) {
-            throw new AppError(401, 'UNAUTHENTICATED', 'Missing or invalid authentication token');
+            throw new AppError(
+                401,
+                'INVALID_AUTH_TOKEN',
+                'Authentication token is invalid or expired'
+            );
         }
 
         req.user = await authService.getActiveUserByClerkUserId(auth.userId);
