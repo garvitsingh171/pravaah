@@ -256,14 +256,15 @@ export const appointmentRepository = {
         });
     },
 
-    updateAppointmentStatus(appointmentId: string, status: AppointmentStatus) {
+    updateAppointmentStatus(appointmentId: string, clinicId: string, status: AppointmentStatus) {
         const queueStatus = appointmentStatusToQueueStatus[status];
         const now = new Date();
 
         return prisma.$transaction(async (tx) => {
-            const existingAppointment = await tx.appointment.findUnique({
+            const existingAppointment = await tx.appointment.findFirst({
                 where: {
                     id: appointmentId,
+                    clinicId,
                 },
                 select: {
                     id: true,
@@ -304,6 +305,7 @@ export const appointmentRepository = {
             const updateResult = await tx.appointment.updateMany({
                 where: {
                     id: appointmentId,
+                    clinicId,
                     OR: [
                         {
                             status,
@@ -379,9 +381,10 @@ export const appointmentRepository = {
                 }
             }
 
-            const appointment = await tx.appointment.findUnique({
+            const appointment = await tx.appointment.findFirst({
                 where: {
                     id: appointmentId,
+                    clinicId,
                 },
                 include: appointmentDetailsInclude,
             });

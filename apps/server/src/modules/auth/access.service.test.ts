@@ -43,6 +43,17 @@ describe('accessService.requireClinicStaff', () => {
             new AppError(403, 'CLINIC_STAFF_REQUIRED', 'Clinic staff access is required')
         );
     });
+
+    it('denies inactive internal users', () => {
+        const invitedUser: AuthenticatedUser = {
+            ...activeAdminUser,
+            status: UserStatus.INVITED,
+        };
+
+        expect(() => accessService.requireClinicStaff(invitedUser)).toThrow(
+            new AppError(403, 'USER_NOT_ACTIVE', 'User is not active')
+        );
+    });
 });
 
 describe('accessService.verifyClinicAccess', () => {

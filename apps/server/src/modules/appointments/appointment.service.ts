@@ -264,12 +264,19 @@ export const appointmentService = {
         appointmentId: string,
         status: AppointmentStatus
     ) {
-        await accessService.verifyAppointmentClinicAccess(user, appointmentId);
+        const appointmentAccess = await accessService.verifyAppointmentClinicAccess(
+            user,
+            appointmentId
+        );
 
         let result: Awaited<ReturnType<typeof appointmentRepository.updateAppointmentStatus>>;
 
         try {
-            result = await appointmentRepository.updateAppointmentStatus(appointmentId, status);
+            result = await appointmentRepository.updateAppointmentStatus(
+                appointmentId,
+                appointmentAccess.clinicId,
+                status
+            );
         } catch (error) {
             if (error instanceof Error && error.message === 'QUEUE_STATUS_SYNC_CONFLICT') {
                 throw new AppError(
