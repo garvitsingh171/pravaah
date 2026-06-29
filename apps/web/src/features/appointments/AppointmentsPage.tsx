@@ -1043,6 +1043,9 @@ function AppointmentsPage() {
         referenceState.status === 'success' &&
         referenceState.doctors.length > 0 &&
         referenceState.patients.length > 0;
+    const hasAppointmentFilters = Boolean(
+        selectedDate || selectedDoctorId || selectedPatientId || selectedStatus
+    );
     const hasAppointments =
         appointmentListState.status === 'success' && appointmentListState.appointments.length > 0;
 
@@ -1142,13 +1145,15 @@ function AppointmentsPage() {
                         Today
                     </button>
 
-                    <button
-                        type="button"
-                        className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                        onClick={handleClearAppointmentFilters}
-                    >
-                        Clear
-                    </button>
+                    {hasAppointmentFilters ? (
+                        <button
+                            type="button"
+                            className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                            onClick={handleClearAppointmentFilters}
+                        >
+                            Clear
+                        </button>
+                    ) : null}
                 </div>
             </div>
 
