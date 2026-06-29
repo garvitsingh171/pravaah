@@ -43,8 +43,6 @@ async function validateAppointmentClinicOwnership(
 ): Promise<{
     clinicTimezone: string;
     patientClinicHistory: {
-        totalAppointments: number;
-        totalNoShows: number;
         totalLateArrivals: number;
         distanceFromClinicKm: unknown;
     };
@@ -100,8 +98,6 @@ async function validateAppointmentClinicOwnership(
     return {
         clinicTimezone: clinic.timezone,
         patientClinicHistory: {
-            totalAppointments: patientClinicLink.totalAppointments,
-            totalNoShows: patientClinicLink.totalNoShows,
             totalLateArrivals: patientClinicLink.totalLateArrivals,
             distanceFromClinicKm: patientClinicLink.distanceFromClinicKm,
         },
@@ -121,11 +117,14 @@ export const appointmentService = {
         );
 
         const scheduledAt = new Date(input.scheduledAt);
-        const patientNoShowCount = patientClinicHistory.totalNoShows;
-        const patientCompletedAppointmentCount = Math.max(
-            patientClinicHistory.totalAppointments - patientClinicHistory.totalNoShows,
-            0
-        );
+        const [patientNoShowCount, patientCompletedAppointmentCount] = await Promise.all([
+            appointmentRepository.countPatientAppointmentsByStatus(clinicId, input.patientId, [
+                AppointmentStatus.NO_SHOW,
+            ]),
+            appointmentRepository.countPatientAppointmentsByStatus(clinicId, input.patientId, [
+                AppointmentStatus.COMPLETED,
+            ]),
+        ]);
         const distanceFromClinicKm =
             patientClinicHistory.distanceFromClinicKm === null ||
             patientClinicHistory.distanceFromClinicKm === undefined
