@@ -19,18 +19,22 @@ describe('predictNoShowRisk', () => {
                 }),
             ])
         );
+        expect(result.suggestedActions).toEqual(
+            expect.arrayContaining(['Use the normal reception workflow for this appointment.'])
+        );
     });
 
-    it('returns MEDIUM risk for a new patient with short notice booking', () => {
+    it('returns MEDIUM risk for a new patient with short notice booking and moderate distance', () => {
         const result = predictNoShowRisk({
             bookedAt: new Date('2026-06-18T10:00:00.000Z'),
             scheduledAt: new Date('2026-06-18T18:00:00.000Z'),
             patientNoShowCount: 0,
             patientCompletedAppointmentCount: 0,
+            distanceFromClinicKm: 9,
         });
 
         expect(result.riskLevel).toBe('MEDIUM');
-        expect(result.score).toBe(35);
+        expect(result.score).toBe(33);
         expect(result.reasons).toEqual(
             expect.arrayContaining([
                 expect.objectContaining({
@@ -39,20 +43,28 @@ describe('predictNoShowRisk', () => {
                 expect.objectContaining({
                     code: 'NEW_PATIENT',
                 }),
+                expect.objectContaining({
+                    code: 'LONG_DISTANCE_FROM_CLINIC',
+                }),
             ])
+        );
+        expect(result.suggestedActions).toEqual(
+            expect.arrayContaining(['Consider a manual confirmation if staff have capacity.'])
         );
     });
 
-    it('returns HIGH risk for a patient with repeated no-show history and short notice booking', () => {
+    it('returns HIGH risk for a patient with repeated no-show and late arrival history', () => {
         const result = predictNoShowRisk({
             bookedAt: new Date('2026-06-18T10:00:00.000Z'),
             scheduledAt: new Date('2026-06-18T18:00:00.000Z'),
             patientNoShowCount: 2,
+            patientLateArrivalCount: 2,
             patientCompletedAppointmentCount: 0,
+            distanceFromClinicKm: 18,
         });
 
         expect(result.riskLevel).toBe('HIGH');
-        expect(result.score).toBe(60);
+        expect(result.score).toBe(85);
         expect(result.reasons).toEqual(
             expect.arrayContaining([
                 expect.objectContaining({
@@ -61,6 +73,15 @@ describe('predictNoShowRisk', () => {
                 expect.objectContaining({
                     code: 'SHORT_NOTICE_BOOKING',
                 }),
+                expect.objectContaining({
+                    code: 'LATE_ARRIVAL_HISTORY',
+                }),
+            ])
+        );
+        expect(result.suggestedActions).toEqual(
+            expect.arrayContaining([
+                'Review this appointment during front-desk preparation.',
+                'Ask staff to watch arrival status and update it manually if needed.',
             ])
         );
     });
@@ -74,7 +95,7 @@ describe('predictNoShowRisk', () => {
         });
 
         expect(result.riskLevel).toBe('MEDIUM');
-        expect(result.score).toBe(40);
+        expect(result.score).toBe(35);
         expect(result.reasons).toEqual(
             expect.arrayContaining([
                 expect.objectContaining({

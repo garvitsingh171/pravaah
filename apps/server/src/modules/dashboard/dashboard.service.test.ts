@@ -226,8 +226,16 @@ describe('dashboardService.getDashboardSummary', () => {
                 appointmentId: 'legacy-appointment-id',
                 clinicId: 'clinic-id',
                 patientId: 'patient-1',
-                riskLevel: 'HIGH',
-                score: 60,
+                riskLevel: 'MEDIUM',
+                score: 55,
+                reasons: expect.arrayContaining([
+                    expect.objectContaining({
+                        code: 'PREVIOUS_NO_SHOW_HISTORY',
+                    }),
+                    expect.objectContaining({
+                        code: 'SHORT_NOTICE_BOOKING',
+                    }),
+                ]),
             }),
         ]);
         expect(mockDashboardRepository.countNoShowPredictionsByRiskLevel).toHaveBeenCalledWith(
@@ -389,6 +397,11 @@ describe('dashboardService.getHighRiskAppointments', () => {
                                 scoreImpact: 40,
                             },
                         ],
+                        suggestedActions: expect.arrayContaining([
+                            'Review this appointment during front-desk preparation.',
+                        ]),
+                        modelVersion: 'starter-rule-v1',
+                        generatedAt: new Date('2026-06-18T10:00:01.000Z'),
                         createdAt: new Date('2026-06-18T10:00:01.000Z'),
                         updatedAt: new Date('2026-06-18T10:00:01.000Z'),
                     },

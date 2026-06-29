@@ -467,26 +467,56 @@ const getPredictionScore = (prediction: AppointmentNoShowPrediction): number | n
     return typeof score === 'number' && Number.isFinite(score) ? score : null;
 };
 
+const getBackendSuggestedActions = (actions: unknown): string[] => {
+    if (!Array.isArray(actions)) {
+        return [];
+    }
+
+    return actions.filter((action): action is string => {
+        return typeof action === 'string' && action.trim().length > 0;
+    });
+};
+
 const getSuggestedActions = (prediction: AppointmentNoShowPrediction): string[] => {
+    const backendSuggestedActions = getBackendSuggestedActions(prediction.suggestedActions);
+
+    if (backendSuggestedActions.length > 0) {
+        return backendSuggestedActions;
+    }
+
     const reasonCodes = new Set(getPredictionReasonCodes(prediction.reasons));
     const suggestions: string[] = [];
 
     if (prediction.riskLevel === 'HIGH') {
+        suggestions.push('Review this appointment during front-desk preparation.');
         suggestions.push('Consider a manual confirmation call before the appointment time.');
-        suggestions.push('Keep this appointment visible during staff review of the day.');
+        suggestions.push(
+            'Keep the slot visible so staff can decide what to do if the patient is late.'
+        );
     } else if (prediction.riskLevel === 'MEDIUM') {
-        suggestions.push('Consider a manual check-in or confirmation if staff capacity allows.');
-        suggestions.push('Watch the appointment during normal queue preparation.');
+        suggestions.push('Consider a manual confirmation if staff have capacity.');
+        suggestions.push('Check the appointment during normal queue preparation.');
     } else {
-        suggestions.push('Standard reception follow-up is likely enough for this appointment.');
+        suggestions.push('Use the normal reception workflow for this appointment.');
+        suggestions.push(
+            'Keep the appointment in the regular queue plan unless staff decide otherwise.'
+        );
     }
 
     if (reasonCodes.has('PREVIOUS_NO_SHOW_HISTORY')) {
-        suggestions.push('Review patient attendance history before deciding any follow-up.');
+        suggestions.push('Review the patient attendance history before choosing any follow-up.');
+    }
+
+    if (reasonCodes.has('LATE_ARRIVAL_HISTORY')) {
+        suggestions.push('Ask staff to watch arrival status and update it manually if needed.');
+    }
+
+    if (reasonCodes.has('LONG_DISTANCE_FROM_CLINIC')) {
+        suggestions.push('If staff speak with the patient, clearly confirm the visit time.');
     }
 
     if (reasonCodes.has('SHORT_NOTICE_BOOKING')) {
-        suggestions.push('Confirm the appointment time clearly if staff speak with the patient.');
+        suggestions.push('Confirm that the patient understood the appointment time.');
     }
 
     if (reasonCodes.has('LONG_ADVANCE_BOOKING')) {

@@ -123,32 +123,58 @@ CLERK_WEBHOOK_SECRET=your_clerk_webhook_secret_if_used
 Backend secrets must not be exposed to frontend.
 Put these values in `apps/server/.env` for the Express server and Prisma seed.
 
-### 6.4 Local seed/bootstrap
+### 6.4 Local demo seed/bootstrap
 
 Clerk authenticates the person, but Pravaah still requires an internal `User`
-row for role, status, and clinic access. For local development, seed the first
-admin user with your own Clerk user ID:
+row for role, status, and clinic access. For local development, the demo seed
+creates a fake demo clinic with doctors, patients, appointments, today's queue
+entries, and LOW/MEDIUM/HIGH starter no-show prediction examples.
+
+To make the signed-in local Admin work immediately, seed the Admin user with your
+own Clerk user ID:
 
 ```txt
 SEED_CLERK_USER_ID=user_xxxxxxxxxxxxxxxxx
 SEED_USER_EMAIL=local-admin@pravaah.local
 SEED_USER_FULL_NAME=Local Pravaah Admin
+SEED_STAFF_CLERK_USER_ID=user_yyyyyyyyyyyyyyyyy
+SEED_STAFF_USER_EMAIL=local-staff@pravaah.local
+SEED_STAFF_USER_FULL_NAME=Local Pravaah Staff
 SEED_DEMO_CLINIC_ID=00000000-0000-4000-8000-000000000000
 ```
 
-`SEED_CLERK_USER_ID` is required when running the seed. `DEV_CLERK_USER_ID` is
-also accepted as a local alias. Find the value in the Clerk dashboard by opening
-your development Clerk application, going to Users, selecting your signed-in
-user, and copying the user ID that starts with `user_`.
+`SEED_CLERK_USER_ID` is recommended when running the seed. `DEV_CLERK_USER_ID`
+is also accepted as a local alias. Find the value in the Clerk dashboard by
+opening your development Clerk application, going to Users, selecting your
+signed-in user, and copying the user ID that starts with `user_`.
 
-The seed creates an active demo clinic and an active internal `ADMIN` user linked
+If `SEED_CLERK_USER_ID` is omitted, the seed creates a clearly named placeholder
+internal Admin mapping. If `SEED_STAFF_CLERK_USER_ID` is omitted, the seed creates
+an `INVITED` placeholder Staff user. Placeholder users do not bypass Clerk auth:
+protected APIs still require a signed-in Clerk user whose Clerk ID matches an
+ACTIVE internal `User` row. Replace placeholder Clerk IDs with real development
+Clerk user IDs when you want those users to sign in.
+
+The seed creates an active demo clinic and links the Admin/Staff internal users
 to that clinic. Keep `VITE_DEFAULT_CLINIC_ID` in `apps/web/.env` equal to
 `SEED_DEMO_CLINIC_ID` when you want a demo fallback, or leave it unset and let
 the frontend use the authenticated user's active `clinicId` from `GET /api/auth/me`.
 
-Run the seed from `apps/server`. The seed loads `apps/server/.env`, validates
-`SEED_DEMO_CLINIC_ID` as a PostgreSQL UUID-shaped value, and prints the clinic id
-to copy into `apps/web/.env` if you use `VITE_DEFAULT_CLINIC_ID`.
+Run the seed from the repository root:
+
+```bash
+npm run seed:demo
+```
+
+Or from `apps/server`:
+
+```bash
+npm run seed:demo
+```
+
+The seed loads `apps/server/.env`, validates `SEED_DEMO_CLINIC_ID` as a
+PostgreSQL UUID-shaped value, and prints the clinic id to copy into
+`apps/web/.env` if you use `VITE_DEFAULT_CLINIC_ID`.
 
 The seeded user must have `status=ACTIVE` and `clinicId` set. The related clinic
 must exist and have `isActive=true`. If you need to inspect these values locally,
@@ -207,7 +233,7 @@ After schema is defined:
 ```bash
 npx prisma migrate dev
 npx prisma generate
-npx prisma db seed
+npm run seed:demo
 ```
 
 Useful commands:

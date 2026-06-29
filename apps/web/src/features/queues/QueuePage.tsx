@@ -221,6 +221,16 @@ const getPredictionReasonMessages = (reasons: unknown[]): string[] => {
     }, []);
 };
 
+const getSuggestedActions = (actions: unknown): string[] => {
+    if (!Array.isArray(actions)) {
+        return [];
+    }
+
+    return actions.filter((action): action is string => {
+        return typeof action === 'string' && action.trim().length > 0;
+    });
+};
+
 const getQueueStatusActions = (currentStatus: QueueStatusType): QueueStatusAction[] => {
     return queueStatusActionsByCurrentStatus[currentStatus];
 };
@@ -257,6 +267,7 @@ function RiskBadge({ queueEntry }: { queueEntry: QueueListItem }) {
     }
 
     const reasonMessages = getPredictionReasonMessages(prediction.reasons);
+    const suggestedActions = getSuggestedActions(prediction.suggestedActions);
 
     return (
         <div>
@@ -269,6 +280,11 @@ function RiskBadge({ queueEntry }: { queueEntry: QueueListItem }) {
             </span>
             {reasonMessages[0] ? (
                 <p className="mt-2 max-w-xs text-xs text-slate-500">{reasonMessages[0]}</p>
+            ) : null}
+            {suggestedActions[0] ? (
+                <p className="mt-2 max-w-xs text-xs font-medium text-slate-600">
+                    Suggestion: {suggestedActions[0]}
+                </p>
             ) : null}
         </div>
     );

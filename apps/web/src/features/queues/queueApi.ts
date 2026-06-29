@@ -14,6 +14,7 @@ export type QueueNoShowPrediction = {
     score?: number;
     riskScore?: number;
     reasons: unknown[];
+    suggestedActions?: string[];
     modelVersion?: string;
     generatedAt?: string;
     createdAt?: string;

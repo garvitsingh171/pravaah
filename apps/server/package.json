@@ -10,7 +10,11 @@
         "check": "tsc --noEmit",
         "lint": "echo \"server lint not configured yet\"",
         "test": "vitest run",
-        "seed": "prisma db seed"
+        "seed": "prisma db seed",
+        "seed:demo": "prisma db seed"
+    },
+    "prisma": {
+        "seed": "tsx prisma/seed.ts"
     },
     "dependencies": {
         "@clerk/express": "^2.1.31",
