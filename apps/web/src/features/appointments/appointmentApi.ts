@@ -47,6 +47,8 @@ export type AppointmentListItem = Omit<AppointmentSummary, 'reason'> & {
 
 export type AppointmentListFilters = {
     date?: string;
+    doctorId?: string;
+    patientId?: string;
     status?: AppointmentStatus;
 };
 
@@ -87,6 +89,8 @@ export const listAppointments = (
     return apiClient.get<AppointmentListResponseData>(getAppointmentCollectionPath(clinicId), {
         query: {
             date: filters.date,
+            doctorId: filters.doctorId,
+            patientId: filters.patientId,
             status: filters.status,
         },
         signal,

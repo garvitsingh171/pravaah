@@ -508,10 +508,14 @@ const getSuggestedActions = (prediction: AppointmentNoShowPrediction): string[] 
 
 const getAppointmentListFilters = (
     selectedDate: string,
+    selectedDoctorId: string,
+    selectedPatientId: string,
     selectedStatus: AppointmentStatus | ''
 ): AppointmentListFilters => {
     return {
         date: selectedDate || undefined,
+        doctorId: selectedDoctorId || undefined,
+        patientId: selectedPatientId || undefined,
         status: selectedStatus || undefined,
     };
 };
@@ -686,6 +690,8 @@ function AppointmentsPage() {
     const { clinicId } = useActiveClinic();
     const { showErrorToast, showSuccessToast } = useToast();
     const [selectedDate, setSelectedDate] = useState(getTodayDateInputValue);
+    const [selectedDoctorId, setSelectedDoctorId] = useState('');
+    const [selectedPatientId, setSelectedPatientId] = useState('');
     const [selectedStatus, setSelectedStatus] = useState<AppointmentStatus | ''>('');
     const [appointmentListState, setAppointmentListState] =
         useState<AppointmentListState>(emptyAppointmentListState);
@@ -711,19 +717,24 @@ function AppointmentsPage() {
 
     const loadAppointments = useCallback(
         async (signal?: AbortSignal) => {
-            const filters = getAppointmentListFilters(selectedDate, selectedStatus);
+            const filters = getAppointmentListFilters(
+                selectedDate,
+                selectedDoctorId,
+                selectedPatientId,
+                selectedStatus
+            );
             const data = await listAppointments(clinicId, filters, signal);
 
             return data.appointments;
         },
-        [clinicId, selectedDate, selectedStatus]
+        [clinicId, selectedDate, selectedDoctorId, selectedPatientId, selectedStatus]
     );
 
     const loadAppointmentReferences = useCallback(
         async (signal?: AbortSignal) => {
             const [doctorData, patientData] = await Promise.all([
                 listDoctors(clinicId, signal),
-                listPatients(clinicId, signal),
+                listPatients(clinicId, {}, signal),
             ]);
 
             return {
@@ -809,9 +820,27 @@ function AppointmentsPage() {
         setSelectedStatus(value);
     };
 
+    const handleDoctorFilterChange = (value: string) => {
+        prepareAppointmentFilterChange();
+        setSelectedDoctorId(value);
+    };
+
+    const handlePatientFilterChange = (value: string) => {
+        prepareAppointmentFilterChange();
+        setSelectedPatientId(value);
+    };
+
     const handleTodayFilterClick = () => {
         prepareAppointmentFilterChange();
         setSelectedDate(getTodayDateInputValue());
+    };
+
+    const handleClearAppointmentFilters = () => {
+        prepareAppointmentFilterChange();
+        setSelectedDate('');
+        setSelectedDoctorId('');
+        setSelectedPatientId('');
+        setSelectedStatus('');
     };
 
     useEffect(() => {
@@ -1014,6 +1043,9 @@ function AppointmentsPage() {
         referenceState.status === 'success' &&
         referenceState.doctors.length > 0 &&
         referenceState.patients.length > 0;
+    const hasAppointmentFilters = Boolean(
+        selectedDate || selectedDoctorId || selectedPatientId || selectedStatus
+    );
     const hasAppointments =
         appointmentListState.status === 'success' && appointmentListState.appointments.length > 0;
 
@@ -1028,8 +1060,8 @@ function AppointmentsPage() {
                     <h1 className="mt-3 text-3xl font-bold text-slate-900">Appointments</h1>
 
                     <p className="mt-4 max-w-2xl text-slate-600">
-                        View clinic appointments, filter by date and status, and update appointment
-                        status during daily operations.
+                        View clinic appointments, filter by date, doctor, patient, or status, and
+                        update appointment status during daily operations.
                     </p>
                 </div>
 
@@ -1042,7 +1074,7 @@ function AppointmentsPage() {
             </div>
 
             <div className="rounded-lg border border-slate-200 bg-white p-4 md:p-5">
-                <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto] lg:items-end">
                     <label className="block text-sm font-medium text-slate-700">
                         Appointment date
                         <input
@@ -1051,6 +1083,38 @@ function AppointmentsPage() {
                             value={selectedDate}
                             onChange={(event) => handleDateFilterChange(event.target.value)}
                         />
+                    </label>
+
+                    <label className="block text-sm font-medium text-slate-700">
+                        Doctor
+                        <select
+                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                            value={selectedDoctorId}
+                            onChange={(event) => handleDoctorFilterChange(event.target.value)}
+                        >
+                            <option value="">All doctors</option>
+                            {referenceState.doctors.map((doctor) => (
+                                <option key={doctor.id} value={doctor.id}>
+                                    {doctor.fullName}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+
+                    <label className="block text-sm font-medium text-slate-700">
+                        Patient
+                        <select
+                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                            value={selectedPatientId}
+                            onChange={(event) => handlePatientFilterChange(event.target.value)}
+                        >
+                            <option value="">All patients</option>
+                            {referenceState.patients.map((patient) => (
+                                <option key={patient.id} value={patient.id}>
+                                    {patient.fullName}
+                                </option>
+                            ))}
+                        </select>
                     </label>
 
                     <label className="block text-sm font-medium text-slate-700">
@@ -1080,6 +1144,16 @@ function AppointmentsPage() {
                     >
                         Today
                     </button>
+
+                    {hasAppointmentFilters ? (
+                        <button
+                            type="button"
+                            className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                            onClick={handleClearAppointmentFilters}
+                        >
+                            Clear
+                        </button>
+                    ) : null}
                 </div>
             </div>
 
@@ -1123,8 +1197,8 @@ function AppointmentsPage() {
             {appointmentListState.status === 'success' &&
             appointmentListState.appointments.length === 0 ? (
                 <EmptyState
-                    title="No appointments scheduled for this date."
-                    message="No appointments match the selected date and status filters."
+                    title="No appointments match these filters."
+                    message="Try a different date, doctor, patient, or status to find matching appointments."
                 />
             ) : null}
 
@@ -1153,8 +1227,8 @@ function AppointmentsPage() {
 
                                     return (
                                         <Fragment key={appointment.id}>
-                                            <tr className="align-top">
-                                                <td className="px-4 py-4 text-slate-700">
+                                            <tr className="align-top transition hover:bg-slate-50/70">
+                                                <td className="min-w-44 px-4 py-5 text-slate-700">
                                                     <p className="font-semibold text-slate-900">
                                                         {formatAppointmentDateTime(
                                                             appointment.scheduledAt
@@ -1166,15 +1240,20 @@ function AppointmentsPage() {
                                                         )}
                                                     </p>
                                                 </td>
-                                                <td className="px-4 py-4">
+                                                <td className="min-w-44 px-4 py-5">
                                                     <p className="font-semibold text-slate-900">
                                                         {appointment.patient.fullName}
                                                     </p>
                                                     <p className="mt-1 text-slate-600">
                                                         {getOptionalText(appointment.patient.phone)}
                                                     </p>
+                                                    {appointment.patient.email ? (
+                                                        <p className="mt-1 text-xs text-slate-500">
+                                                            {appointment.patient.email}
+                                                        </p>
+                                                    ) : null}
                                                 </td>
-                                                <td className="px-4 py-4">
+                                                <td className="min-w-44 px-4 py-5">
                                                     <p className="font-semibold text-slate-900">
                                                         {appointment.doctor.fullName}
                                                     </p>
@@ -1184,7 +1263,7 @@ function AppointmentsPage() {
                                                         )}
                                                     </p>
                                                 </td>
-                                                <td className="px-4 py-4">
+                                                <td className="min-w-32 px-4 py-5">
                                                     <StatusBadge status={appointment.status} />
                                                     {appointment.queueEntry ? (
                                                         <p className="mt-2 text-xs text-slate-500">
@@ -1192,15 +1271,17 @@ function AppointmentsPage() {
                                                         </p>
                                                     ) : null}
                                                 </td>
-                                                <td className="px-4 py-4 text-slate-700">
-                                                    <p>{getOptionalText(appointment.reason)}</p>
+                                                <td className="min-w-56 px-4 py-5 text-slate-700">
+                                                    <p className="font-medium text-slate-900">
+                                                        {getOptionalText(appointment.reason)}
+                                                    </p>
                                                     {appointment.notes ? (
-                                                        <p className="mt-2 max-w-xs text-xs text-slate-500">
+                                                        <p className="mt-2 max-w-xs text-xs leading-5 text-slate-500">
                                                             {appointment.notes}
                                                         </p>
                                                     ) : null}
                                                 </td>
-                                                <td className="px-4 py-4">
+                                                <td className="min-w-48 px-4 py-5">
                                                     <RiskBadge
                                                         appointment={appointment}
                                                         isExpanded={isRiskExpanded}
@@ -1213,7 +1294,7 @@ function AppointmentsPage() {
                                                         }
                                                     />
                                                 </td>
-                                                <td className="px-4 py-4">
+                                                <td className="min-w-44 px-4 py-5">
                                                     {statusActions.length > 0 ? (
                                                         <select
                                                             className="w-40 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
