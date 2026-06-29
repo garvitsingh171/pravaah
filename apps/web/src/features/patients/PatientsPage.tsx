@@ -4,7 +4,7 @@ import { useActiveClinic } from '../../app/activeClinicContext';
 import { EmptyState, ErrorMessage, LoadingState, useToast } from '../../components/feedback';
 import { isApiClientError } from '../../lib';
 import type { Gender, PatientSummary } from '../../types';
-import { listPatients } from './patientApi';
+import { listPatients, type PatientListFilters } from './patientApi';
 
 type PatientsLocationState = {
     statusMessage?: string;
@@ -99,19 +99,32 @@ const getVisitSummary = (patient: PatientSummary): string => {
     return `${totalAppointments} appointments, ${totalNoShows} no-shows, ${totalLateArrivals} late`;
 };
 
+const getPatientListFilters = (searchTerm: string): PatientListFilters => {
+    const search = searchTerm.trim();
+
+    return {
+        search: search || undefined,
+    };
+};
+
 function PatientsPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const { clinicId } = useActiveClinic();
     const { showSuccessToast } = useToast();
     const locationState = location.state as PatientsLocationState | null;
+    const [searchTerm, setSearchTerm] = useState('');
     const [patientListState, setPatientListState] =
         useState<PatientListState>(emptyPatientListState);
 
     const loadPatients = useCallback(
         async (signal?: AbortSignal) => {
             try {
-                const data = await listPatients(clinicId, signal);
+                const data = await listPatients(
+                    clinicId,
+                    getPatientListFilters(searchTerm),
+                    signal
+                );
 
                 setPatientListState({
                     status: 'success',
@@ -149,7 +162,7 @@ function PatientsPage() {
                 });
             }
         },
-        [clinicId]
+        [clinicId, searchTerm]
     );
 
     const handleRetry = () => {
@@ -162,10 +175,19 @@ function PatientsPage() {
         void loadPatients();
     };
 
+    const handleSearchChange = (value: string) => {
+        setPatientListState((currentState) => ({
+            status: 'loading',
+            patients: currentState.patients,
+            error: null,
+        }));
+        setSearchTerm(value);
+    };
+
     useEffect(() => {
         const abortController = new AbortController();
 
-        listPatients(clinicId, abortController.signal)
+        listPatients(clinicId, getPatientListFilters(searchTerm), abortController.signal)
             .then((data) => {
                 setPatientListState({
                     status: 'success',
@@ -207,7 +229,7 @@ function PatientsPage() {
         return () => {
             abortController.abort();
         };
-    }, [clinicId]);
+    }, [clinicId, searchTerm]);
 
     useEffect(() => {
         if (locationState?.statusMessage) {
@@ -218,6 +240,7 @@ function PatientsPage() {
 
     const hasPatients =
         patientListState.status === 'success' && patientListState.patients.length > 0;
+    const hasSearch = searchTerm.trim().length > 0;
 
     return (
         <section className="space-y-6">
@@ -243,6 +266,31 @@ function PatientsPage() {
                 </Link>
             </div>
 
+            <div className="rounded-lg border border-slate-200 bg-white p-4 md:p-5">
+                <div className="flex flex-col gap-3 md:flex-row md:items-end">
+                    <label className="block flex-1 text-sm font-medium text-slate-700">
+                        Search patients
+                        <input
+                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                            value={searchTerm}
+                            onChange={(event) => handleSearchChange(event.target.value)}
+                            placeholder="Name, phone, or email"
+                            type="search"
+                        />
+                    </label>
+
+                    {hasSearch ? (
+                        <button
+                            type="button"
+                            className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                            onClick={() => handleSearchChange('')}
+                        >
+                            Clear
+                        </button>
+                    ) : null}
+                </div>
+            </div>
+
             {patientListState.status === 'loading' ? (
                 <LoadingState message="Loading patients..." />
             ) : null}
@@ -258,15 +306,25 @@ function PatientsPage() {
 
             {patientListState.status === 'success' && patientListState.patients.length === 0 ? (
                 <EmptyState
-                    title="No patients found for this clinic."
-                    message="Add the first patient record so staff can book appointments and keep the daily flow moving."
+                    title={
+                        hasSearch
+                            ? 'No patients match this search.'
+                            : 'No patients found for this clinic.'
+                    }
+                    message={
+                        hasSearch
+                            ? 'Try searching by another name, phone number, or email.'
+                            : 'Add the first patient record so staff can book appointments and keep the daily flow moving.'
+                    }
                     action={
-                        <Link
-                            to="/patients/new"
-                            className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-                        >
-                            Add patient
-                        </Link>
+                        hasSearch ? undefined : (
+                            <Link
+                                to="/patients/new"
+                                className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+                            >
+                                Add patient
+                            </Link>
+                        )
                     }
                 />
             ) : null}
@@ -286,8 +344,11 @@ function PatientsPage() {
                             </thead>
                             <tbody className="divide-y divide-slate-200">
                                 {patientListState.patients.map((patient) => (
-                                    <tr key={patient.id} className="align-top">
-                                        <td className="px-4 py-4">
+                                    <tr
+                                        key={patient.id}
+                                        className="align-top transition hover:bg-slate-50/70"
+                                    >
+                                        <td className="min-w-48 px-4 py-5">
                                             <p className="font-semibold text-slate-900">
                                                 {patient.fullName}
                                             </p>
@@ -295,20 +356,26 @@ function PatientsPage() {
                                                 {getGenderLabel(patient.gender)}
                                             </p>
                                         </td>
-                                        <td className="px-4 py-4 text-slate-700">
-                                            <p>{patient.phone}</p>
+                                        <td className="min-w-56 px-4 py-5 text-slate-700">
+                                            <p className="font-medium text-slate-900">
+                                                {patient.phone}
+                                            </p>
                                             <p className="mt-1 text-slate-500">
                                                 {getOptionalText(patient.email)}
                                             </p>
                                         </td>
-                                        <td className="px-4 py-4 text-slate-700">
-                                            <p>{getAgeOrDateOfBirthLabel(patient)}</p>
+                                        <td className="min-w-40 px-4 py-5 text-slate-700">
+                                            <p className="font-medium text-slate-900">
+                                                {getAgeOrDateOfBirthLabel(patient)}
+                                            </p>
                                             <p className="mt-1 text-slate-500">
                                                 {getOptionalText(patient.city)}
                                             </p>
                                         </td>
-                                        <td className="px-4 py-4 text-slate-700">
-                                            <p>{getVisitSummary(patient)}</p>
+                                        <td className="min-w-56 px-4 py-5 text-slate-700">
+                                            <p className="font-medium text-slate-900">
+                                                {getVisitSummary(patient)}
+                                            </p>
                                             <p className="mt-1 text-slate-500">
                                                 Last visit:{' '}
                                                 {patient.lastVisitAt
@@ -316,7 +383,7 @@ function PatientsPage() {
                                                     : 'Not added'}
                                             </p>
                                         </td>
-                                        <td className="px-4 py-4">
+                                        <td className="min-w-28 px-4 py-5">
                                             <span
                                                 className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${getPatientStatusClassName(
                                                     patient

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useActiveClinic } from '../../app/activeClinicContext';
 import { EmptyState, ErrorMessage, LoadingState, useToast } from '../../components/feedback';
@@ -80,12 +80,25 @@ const getDoctorListErrorState = (error: unknown): DoctorListState | null => {
     };
 };
 
+const doctorMatchesSearch = (doctor: DoctorSummary, searchTerm: string): boolean => {
+    const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+
+    if (!normalizedSearchTerm) {
+        return true;
+    }
+
+    return [doctor.fullName, doctor.specialization, doctor.phone, doctor.email].some((value) =>
+        value?.toLowerCase().includes(normalizedSearchTerm)
+    );
+};
+
 function DoctorsPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const { clinicId } = useActiveClinic();
     const { showSuccessToast } = useToast();
     const locationState = location.state as DoctorsLocationState | null;
+    const [searchTerm, setSearchTerm] = useState('');
     const [doctorListState, setDoctorListState] = useState<DoctorListState>(emptyDoctorListState);
 
     const loadDoctors = useCallback(
@@ -148,7 +161,15 @@ function DoctorsPage() {
         }
     }, [location.pathname, locationState?.statusMessage, navigate, showSuccessToast]);
 
-    const hasDoctors = doctorListState.status === 'success' && doctorListState.doctors.length > 0;
+    const displayedDoctors = useMemo(() => {
+        if (doctorListState.status !== 'success') {
+            return [];
+        }
+
+        return doctorListState.doctors.filter((doctor) => doctorMatchesSearch(doctor, searchTerm));
+    }, [doctorListState, searchTerm]);
+    const hasSearch = searchTerm.trim().length > 0;
+    const hasDoctors = doctorListState.status === 'success' && displayedDoctors.length > 0;
 
     return (
         <section className="space-y-6">
@@ -172,6 +193,31 @@ function DoctorsPage() {
                 >
                     Add doctor
                 </Link>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-white p-4 md:p-5">
+                <div className="flex flex-col gap-3 md:flex-row md:items-end">
+                    <label className="block flex-1 text-sm font-medium text-slate-700">
+                        Search doctors
+                        <input
+                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                            value={searchTerm}
+                            onChange={(event) => setSearchTerm(event.target.value)}
+                            placeholder="Name, specialization, phone, or email"
+                            type="search"
+                        />
+                    </label>
+
+                    {hasSearch ? (
+                        <button
+                            type="button"
+                            className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                            onClick={() => setSearchTerm('')}
+                        >
+                            Clear
+                        </button>
+                    ) : null}
+                </div>
             </div>
 
             {doctorListState.status === 'loading' ? (
@@ -202,6 +248,15 @@ function DoctorsPage() {
                 />
             ) : null}
 
+            {doctorListState.status === 'success' &&
+            doctorListState.doctors.length > 0 &&
+            displayedDoctors.length === 0 ? (
+                <EmptyState
+                    title="No doctors match this search."
+                    message="Try searching by another doctor name, specialization, phone number, or email."
+                />
+            ) : null}
+
             {hasDoctors ? (
                 <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
                     <div className="overflow-x-auto">
@@ -216,9 +271,12 @@ function DoctorsPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-200">
-                                {doctorListState.doctors.map((doctor) => (
-                                    <tr key={doctor.id} className="align-top">
-                                        <td className="px-4 py-4">
+                                {displayedDoctors.map((doctor) => (
+                                    <tr
+                                        key={doctor.id}
+                                        className="align-top transition hover:bg-slate-50/70"
+                                    >
+                                        <td className="min-w-52 px-4 py-5">
                                             <p className="font-semibold text-slate-900">
                                                 {doctor.fullName}
                                             </p>
@@ -226,22 +284,28 @@ function DoctorsPage() {
                                                 {getOptionalText(doctor.specialization)}
                                             </p>
                                         </td>
-                                        <td className="px-4 py-4 text-slate-700">
-                                            <p>{getOptionalText(doctor.qualification)}</p>
+                                        <td className="min-w-52 px-4 py-5 text-slate-700">
+                                            <p className="font-medium text-slate-900">
+                                                {getOptionalText(doctor.qualification)}
+                                            </p>
                                             <p className="mt-1 text-xs text-slate-500">
                                                 Reg. {getOptionalText(doctor.registrationNumber)}
                                             </p>
                                         </td>
-                                        <td className="px-4 py-4 text-slate-700">
-                                            <p>{getOptionalText(doctor.phone)}</p>
+                                        <td className="min-w-56 px-4 py-5 text-slate-700">
+                                            <p className="font-medium text-slate-900">
+                                                {getOptionalText(doctor.phone)}
+                                            </p>
                                             <p className="mt-1 text-slate-500">
                                                 {getOptionalText(doctor.email)}
                                             </p>
                                         </td>
-                                        <td className="px-4 py-4 text-slate-700">
-                                            {doctor.experienceYears ?? 'Not added'}
+                                        <td className="min-w-32 px-4 py-5 text-slate-700">
+                                            <span className="font-medium text-slate-900">
+                                                {doctor.experienceYears ?? 'Not added'}
+                                            </span>
                                         </td>
-                                        <td className="px-4 py-4">
+                                        <td className="min-w-28 px-4 py-5">
                                             <span
                                                 className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${getDoctorStatusClassName(
                                                     doctor

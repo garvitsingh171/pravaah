@@ -35,6 +35,17 @@ const getFieldClassName = (hasError: boolean): string => {
     } disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500`;
 };
 
+const getFieldErrorId = (field: keyof AppointmentBookingFormValues): string => {
+    return `appointment-booking-${field}-error`;
+};
+
+const getFieldErrorDescriptionId = (
+    field: keyof AppointmentBookingFormValues,
+    fieldErrors: AppointmentBookingFormFieldErrors
+): string | undefined => {
+    return fieldErrors[field] ? getFieldErrorId(field) : undefined;
+};
+
 const getOptionalText = (value: string | null | undefined): string | null => {
     const trimmedValue = value?.trim();
 
@@ -85,6 +96,8 @@ function AppointmentBookingForm({
                         onChange={(event) => onChange('doctorId', event.target.value)}
                         disabled={controlsDisabled}
                         aria-invalid={Boolean(fieldErrors.doctorId)}
+                        aria-describedby={getFieldErrorDescriptionId('doctorId', fieldErrors)}
+                        required
                     >
                         <option value="">Select doctor</option>
                         {doctors.map((doctor) => (
@@ -93,7 +106,7 @@ function AppointmentBookingForm({
                             </option>
                         ))}
                     </select>
-                    <FieldError message={fieldErrors.doctorId} />
+                    <FieldError id={getFieldErrorId('doctorId')} message={fieldErrors.doctorId} />
                 </label>
 
                 <label className="block text-sm font-medium text-slate-700">
@@ -104,6 +117,8 @@ function AppointmentBookingForm({
                         onChange={(event) => onChange('patientId', event.target.value)}
                         disabled={controlsDisabled}
                         aria-invalid={Boolean(fieldErrors.patientId)}
+                        aria-describedby={getFieldErrorDescriptionId('patientId', fieldErrors)}
+                        required
                     >
                         <option value="">Select patient</option>
                         {patients.map((patient) => (
@@ -112,7 +127,7 @@ function AppointmentBookingForm({
                             </option>
                         ))}
                     </select>
-                    <FieldError message={fieldErrors.patientId} />
+                    <FieldError id={getFieldErrorId('patientId')} message={fieldErrors.patientId} />
                 </label>
 
                 <label className="block text-sm font-medium text-slate-700">
@@ -124,8 +139,13 @@ function AppointmentBookingForm({
                         onChange={(event) => onChange('scheduledAt', event.target.value)}
                         disabled={controlsDisabled}
                         aria-invalid={Boolean(fieldErrors.scheduledAt)}
+                        aria-describedby={getFieldErrorDescriptionId('scheduledAt', fieldErrors)}
+                        required
                     />
-                    <FieldError message={fieldErrors.scheduledAt} />
+                    <FieldError
+                        id={getFieldErrorId('scheduledAt')}
+                        message={fieldErrors.scheduledAt}
+                    />
                 </label>
 
                 <label className="block text-sm font-medium text-slate-700">
@@ -135,10 +155,21 @@ function AppointmentBookingForm({
                         value={values.durationMinutes}
                         onChange={(event) => onChange('durationMinutes', event.target.value)}
                         disabled={controlsDisabled}
+                        type="number"
+                        min="1"
+                        step="1"
                         inputMode="numeric"
                         aria-invalid={Boolean(fieldErrors.durationMinutes)}
+                        aria-describedby={getFieldErrorDescriptionId(
+                            'durationMinutes',
+                            fieldErrors
+                        )}
+                        required
                     />
-                    <FieldError message={fieldErrors.durationMinutes} />
+                    <FieldError
+                        id={getFieldErrorId('durationMinutes')}
+                        message={fieldErrors.durationMinutes}
+                    />
                 </label>
 
                 <label className="block text-sm font-medium text-slate-700 md:col-span-2">

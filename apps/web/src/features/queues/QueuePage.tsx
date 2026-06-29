@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useActiveClinic } from '../../app/activeClinicContext';
 import { EmptyState, ErrorMessage, LoadingState, useToast } from '../../components/feedback';
 import { isApiClientError } from '../../lib';
@@ -225,6 +225,18 @@ const getQueueStatusActions = (currentStatus: QueueStatusType): QueueStatusActio
     return queueStatusActionsByCurrentStatus[currentStatus];
 };
 
+const getUniqueQueueDoctors = (queueEntries: QueueListItem[]) => {
+    const doctorsById = new Map<string, QueueListItem['doctor']>();
+
+    queueEntries.forEach((queueEntry) => {
+        doctorsById.set(queueEntry.doctor.id, queueEntry.doctor);
+    });
+
+    return [...doctorsById.values()].sort((firstDoctor, secondDoctor) =>
+        firstDoctor.fullName.localeCompare(secondDoctor.fullName)
+    );
+};
+
 function QueueStatusBadge({ status }: { status: QueueStatusType }) {
     return (
         <span
@@ -281,6 +293,8 @@ function QueuePage() {
     const { clinicId } = useActiveClinic();
     const { showErrorToast, showSuccessToast } = useToast();
     const todayDate = getTodayDateInputValue();
+    const [selectedDoctorId, setSelectedDoctorId] = useState('');
+    const [selectedStatus, setSelectedStatus] = useState<QueueStatusType | ''>('');
     const [queueListState, setQueueListState] = useState<QueueListState>(emptyQueueListState);
     const [updatingQueueEntryId, setUpdatingQueueEntryId] = useState<string | null>(null);
     const [statusUpdateError, setStatusUpdateError] = useState<{
@@ -399,6 +413,25 @@ function QueuePage() {
 
     const hasQueueEntries =
         queueListState.status === 'success' && queueListState.queueEntries.length > 0;
+    const queueDoctors = useMemo(
+        () => getUniqueQueueDoctors(queueListState.queueEntries),
+        [queueListState.queueEntries]
+    );
+    const displayedQueueEntries = useMemo(() => {
+        if (queueListState.status !== 'success') {
+            return [];
+        }
+
+        return queueListState.queueEntries.filter((queueEntry) => {
+            const doctorMatches = !selectedDoctorId || queueEntry.doctor.id === selectedDoctorId;
+            const statusMatches = !selectedStatus || queueEntry.status === selectedStatus;
+
+            return doctorMatches && statusMatches;
+        });
+    }, [queueListState, selectedDoctorId, selectedStatus]);
+    const hasFilteredQueueEntries =
+        queueListState.status === 'success' && displayedQueueEntries.length > 0;
+    const hasQueueFilters = Boolean(selectedDoctorId || selectedStatus);
 
     return (
         <section className="space-y-6">
@@ -427,7 +460,7 @@ function QueuePage() {
             </div>
 
             <div className="rounded-lg border border-slate-200 bg-white p-4 md:p-5">
-                <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-4">
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                             Queue date
@@ -448,12 +481,71 @@ function QueuePage() {
                     </div>
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Matching entries
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-slate-900">
+                            {displayedQueueEntries.length}
+                        </p>
+                    </div>
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                             Manual control
                         </p>
                         <p className="mt-1 text-sm font-semibold text-slate-900">
                             Staff updates only
                         </p>
                     </div>
+                </div>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-white p-4 md:p-5">
+                <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
+                    <label className="block text-sm font-medium text-slate-700">
+                        Doctor
+                        <select
+                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                            value={selectedDoctorId}
+                            onChange={(event) => setSelectedDoctorId(event.target.value)}
+                        >
+                            <option value="">All doctors</option>
+                            {queueDoctors.map((doctor) => (
+                                <option key={doctor.id} value={doctor.id}>
+                                    {doctor.fullName}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+
+                    <label className="block text-sm font-medium text-slate-700">
+                        Queue status
+                        <select
+                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                            value={selectedStatus}
+                            onChange={(event) =>
+                                setSelectedStatus(event.target.value as QueueStatusType | '')
+                            }
+                        >
+                            <option value="">All statuses</option>
+                            {queueStatusOptions.map((statusOption) => (
+                                <option key={statusOption.value} value={statusOption.value}>
+                                    {statusOption.label}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+
+                    {hasQueueFilters ? (
+                        <button
+                            type="button"
+                            className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                            onClick={() => {
+                                setSelectedDoctorId('');
+                                setSelectedStatus('');
+                            }}
+                        >
+                            Clear
+                        </button>
+                    ) : null}
                 </div>
             </div>
 
@@ -501,7 +593,14 @@ function QueuePage() {
                 />
             ) : null}
 
-            {hasQueueEntries ? (
+            {hasQueueEntries && displayedQueueEntries.length === 0 ? (
+                <EmptyState
+                    title="No queue entries match these filters."
+                    message="Try another doctor or queue status to find matching entries."
+                />
+            ) : null}
+
+            {hasFilteredQueueEntries ? (
                 <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
@@ -518,7 +617,7 @@ function QueuePage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-200">
-                                {queueListState.queueEntries.map((queueEntry) => {
+                                {displayedQueueEntries.map((queueEntry) => {
                                     const statusActions = getQueueStatusActions(queueEntry.status);
                                     const isUpdating = updatingQueueEntryId === queueEntry.id;
                                     const isWaiting = queueEntry.status === QueueStatus.WAITING;
@@ -526,11 +625,11 @@ function QueuePage() {
                                     return (
                                         <tr
                                             key={queueEntry.id}
-                                            className={`align-top ${
+                                            className={`align-top transition hover:bg-slate-50/70 ${
                                                 isWaiting ? 'bg-amber-50/40' : ''
                                             }`}
                                         >
-                                            <td className="px-4 py-4">
+                                            <td className="min-w-28 px-4 py-5">
                                                 <p className="inline-flex min-w-14 justify-center rounded-md bg-slate-900 px-3 py-2 text-sm font-bold text-white">
                                                     #{queueEntry.position}
                                                 </p>
@@ -538,7 +637,7 @@ function QueuePage() {
                                                     Position {queueEntry.position}
                                                 </p>
                                             </td>
-                                            <td className="px-4 py-4">
+                                            <td className="min-w-48 px-4 py-5">
                                                 <p className="font-semibold text-slate-900">
                                                     {queueEntry.patient.fullName}
                                                 </p>
@@ -551,7 +650,7 @@ function QueuePage() {
                                                     </p>
                                                 ) : null}
                                             </td>
-                                            <td className="px-4 py-4">
+                                            <td className="min-w-44 px-4 py-5">
                                                 <p className="font-semibold text-slate-900">
                                                     {queueEntry.doctor.fullName}
                                                 </p>
@@ -561,7 +660,7 @@ function QueuePage() {
                                                     )}
                                                 </p>
                                             </td>
-                                            <td className="px-4 py-4 text-slate-700">
+                                            <td className="min-w-56 px-4 py-5 text-slate-700">
                                                 <p className="font-semibold text-slate-900">
                                                     {formatDateTime(
                                                         queueEntry.appointment.scheduledAt
@@ -576,7 +675,7 @@ function QueuePage() {
                                                     </p>
                                                 ) : null}
                                             </td>
-                                            <td className="px-4 py-4">
+                                            <td className="min-w-32 px-4 py-5">
                                                 <QueueStatusBadge status={queueEntry.status} />
                                                 {isWaiting ? (
                                                     <p className="mt-2 text-xs font-semibold text-amber-700">
@@ -584,13 +683,13 @@ function QueuePage() {
                                                     </p>
                                                 ) : null}
                                             </td>
-                                            <td className="px-4 py-4">
+                                            <td className="min-w-32 px-4 py-5">
                                                 <QueueTimeline queueEntry={queueEntry} />
                                             </td>
-                                            <td className="px-4 py-4">
+                                            <td className="min-w-48 px-4 py-5">
                                                 <RiskBadge queueEntry={queueEntry} />
                                             </td>
-                                            <td className="px-4 py-4">
+                                            <td className="min-w-44 px-4 py-5">
                                                 {statusActions.length > 0 ? (
                                                     <select
                                                         className="w-40 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"

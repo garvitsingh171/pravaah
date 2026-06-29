@@ -44,6 +44,10 @@ export type PatientListResponseData = {
     patients: PatientSummary[];
 };
 
+export type PatientListFilters = {
+    search?: string;
+};
+
 const getPatientCollectionPath = (clinicId: string): string => {
     return `/clinics/${encodeURIComponent(clinicId)}/patients`;
 };
@@ -64,11 +68,15 @@ const toPatientSummary = (patientLink: PatientClinicListItem): PatientSummary =>
 
 export const listPatients = async (
     clinicId: string,
+    filters: PatientListFilters = {},
     signal?: AbortSignal
 ): Promise<PatientListResponseData> => {
     const data = await apiClient.get<PatientListApiResponseData>(
         getPatientCollectionPath(clinicId),
         {
+            query: {
+                search: filters.search,
+            },
             signal,
         }
     );

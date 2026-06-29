@@ -144,6 +144,12 @@ export const patientRepository = {
                         contains: query.search,
                     },
                 },
+                {
+                    email: {
+                        contains: query.search,
+                        mode: 'insensitive',
+                    },
+                },
             ];
         }
 
