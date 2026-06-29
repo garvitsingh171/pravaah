@@ -17,7 +17,8 @@
         "build:server": "npm run build -w apps/server",
         "lint": "npm run lint --workspaces",
         "format": "prettier --write .",
-        "check": "npm run build && npm run lint"
+        "check": "npm run build && npm run lint",
+        "seed:demo": "npm run seed:demo -w apps/server"
     },
     "repository": {
         "type": "git",

@@ -115,7 +115,14 @@ describe('queueService.listQueueByClinicDate', () => {
             'Asia/Kolkata'
         );
         expect(result).toHaveLength(1);
-        expect(result[0]?.noShowPrediction).toEqual(noShowPrediction);
+        expect(result[0]?.noShowPrediction).toEqual({
+            ...noShowPrediction,
+            suggestedActions: expect.arrayContaining([
+                'Review this appointment during front-desk preparation.',
+            ]),
+            modelVersion: 'starter-rule-v1',
+            generatedAt: noShowPrediction.createdAt,
+        });
         expect(result[0]?.appointment).not.toHaveProperty('noShowPrediction');
         expect(result[0]?.noShowPrediction).toHaveProperty('score', 60);
         expect(result[0]?.noShowPrediction).not.toHaveProperty('appointmentId');

@@ -40,7 +40,13 @@ async function validateAppointmentClinicOwnership(
     clinicId: string,
     doctorId: string,
     patientId: string
-): Promise<string> {
+): Promise<{
+    clinicTimezone: string;
+    patientClinicHistory: {
+        totalLateArrivals: number;
+        distanceFromClinicKm: unknown;
+    };
+}> {
     const clinic = await appointmentRepository.findClinicById(clinicId);
 
     if (!clinic) {
@@ -89,7 +95,13 @@ async function validateAppointmentClinicOwnership(
         );
     }
 
-    return clinic.timezone;
+    return {
+        clinicTimezone: clinic.timezone,
+        patientClinicHistory: {
+            totalLateArrivals: patientClinicLink.totalLateArrivals,
+            distanceFromClinicKm: patientClinicLink.distanceFromClinicKm,
+        },
+    };
 }
 
 export const appointmentService = {
@@ -98,14 +110,13 @@ export const appointmentService = {
         createdByUserId: string,
         input: CreateAppointmentInput
     ) {
-        const clinicTimezone = await validateAppointmentClinicOwnership(
+        const { clinicTimezone, patientClinicHistory } = await validateAppointmentClinicOwnership(
             clinicId,
             input.doctorId,
             input.patientId
         );
 
         const scheduledAt = new Date(input.scheduledAt);
-
         const [patientNoShowCount, patientCompletedAppointmentCount] = await Promise.all([
             appointmentRepository.countPatientAppointmentsByStatus(clinicId, input.patientId, [
                 AppointmentStatus.NO_SHOW,
@@ -114,6 +125,11 @@ export const appointmentService = {
                 AppointmentStatus.COMPLETED,
             ]),
         ]);
+        const distanceFromClinicKm =
+            patientClinicHistory.distanceFromClinicKm === null ||
+            patientClinicHistory.distanceFromClinicKm === undefined
+                ? null
+                : Number(patientClinicHistory.distanceFromClinicKm);
 
         try {
             return await appointmentRepository.runInTransaction(async (tx) => {
@@ -158,7 +174,9 @@ export const appointmentService = {
                     scheduledAt: appointment.scheduledAt,
                     bookedAt: appointment.createdAt,
                     patientNoShowCount,
+                    patientLateArrivalCount: patientClinicHistory.totalLateArrivals,
                     patientCompletedAppointmentCount,
+                    distanceFromClinicKm,
                 });
 
                 const queueEntry = await queueRepository.createQueueEntry(

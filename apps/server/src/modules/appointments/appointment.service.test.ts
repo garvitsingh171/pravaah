@@ -168,6 +168,10 @@ describe('appointmentService.createAppointment', () => {
             clinicId,
             patientId: input.patientId,
             isActive: true,
+            totalAppointments: 0,
+            totalNoShows: 0,
+            totalLateArrivals: 0,
+            distanceFromClinicKm: null,
         });
 
         mockAppointmentRepository.countPatientAppointmentsByStatus
@@ -204,7 +208,9 @@ describe('appointmentService.createAppointment', () => {
             scheduledAt: appointmentScheduledAt,
             bookedAt: appointmentCreatedAt,
             patientNoShowCount: 0,
+            patientLateArrivalCount: 0,
             patientCompletedAppointmentCount: 0,
+            distanceFromClinicKm: null,
         });
 
         expect(mockAppointmentRepository.acquireAppointmentSlotLock).toHaveBeenCalledWith(
@@ -251,7 +257,7 @@ describe('appointmentService.createAppointment', () => {
         });
     });
 
-    it('uses maintained appointment history while generating no-show prediction', async () => {
+    it('uses live appointment history while generating no-show prediction', async () => {
         const clinicId = 'clinic-id';
         const createdByUserId = 'user-id';
 
@@ -330,6 +336,10 @@ describe('appointmentService.createAppointment', () => {
             clinicId,
             patientId: input.patientId,
             isActive: true,
+            totalAppointments: 0,
+            totalNoShows: 0,
+            totalLateArrivals: 1,
+            distanceFromClinicKm: 11.5,
         });
 
         mockAppointmentRepository.countPatientAppointmentsByStatus
@@ -366,7 +376,9 @@ describe('appointmentService.createAppointment', () => {
             scheduledAt: appointmentScheduledAt,
             bookedAt: appointmentCreatedAt,
             patientNoShowCount: 2,
+            patientLateArrivalCount: 1,
             patientCompletedAppointmentCount: 3,
+            distanceFromClinicKm: 11.5,
         });
 
         expect(mockAppointmentRepository.createNoShowPrediction).toHaveBeenCalledWith(
@@ -422,6 +434,10 @@ describe('appointmentService.createAppointment', () => {
             clinicId,
             patientId: input.patientId,
             isActive: true,
+            totalAppointments: 0,
+            totalNoShows: 0,
+            totalLateArrivals: 0,
+            distanceFromClinicKm: null,
         });
 
         mockAppointmentRepository.countPatientAppointmentsByStatus
