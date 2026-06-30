@@ -1,704 +1,376 @@
-<!--
-Pravaah documentation package
-Generated for Project Pravaah on June 1, 2026.
-Locked stack: React + TypeScript, Express + TypeScript, Clerk, Neon PostgreSQL, Prisma.
--->
+# Database Design
 
-# Pravaah Database Design
+## Source Of Truth
 
-## 1. Purpose
-
-This document explains the database strategy for Pravaah.
-
-It should guide:
-
-- Prisma schema design
-- PostgreSQL table modeling
-- migrations
-- indexing
-- relationships
-- future database evolution
-- interview explanation of database decisions
-
-The database model is important because Pravaah is not a static website. It is a workflow product. Bad relationships can make the future codebase painful.
-
-## 2. Final database stack
-
-| Part                   | Choice                             |
-| ---------------------- | ---------------------------------- |
-| Database               | PostgreSQL                         |
-| Hosting                | Neon PostgreSQL                    |
-| ORM                    | Prisma                             |
-| Migration strategy     | Prisma migrations                  |
-| Schema source of truth | `apps/server/prisma/schema.prisma` |
-
-Supabase is not part of the MVP database stack.
-
-## 3. Why PostgreSQL fits Pravaah
-
-Pravaah manages structured relationships:
-
-- clinics have users
-- clinics have doctors through clinic membership
-- clinics have patients through clinic membership
-- doctors and patients participate in appointments
-- appointments produce queue entries
-- appointments can have no-show predictions
-
-These are relational problems.
-
-PostgreSQL fits because it supports:
-
-- joins
-- foreign keys
-- unique constraints
-- transactions
-- indexing
-- reliable schema evolution
-- reporting and analytics later
-
-## 4. Final MVP entities
-
-The MVP database model uses these entities:
-
-1. User
-2. Clinic
-3. Doctor
-4. DoctorClinic
-5. Patient
-6. PatientClinic
-7. Appointment
-8. QueueEntry
-9. NoShowPrediction
-
-## 5. Important modeling decision
-
-### 5.1 Do not directly lock Doctor to one Clinic
-
-Avoid this as the final direction:
+The current schema source of truth is:
 
 ```txt
-Doctor
-- id
-- clinicId
+apps/server/prisma/schema.prisma
 ```
 
-This makes a doctor belong to only one clinic.
+Historical migration files show how the schema evolved, but the current model definitions live in `schema.prisma`.
 
-Better:
+## Prisma Generator And Datasource
 
-```txt
-Doctor
-DoctorClinic
-Clinic
+```prisma
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
 ```
 
-This supports:
+`DATABASE_URL` is supplied by `apps/server/prisma.config.ts` and runtime database setup, not directly inside `schema.prisma`.
 
-- one doctor working in one clinic during MVP
-- one doctor working in multiple clinics later
-- clinic-specific doctor settings later
+The generated Prisma client lives in `apps/server/src/generated/prisma` and is ignored from version control.
 
-### 5.2 Do not directly lock Patient to one Clinic
+## Enums
 
-Avoid this as the final direction:
+| Enum                | Values                                                                                         |
+| ------------------- | ---------------------------------------------------------------------------------------------- |
+| `UserRole`          | `ADMIN`, `STAFF`                                                                               |
+| `UserStatus`        | `INVITED`, `ACTIVE`, `SUSPENDED`                                                               |
+| `Gender`            | `MALE`, `FEMALE`, `OTHER`, `PREFER_NOT_TO_SAY`                                                 |
+| `AppointmentStatus` | `SCHEDULED`, `CONFIRMED`, `ARRIVED`, `IN_QUEUE`, `CALLED`, `COMPLETED`, `CANCELLED`, `NO_SHOW` |
+| `QueueStatus`       | `WAITING`, `ARRIVED`, `CALLED`, `COMPLETED`, `CANCELLED`, `NO_SHOW`                            |
+| `RiskLevel`         | `LOW`, `MEDIUM`, `HIGH`                                                                        |
+| `BookingSource`     | `RECEPTION`, `PHONE`, `WEB`, `WALK_IN`                                                         |
 
-```txt
-Patient
-- id
-- clinicId
-```
+## Models Overview
 
-This makes a patient belong to only one clinic.
+| Model              | Table                 | Purpose                                                   |
+| ------------------ | --------------------- | --------------------------------------------------------- |
+| `Clinic`           | `clinics`             | Operational clinic boundary and settings.                 |
+| `User`             | `users`               | Internal app user mapped to Clerk identity.               |
+| `Doctor`           | `doctors`             | Doctor record; does not log in.                           |
+| `DoctorClinic`     | `doctor_clinics`      | Join table linking doctors to clinics.                    |
+| `Patient`          | `patients`            | Patient record; does not log in.                          |
+| `PatientClinic`    | `patient_clinics`     | Join table with clinic-specific patient history.          |
+| `Appointment`      | `appointments`        | Scheduled visit for clinic, doctor, patient, and creator. |
+| `QueueEntry`       | `queue_entries`       | Daily queue position/status for an appointment.           |
+| `NoShowPrediction` | `no_show_predictions` | Stored rule-based no-show risk result for an appointment. |
 
-Better:
+## Important Fields And Constraints
 
-```txt
-Patient
-PatientClinic
-Clinic
-```
+### Clinic
 
-This supports:
+Important fields:
 
-- one patient visiting one clinic during MVP
-- one patient visiting multiple clinics later
-- clinic-specific patient history
-- clinic-specific no-show and late-arrival counts
+- `slug` unique
+- contact/address fields
+- `timezone`, default `Asia/Kolkata`
+- `openingTime`, `closingTime`
+- `slotDurationMinutes`, `bufferMinutes`
+- `isActive`
 
-### 5.3 User membership is an intentional MVP simplification
+Indexes:
 
-For MVP, `User` can be kept simple because only Admin and Staff use the app.
+- `isActive`
+- `city`
 
-Possible MVP approach:
+Deletion behavior:
 
-- User has one active clinic context.
-- Admin/Staff permissions are simple.
+- Users set `clinicId` to null on clinic deletion.
+- `DoctorClinic` and `PatientClinic` cascade from clinic.
+- Appointments, queue entries, and predictions restrict deletion.
 
-Future approach:
+### User
 
-- Add a `UserClinic` or `ClinicMember` table if multi-clinic user access becomes necessary.
+Important fields:
 
-Do not add `UserClinic` in the MVP unless the product requirement changes. The current MVP entity list is intentionally limited to 9 entities.
+- `clerkUserId` unique
+- `email` unique
+- `role`
+- `status`
+- `clinicId` optional MVP single-clinic access field
 
-## 6. Relationship overview
+Indexes:
 
-```txt
-User ─────────────── Clinic
-                       |
-                       | 1 to many through DoctorClinic
-                       v
-Doctor ───── DoctorClinic ───── Clinic
+- `clinicId`
+- `role`
+- `status`
 
-Patient ──── PatientClinic ──── Clinic
+Why `User.clinicId` exists in MVP:
 
-Clinic ───── Appointment ───── Doctor
-   |              |
-   |              └──────────── Patient
-   |
-   └──── QueueEntry
+- It keeps access control simple for Admin/Staff users.
+- Backend can verify one active clinic context quickly.
+- It avoids adding a membership table before the MVP needs multi-clinic access.
 
-Appointment ───── NoShowPrediction
-```
+Future improvement: add `ClinicMember` or `UserClinic` for multi-clinic users and role-per-clinic behavior.
 
-## 7. Entity details
+### Doctor
 
-## 7.1 User
+Important fields:
 
-Represents an authenticated clinic-side app user.
+- identity/profile fields such as `fullName`, `specialization`, `qualification`
+- optional `registrationNumber`, `phone`, `email`, `gender`, `experienceYears`
+- `isActive`
 
-### Responsibility
+Indexes:
 
-- map Clerk authentication to internal application user
-- store Admin/Staff profile data
-- support backend role checks
-- track who created or updated records
+- `isActive`
+- `specialization`
 
-### Suggested fields
+Doctors are records only. They do not authenticate in the MVP.
 
-| Field       | Type         | Notes                                                         |
-| ----------- | ------------ | ------------------------------------------------------------- |
-| id          | uuid/string  | Internal database ID.                                         |
-| clerkUserId | string       | External Clerk identity reference. Unique.                    |
-| fullName    | string       | User display name.                                            |
-| email       | string       | User email. Unique if possible.                               |
-| phone       | string?      | Optional for MVP.                                             |
-| role        | enum         | ADMIN or STAFF.                                               |
-| status      | enum         | ACTIVE, INVITED, SUSPENDED.                                   |
-| clinicId    | foreign key? | Optional MVP simplification for single active clinic context. |
-| createdAt   | datetime     | Record creation time.                                         |
-| updatedAt   | datetime     | Last update time.                                             |
+### DoctorClinic
 
-### Notes
+Important fields:
 
-- Do not store Clerk secrets.
-- Store only Clerk user ID and app-specific data.
-- Backend should not trust role values sent from frontend.
-
-## 7.2 Clinic
+- `doctorId`
+- `clinicId`
+- `isActive`
+- optional `displayName`
+- optional `consultationFee`
 
-Represents a clinic or practice using Pravaah.
+Constraints and indexes:
 
-### Responsibility
+- unique `(doctorId, clinicId)`
+- index `doctorId`
+- index `clinicId`
+- index `isActive`
 
-- store clinic identity and operating settings
-- act as the top-level operational boundary
-- group appointments, queue entries, users, doctors, and patients
+Deletion behavior:
 
-### Suggested fields
+- cascades when the linked Doctor or Clinic is deleted.
 
-| Field               | Type        | Notes                                 |
-| ------------------- | ----------- | ------------------------------------- |
-| id                  | uuid/string | Primary key.                          |
-| name                | string      | Clinic name.                          |
-| slug                | string      | URL-friendly identifier. Unique.      |
-| phone               | string?     | Clinic contact number.                |
-| email               | string?     | Clinic email.                         |
-| addressLine1        | string?     | Address.                              |
-| addressLine2        | string?     | Optional address line.                |
-| city                | string?     | City.                                 |
-| state               | string?     | State.                                |
-| country             | string      | Default can be India.                 |
-| pincode             | string?     | Postal code.                          |
-| timezone            | string      | Example: Asia/Kolkata.                |
-| openingTime         | string/time | Clinic daily opening time.            |
-| closingTime         | string/time | Clinic daily closing time.            |
-| slotDurationMinutes | int         | Example: 15.                          |
-| bufferMinutes       | int         | Optional buffer between appointments. |
-| isActive            | boolean     | Soft operational status.              |
-| createdAt           | datetime    | Record creation time.                 |
-| updatedAt           | datetime    | Last update time.                     |
-
-## 7.3 Doctor
-
-Represents a doctor profile independent of clinic membership.
+Why `DoctorClinic` exists:
 
-### Responsibility
+- The MVP can use one clinic per doctor in practice.
+- The data model still supports a doctor working with multiple clinics later.
+- Clinic-specific doctor settings can live on the link instead of the global Doctor record.
 
-- store doctor identity and professional details
-- allow doctor to be linked to clinics through `DoctorClinic`
-- support appointment assignment
+### Patient
 
-### Suggested fields
+Important fields:
 
-| Field              | Type        | Notes                           |
-| ------------------ | ----------- | ------------------------------- |
-| id                 | uuid/string | Primary key.                    |
-| fullName           | string      | Doctor name.                    |
-| specialization     | string?     | Example: General Physician.     |
-| qualification      | string?     | Example: MBBS.                  |
-| registrationNumber | string?     | Medical registration number.    |
-| phone              | string?     | Contact number.                 |
-| email              | string?     | Contact email.                  |
-| gender             | enum?       | Optional.                       |
-| experienceYears    | int?        | Optional.                       |
-| isActive           | boolean     | Doctor profile active/inactive. |
-| createdAt          | datetime    | Record creation time.           |
-| updatedAt          | datetime    | Last update time.               |
-
-### Important
-
-Do not store `clinicId` directly in Doctor as the main relationship.
-
-Use `DoctorClinic`.
-
-## 7.4 DoctorClinic
-
-Join table between Doctor and Clinic.
+- `fullName`
+- required `phone`
+- optional email, gender, DOB, age, address, city, emergency contact
+- `isActive`
 
-### Responsibility
+Indexes:
 
-- represent that a doctor works with a clinic
-- support future multi-clinic doctor relationships
-- store clinic-specific doctor settings later
-
-### Suggested fields
+- `phone`
+- `fullName`
+- `isActive`
 
-| Field           | Type        | Notes                                    |
-| --------------- | ----------- | ---------------------------------------- |
-| id              | uuid/string | Primary key.                             |
-| doctorId        | foreign key | References Doctor.                       |
-| clinicId        | foreign key | References Clinic.                       |
-| isActive        | boolean     | Whether doctor is active in this clinic. |
-| displayName     | string?     | Optional clinic-specific display name.   |
-| consultationFee | decimal?    | Post-MVP or optional.                    |
-| createdAt       | datetime    | Record creation time.                    |
-| updatedAt       | datetime    | Last update time.                        |
-
-### Constraints
-
-- Unique: `(doctorId, clinicId)`
-- Index: `clinicId`
-- Index: `doctorId`
-
-## 7.5 Patient
-
-Represents a patient profile independent of clinic membership.
-
-### Responsibility
-
-- store patient identity and contact details
-- allow patient to be linked to clinics through `PatientClinic`
-- support appointment booking
-
-### Suggested fields
-
-| Field                 | Type        | Notes                                                                                |
-| --------------------- | ----------- | ------------------------------------------------------------------------------------ |
-| id                    | uuid/string | Primary key.                                                                         |
-| fullName              | string      | Patient name.                                                                        |
-| phone                 | string      | Important for clinic contact.                                                        |
-| email                 | string?     | Optional.                                                                            |
-| gender                | enum?       | Optional.                                                                            |
-| dateOfBirth           | date?       | Prefer DOB over storing only age.                                                    |
-| age                   | int?        | Optional cached/display value.                                                       |
-| address               | string?     | Optional.                                                                            |
-| city                  | string?     | Optional.                                                                            |
-| emergencyContactName  | string?     | Optional.                                                                            |
-| emergencyContactPhone | string?     | Optional.                                                                            |
-| distanceFromClinicKm  | decimal?    | Optional MVP input for prediction. Better later in PatientClinic if clinic-specific. |
-| isActive              | boolean     | Soft status.                                                                         |
-| createdAt             | datetime    | Record creation time.                                                                |
-| updatedAt             | datetime    | Last update time.                                                                    |
-
-### Important
-
-Do not store `clinicId` directly in Patient as the main relationship.
-
-Use `PatientClinic`.
-
-## 7.6 PatientClinic
-
-Join table between Patient and Clinic.
-
-### Responsibility
-
-- represent that a patient is known to a clinic
-- store clinic-specific patient history
-- support no-show risk scoring
-- support future multi-clinic patient behavior
-
-### Suggested fields
-
-| Field                | Type        | Notes                                           |
-| -------------------- | ----------- | ----------------------------------------------- |
-| id                   | uuid/string | Primary key.                                    |
-| patientId            | foreign key | References Patient.                             |
-| clinicId             | foreign key | References Clinic.                              |
-| totalAppointments    | int         | Default 0.                                      |
-| totalNoShows         | int         | Default 0.                                      |
-| totalLateArrivals    | int         | Default 0.                                      |
-| lastVisitAt          | datetime?   | Optional.                                       |
-| notes                | text?       | Clinic-specific notes.                          |
-| distanceFromClinicKm | decimal?    | Better clinic-specific location/distance field. |
-| isActive             | boolean     | Whether patient is active in this clinic.       |
-| createdAt            | datetime    | Record creation time.                           |
-| updatedAt            | datetime    | Last update time.                               |
-
-### Constraints
-
-- Unique: `(patientId, clinicId)`
-- Index: `clinicId`
-- Index: `patientId`
-
-## 7.7 Appointment
-
-Represents a scheduled clinic visit.
-
-### Responsibility
-
-- connect clinic, doctor, and patient for a scheduled time
-- drive status updates
-- connect with queue entry
-- connect with no-show prediction
-
-### Suggested fields
-
-| Field           | Type        | Notes                                                     |
-| --------------- | ----------- | --------------------------------------------------------- |
-| id              | uuid/string | Primary key.                                              |
-| clinicId        | foreign key | References Clinic.                                        |
-| doctorId        | foreign key | References Doctor.                                        |
-| patientId       | foreign key | References Patient.                                       |
-| scheduledAt     | datetime    | Appointment time.                                         |
-| durationMinutes | int         | Example: 15.                                              |
-| status          | enum        | Appointment lifecycle status.                             |
-| reason          | string?     | Reason for visit.                                         |
-| notes           | text?       | Staff notes.                                              |
-| bookingSource   | enum        | RECEPTION, PHONE, WEB, etc. MVP can default to RECEPTION. |
-| createdByUserId | foreign key | User who booked appointment.                              |
-| createdAt       | datetime    | Record creation time.                                     |
-| updatedAt       | datetime    | Last update time.                                         |
-
-### Service-level validation
-
-Before creating appointment, backend must verify:
-
-- clinic exists and is active
-- doctor exists
-- patient exists
-- doctor is linked to clinic through DoctorClinic
-- patient is linked to clinic through PatientClinic
-- appointment is inside clinic operating hours
-- doctor does not have an obvious conflicting appointment
-
-### Suggested indexes
+Patients are records only. They do not authenticate in the MVP.
+
+### PatientClinic
+
+Important fields:
+
+- `patientId`
+- `clinicId`
+- `totalAppointments`
+- `totalNoShows`
+- `totalLateArrivals`
+- `lastVisitAt`
+- `notes`
+- `distanceFromClinicKm`
+- `isActive`
+
+Constraints and indexes:
+
+- unique `(patientId, clinicId)`
+- index `clinicId`
+- index `patientId`
+- index `isActive`
+
+Deletion behavior:
+
+- cascades when the linked Patient or Clinic is deleted.
+
+Why `PatientClinic` exists:
+
+- A patient can be known to more than one clinic in the future.
+- Attendance history and distance are clinic-specific.
+- No-show scoring should use the patient's history at the current clinic, not global assumptions.
+
+### Appointment
+
+Important fields:
+
+- `clinicId`
+- `doctorId`
+- `patientId`
+- `createdByUserId`
+- `scheduledAt`
+- `durationMinutes`
+- `status`
+- `bookingSource`
+- optional `reason`, `notes`
+
+Indexes:
 
 - `(clinicId, scheduledAt)`
 - `(clinicId, doctorId, scheduledAt)`
 - `(clinicId, patientId, scheduledAt)`
 - `(clinicId, status)`
+- partial unique index from migration: `(clinicId, doctorId, scheduledAt)` for active statuses `SCHEDULED`, `CONFIRMED`, `ARRIVED`, `IN_QUEUE`, `CALLED`
 
-## 7.8 QueueEntry
+Deletion behavior:
 
-Represents the live working order for a clinic day.
+- restricts deletion of linked Clinic, Doctor, Patient, and User.
 
-### Responsibility
+Appointment lifecycle:
 
-- show who is waiting
-- show who has arrived
-- show who is called or completed
-- reflect current clinic flow
+```txt
+SCHEDULED -> CONFIRMED -> ARRIVED -> IN_QUEUE -> CALLED -> COMPLETED
+                              \         \          \          \
+                               -> CANCELLED or NO_SHOW where staff decides
+```
 
-### Suggested fields
+The code allows several manual transitions through service rules and blocks changing final statuses to a different status.
 
-| Field         | Type        | Notes                                                                      |
-| ------------- | ----------- | -------------------------------------------------------------------------- |
-| id            | uuid/string | Primary key.                                                               |
-| clinicId      | foreign key | References Clinic.                                                         |
-| appointmentId | foreign key | Usually references Appointment. Unique if one queue entry per appointment. |
-| doctorId      | foreign key | Denormalized reference for faster filtering.                               |
-| patientId     | foreign key | Denormalized reference for faster display/filtering.                       |
-| position      | int         | Queue position.                                                            |
-| status        | enum        | WAITING, ARRIVED, CALLED, COMPLETED, CANCELLED, NO_SHOW.                   |
-| queuedAt      | datetime    | When added to queue.                                                       |
-| calledAt      | datetime?   | When called.                                                               |
-| completedAt   | datetime?   | When completed.                                                            |
-| createdAt     | datetime    | Record creation time.                                                      |
-| updatedAt     | datetime    | Last update time.                                                          |
+### QueueEntry
 
-### Suggested indexes
+Important fields:
+
+- `appointmentId` unique
+- `clinicId`, `doctorId`, `patientId`
+- `position`
+- `status`
+- `queuedAt`, `calledAt`, `completedAt`
+
+Indexes:
 
 - `(clinicId, status)`
 - `(clinicId, doctorId, position)`
 - `(clinicId, queuedAt)`
-- unique `(appointmentId)` for MVP
 
-## 7.9 NoShowPrediction
+Deletion behavior:
 
-Stores the MVP AI-assisted no-show risk output.
+- restricts deletion of linked Clinic, Appointment, Doctor, and Patient.
 
-### Responsibility
-
-- store risk score for appointment
-- store risk level
-- store explanation reasons
-- track prediction model/rule version
-- keep risk result available for appointment and queue views
-
-### Suggested fields
-
-| Field         | Type        | Notes                                    |
-| ------------- | ----------- | ---------------------------------------- |
-| id            | uuid/string | Primary key.                             |
-| appointmentId | foreign key | References Appointment. Unique for MVP.  |
-| clinicId      | foreign key | References Clinic. Useful for filtering. |
-| patientId     | foreign key | References Patient. Useful for history.  |
-| riskScore     | int         | 0 to 100.                                |
-| riskLevel     | enum        | LOW, MEDIUM, HIGH.                       |
-| reasons       | json/text   | Human-readable explanation list.         |
-| modelVersion  | string      | Example: starter-rule-v1.                |
-| generatedAt   | datetime    | When prediction was generated.           |
-| createdAt     | datetime    | Record creation time.                    |
-| updatedAt     | datetime    | Last update time.                        |
-
-### MVP rule
-
-This is not fake ML.
-
-For MVP, prediction can be a deterministic rule-based scoring service.
-
-Example:
+QueueEntry lifecycle:
 
 ```txt
-+30 if patient has previous no-shows
-+20 if patient has repeated late arrivals
-+15 if distance from clinic is high
-+10 if appointment was booked on same day
-+10 if appointment time is historically risky
+WAITING -> ARRIVED -> CALLED -> COMPLETED
+    \         \          \
+     -> CANCELLED or NO_SHOW where staff decides
 ```
 
-## 8. Enums
+The appointment creation workflow currently creates a `QueueEntry` immediately, including for future appointments. Queue list APIs filter by the appointment's clinic-local date.
 
-Suggested enums:
+### NoShowPrediction
 
-### UserRole
+Important fields:
+
+- `appointmentId` unique
+- `clinicId`
+- `patientId`
+- `riskLevel`
+- `score`
+- `reasons` JSON
+
+Indexes:
+
+- `clinicId`
+- `patientId`
+
+Deletion behavior:
+
+- restricts deletion of linked Appointment, Clinic, and Patient.
+
+Storage notes:
+
+- The database stores score, risk level, and JSON reasons.
+- The response layer adds `suggestedActions`, `modelVersion = starter-rule-v1`, and `generatedAt` from `createdAt`.
+- There is no separate model version column in the current schema.
+
+## Relationships
 
 ```txt
-ADMIN
-STAFF
+Clinic 1 -> many User
+Clinic many <-> many Doctor through DoctorClinic
+Clinic many <-> many Patient through PatientClinic
+Clinic 1 -> many Appointment
+Doctor 1 -> many Appointment
+Patient 1 -> many Appointment
+User 1 -> many Appointment as createdBy
+Appointment 1 -> 0/1 QueueEntry
+Appointment 1 -> 0/1 NoShowPrediction
+Clinic 1 -> many QueueEntry
+Clinic 1 -> many NoShowPrediction
+Patient 1 -> many NoShowPrediction
 ```
 
-### UserStatus
+## Transaction-Sensitive Workflows
 
-```txt
-INVITED
-ACTIVE
-SUSPENDED
-```
+### Doctor Creation
 
-### AppointmentStatus
+`doctorRepository.createDoctorWithClinicLink` creates:
 
-```txt
-SCHEDULED
-CONFIRMED
-ARRIVED
-IN_QUEUE
-CALLED
-COMPLETED
-CANCELLED
-NO_SHOW
-```
+1. `Doctor`
+2. `DoctorClinic`
 
-### QueueStatus
+inside one transaction.
 
-```txt
-WAITING
-ARRIVED
-CALLED
-COMPLETED
-CANCELLED
-NO_SHOW
-```
+### Patient Creation
 
-### RiskLevel
+`patientRepository.createPatientWithClinicLink` creates:
 
-```txt
-LOW
-MEDIUM
-HIGH
-```
+1. `Patient`
+2. `PatientClinic`
 
-### BookingSource
+inside one transaction.
 
-```txt
-RECEPTION
-PHONE
-WEB
-WALK_IN
-```
+### Appointment Booking
 
-## 9. Transaction rules
+`appointmentService.createAppointment` validates clinic, doctor, patient, and active links, then inside a transaction:
 
-Use transactions when multiple related records must stay consistent.
+1. obtains a PostgreSQL advisory lock for the doctor/time slot
+2. checks active slot conflicts
+3. obtains queue position lock and next queue position
+4. creates `Appointment`
+5. creates `QueueEntry`
+6. creates `NoShowPrediction`
 
-Examples:
+### Status Updates
 
-### 9.1 Appointment booking
+Appointment status updates synchronize matching queue status where applicable.
 
-When booking an appointment:
+Queue status updates synchronize matching appointment status.
 
-1. Validate clinic, doctor, patient relationship.
-2. Create appointment.
-3. Generate no-show prediction.
-4. Optionally create queue entry if appointment is for today.
+Both paths guard against final-status conflicts and return conflict errors when data changes mid-update.
 
-These related steps should be treated carefully. If one critical step fails, the system should not leave inconsistent data.
+### Dashboard Prediction Backfill
 
-### 9.2 Appointment status update
+Dashboard summary and high-risk endpoints backfill missing predictions for active appointments on the selected clinic-local date before reading risk summaries.
 
-When appointment status changes:
+## Seed/Demo Data Notes
 
-- update Appointment
-- update QueueEntry if needed
-- update PatientClinic counters if completed/no-show/late-arrival rules apply
+`apps/server/prisma/seed.ts` creates demo-only data:
 
-Use a transaction to avoid queue mismatch.
+- demo family clinic
+- Admin and Staff internal users
+- doctors and doctor-clinic links
+- patients and patient-clinic history
+- appointments across several dates
+- today's queue entries
+- stored no-show predictions
 
-## 10. Deletion strategy
+The seed uses placeholder contact data. Never replace it with real patient data.
 
-Prefer soft deletion for important clinic records.
+## Future Schema Improvements
 
-Use fields such as:
+- `ClinicMember` or `UserClinic` for multi-clinic user access
+- audit logs for appointment/queue changes
+- doctor availability and schedules
+- pagination-friendly indexes for large lists
+- no-show prediction version/history table
+- reminder logs and notification preferences
+- stricter status transition tables if workflow complexity grows
 
-```txt
-isActive
-status
-deletedAt optional later
-```
+## What Not To Change Casually
 
-Do not hard-delete doctors, patients, or appointments casually because historical appointments and analytics may depend on them.
-
-## 11. Indexing strategy
-
-Add indexes intentionally.
-
-High-value indexes:
-
-```txt
-Appointment: clinicId + scheduledAt
-Appointment: clinicId + doctorId + scheduledAt
-Appointment: clinicId + patientId + scheduledAt
-Appointment: clinicId + status
-QueueEntry: clinicId + doctorId + position
-QueueEntry: clinicId + status
-DoctorClinic: clinicId
-PatientClinic: clinicId
-NoShowPrediction: clinicId + riskLevel
-```
-
-Do not add random indexes everywhere. Indexes improve reads but add write overhead.
-
-## 12. Migration strategy
-
-Prisma migrations should be small and meaningful.
-
-Good migration examples:
-
-```txt
-init_core_schema
-add_queue_entries
-add_no_show_predictions
-add_patient_clinic_history_fields
-```
-
-Bad migration examples:
-
-```txt
-changes
-fix
-new_stuff
-final_final_schema
-```
-
-Rules:
-
-- Commit migration files.
-- Do not edit already-applied migrations casually.
-- Create new migrations for schema changes.
-- Keep schema changes aligned with issues/PRs.
-- Test migration locally before PR.
-
-## 13. Seed data strategy
-
-Seed data should help demo the app.
-
-Suggested seed data:
-
-- one clinic
-- one admin user placeholder
-- two staff users optional
-- three doctors
-- ten patients
-- appointments for today
-- queue entries
-- some patient history that produces Low, Medium, and High no-show risk
-
-Seed data should never include real patient data.
-
-## 14. Privacy and data safety
-
-Pravaah should collect only what is needed for the MVP.
-
-Avoid storing unnecessary sensitive medical details.
-
-For MVP, focus on operational data:
-
-- contact details
-- appointment details
-- queue status
-- no-show/late-arrival history
-- reason/notes only when necessary
-
-Do not store prescriptions, diagnosis history, or full medical records in MVP.
-
-## 15. Future database expansion
-
-Post-MVP additions may include:
-
-- UserClinic or ClinicMember table for multi-clinic user membership
-- DoctorSchedule
-- DoctorAvailabilityWindow
-- ReminderLog
-- NotificationPreference
-- AuditLog
-- PatientPortalAccount
-- DoctorPortalAccount
-- PredictionRun or PredictionHistory
-- Payment/Billing tables
-- Prescription/MedicalRecord tables if the product direction expands
-
-Do not add these until the MVP workflow is stable.
-
-## 16. Final database principle
-
-Database design should be future-ready, but not over-engineered.
-
-For Pravaah MVP:
-
-```txt
-Use join tables for Doctor-Clinic and Patient-Clinic.
-Keep User simple.
-Keep Appointment and Queue reliable.
-Keep Prediction explainable.
-```
+- Do not remove `DoctorClinic` or `PatientClinic`.
+- Do not move authorization truth into the frontend.
+- Do not edit applied migrations casually.
+- Do not hard-delete operational records without checking history and foreign keys.
+- Do not add patient/doctor auth tables during the MVP without a product decision.

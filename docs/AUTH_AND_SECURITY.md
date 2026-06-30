@@ -1,0 +1,208 @@
+# Auth And Security
+
+## Current Auth Stack
+
+| Layer                    | Implementation                                          |
+| ------------------------ | ------------------------------------------------------- |
+| Frontend auth UI         | `@clerk/react`                                          |
+| Backend Clerk middleware | `@clerk/express`                                        |
+| App authorization        | Internal `User` table with role, status, and `clinicId` |
+| API auth transport       | `Authorization: Bearer <Clerk token>`                   |
+
+## Clerk Frontend Auth
+
+`apps/web/src/main.tsx` wraps the app in `ClerkProvider`.
+
+`apps/web/src/features/auth/LoginPage.tsx` renders Clerk `SignIn` with:
+
+- path `/login`
+- sign-up disabled with `withSignUp={false}`
+- safe redirect handling
+- sign-out success toast
+
+`ProtectedAppShell` uses Clerk `useAuth()`:
+
+- while Clerk is loading, it shows a loading state
+- if not signed in, it redirects to `/login`
+- if signed in, it renders `ActiveClinicProvider` and the app layout
+
+## Backend Auth Middleware
+
+`apps/server/src/app.ts` registers:
+
+```txt
+clerkMiddleware()
+```
+
+Protected routes also call:
+
+```txt
+authenticateRequest
+```
+
+That middleware requires:
+
+1. Authorization header exists.
+2. Header matches `Bearer <token>`.
+3. Clerk `getAuth(req)` reports an authenticated user ID.
+4. Internal Pravaah user exists for that Clerk user ID.
+5. Internal user status is `ACTIVE`.
+
+## Bearer Token Flow
+
+```txt
+Clerk session in browser
+  -> useAuth().getToken()
+  -> apiClient adds Authorization: Bearer <token>
+  -> Express clerkMiddleware parses auth
+  -> authenticateRequest checks getAuth(req)
+  -> req.user receives internal Pravaah user summary
+```
+
+## Internal User Mapping
+
+The internal `User` table stores:
+
+- `clerkUserId`
+- `fullName`
+- `email`
+- `role`
+- `status`
+- `clinicId`
+
+Seeded demo users must use real Clerk development user IDs if you want to sign in and access protected APIs.
+
+## User Status Checks
+
+`authService` and `accessService` reject any non-active internal user.
+
+Statuses:
+
+- `INVITED`: exists but cannot use protected APIs yet
+- `ACTIVE`: allowed if role and clinic checks pass
+- `SUSPENDED`: not allowed
+
+Common error:
+
+```txt
+USER_NOT_ACTIVE
+```
+
+## Role Checks
+
+Current backend role helpers:
+
+| Helper                   | Allows           |
+| ------------------------ | ---------------- |
+| `requireAdminRole`       | `ADMIN` only     |
+| `requireClinicStaffRole` | `ADMIN`, `STAFF` |
+
+Admin-only routes:
+
+- `POST /api/clinics`
+- `PATCH /api/clinics/:clinicId`
+
+Most workflow routes allow Admin and Staff.
+
+## Clinic Access Checks
+
+MVP rule:
+
+```txt
+internalUser.clinicId === requested clinicId
+```
+
+`verifyClinicAccess` also checks:
+
+- clinic exists
+- clinic is active
+
+Appointment status update uses appointment ID to look up the appointment clinic first, then verifies access to that clinic.
+
+## Why Frontend Is Not Trusted
+
+The frontend can:
+
+- hide routes
+- show useful messages
+- use active clinic context
+- avoid showing impossible actions
+
+The backend must still enforce:
+
+- authentication
+- user status
+- role
+- clinic access
+- doctor-clinic and patient-clinic ownership
+- appointment/queue status rules
+
+Any browser request can be modified, so frontend checks are not security boundaries.
+
+## Secrets Handling
+
+Frontend-safe:
+
+```txt
+VITE_API_BASE_URL
+VITE_CLERK_PUBLISHABLE_KEY
+VITE_DEFAULT_CLINIC_ID
+```
+
+Server-only:
+
+```txt
+DATABASE_URL
+CLERK_SECRET_KEY
+CLERK_WEBHOOK_SECRET
+```
+
+`CLERK_WEBHOOK_SECRET` is listed in `.env.example` but not currently used by the code.
+
+## Patient Data Minimization
+
+The MVP stores operational data:
+
+- contact details
+- appointment details
+- queue status
+- no-show/late-arrival history
+- limited notes
+- distance from clinic for starter scoring
+
+The MVP does not store:
+
+- prescriptions
+- diagnosis history
+- full medical records
+- billing records
+- patient portal credentials
+
+## Current Security Limitations
+
+- No audit logging for sensitive changes.
+- No rate limiting middleware.
+- No dedicated production logging/monitoring configuration.
+- No fine-grained permission model beyond Admin/Staff.
+- No multi-clinic membership table.
+- No webhook implementation despite env placeholder.
+- No documented production security headers beyond standard Express/CORS behavior.
+
+## Future Hardening Ideas
+
+- audit logs for appointment, queue, and user access changes
+- rate limiting and request size review
+- production logging with redaction
+- security headers appropriate to deployment target
+- role-per-clinic membership model
+- staff invite lifecycle
+- stricter CORS origin configuration per environment
+- automated dependency/security scanning
+
+## What Not To Change Casually
+
+- Do not bypass `authenticateRequest` on protected routes.
+- Do not trust Clerk identity without internal `User` authorization.
+- Do not expose server secrets to Vite.
+- Do not accept frontend-provided role values.
+- Do not remove clinic access checks from clinic-scoped APIs.
