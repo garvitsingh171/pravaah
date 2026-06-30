@@ -1,291 +1,121 @@
-<!--
-Pravaah documentation package
-Generated for Project Pravaah on June 1, 2026.
-Locked stack: React + TypeScript, Express + TypeScript, Clerk, Neon PostgreSQL, Prisma.
--->
+# User Roles
 
-# Pravaah User Roles
+## Current Role Model
 
-## 1. Purpose
-
-This document defines who can use Pravaah and what each role is allowed to do in the MVP.
-
-It also explains how roles should be handled in the backend so the system does not depend on unsafe frontend-only checks.
-
-## 2. MVP role model
-
-The MVP has only clinic-side authenticated users:
+Pravaah MVP has two authenticated clinic-side roles:
 
 - Admin
 - Staff
 
-Patients and doctors exist as records, but they do not sign in during the MVP.
+Patients and doctors are records only. They do not sign in, have sessions, or call protected APIs as users during the MVP.
 
-## 3. Role summary
+## Role Summary
 
-| Role    | Signs in? | MVP status  | Main responsibility                                                                          |
-| ------- | --------- | ----------- | -------------------------------------------------------------------------------------------- |
-| Admin   | Yes       | Included    | Manage clinic settings, users, doctors, patients, appointments, and queue.                   |
-| Staff   | Yes       | Included    | Handle daily reception workflow, appointment booking, patient updates, and queue operations. |
-| Patient | No        | Record only | Can be scheduled into appointments but cannot use the app directly.                          |
-| Doctor  | No        | Record only | Can be assigned appointments but cannot use the app directly.                                |
+| Role           | Signs in? | Stored where?              | Current purpose                                                                                     |
+| -------------- | --------- | -------------------------- | --------------------------------------------------------------------------------------------------- |
+| Admin          | Yes       | `User.role = ADMIN`        | Clinic owner/manager/operator with access to Admin-only backend actions and daily clinic workflows. |
+| Staff          | Yes       | `User.role = STAFF`        | Reception/operations user for doctor, patient, appointment, queue, and dashboard workflows.         |
+| Patient record | No        | `Patient`, `PatientClinic` | Person receiving care; used in appointments, queue, and no-show scoring.                            |
+| Doctor record  | No        | `Doctor`, `DoctorClinic`   | Provider assigned to appointments and queue entries.                                                |
 
-## 4. Admin role
+## Permission Table
 
-The Admin is the clinic owner, manager, or main operational owner.
+| Capability                                  | Admin                      | Staff           | Patient record | Doctor record |
+| ------------------------------------------- | -------------------------- | --------------- | -------------- | ------------- |
+| Sign in to web app                          | Yes                        | Yes             | No             | No            |
+| Fetch current internal user profile         | Yes                        | Yes             | No             | No            |
+| Create clinic                               | Yes                        | No              | No             | No            |
+| Update clinic                               | Yes, for own active clinic | No              | No             | No            |
+| Create/list/update doctors through backend  | Yes                        | Yes             | No             | No            |
+| Use doctor create/list UI                   | Yes                        | Yes             | No             | No            |
+| Use doctor edit UI                          | Not implemented            | Not implemented | No             | No            |
+| Create/list/update patients through backend | Yes                        | Yes             | No             | No            |
+| Use patient create/list UI                  | Yes                        | Yes             | No             | No            |
+| Use patient edit UI                         | Not implemented            | Not implemented | No             | No            |
+| Book appointments                           | Yes                        | Yes             | No             | No            |
+| List/filter appointments                    | Yes                        | Yes             | No             | No            |
+| Update appointment status                   | Yes                        | Yes             | No             | No            |
+| List today's queue                          | Yes                        | Yes             | No             | No            |
+| Update queue status                         | Yes                        | Yes             | No             | No            |
+| Reorder queue through backend API           | Yes                        | Yes             | No             | No            |
+| Reorder queue through frontend UI           | Not implemented            | Not implemented | No             | No            |
+| View dashboard                              | Yes                        | Yes             | No             | No            |
+| View starter no-show risk                   | Yes                        | Yes             | No             | No            |
 
-### Admin Capabilities
+## Backend Authorization Rules
 
-- sign in to the clinic app
-- manage clinic profile
-- manage staff access
-- create and update doctor profiles
-- link doctors to clinic
-- create and update patient profiles
-- link patients to clinic
-- book appointments
-- update appointments
-- cancel appointments
-- view and manage live queue
-- view basic dashboard
-- view starter no-show risk
-- make final operational decisions
-
-### Admin Non-Requirements In MVP
-
-- billing management
-- inventory management
-- prescription management
-- full analytics suite
-- multi-branch SaaS controls
-
-## 5. Staff role
-
-The Staff role is for reception or clinic operations users.
-
-### Staff Capabilities
-
-- sign in to the clinic app
-- add and edit patients
-- add and edit doctors if Admin allows in MVP
-- book appointments
-- update appointment status
-- view today's appointments
-- view and manage live queue
-- view starter no-show risk
-- mark patient arrived, called, completed, cancelled, or no-show
-
-### Staff Restrictions
-
-- manage clinic profile
-- manage staff users
-- change high-level clinic settings
-- delete critical records
-- change role permissions
-
-## 6. Patient in MVP
-
-Patients do not authenticate into the app during MVP.
-
-A patient can:
-
-- exist as a database record
-- be linked to a clinic through `PatientClinic`
-- be scheduled into appointments
-- have clinic-specific history tracked
-- be included in no-show risk calculation
-
-A patient cannot:
-
-- sign in
-- edit their profile
-- book appointments themselves
-- cancel appointments themselves
-- view queue from their own portal
-- receive automated WhatsApp/SMS reminders in MVP
-
-## 7. Doctor in MVP
-
-Doctors do not authenticate into the app during MVP.
-
-A doctor can:
-
-- exist as a database record
-- be linked to a clinic through `DoctorClinic`
-- be assigned appointments
-- appear in queue filters and appointment screens
-
-A doctor cannot:
-
-- sign in
-- manage their own schedule
-- update appointment status directly
-- manage patients directly
-
-## 8. Permissions matrix
-
-| Capability                  | Admin | Staff | Patient | Doctor |
-| --------------------------- | ----: | ----: | ------: | -----: |
-| Sign in to clinic app       |   Yes |   Yes |      No |     No |
-| Manage clinic profile       |   Yes |    No |      No |     No |
-| Manage staff users          |   Yes |    No |      No |     No |
-| Add doctor profile          |   Yes | Yes\* |      No |     No |
-| Edit doctor profile         |   Yes | Yes\* |      No |     No |
-| Link doctor to clinic       |   Yes | Yes\* |      No |     No |
-| Add patient profile         |   Yes |   Yes |      No |     No |
-| Edit patient profile        |   Yes |   Yes |      No |     No |
-| Link patient to clinic      |   Yes |   Yes |      No |     No |
-| Book appointment            |   Yes |   Yes |      No |     No |
-| Update appointment status   |   Yes |   Yes |      No |     No |
-| Cancel appointment          |   Yes |   Yes |      No |     No |
-| Mark no-show                |   Yes |   Yes |      No |     No |
-| View live queue             |   Yes |   Yes |      No |     No |
-| Update queue status         |   Yes |   Yes |      No |     No |
-| View no-show risk           |   Yes |   Yes |      No |     No |
-| Override system suggestions |   Yes |   Yes |      No |     No |
-| Access patient portal       |    No |    No |      No |     No |
-
-`Yes*` means this can be allowed in MVP for simplicity, but the product can restrict it later if clinic workflows require stricter control.
-
-## 9. Human decision rule
-
-Pravaah assists staff. It does not replace staff.
-
-The system can show:
-
-- high no-show risk
-- queue status
-- appointment conflict
-- operational warning
-
-But final decisions remain with Admin or Staff.
-
-MVP must not automatically cancel appointments or reorder the queue without human control.
-
-## 10. Backend authorization rules
-
-Frontend route protection is useful, but it is not enough.
-
-The backend must verify:
-
-1. Is the user authenticated through Clerk?
-2. Does this Clerk user exist in the internal User table?
-3. Is the user active?
-4. What role does the user have?
-5. Is the user allowed to access this clinic?
-6. Is the requested action allowed for this role?
-
-## 11. Example authorization decisions
-
-### 11.1 Manage clinic profile
-
-Allowed:
-
-- Admin
-
-Denied:
-
-- Staff
-- unauthenticated users
-
-### 11.2 Book appointment
-
-Allowed:
-
-- Admin
-- Staff
-
-Required backend checks:
-
-- user belongs to clinic context
-- doctor belongs to clinic through DoctorClinic
-- patient belongs to clinic through PatientClinic
-- appointment slot is valid
-
-### 11.3 Update queue status
-
-Allowed:
-
-- Admin
-- Staff
-
-Required backend checks:
-
-- queue entry belongs to user's clinic context
-- status transition is valid
-
-## 12. Role storage strategy
-
-For MVP, user role can be stored in the internal database.
-
-Example:
+Protected APIs follow this flow:
 
 ```txt
-User
-- id
-- clerkUserId
-- fullName
-- email
-- role: ADMIN | STAFF
-- status: ACTIVE | INVITED | SUSPENDED
+Clerk Bearer token
+  -> authenticateRequest
+  -> getAuth(req)
+  -> authService.getActiveUserByClerkUserId
+  -> req.user
+  -> role and clinic access middleware or service checks
 ```
 
-Clerk handles identity.
+Current checks:
 
-Pravaah database handles app role and clinic permissions.
+| Check                          | Enforced by                                                  |
+| ------------------------------ | ------------------------------------------------------------ |
+| Authorization header exists    | `authenticateRequest`                                        |
+| Header is Bearer-shaped        | `authenticateRequest`                                        |
+| Clerk session is authenticated | `getAuth(req)` inside `authenticateRequest`                  |
+| Internal `User` exists         | `authService.getActiveUserByClerkUserId`                     |
+| Internal user is ACTIVE        | `authService`, `accessService`                               |
+| Admin-only routes              | `requireAdminRole`                                           |
+| Admin/Staff routes             | `requireClinicStaffRole`                                     |
+| Clinic-scoped route access     | `requireClinicAccess` and `accessService.verifyClinicAccess` |
+| Appointment status access      | `accessService.verifyAppointmentClinicAccess`                |
 
-## 13. Future role expansion
+## Clerk Identity Vs Internal Authorization
+
+Clerk identity:
+
+- proves a person is signed in
+- provides the external Clerk user ID
+- powers the frontend sign-in component and session token
+
+Internal Pravaah `User` authorization:
+
+- maps `clerkUserId` to an app user
+- stores role: `ADMIN` or `STAFF`
+- stores status: `INVITED`, `ACTIVE`, or `SUSPENDED`
+- stores MVP clinic access through `clinicId`
+
+Clerk alone is not enough. A signed-in Clerk user without an ACTIVE internal Pravaah `User` receives `INTERNAL_USER_NOT_FOUND` or `USER_NOT_ACTIVE`.
+
+## Current Clinic Access Model
+
+The MVP uses a simple model:
+
+```txt
+User.clinicId must exactly equal the route clinicId
+```
+
+`accessService.verifyClinicAccess` also verifies that the clinic exists and is active.
+
+This is not full multi-clinic SaaS membership. Future multi-clinic support should add a membership table such as `ClinicMember` or `UserClinic`.
+
+## Current Limitations
+
+- No user management UI exists for inviting or editing Staff users.
+- `User.clinicId` supports one active clinic context per internal user.
+- Staff currently has broad clinic-staff access for doctor/patient/appointment/queue/dashboard APIs.
+- Clinic create/update is backend-only from the current UI perspective because the clinic settings page is a placeholder.
+- Patient and doctor records cannot log in.
+
+## Future Role Expansion
 
 Post-MVP roles may include:
 
-- Doctor
-- Receptionist
 - Clinic Manager
-- Super Admin
-- Patient Portal User
-- Billing Staff
-- Support Staff
+- Receptionist
+- Doctor user
+- Patient portal user
+- Billing staff
+- Organization owner
+- Support/admin user
 
-Do not build these in MVP.
-
-## 14. Future permission expansion
-
-Post-MVP may require a more advanced permission system:
-
-```txt
-User
-Clinic
-ClinicMember / UserClinic
-Role
-Permission
-```
-
-This can support:
-
-- one user managing multiple clinics
-- different roles in different clinics
-- custom staff permissions
-- organization-level owners
-
-For MVP, keep this simple.
-
-## 15. Security notes
-
-- Do not trust role values from frontend.
-- Do not expose Clerk secrets.
-- Do not allow staff to access another clinic's data.
-- Do not use patient ID alone without clinic scoping.
-- Do not allow unauthenticated queue or appointment access.
-- Log critical operations later through audit logs.
-
-## 16. Final role principle
-
-Keep MVP roles simple:
-
-```txt
-Admin = controls clinic setup and operations.
-Staff = manages daily clinic flow.
-Patient/Doctor = records only, no login.
-```
-
-Expand only after the clinic-side workflow is working.
+Future permissions should be introduced through a clear schema and backend authorization change, not frontend-only route hiding.

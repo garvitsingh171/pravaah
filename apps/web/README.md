@@ -1,73 +1,43 @@
-# React + TypeScript + Vite
+# Pravaah Web
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This workspace contains the Pravaah React + TypeScript + Vite frontend.
 
-Currently, two official plugins are available:
+## Scripts
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-    globalIgnores(['dist']),
-    {
-        files: ['**/*.{ts,tsx}'],
-        extends: [
-            // Other configs...
-
-            // Remove tseslint.configs.recommended and replace with this
-            tseslint.configs.recommendedTypeChecked,
-            // Alternatively, use this for stricter rules
-            tseslint.configs.strictTypeChecked,
-            // Optionally, add this for stylistic rules
-            tseslint.configs.stylisticTypeChecked,
-
-            // Other configs...
-        ],
-        languageOptions: {
-            parserOptions: {
-                project: ['./tsconfig.node.json', './tsconfig.app.json'],
-                tsconfigRootDir: import.meta.dirname,
-            },
-            // other options...
-        },
-    },
-]);
+```bash
+npm run dev -w apps/web
+npm run build -w apps/web
+npm run lint -w apps/web
+npm run preview -w apps/web
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Required Environment Variables
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x';
-import reactDom from 'eslint-plugin-react-dom';
+Put frontend-safe values in `apps/web/.env`:
 
-export default defineConfig([
-    globalIgnores(['dist']),
-    {
-        files: ['**/*.{ts,tsx}'],
-        extends: [
-            // Other configs...
-            // Enable lint rules for React
-            reactX.configs['recommended-typescript'],
-            // Enable lint rules for React DOM
-            reactDom.configs.recommended,
-        ],
-        languageOptions: {
-            parserOptions: {
-                project: ['./tsconfig.node.json', './tsconfig.app.json'],
-                tsconfigRootDir: import.meta.dirname,
-            },
-            // other options...
-        },
-    },
-]);
+```txt
+VITE_API_BASE_URL=http://localhost:5000/api
+VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+VITE_DEFAULT_CLINIC_ID=00000000-0000-4000-8000-000000000000
 ```
+
+`VITE_DEFAULT_CLINIC_ID` is optional demo fallback context. In normal signed-in use, the app prefers the authenticated internal Pravaah user's active clinic returned by `GET /api/auth/me`.
+
+## Source Structure
+
+```txt
+src/
+├── app/
+├── components/
+├── features/
+├── lib/
+├── routes/
+├── types/
+└── main.tsx
+```
+
+See the root docs for details:
+
+- [Frontend Structure](../../docs/FRONTEND_STRUCTURE.md)
+- [Setup](../../docs/SETUP.md)
+- [Auth And Security](../../docs/AUTH_AND_SECURITY.md)

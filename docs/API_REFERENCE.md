@@ -1,0 +1,608 @@
+# API Reference
+
+This reference is based on the current route files in `apps/server/src/modules/**`.
+
+Base URL in local development:
+
+```txt
+http://localhost:5000/api
+```
+
+Protected endpoints require:
+
+```txt
+Authorization: Bearer <Clerk session token>
+```
+
+## Response Shapes
+
+Success:
+
+```json
+{
+    "success": true,
+    "message": "Message",
+    "data": {}
+}
+```
+
+Error:
+
+```json
+{
+    "success": false,
+    "error": {
+        "code": "ERROR_CODE",
+        "message": "Message"
+    }
+}
+```
+
+Validation errors include `error.details`.
+
+## Health
+
+| Method | Path          | Auth | Summary               |
+| ------ | ------------- | ---- | --------------------- |
+| GET    | `/api/health` | No   | Backend health check. |
+
+Response data:
+
+```json
+{
+    "success": true,
+    "message": "Pravaah API is healthy"
+}
+```
+
+## Auth
+
+### Get Current User
+
+| Field             | Value          |
+| ----------------- | -------------- |
+| Method            | GET            |
+| Path              | `/api/auth/me` |
+| Auth              | Required       |
+| Params/query/body | None           |
+
+Response summary:
+
+```txt
+data.user:
+  id, fullName, email, role, status, clinicId, clinic
+```
+
+Main errors:
+
+- `AUTHENTICATION_REQUIRED`
+- `INVALID_AUTH_TOKEN`
+- `INTERNAL_USER_NOT_FOUND`
+- `USER_NOT_ACTIVE`
+
+## Clinics
+
+### Create Clinic
+
+| Field  | Value           |
+| ------ | --------------- |
+| Method | POST            |
+| Path   | `/api/clinics`  |
+| Auth   | Required, Admin |
+
+Body summary:
+
+```txt
+name, slug required
+phone, email, address fields optional
+country default India
+timezone default Asia/Kolkata
+openingTime default 09:00
+closingTime default 18:00
+slotDurationMinutes default 15
+bufferMinutes default 0
+```
+
+Response summary:
+
+```txt
+data.clinic
+```
+
+Main errors:
+
+- `CLINIC_SLUG_ALREADY_EXISTS`
+- `ADMIN_REQUIRED`
+- `VALIDATION_ERROR`
+
+### Update Clinic
+
+| Field  | Value                              |
+| ------ | ---------------------------------- |
+| Method | PATCH                              |
+| Path   | `/api/clinics/:clinicId`           |
+| Auth   | Required, own active clinic, Admin |
+
+Params:
+
+- `clinicId` UUID-shaped string
+
+Body summary:
+
+- any create-clinic field plus `isActive`
+- at least one field required
+
+Response summary:
+
+```txt
+data.clinic
+```
+
+Main errors:
+
+- `CLINIC_ACCESS_DENIED`
+- `CLINIC_NOT_FOUND`
+- `CLINIC_INACTIVE`
+- `CLINIC_SLUG_ALREADY_EXISTS`
+- `ADMIN_REQUIRED`
+- `VALIDATION_ERROR`
+
+## Doctors
+
+### Create Doctor
+
+| Field  | Value                                    |
+| ------ | ---------------------------------------- |
+| Method | POST                                     |
+| Path   | `/api/clinics/:clinicId/doctors`         |
+| Auth   | Required, own active clinic, Admin/Staff |
+
+Body summary:
+
+```txt
+fullName required
+specialization, qualification, registrationNumber optional
+phone, email optional
+gender optional: MALE, FEMALE, OTHER
+experienceYears optional non-negative integer
+```
+
+Response summary:
+
+```txt
+data.doctor
+```
+
+Main errors:
+
+- `CLINIC_ACCESS_DENIED`
+- `CLINIC_NOT_FOUND`
+- `CLINIC_STAFF_REQUIRED`
+- `VALIDATION_ERROR`
+
+### List Doctors
+
+| Field  | Value                                    |
+| ------ | ---------------------------------------- |
+| Method | GET                                      |
+| Path   | `/api/clinics/:clinicId/doctors`         |
+| Auth   | Required, own active clinic, Admin/Staff |
+
+Response summary:
+
+```txt
+data.doctors[]
+  doctorClinicId, clinicLinkIsActive, doctor fields
+```
+
+Main errors:
+
+- `CLINIC_ACCESS_DENIED`
+- `CLINIC_NOT_FOUND`
+- `CLINIC_STAFF_REQUIRED`
+
+### Update Doctor
+
+| Field  | Value                                      |
+| ------ | ------------------------------------------ |
+| Method | PATCH                                      |
+| Path   | `/api/clinics/:clinicId/doctors/:doctorId` |
+| Auth   | Required, own active clinic, Admin/Staff   |
+
+Body summary:
+
+- any create-doctor field plus `isActive`
+- at least one field required
+
+Main errors:
+
+- `DOCTOR_NOT_FOUND`
+- `DOCTOR_NOT_LINKED_TO_CLINIC`
+- `CLINIC_ACCESS_DENIED`
+- `VALIDATION_ERROR`
+
+## Patients
+
+### Create Patient
+
+| Field  | Value                                    |
+| ------ | ---------------------------------------- |
+| Method | POST                                     |
+| Path   | `/api/clinics/:clinicId/patients`        |
+| Auth   | Required, own active clinic, Admin/Staff |
+
+Body summary:
+
+```txt
+fullName required
+phone required
+email, gender, dateOfBirth, age optional
+address, city optional
+emergencyContactName, emergencyContactPhone optional
+notes optional
+distanceFromClinicKm optional
+```
+
+Response summary:
+
+```txt
+data.patient
+```
+
+Main errors:
+
+- `CLINIC_ACCESS_DENIED`
+- `CLINIC_NOT_FOUND`
+- `CLINIC_STAFF_REQUIRED`
+- `VALIDATION_ERROR`
+
+### List Patients
+
+| Field  | Value                                    |
+| ------ | ---------------------------------------- |
+| Method | GET                                      |
+| Path   | `/api/clinics/:clinicId/patients`        |
+| Auth   | Required, own active clinic, Admin/Staff |
+
+Query:
+
+- `search` optional non-empty string
+- `isActive` optional `true` or `false`
+
+Response summary:
+
+```txt
+data.patients[]
+  PatientClinic item including nested patient
+```
+
+Main errors:
+
+- `CLINIC_ACCESS_DENIED`
+- `CLINIC_NOT_FOUND`
+- `VALIDATION_ERROR`
+
+### Update Patient
+
+| Field  | Value                                        |
+| ------ | -------------------------------------------- |
+| Method | PATCH                                        |
+| Path   | `/api/clinics/:clinicId/patients/:patientId` |
+| Auth   | Required, own active clinic, Admin/Staff     |
+
+Body summary:
+
+- any create-patient field plus nullable optional fields and `isActive`
+- at least one field required
+- `notes` and `distanceFromClinicKm` update `PatientClinic`
+
+Main errors:
+
+- `PATIENT_NOT_FOUND`
+- `PATIENT_NOT_LINKED_TO_CLINIC`
+- `CLINIC_ACCESS_DENIED`
+- `VALIDATION_ERROR`
+
+## Appointments
+
+### Create Appointment
+
+| Field  | Value                                    |
+| ------ | ---------------------------------------- |
+| Method | POST                                     |
+| Path   | `/api/clinics/:clinicId/appointments`    |
+| Auth   | Required, own active clinic, Admin/Staff |
+
+Body summary:
+
+```txt
+doctorId required
+patientId required
+scheduledAt ISO datetime required
+durationMinutes positive integer, default 15
+reason, notes optional
+bookingSource default RECEPTION; allowed RECEPTION, PHONE, WEB, WALK_IN
+```
+
+Response summary:
+
+```txt
+data.appointment
+data.queueEntry
+data.noShowPrediction
+```
+
+Main errors:
+
+- `CLINIC_NOT_FOUND`
+- `CLINIC_INACTIVE`
+- `DOCTOR_NOT_FOUND`
+- `PATIENT_NOT_FOUND`
+- `DOCTOR_NOT_LINKED_TO_CLINIC`
+- `PATIENT_NOT_LINKED_TO_CLINIC`
+- `APPOINTMENT_SLOT_CONFLICT`
+- `VALIDATION_ERROR`
+
+### List Appointments
+
+| Field  | Value                                    |
+| ------ | ---------------------------------------- |
+| Method | GET                                      |
+| Path   | `/api/clinics/:clinicId/appointments`    |
+| Auth   | Required, own active clinic, Admin/Staff |
+
+Query:
+
+- `date` optional `YYYY-MM-DD`
+- `doctorId` optional UUID
+- `patientId` optional UUID
+- `status` optional appointment status
+
+Response summary:
+
+```txt
+data.appointments[]
+  appointment fields
+  doctor summary
+  patient summary
+  queueEntry summary
+  noShowPrediction response or null
+```
+
+Main errors:
+
+- `CLINIC_NOT_FOUND`
+- `CLINIC_INACTIVE`
+- `DOCTOR_NOT_FOUND`
+- `PATIENT_NOT_FOUND`
+- `DOCTOR_NOT_LINKED_TO_CLINIC`
+- `PATIENT_NOT_LINKED_TO_CLINIC`
+- `VALIDATION_ERROR`
+
+### Update Appointment Status
+
+| Field  | Value                                                              |
+| ------ | ------------------------------------------------------------------ |
+| Method | PATCH                                                              |
+| Path   | `/api/appointments/:appointmentId/status`                          |
+| Auth   | Required, Admin/Staff, appointment's clinic must match user clinic |
+
+Body:
+
+```txt
+status: SCHEDULED | CONFIRMED | ARRIVED | IN_QUEUE | CALLED | COMPLETED | CANCELLED | NO_SHOW
+```
+
+Response summary:
+
+```txt
+data.appointment
+```
+
+Main errors:
+
+- `APPOINTMENT_NOT_FOUND`
+- `CLINIC_ACCESS_DENIED`
+- `APPOINTMENT_STATUS_FINAL`
+- `QUEUE_ENTRY_NOT_FOUND`
+- `STATUS_SYNC_CONFLICT`
+- `VALIDATION_ERROR`
+
+## Queue
+
+### List Queue By Date
+
+| Field  | Value                                    |
+| ------ | ---------------------------------------- |
+| Method | GET                                      |
+| Path   | `/api/clinics/:clinicId/queue`           |
+| Auth   | Required, own active clinic, Admin/Staff |
+
+Query:
+
+- `date` required `YYYY-MM-DD`
+
+Response summary:
+
+```txt
+data.queueEntries[]
+  queue entry fields
+  appointment summary
+  doctor summary
+  patient summary
+  noShowPrediction response or null
+```
+
+Main errors:
+
+- `CLINIC_ACCESS_DENIED`
+- `CLINIC_NOT_FOUND`
+- `CLINIC_INACTIVE`
+- `VALIDATION_ERROR`
+
+### Reorder Queue
+
+| Field  | Value                                    |
+| ------ | ---------------------------------------- |
+| Method | PATCH                                    |
+| Path   | `/api/clinics/:clinicId/queue/reorder`   |
+| Auth   | Required, own active clinic, Admin/Staff |
+
+Body:
+
+```txt
+date required YYYY-MM-DD
+queueEntryIds required non-empty unique array of UUID-shaped ids
+```
+
+Response summary:
+
+```txt
+data.queueEntries[]
+```
+
+Main errors:
+
+- `QUEUE_ENTRY_NOT_FOUND`
+- `QUEUE_ENTRY_CLINIC_MISMATCH`
+- `QUEUE_ENTRY_FINAL_STATUS`
+- `QUEUE_REORDER_INCOMPLETE`
+- `QUEUE_REORDER_INVALID_ENTRIES`
+- `QUEUE_REORDER_CONFLICT`
+- `VALIDATION_ERROR`
+
+Frontend note: this endpoint exists in the backend but is not currently exposed in `apps/web/src/features/queues`.
+
+### Update Queue Status
+
+| Field  | Value                                               |
+| ------ | --------------------------------------------------- |
+| Method | PATCH                                               |
+| Path   | `/api/clinics/:clinicId/queue/:queueEntryId/status` |
+| Auth   | Required, own active clinic, Admin/Staff            |
+
+Body:
+
+```txt
+status: ARRIVED | WAITING | CALLED | COMPLETED | CANCELLED | NO_SHOW
+```
+
+Response summary:
+
+```txt
+data.queueEntry
+```
+
+Main errors:
+
+- `QUEUE_ENTRY_NOT_FOUND`
+- `QUEUE_ENTRY_CLINIC_MISMATCH`
+- `QUEUE_ENTRY_FINAL_STATUS`
+- `STATUS_SYNC_CONFLICT`
+- `VALIDATION_ERROR`
+
+## Dashboard
+
+### Get Dashboard Summary
+
+| Field  | Value                                      |
+| ------ | ------------------------------------------ |
+| Method | GET                                        |
+| Path   | `/api/clinics/:clinicId/dashboard/summary` |
+| Auth   | Required, own active clinic, Admin/Staff   |
+
+Query:
+
+- `date` optional `YYYY-MM-DD`; defaults to today's date in clinic timezone
+
+Response summary:
+
+```txt
+data.dashboardSummary:
+  clinicId, date
+  appointmentSummary
+  queueSummary
+  noShowRiskSummary
+```
+
+Main errors:
+
+- `CLINIC_ACCESS_DENIED`
+- `CLINIC_NOT_FOUND`
+- `CLINIC_INACTIVE`
+- `VALIDATION_ERROR`
+
+### Get High-Risk Appointments
+
+| Field  | Value                                                     |
+| ------ | --------------------------------------------------------- |
+| Method | GET                                                       |
+| Path   | `/api/clinics/:clinicId/dashboard/high-risk-appointments` |
+| Auth   | Required, own active clinic, Admin/Staff                  |
+
+Query:
+
+- `date` optional `YYYY-MM-DD`; defaults to today's date in clinic timezone
+
+Response summary:
+
+```txt
+data.clinicId
+data.date
+data.highRiskAppointments[]
+```
+
+Main errors:
+
+- `CLINIC_ACCESS_DENIED`
+- `CLINIC_NOT_FOUND`
+- `CLINIC_INACTIVE`
+- `VALIDATION_ERROR`
+
+### Get Today's Activity
+
+| Field  | Value                                             |
+| ------ | ------------------------------------------------- |
+| Method | GET                                               |
+| Path   | `/api/clinics/:clinicId/dashboard/today-activity` |
+| Auth   | Required, own active clinic, Admin/Staff          |
+
+Response summary:
+
+```txt
+data.clinicId
+data.date
+data.activityItems[]
+```
+
+Activity types:
+
+- `APPOINTMENT_BOOKED`
+- `APPOINTMENT_CANCELLED`
+- `APPOINTMENT_NO_SHOW`
+- `QUEUE_JOINED`
+- `PATIENT_CALLED`
+- `VISIT_COMPLETED`
+- `QUEUE_CANCELLED`
+- `QUEUE_NO_SHOW`
+
+Main errors:
+
+- `CLINIC_ACCESS_DENIED`
+- `CLINIC_NOT_FOUND`
+- `CLINIC_INACTIVE`
+
+## Root Welcome
+
+| Method | Path | Auth | Summary                                   |
+| ------ | ---- | ---- | ----------------------------------------- |
+| GET    | `/`  | No   | Returns a welcome message outside `/api`. |
+
+Response:
+
+```json
+{
+    "success": true,
+    "message": "Welcome to the Pravaah API"
+}
+```
