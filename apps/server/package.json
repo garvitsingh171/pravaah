@@ -5,13 +5,15 @@
     "type": "module",
     "scripts": {
         "dev": "tsx watch src/server.ts",
-        "build": "tsc",
+        "build": "prisma generate && tsc",
         "start": "node dist/server.js",
         "check": "tsc --noEmit",
         "lint": "echo \"server lint not configured yet\"",
         "test": "vitest run",
         "seed": "prisma db seed",
-        "seed:demo": "prisma db seed"
+        "seed:demo": "prisma db seed",
+        "prisma:generate": "prisma generate",
+        "prisma:migrate:deploy": "prisma migrate deploy"
     },
     "prisma": {
         "seed": "tsx prisma/seed.ts"

@@ -4,7 +4,6 @@
 
 Symptoms:
 
-- `CLERK_PUBLISHABLE_KEY is not defined`
 - `CLERK_SECRET_KEY is not defined`
 - `DATABASE_URL is not defined`
 

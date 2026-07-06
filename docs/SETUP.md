@@ -72,13 +72,14 @@ Source: `apps/server/package.json`.
 | Command                            | Purpose                                       |
 | ---------------------------------- | --------------------------------------------- |
 | `npm run dev -w apps/server`       | Start Express with `tsx watch src/server.ts`. |
-| `npm run build -w apps/server`     | Compile TypeScript to `dist`.                 |
+| `npm run build -w apps/server`     | Generate Prisma Client and compile to `dist`. |
 | `npm run start -w apps/server`     | Run `node dist/server.js`.                    |
 | `npm run check -w apps/server`     | Run `tsc --noEmit`.                           |
 | `npm run lint -w apps/server`      | Prints `server lint not configured yet`.      |
 | `npm run test -w apps/server`      | Run Vitest tests.                             |
 | `npm run seed -w apps/server`      | Run Prisma seed.                              |
 | `npm run seed:demo -w apps/server` | Run Prisma seed.                              |
+| `npm run prisma:migrate:deploy -w apps/server` | Run production Prisma migrations. |
 
 ## Environment Files
 
@@ -114,9 +115,10 @@ Put these in `apps/server/.env`:
 ```txt
 PORT=5000
 CLIENT_URL=http://localhost:5173
+LOCAL_CLIENT_URL=http://localhost:5173
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DATABASE
-CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
 CLERK_SECRET_KEY=your_clerk_secret_key
+CLERK_WEBHOOK_SECRET=your_clerk_webhook_secret_if_used
 ```
 
 `CLERK_WEBHOOK_SECRET` appears in `.env.example`, but no current source file uses Clerk webhooks.
@@ -210,10 +212,31 @@ API:      http://localhost:5000/api
 Health:   http://localhost:5000/api/health
 ```
 
+## Render Backend Deployment
+
+Create a Render Web Service for the backend from this repository.
+
+```txt
+Build command: npm install --production=false && npm run build --workspace apps/server
+Pre-deploy command: npm run prisma:migrate:deploy --workspace apps/server
+Start command: npm run start --workspace apps/server
+```
+
+Required backend env vars:
+
+```txt
+NODE_ENV=production
+DATABASE_URL=postgresql://...
+CLERK_SECRET_KEY=...
+CLIENT_URL=https://<deployed-frontend-origin>
+```
+
+Render provides `PORT`; keep it unset unless you need a local fallback. Never commit real `DATABASE_URL`, `CLERK_SECRET_KEY`, webhook secrets, or production credentials.
+
 ## Clerk Setup Notes
 
 1. Create a Clerk application.
-2. Put the publishable key in `apps/web/.env` and `apps/server/.env`.
+2. Put the publishable key in `apps/web/.env`.
 3. Put the secret key only in `apps/server/.env`.
 4. Create or identify a development user in Clerk.
 5. Copy that user's Clerk ID into `SEED_CLERK_USER_ID`.

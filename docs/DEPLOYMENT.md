@@ -47,24 +47,31 @@ The backend is an Express app and can be deployed to a Node host such as:
 Build command:
 
 ```bash
-npm run build:server
+npm install --production=false && npm run build --workspace apps/server
+```
+
+Pre-deploy command:
+
+```bash
+npm run prisma:migrate:deploy --workspace apps/server
 ```
 
 Start command:
 
 ```bash
-npm run start -w apps/server
+npm run start --workspace apps/server
 ```
 
 Required backend env vars:
 
 ```txt
-PORT=5000
+NODE_ENV=production
 CLIENT_URL=https://<frontend-host>
 DATABASE_URL=postgresql://...
-CLERK_PUBLISHABLE_KEY=<production publishable key>
 CLERK_SECRET_KEY=<production secret key>
 ```
+
+Render provides `PORT` for Web Services. The backend falls back to `5000` when `PORT` is not set for local runs.
 
 ## Database Environment
 
@@ -124,7 +131,6 @@ Backend:
 - `PORT`
 - `CLIENT_URL`
 - `DATABASE_URL`
-- `CLERK_PUBLISHABLE_KEY`
 - `CLERK_SECRET_KEY`
 
 Seed-only:
