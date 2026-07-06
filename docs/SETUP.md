@@ -233,6 +233,32 @@ CLIENT_URL=https://<deployed-frontend-origin>
 
 Render provides `PORT`; keep it unset unless you need a local fallback. Never commit real `DATABASE_URL`, `CLERK_SECRET_KEY`, webhook secrets, or production credentials.
 
+## Vercel Frontend Deployment
+
+Create a Vercel project for the React client:
+
+```txt
+Root directory: apps/web
+Framework preset: Vite
+Build command: npm run build
+Output directory: dist
+```
+
+If building from the monorepo root instead, use:
+
+```bash
+npm run build --workspace apps/web
+```
+
+Required Vercel environment variables:
+
+```txt
+VITE_API_BASE_URL=https://YOUR_RENDER_BACKEND.onrender.com/api
+VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+```
+
+`VITE_API_BASE_URL` must point to the deployed Render backend and end with `/api`. Only use Clerk's publishable key in Vercel frontend env vars; do not add `DATABASE_URL`, `CLERK_SECRET_KEY`, webhook secrets, or other backend-only secrets. After Vercel deploys, update the Render backend `CLIENT_URL` to the Vercel frontend URL so CORS accepts browser requests.
+
 ## Clerk Setup Notes
 
 1. Create a Clerk application.
