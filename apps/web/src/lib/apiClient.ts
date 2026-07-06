@@ -34,24 +34,51 @@ const trimTrailingSlash = (value: string): string => value.replace(/\/+$/, '');
 
 const trimLeadingSlash = (value: string): string => value.replace(/^\/+/, '');
 
-const resolveBaseUrl = (baseUrl?: string): string => {
-    const resolvedBaseUrl = baseUrl ?? DEFAULT_API_BASE_URL;
+const trimLeadingApiPrefix = (value: string): string => {
+    const path = trimLeadingSlash(value);
 
-    if (!resolvedBaseUrl) {
+    return path === 'api' ? '' : path.replace(/^api\/+/, '');
+};
+
+const resolveBaseUrl = (baseUrl?: string): string => {
+    const configuredBaseUrl = (baseUrl ?? DEFAULT_API_BASE_URL)?.trim();
+
+    if (!configuredBaseUrl) {
         throw new ApiClientError({
             code: 'API_BASE_URL_MISSING',
-            message: 'Frontend API base URL is not configured.',
+            message:
+                'Frontend API base URL is not configured. Set VITE_API_BASE_URL to the backend /api URL.',
         });
     }
 
-    return trimTrailingSlash(resolvedBaseUrl);
+    let parsedBaseUrl: URL;
+
+    try {
+        parsedBaseUrl = new URL(configuredBaseUrl);
+    } catch {
+        throw new ApiClientError({
+            code: 'API_BASE_URL_INVALID',
+            message: 'Frontend API base URL is invalid.',
+        });
+    }
+
+    const normalizedBaseUrl = trimTrailingSlash(parsedBaseUrl.toString());
+
+    if (!parsedBaseUrl.pathname.replace(/\/+$/, '').endsWith('/api')) {
+        throw new ApiClientError({
+            code: 'API_BASE_URL_INVALID',
+            message: 'Frontend API base URL must point to the backend /api path.',
+        });
+    }
+
+    return normalizedBaseUrl;
 };
 
 const buildUrl = (baseUrl: string, path: string, query?: QueryParams): string => {
     let url: URL;
 
     try {
-        url = new URL(`${baseUrl}/${trimLeadingSlash(path)}`);
+        url = new URL(`${baseUrl}/${trimLeadingApiPrefix(path)}`);
     } catch {
         throw new ApiClientError({
             code: 'API_BASE_URL_INVALID',
