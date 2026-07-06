@@ -12,10 +12,28 @@ const requireEnv = (name: string): string => {
     return value;
 };
 
+const parsePort = (value: string | undefined): number => {
+    const port = Number(value ?? 5000);
+
+    if (!Number.isInteger(port) || port <= 0) {
+        throw new Error('PORT must be a positive integer');
+    }
+
+    return port;
+};
+
+const nodeEnv = process.env.NODE_ENV ?? 'development';
+const clientUrl = process.env.CLIENT_URL ?? 'http://localhost:5173';
+const localClientUrl = process.env.LOCAL_CLIENT_URL ?? 'http://localhost:5173';
+const allowedClientOrigins = Array.from(new Set([clientUrl, localClientUrl].filter(Boolean)));
+
 export const env = {
-    nodeEnv: process.env.NODE_ENV ?? 'development',
-    port: Number(process.env.PORT ?? 5000),
-    clientUrl: process.env.CLIENT_URL ?? 'http://localhost:5173',
-    clerkPublishableKey: requireEnv('CLERK_PUBLISHABLE_KEY'),
+    nodeEnv,
+    port: parsePort(process.env.PORT),
+    databaseUrl: requireEnv('DATABASE_URL'),
     clerkSecretKey: requireEnv('CLERK_SECRET_KEY'),
+    clerkWebhookSecret: process.env.CLERK_WEBHOOK_SECRET,
+    clientUrl,
+    localClientUrl,
+    allowedClientOrigins,
 };

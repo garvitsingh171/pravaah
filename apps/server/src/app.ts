@@ -21,7 +21,14 @@ app.use(clerkMiddleware());
 
 app.use(
     cors({
-        origin: env.clientUrl,
+        origin(origin, callback) {
+            if (!origin || env.allowedClientOrigins.includes(origin)) {
+                callback(null, true);
+                return;
+            }
+
+            callback(null, false);
+        },
     })
 );
 
