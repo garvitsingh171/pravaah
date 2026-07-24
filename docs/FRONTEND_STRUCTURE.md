@@ -52,8 +52,8 @@ Routes:
 
 | Path               | Page                                                   |
 | ------------------ | ------------------------------------------------------ |
+| `/`                | Public landing page                                    |
 | `/login/*`         | Clerk sign-in page wrapper                             |
-| `/`                | Redirects to `/dashboard` after auth                   |
 | `/dashboard`       | Dashboard overview                                     |
 | `/doctors`         | Doctor list/search                                     |
 | `/doctors/new`     | Doctor create form                                     |
@@ -62,9 +62,10 @@ Routes:
 | `/appointments`    | Appointment list/filter/status update and booking form |
 | `/queue`           | Today's queue list/filter/status update                |
 | `/clinic-settings` | Placeholder clinic settings page                       |
-| `*`                | Not found page                                         |
+| `*`                | Public-safe not found page                             |
 
 `ProtectedAppShell` blocks unauthenticated users and redirects them to `/login?redirect_url=...`.
+The public landing and auth routes are outside `ProtectedAppShell`; protected application routes keep the existing app shell and active clinic resolution.
 
 ## Layout Structure
 
@@ -89,6 +90,7 @@ src/features/
 
 Current pages:
 
+- `PublicLandingPage`
 - `LoginPage`
 - `DashboardOverviewPage`
 - `ClinicSettingsPage`
@@ -208,6 +210,7 @@ Implemented states include:
 | Page            | Current behavior                                                                                     |
 | --------------- | ---------------------------------------------------------------------------------------------------- |
 | Login           | Clerk `SignIn`, safe redirect handling, sign-out toast.                                              |
+| Landing         | Public product overview with sign-in or dashboard CTA based only on Clerk session state.             |
 | Dashboard       | Fetches summary, high-risk appointments, and today activity in parallel.                             |
 | Doctors         | Lists doctors, local search, create link.                                                            |
 | Doctor Create   | Creates doctor through backend API.                                                                  |
@@ -241,6 +244,7 @@ Implemented states include:
 - Clinic settings is placeholder UI.
 - Doctor edit and patient edit screens are not implemented.
 - Queue reorder API is not surfaced in the UI.
+- Public landing page exists; public sign-up and self-service onboarding are not implemented yet.
 - No frontend automated tests are configured.
 - No screenshots are committed.
 - Shared types are manually maintained and can drift from backend schemas if not reviewed.

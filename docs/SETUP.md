@@ -244,6 +244,8 @@ Build command: npm run build
 Output directory: dist
 ```
 
+`apps/web/vercel.json` rewrites non-API browser routes to `index.html` so React Router routes can be refreshed directly without redirecting `/api` requests.
+
 If building from the monorepo root instead, use:
 
 ```bash
