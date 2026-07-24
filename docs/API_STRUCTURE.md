@@ -50,6 +50,11 @@ Public/currently unauthenticated:
 - `GET /api/health`
 - `GET /`
 
+Planned v0.2 onboarding:
+
+- onboarding status and clinic bootstrap endpoints may require a valid Clerk identity while allowing the internal `User` to be missing
+- these endpoints must be explicitly onboarding-aware and must not expose operational clinic data
+
 Protected:
 
 - all `/api/auth/me`, clinic, doctor, patient, appointment, queue, and dashboard routes
@@ -67,6 +72,8 @@ The backend then verifies:
 3. Internal user is `ACTIVE`.
 4. Role is allowed.
 5. Clinic access is allowed where applicable.
+
+Do not remove `INTERNAL_USER_NOT_FOUND` from normal protected APIs. A missing internal user is allowed only for explicit onboarding endpoints introduced by v0.2.
 
 ## Clinic-Scoped APIs
 
@@ -185,6 +192,7 @@ The global error handler maps `AppError` to the standard error response.
 
 - Health
 - Auth/current user
+- v0.2 Onboarding, planned under `apps/server/src/modules/onboarding/`
 - Clinics
 - Doctors
 - Patients
@@ -216,8 +224,9 @@ There is no standalone prediction API route. Prediction is generated during appo
 
 ## Checklist Before Adding A New Endpoint
 
-- Is the endpoint in MVP scope?
+- Is the endpoint in frozen MVP scope or active v0.2 scope?
 - Does it require auth?
+- If it accepts a Clerk-authenticated but unprovisioned user, is it explicitly onboarding-aware?
 - Does it require Admin only or Admin/Staff?
 - Is every clinic-scoped read/write access checked?
 - Are params/query/body validated with Zod?

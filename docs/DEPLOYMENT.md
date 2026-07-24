@@ -2,9 +2,9 @@
 
 ## Current Status
 
-The repo has build and start scripts, but it does not contain a proven production deployment configuration or live deployment URL.
+The v0.1.0 MVP is recorded as completed and deployed in the release freeze record, but this repository still does not contain live deployment URLs or real production credentials.
 
-Do not claim Pravaah is deployed until frontend, backend, database, Clerk production keys, and smoke tests are actually configured.
+Use placeholders in public docs until the actual Vercel URL, Render URL, deployed commit SHAs, and GitHub release URL are confirmed. See `docs/releases/V0_1_0_MVP_FREEZE.md`.
 
 ## Frontend Deployment Options
 

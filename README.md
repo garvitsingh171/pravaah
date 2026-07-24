@@ -113,7 +113,10 @@ Start with [docs/README.md](docs/README.md).
 Key docs:
 
 - [MVP](docs/MVP.md)
+- [v0.2 Scope](docs/V0_2_SCOPE.md)
+- [v0.1.0 MVP Freeze](docs/releases/V0_1_0_MVP_FREEZE.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Roadmap](docs/ROADMAP.md)
 - [Setup](docs/SETUP.md)
 - [Database Design](docs/DATABASE_DESIGN.md)
 - [Backend Structure](docs/BACKEND_STRUCTURE.md)
@@ -126,7 +129,12 @@ Key docs:
 
 ## Current Status
 
-The MVP spine is implemented locally. Remaining release-readiness work includes deployment setup, full clinic settings UI, frontend edit screens for doctors/patients, optional queue reorder UI, and more frontend/integration tests.
+| Track                  | Status                                                    |
+| ---------------------- | --------------------------------------------------------- |
+| Current stable release | `v0.1.0` - MVP complete and deployed                      |
+| Active development     | `v0.2.0` - Public Demo and Self-Service Clinic Onboarding |
+
+The MVP product boundary is preserved in [docs/MVP.md](docs/MVP.md). Active v0.2 scope is tracked in [docs/V0_2_SCOPE.md](docs/V0_2_SCOPE.md), and the frozen v0.1 release record is in [docs/releases/V0_1_0_MVP_FREEZE.md](docs/releases/V0_1_0_MVP_FREEZE.md).
 
 ## Known Limitations
 
@@ -136,7 +144,6 @@ The MVP spine is implemented locally. Remaining release-readiness work includes 
 - no WhatsApp/SMS/email automation
 - no trained ML
 - no full multi-clinic SaaS membership model
-- no proven production deployment in the repo
 - no committed screenshots yet
 
 ## Demo Flow

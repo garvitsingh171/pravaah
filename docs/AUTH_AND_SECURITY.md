@@ -16,9 +16,11 @@
 `apps/web/src/features/auth/LoginPage.tsx` renders Clerk `SignIn` with:
 
 - path `/login`
-- sign-up disabled with `withSignUp={false}`
+- sign-up disabled with `withSignUp={false}` in frozen v0.1
 - safe redirect handling
 - sign-out success toast
+
+v0.2 will enable Clerk sign-up for public onboarding. Sign-up must not grant operational app access until Pravaah creates an internal active `User` and clinic assignment through the backend onboarding flow.
 
 `ProtectedAppShell` uses Clerk `useAuth()`:
 
@@ -48,6 +50,8 @@ That middleware requires:
 4. Internal Pravaah user exists for that Clerk user ID.
 5. Internal user status is `ACTIVE`.
 
+In v0.2, only explicitly onboarding-aware endpoints may stop after Clerk identity verification and allow a missing internal `User`. Normal protected APIs must keep requiring the internal user and active status checks.
+
 ## Bearer Token Flow
 
 ```txt
@@ -71,6 +75,8 @@ The internal `User` table stores:
 - `clinicId`
 
 Seeded demo users must use real Clerk development user IDs if you want to sign in and access protected APIs.
+
+An authenticated Clerk identity without an internal `User` is a valid v0.2 onboarding state only on onboarding-aware endpoints. It is not an Admin, Staff, patient, or doctor role.
 
 ## User Status Checks
 
@@ -139,6 +145,8 @@ The backend must still enforce:
 
 Any browser request can be modified, so frontend checks are not security boundaries.
 
+For v0.2 onboarding, the frontend must not send trusted authority values such as internal role, user status, clinic ownership, or another clinic's ID. The backend must assign the first clinic user as `ADMIN`, `ACTIVE`, and linked to the newly created clinic inside one transaction.
+
 ## Secrets Handling
 
 Frontend-safe:
@@ -182,6 +190,7 @@ The MVP does not store:
 
 - No audit logging for sensitive changes.
 - No rate limiting middleware.
+- Public onboarding API hardening is planned for v0.2 and is not implemented in v0.1.
 - No dedicated production logging/monitoring configuration.
 - No fine-grained permission model beyond Admin/Staff.
 - No multi-clinic membership table.
@@ -202,7 +211,7 @@ The MVP does not store:
 ## What Not To Change Casually
 
 - Do not bypass `authenticateRequest` on protected routes.
-- Do not trust Clerk identity without internal `User` authorization.
+- Do not trust Clerk identity without internal `User` authorization except on explicit onboarding-aware endpoints.
 - Do not expose server secrets to Vite.
 - Do not accept frontend-provided role values.
 - Do not remove clinic access checks from clinic-scoped APIs.

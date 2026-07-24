@@ -9,14 +9,17 @@ Pravaah MVP has two authenticated clinic-side roles:
 
 Patients and doctors are records only. They do not sign in, have sessions, or call protected APIs as users during the MVP.
 
+v0.2 adds an authenticated-but-unprovisioned onboarding state, but that state is not a new Pravaah role. Before successful onboarding, the Clerk identity has no internal role and no clinic access.
+
 ## Role Summary
 
-| Role           | Signs in? | Stored where?              | Current purpose                                                                                     |
-| -------------- | --------- | -------------------------- | --------------------------------------------------------------------------------------------------- |
-| Admin          | Yes       | `User.role = ADMIN`        | Clinic owner/manager/operator with access to Admin-only backend actions and daily clinic workflows. |
-| Staff          | Yes       | `User.role = STAFF`        | Reception/operations user for doctor, patient, appointment, queue, and dashboard workflows.         |
-| Patient record | No        | `Patient`, `PatientClinic` | Person receiving care; used in appointments, queue, and no-show scoring.                            |
-| Doctor record  | No        | `Doctor`, `DoctorClinic`   | Provider assigned to appointments and queue entries.                                                |
+| Role                            | Signs in? | Stored where?              | Current purpose                                                                                     |
+| ------------------------------- | --------- | -------------------------- | --------------------------------------------------------------------------------------------------- |
+| Admin                           | Yes       | `User.role = ADMIN`        | Clinic owner/manager/operator with access to Admin-only backend actions and daily clinic workflows. |
+| Staff                           | Yes       | `User.role = STAFF`        | Reception/operations user for doctor, patient, appointment, queue, and dashboard workflows.         |
+| Authenticated but unprovisioned | Yes       | Clerk only, no `User` yet  | Temporary onboarding state only; no internal role and no clinic access.                             |
+| Patient record                  | No        | `Patient`, `PatientClinic` | Person receiving care; used in appointments, queue, and no-show scoring.                            |
+| Doctor record                   | No        | `Doctor`, `DoctorClinic`   | Provider assigned to appointments and queue entries.                                                |
 
 ## Permission Table
 
@@ -41,6 +44,8 @@ Patients and doctors are records only. They do not sign in, have sessions, or ca
 | Reorder queue through frontend UI           | Not implemented            | Not implemented | No             | No            |
 | View dashboard                              | Yes                        | Yes             | No             | No            |
 | View starter no-show risk                   | Yes                        | Yes             | No             | No            |
+
+Authenticated-but-unprovisioned identities may call only explicitly onboarding-aware endpoints. They cannot access operational clinic, doctor, patient, appointment, queue, dashboard, or prediction APIs.
 
 ## Backend Authorization Rules
 
@@ -84,7 +89,24 @@ Internal Pravaah `User` authorization:
 - stores status: `INVITED`, `ACTIVE`, or `SUSPENDED`
 - stores MVP clinic access through `clinicId`
 
-Clerk alone is not enough. A signed-in Clerk user without an ACTIVE internal Pravaah `User` receives `INTERNAL_USER_NOT_FOUND` or `USER_NOT_ACTIVE`.
+Clerk alone is not enough. A signed-in Clerk user without an ACTIVE internal Pravaah `User` receives `INTERNAL_USER_NOT_FOUND` or `USER_NOT_ACTIVE` from normal protected APIs.
+
+In v0.2, a signed-in Clerk user without an internal `User` is allowed only on explicit onboarding-aware endpoints. This is an onboarding state, not a role.
+
+## v0.2 First Admin Provisioning
+
+After successful self-service clinic onboarding, the backend creates the first clinic user with:
+
+| Field         | Backend-controlled value                             |
+| ------------- | ---------------------------------------------------- |
+| `role`        | `ADMIN`                                              |
+| `status`      | `ACTIVE`                                             |
+| `clinicId`    | newly created clinic                                 |
+| `clerkUserId` | trusted Clerk identity from server-side auth context |
+
+The frontend must not choose role, status, clinic ownership, user ID, or another clinic's ID. Those values are assigned by backend-controlled logic inside the transactional onboarding flow.
+
+Staff remains an internal operational role. v0.2 does not add patient login, doctor login, patient portal, or doctor portal.
 
 ## Current Clinic Access Model
 
