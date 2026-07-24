@@ -27,6 +27,8 @@ Output:
 apps/web/dist
 ```
 
+For Vercel projects whose root directory is `apps/web`, `apps/web/vercel.json` rewrites non-API browser routes to `index.html` for React Router refresh support.
+
 Required frontend env vars:
 
 ```txt
