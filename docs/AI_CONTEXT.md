@@ -22,6 +22,13 @@ Do not suggest replacing the stack unless the user explicitly asks for a stack d
 
 Pravaah is an AI-assisted clinic flow management MVP for small and medium clinics.
 
+Release status:
+
+- `v0.1.0` is the frozen stable MVP release.
+- `v0.2.0` is the active development release.
+- Active v0.2 scope source of truth: `docs/V0_2_SCOPE.md`.
+- v0.2 theme: Public Demo and Self-Service Clinic Onboarding.
+
 Implemented spine:
 
 ```txt
@@ -43,6 +50,8 @@ Patients and doctors are records only.
 - Keep backend authorization server-side.
 - Keep Prisma schema as database source of truth.
 - Keep docs aligned with code.
+- Keep Clerk identity separate from internal Pravaah authorization.
+- Treat a missing internal user as valid only on explicitly onboarding-aware endpoints.
 
 ## Current Database Rules
 
@@ -78,6 +87,9 @@ Rules:
 - Clinic-scoped routes require clinic access checks.
 - Admin-only clinic routes use `requireAdminRole`.
 - Daily workflow routes use `requireClinicStaffRole`.
+- Do not remove or bypass `INTERNAL_USER_NOT_FOUND` for normal operational APIs.
+- Normal clinic, doctor, patient, appointment, queue, dashboard, and prediction APIs remain protected.
+- Public onboarding endpoints must not expose clinic data.
 
 Transaction-sensitive flows:
 
@@ -86,6 +98,18 @@ Transaction-sensitive flows:
 - appointment + queue entry + prediction creation
 - appointment/queue status synchronization
 - queue reordering
+- v0.2 clinic + first Admin provisioning
+
+v0.2 onboarding rules:
+
+- Clerk answers who the user is.
+- Pravaah answers what the user may access.
+- A Clerk-authenticated but unprovisioned identity has no internal role and no clinic access.
+- Only onboarding-aware endpoints may accept that missing internal user state.
+- Frontend-provided role, status, clinic ID, user ID, or clinic ownership must not be trusted.
+- Clinic and first Admin creation must happen in one Prisma transaction.
+- Failed onboarding must not leave an orphan clinic.
+- Isolated sample data must be fake and scoped only to the newly created clinic.
 
 ## Current Frontend Rules
 
@@ -117,6 +141,7 @@ Current UI limitations:
 - Do not claim trained ML or advanced AI.
 - Do not claim full multi-clinic SaaS support.
 - Do not claim production deployment is complete without evidence.
+- Do not introduce advanced AI, billing, notifications, multi-clinic SaaS features, patient login, or doctor login into v0.2 without approval.
 
 ## How To Scan Before Editing
 
@@ -161,4 +186,4 @@ Bad:
 
 ## Final Rule
 
-Let the current codebase lead. Do not invent a better Pravaah in the docs or code unless the user explicitly asks for a product change.
+Let the current codebase and `docs/V0_2_SCOPE.md` lead. Do not invent a better Pravaah in the docs or code unless the user explicitly asks for a product change.

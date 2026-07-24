@@ -249,5 +249,5 @@ Implemented states include:
 
 - Do not move backend authorization rules into frontend-only checks.
 - Do not expose backend secrets through `VITE_*`.
-- Do not add patient/doctor login routes during MVP.
+- Do not add patient/doctor login routes during the frozen MVP or v0.2 onboarding scope.
 - Do not claim UI support for backend-only features unless the page exists.

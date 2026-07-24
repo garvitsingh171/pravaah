@@ -8,6 +8,12 @@ Keep every change small, reviewable, and aligned with the implemented MVP:
 Auth -> Clinic -> Doctor/Patient -> Appointment -> Queue -> Starter no-show risk scoring
 ```
 
+Release status:
+
+- `v0.1.0` is frozen.
+- `v0.2.0` is active development.
+- Active v0.2 scope source of truth: [V0_2_SCOPE.md](./V0_2_SCOPE.md).
+
 ## Issue Selection
 
 Use existing issue templates in `.github/ISSUE_TEMPLATE`:
@@ -83,6 +89,8 @@ A PR should:
 
 Use `.github/pull_request_template.md`.
 
+Onboarding and security work must include tests. Schema changes must include migration notes, rollback considerations, and documentation updates. PRs should remain small and focused on one issue or tightly related dependency group.
+
 ## Running Checks
 
 Common commands:
@@ -118,6 +126,16 @@ Update docs in the same PR when changing:
 - testing commands or coverage expectations
 
 Never leave future ideas written as implemented behavior.
+
+Source-of-truth documentation:
+
+- Frozen MVP boundary: [MVP.md](./MVP.md)
+- Active v0.2 scope: [V0_2_SCOPE.md](./V0_2_SCOPE.md)
+- v0.1 release freeze record: [releases/V0_1_0_MVP_FREEZE.md](./releases/V0_1_0_MVP_FREEZE.md)
+- Architecture: [ARCHITECTURE.md](./ARCHITECTURE.md)
+- Roadmap: [ROADMAP.md](./ROADMAP.md)
+
+Release-related documentation must stay aligned. Future feature PRs must not silently modify the v0.2 scope; scope changes need an explicit reviewed product decision.
 
 ## AI Assistant Usage Rule
 

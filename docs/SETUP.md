@@ -69,17 +69,17 @@ Source: `apps/web/package.json`.
 
 Source: `apps/server/package.json`.
 
-| Command                            | Purpose                                       |
-| ---------------------------------- | --------------------------------------------- |
-| `npm run dev -w apps/server`       | Start Express with `tsx watch src/server.ts`. |
-| `npm run build -w apps/server`     | Generate Prisma Client and compile to `dist`. |
-| `npm run start -w apps/server`     | Run `node dist/server.js`.                    |
-| `npm run check -w apps/server`     | Run `tsc --noEmit`.                           |
-| `npm run lint -w apps/server`      | Prints `server lint not configured yet`.      |
-| `npm run test -w apps/server`      | Run Vitest tests.                             |
-| `npm run seed -w apps/server`      | Run Prisma seed.                              |
-| `npm run seed:demo -w apps/server` | Run Prisma seed.                              |
-| `npm run prisma:migrate:deploy -w apps/server` | Run production Prisma migrations. |
+| Command                                        | Purpose                                       |
+| ---------------------------------------------- | --------------------------------------------- |
+| `npm run dev -w apps/server`                   | Start Express with `tsx watch src/server.ts`. |
+| `npm run build -w apps/server`                 | Generate Prisma Client and compile to `dist`. |
+| `npm run start -w apps/server`                 | Run `node dist/server.js`.                    |
+| `npm run check -w apps/server`                 | Run `tsc --noEmit`.                           |
+| `npm run lint -w apps/server`                  | Prints `server lint not configured yet`.      |
+| `npm run test -w apps/server`                  | Run Vitest tests.                             |
+| `npm run seed -w apps/server`                  | Run Prisma seed.                              |
+| `npm run seed:demo -w apps/server`             | Run Prisma seed.                              |
+| `npm run prisma:migrate:deploy -w apps/server` | Run production Prisma migrations.             |
 
 ## Environment Files
 
@@ -267,6 +267,20 @@ VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
 4. Create or identify a development user in Clerk.
 5. Copy that user's Clerk ID into `SEED_CLERK_USER_ID`.
 6. Run the seed so the internal Pravaah `User.clerkUserId` matches the Clerk user.
+
+## v0.2 Onboarding Setup Notes
+
+v0.2 will add public sign-up and self-service clinic onboarding. Exact dashboard values, redirect paths, and additional environment variables should be documented only after they are implemented and confirmed.
+
+Future v0.2 setup work may require:
+
+- Clerk sign-up configuration
+- public and onboarding redirect URLs
+- frontend and backend environment alignment
+- separate development, preview, and production configuration
+- CORS alignment between public frontend origins and the backend API
+
+Do not invent or commit real Clerk dashboard values, production URLs, secrets, or patient data while preparing onboarding setup.
 
 ## Common Errors And Fixes
 

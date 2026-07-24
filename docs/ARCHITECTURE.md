@@ -72,9 +72,12 @@ PostgreSQL
 
 The frontend is responsible for:
 
+- separating public, onboarding, and protected application routes
 - rendering the Admin/Staff app shell
 - Clerk sign-in and sign-out UI
+- Clerk sign-up UI during v0.2 onboarding work
 - resolving active clinic context through `GET /api/auth/me`
+- resolving onboarding state before sending an authenticated-but-unprovisioned user into the protected app
 - sending Clerk Bearer tokens through the API client
 - rendering dashboard, doctor, patient, appointment, queue, and placeholder clinic settings pages
 - showing loading, empty, error, success, and toast states
@@ -82,12 +85,34 @@ The frontend is responsible for:
 
 The frontend is not trusted for final authorization, role checks, clinic access, or database writes.
 
+## Frontend Route Boundaries
+
+v0.2 introduces three route groups:
+
+| Route group                  | Session requirement                                    | Purpose                                                          |
+| ---------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------- |
+| Public routes                | No Clerk session required                              | Landing, sign-in, sign-up, and public product information.       |
+| Onboarding routes            | Clerk session required; internal `User` may be missing | First-time clinic bootstrap and setup flow.                      |
+| Protected application routes | Clerk session plus active internal `User` required     | Dashboard, doctors, patients, appointments, queue, and settings. |
+
+Valid application states include:
+
+| State                           | Clerk session | Internal Pravaah user                            | Expected frontend destination |
+| ------------------------------- | ------------- | ------------------------------------------------ | ----------------------------- |
+| Signed out                      | No            | Unknown                                          | Public routes or auth pages   |
+| Authenticated but unprovisioned | Yes           | Missing                                          | Onboarding routes             |
+| Active internal user            | Yes           | `ACTIVE` `ADMIN` or `STAFF`                      | Protected application routes  |
+| Invalid internal state          | Yes           | Missing/inactive/inconsistent outside onboarding | Recovery or error state       |
+
+An authenticated-but-unprovisioned Clerk identity is valid only for onboarding-aware routes. It is not a Pravaah role and has no clinic access.
+
 ## Backend Responsibility
 
 The backend is responsible for:
 
 - verifying Clerk-authenticated requests
 - mapping Clerk identity to the internal `User`
+- allowing missing internal users only on explicitly onboarding-aware endpoints
 - enforcing `UserStatus.ACTIVE`
 - enforcing Admin/Staff role rules
 - enforcing single-clinic MVP access through `User.clinicId`
@@ -95,6 +120,7 @@ The backend is responsible for:
 - running business logic in services
 - performing Prisma database access through repositories
 - keeping appointment, queue, and prediction writes transactionally consistent
+- keeping clinic and first Admin provisioning transactionally consistent in v0.2 onboarding
 - returning consistent JSON success and error shapes
 
 ## Database Responsibility
@@ -127,6 +153,13 @@ Is this signed-in person an ACTIVE internal User, what role do they have, and wh
 
 Do not replace backend authorization with frontend checks or Clerk metadata alone.
 
+For v0.2:
+
+- Clerk-authenticated onboarding endpoints may accept a valid Clerk identity without an internal `User`.
+- Operational APIs for clinics, doctors, patients, appointments, queue, dashboard, and prediction behavior still require an active internal user and clinic access.
+- `INTERNAL_USER_NOT_FOUND` must not be removed or bypassed for normal protected APIs.
+- The frontend must not choose role, status, clinic ownership, or another clinic's ID.
+
 ## Request Flow
 
 ```txt
@@ -145,9 +178,45 @@ Frontend page/action
 
 Important route detail: API routers are registered before `errorHandler`; the root `GET /` welcome route is currently registered after the error handler and has no custom error path.
 
+## v0.2 Middleware Responsibilities
+
+Use names aligned with the current codebase where possible, while keeping these responsibilities separate:
+
+| Responsibility                    | Current or suggested name                                                                | Rule                                                                                |
+| --------------------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Clerk authentication verification | `clerkMiddleware`, `authenticateRequest`, or future `requireClerkAuth`                   | Verifies the Clerk session and exposes trusted identity claims.                     |
+| Optional internal user loading    | future `optionalInternalUser` or `loadInternalUser`                                      | Attempts to load an internal user without rejecting a valid unprovisioned identity. |
+| Required internal user check      | `authenticateRequest` responsibility or future `requireInternalUser`                     | Required for normal operational APIs.                                               |
+| Active user check                 | `authService.getActiveUserByClerkUserId`, `accessService`, or future `requireActiveUser` | Requires `User.status = ACTIVE`.                                                    |
+| Clinic access check               | `requireClinicAccess`, `accessService.verifyClinicAccess`                                | Enforces server-side clinic scope.                                                  |
+| Role check                        | `requireAdminRole`, `requireClinicStaffRole`, or future `requireRole`                    | Enforces `ADMIN` or `STAFF` from the internal database.                             |
+
+Only onboarding-aware endpoints should use optional internal user loading. Normal clinic, doctor, patient, appointment, queue, dashboard, and prediction APIs should keep required internal user, active user, clinic access, and role checks.
+
+## Feature Module Architecture
+
+Backend feature modules follow:
+
+```txt
+Route
+-> validateRequest
+-> Controller
+-> Service
+-> Repository
+-> Prisma
+```
+
+The v0.2 onboarding module should follow the same pattern:
+
+```txt
+apps/server/src/modules/onboarding/
+```
+
+Onboarding services should own the provisioning workflow, including one Prisma transaction for clinic creation plus first Admin creation. Onboarding repositories should own Prisma reads/writes and transaction bodies. Do not route clinic bootstrap through the normal Admin-only clinic creation path.
+
 ## Deployment Shape
 
-The repository is deployable in principle, but no production deployment is configured or proven in the repo.
+The v0.1.0 MVP is recorded as completed and deployed in the release freeze record, but this repository does not contain live deployment URLs, production credentials, or confirmed deployed commit SHAs. Public docs should use placeholders until those values are confirmed.
 
 Expected deployment shape:
 

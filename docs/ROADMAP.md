@@ -1,50 +1,65 @@
 # Pravaah Roadmap
 
-## Current Reality
+## Release Status
 
-Pravaah has moved beyond planning docs into an implemented MVP codebase. The roadmap now tracks what is complete, what is partial, and what remains before a final MVP release.
+| Track               | Status                                                           |
+| ------------------- | ---------------------------------------------------------------- |
+| Stable release      | `v0.1.0` - MVP complete, deployed, and frozen                    |
+| Active release      | `v0.2.0` - Public Demo and Self-Service Clinic Onboarding        |
+| Active scope source | [V0_2_SCOPE.md](./V0_2_SCOPE.md)                                 |
+| v0.1 freeze record  | [releases/V0_1_0_MVP_FREEZE.md](./releases/V0_1_0_MVP_FREEZE.md) |
 
-Current stage as of June 30, 2026:
-
-```txt
-Deployment/docs/final release readiness
-```
+The MVP roadmap is complete. This file now tracks the frozen v0.1 baseline, the active v0.2 issue order, and later post-v0.2 work.
 
 ## Completed Stages
 
-| Stage                    | Status                          | Evidence                                                                          |
-| ------------------------ | ------------------------------- | --------------------------------------------------------------------------------- |
-| Monorepo foundation      | Complete                        | Root `package.json` workspaces for `apps/web`, `apps/server`, `packages/*`.       |
-| Frontend scaffold        | Complete                        | `apps/web` React + TypeScript + Vite app with Tailwind and routing.               |
-| Backend scaffold         | Complete                        | `apps/server/src/app.ts`, `server.ts`, config, middleware, utilities.             |
-| Prisma/PostgreSQL schema | Complete for MVP                | `apps/server/prisma/schema.prisma` models nine MVP entities.                      |
-| Auth integration         | Complete for protected MVP APIs | Clerk frontend, Clerk Express middleware, internal user mapping.                  |
-| Core backend APIs        | Complete for MVP spine          | Auth, clinics, doctors, patients, appointments, queues, dashboard.                |
-| Starter no-show scoring  | Complete as rule-based MVP      | `prediction.service.ts`, storage in `NoShowPrediction`, dashboard backfill.       |
-| Frontend core screens    | Mostly complete                 | Dashboard, doctors, patients, appointments, queue, login.                         |
-| Backend tests            | Partial but meaningful          | Vitest coverage for auth, appointments, queue, prediction, dashboard, validation. |
+| Stage                    | Status                          | Evidence                                                                                  |
+| ------------------------ | ------------------------------- | ----------------------------------------------------------------------------------------- |
+| Monorepo foundation      | Complete                        | Root `package.json` workspaces for `apps/web`, `apps/server`, `packages/*`.               |
+| Frontend scaffold        | Complete                        | `apps/web` React + TypeScript + Vite app with Tailwind and routing.                       |
+| Backend scaffold         | Complete                        | `apps/server/src/app.ts`, `server.ts`, config, middleware, utilities.                     |
+| Prisma/PostgreSQL schema | Complete for MVP                | `apps/server/prisma/schema.prisma` models nine MVP entities.                              |
+| Auth integration         | Complete for protected MVP APIs | Clerk frontend, Clerk Express middleware, internal user mapping.                          |
+| Core backend APIs        | Complete for MVP spine          | Auth, clinics, doctors, patients, appointments, queues, dashboard.                        |
+| Starter no-show scoring  | Complete as rule-based MVP      | `prediction.service.ts`, storage in `NoShowPrediction`, dashboard backfill.               |
+| Frontend core screens    | Complete for frozen v0.1 scope  | Dashboard, doctors, patients, appointments, queue, login; known UI gaps remain v0.2 work. |
+| Backend tests            | Partial but meaningful          | Vitest coverage for auth, appointments, queue, prediction, dashboard, validation.         |
 
-## Current Stage
+## v0.2 Scope In Dependency Order
 
-The current stage is release readiness:
+| Order | Issue                                               | Depends on         |
+| ----- | --------------------------------------------------- | ------------------ |
+| 1     | Freeze MVP and initialize v0.2                      | None               |
+| 2     | Define v0.2 scope in documentation                  | 1                  |
+| 3     | Add public landing page and public routes           | 1, 2               |
+| 4     | Enable Clerk sign-up flow                           | 3                  |
+| 5     | Separate Clerk identity from internal authorization | 1, 2               |
+| 6     | Add onboarding status API                           | 5                  |
+| 7     | Create clinic and Admin transactionally             | 5, 6               |
+| 8     | Prevent orphan clinic creation                      | 7                  |
+| 9     | Build first-time clinic onboarding UI               | 6, 7, 8            |
+| 10    | Provision isolated sample clinic data               | 7, 8               |
+| 11    | Add onboarding-aware application routing            | 6, 9               |
+| 12    | Build functional clinic settings page               | 7, 11              |
+| 13    | Add first-run setup checklist                       | 9, 10, 11, 12      |
+| 14    | Harden public onboarding APIs                       | 7, 8               |
+| 15    | Add backend onboarding tests                        | 6, 7, 8, 10, 14    |
+| 16    | Add frontend and end-to-end onboarding tests        | 9, 11, 12, 13      |
+| 17    | Publish v0.2 documentation and demo assets          | 15, 16, 18, 19, 20 |
+| 18    | Add doctor edit workflow                            | 5                  |
+| 19    | Add patient edit workflow                           | 5                  |
+| 20    | Add queue reorder controls                          | 5                  |
 
-- docs must match the codebase
-- local setup must be reproducible
-- deployment steps must be explicit without claiming a deployed production system
-- known MVP gaps must be visible
-- interviewer/contributor explanations must be code-backed
+Dependency summary:
 
-## Remaining MVP Tasks
-
-| Task                                                        | Why it matters                                                               |
-| ----------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Deploy frontend/backend/database or document chosen targets | The repo has build/start scripts but no production deployment proof.         |
-| Add complete clinic settings UI                             | Backend clinic create/update exists; current frontend page is a placeholder. |
-| Add doctor and patient edit screens                         | Backend update APIs exist; frontend currently has list/create.               |
-| Decide whether to expose queue reorder in UI                | Backend reorder API exists; frontend does not expose it.                     |
-| Add frontend tests or component-level smoke checks          | Current automated tests are backend-heavy.                                   |
-| Add API smoke scripts or documented manual API collection   | Helpful for demos and regression checks.                                     |
-| Capture screenshots/demo notes                              | README has no actual screenshots yet.                                        |
+```txt
+Freeze/scope -> public entry -> sign-up
+Freeze/scope -> identity split -> onboarding status -> transactional bootstrap -> orphan prevention -> API hardening
+Onboarding status/bootstrap -> onboarding UI -> onboarding-aware routing -> settings/checklist
+Workflow completion -> doctor edit, patient edit, queue reorder
+Verification -> backend, frontend, and end-to-end onboarding tests
+Publication -> docs, demo assets, release notes
+```
 
 ## Known Gaps
 
@@ -58,15 +73,9 @@ The current stage is release readiness:
 - No pagination on list endpoints.
 - Seed data is for local/demo use only.
 
-## Post-MVP Roadmap
+## Post-v0.2 Roadmap
 
-### Phase 1 - MVP Polish
-
-- finish clinic settings UI
-- add edit flows for doctors and patients
-- surface queue reordering if needed by clinic workflow
-- add more manual smoke scripts
-- add frontend tests for critical pages
+Keep these separate from the active v0.2 release unless a reviewed scope change moves them:
 
 ### Phase 2 - Operational Reliability
 

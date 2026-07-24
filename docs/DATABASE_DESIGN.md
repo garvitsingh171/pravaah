@@ -101,6 +101,8 @@ Why `User.clinicId` exists in MVP:
 
 Future improvement: add `ClinicMember` or `UserClinic` for multi-clinic users and role-per-clinic behavior.
 
+v0.2 keeps `User.clerkUserId` unique. A single Clerk identity must not create duplicate internal users or bootstrap multiple clinics through the self-service onboarding path.
+
 ### Doctor
 
 Important fields:
@@ -343,6 +345,40 @@ Both paths guard against final-status conflicts and return conflict errors when 
 
 Dashboard summary and high-risk endpoints backfill missing predictions for active appointments on the selected clinic-local date before reading risk summaries.
 
+### v0.2 Clinic And First Admin Bootstrap
+
+Self-service clinic onboarding must create:
+
+1. `Clinic`
+2. first internal `User` for that clinic
+
+inside one Prisma transaction.
+
+Consistency rules:
+
+- `User.clerkUserId` remains unique.
+- `Clinic.slug` remains unique.
+- The first user is created with server-controlled `role = ADMIN`, `status = ACTIVE`, and `clinicId = newly created clinic`.
+- Failures must roll back all related writes.
+- Retries must not create duplicate clinics or users.
+- Onboarding must not leave an orphan clinic without an active owning Admin.
+- Client-provided role, status, clinic ownership, user ID, or Clerk user ID must be ignored or rejected.
+- Clinic ownership and role assignment are server-controlled.
+
+Prefer deriving onboarding state from the existing `User` and `Clinic` relationship. Do not add an `Onboarding` table unless a future implementation issue proves durable onboarding-step persistence is required.
+
+### v0.2 Isolated Sample Data
+
+Optional onboarding sample data must be:
+
+- fake and clearly demo-oriented
+- linked only to the newly created clinic
+- created only after the clinic and first Admin exist
+- unable to reference another clinic's doctors, patients, appointments, queue entries, or predictions
+- retry-safe so repeated requests do not duplicate the whole sample dataset
+
+Production seed data and demo assets must never include real patient data.
+
 ## Seed/Demo Data Notes
 
 `apps/server/prisma/seed.ts` creates demo-only data:
@@ -373,4 +409,5 @@ The seed uses placeholder contact data. Never replace it with real patient data.
 - Do not move authorization truth into the frontend.
 - Do not edit applied migrations casually.
 - Do not hard-delete operational records without checking history and foreign keys.
-- Do not add patient/doctor auth tables during the MVP without a product decision.
+- Do not add patient/doctor auth tables during the MVP or v0.2 without a product decision.
+- Do not add an `Onboarding` table during v0.2 documentation work.

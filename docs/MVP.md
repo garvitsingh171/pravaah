@@ -1,5 +1,16 @@
 # Pravaah MVP
 
+## Release Status
+
+Pravaah MVP is completed and frozen as `v0.1.0`.
+
+Active development has moved to `v0.2.0`:
+
+- Active scope: [V0_2_SCOPE.md](./V0_2_SCOPE.md)
+- v0.1 freeze record: [releases/V0_1_0_MVP_FREEZE.md](./releases/V0_1_0_MVP_FREEZE.md)
+
+This document remains the historical MVP product boundary. Do not silently expand or remove the original MVP scope.
+
 ## One-Line Definition
 
 Pravaah is an AI-assisted clinic flow management MVP for small and medium clinics, focused on clinic-side Admin and Staff users who manage doctors, patients, appointments, today's queue, dashboard data, and starter no-show risk scoring.
@@ -77,7 +88,7 @@ Dashboard summarizes clinic activity and risk
 - No patient login, doctor login, patient portal, or doctor portal.
 - No SMS, WhatsApp, email reminder automation, billing, prescriptions, inventory, or full medical records.
 - No trained ML model. No-show scoring is deterministic rule logic.
-- No production deployment is proven by repository configuration or live URLs.
+- Public sign-up and self-service clinic onboarding are not part of the frozen v0.1 MVP.
 - MVP user access is single-clinic through `User.clinicId`; it is not full multi-clinic SaaS membership.
 - There is no shared package code yet; `packages/*` is reserved.
 
@@ -128,7 +139,7 @@ The MVP is successful when a reviewer can:
 
 ## Post-MVP Direction
 
-Future work can include:
+Active post-MVP development is defined by [V0_2_SCOPE.md](./V0_2_SCOPE.md). Later work can include:
 
 - full clinic settings UI
 - doctor/patient edit screens
@@ -144,7 +155,7 @@ Future work can include:
 
 ## Source Of Truth
 
-For product scope, this file and `docs/ROADMAP.md` are the source of truth. For implementation details, code wins:
+For frozen MVP scope, this file is the source of truth. For active v0.2 scope, use [V0_2_SCOPE.md](./V0_2_SCOPE.md). For implementation details, code wins:
 
 - Backend: `apps/server/src`
 - Database: `apps/server/prisma/schema.prisma`
