@@ -61,6 +61,16 @@ describe('accessService.verifyClinicAccess', () => {
         vi.clearAllMocks();
     });
 
+    it('denies missing internal users', async () => {
+        await expect(
+            accessService.verifyClinicAccess(undefined, 'clinic-id')
+        ).rejects.toMatchObject(
+            new AppError(401, 'AUTHENTICATION_REQUIRED', 'Authentication is required')
+        );
+
+        expect(mockAccessRepository.findClinicById).not.toHaveBeenCalled();
+    });
+
     it('denies foreign clinics before looking up clinic details', async () => {
         await expect(
             accessService.verifyClinicAccess(activeAdminUser, 'other-clinic-id')
@@ -83,6 +93,20 @@ describe('accessService.verifyClinicAccess', () => {
         await expect(
             accessService.verifyClinicAccess(activeAdminUser, 'clinic-id')
         ).resolves.toEqual(clinic);
+
+        expect(mockAccessRepository.findClinicById).toHaveBeenCalledWith('clinic-id');
+    });
+
+    it('denies inactive clinics', async () => {
+        mockAccessRepository.findClinicById.mockResolvedValue({
+            id: 'clinic-id',
+            isActive: false,
+            timezone: 'Asia/Kolkata',
+        });
+
+        await expect(
+            accessService.verifyClinicAccess(activeAdminUser, 'clinic-id')
+        ).rejects.toMatchObject(new AppError(400, 'CLINIC_INACTIVE', 'Clinic is inactive'));
 
         expect(mockAccessRepository.findClinicById).toHaveBeenCalledWith('clinic-id');
     });

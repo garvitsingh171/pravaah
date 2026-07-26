@@ -19,7 +19,7 @@ function Topbar({ title, eyebrow = 'Clinic Workspace', userContext = 'Staff Area
                     {userContext}
                 </div>
 
-                <SignOutButton redirectUrl="/login?signout=success">
+                <SignOutButton>
                     <button
                         type="button"
                         className="whitespace-nowrap rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"

@@ -78,7 +78,8 @@ function LoginPage() {
                         path="/login"
                         routing="path"
                         fallbackRedirectUrl={redirectPath}
-                        withSignUp={false}
+                        signUpUrl="/sign-up"
+                        withSignUp
                     />
                 </section>
             </div>

@@ -1,8 +1,9 @@
 import { getAuth } from '@clerk/express';
-import type { RequestHandler } from 'express';
+import type { Request, RequestHandler } from 'express';
 import { AppError } from '../../utils/AppError.js';
 import { accessService } from './access.service.js';
 import { authService } from './auth.service.js';
+import type { ClerkIdentity } from './auth.types.js';
 
 const bearerAuthorizationHeaderPattern = /^Bearer\s+\S+$/i;
 
@@ -13,33 +14,44 @@ const hasBearerAuthorizationHeader = (authorizationHeader: string | undefined): 
     );
 };
 
+const resolveClerkIdentity = (req: Request): ClerkIdentity => {
+    const authorizationHeader = req.header('authorization');
+
+    if (!authorizationHeader) {
+        throw new AppError(401, 'AUTHENTICATION_REQUIRED', 'Authentication is required');
+    }
+
+    if (!hasBearerAuthorizationHeader(authorizationHeader)) {
+        throw new AppError(401, 'INVALID_AUTH_TOKEN', 'Authentication token is invalid or expired');
+    }
+
+    const auth = getAuth(req);
+
+    if (!auth.isAuthenticated || !auth.userId) {
+        throw new AppError(401, 'INVALID_AUTH_TOKEN', 'Authentication token is invalid or expired');
+    }
+
+    return {
+        clerkUserId: auth.userId,
+    };
+};
+
+export const authenticateClerkIdentity: RequestHandler = (req, _res, next) => {
+    try {
+        req.authIdentity = resolveClerkIdentity(req);
+
+        next();
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const authenticateRequest: RequestHandler = async (req, _res, next) => {
     try {
-        const authorizationHeader = req.header('authorization');
+        const identity = resolveClerkIdentity(req);
 
-        if (!authorizationHeader) {
-            throw new AppError(401, 'AUTHENTICATION_REQUIRED', 'Authentication is required');
-        }
-
-        if (!hasBearerAuthorizationHeader(authorizationHeader)) {
-            throw new AppError(
-                401,
-                'INVALID_AUTH_TOKEN',
-                'Authentication token is invalid or expired'
-            );
-        }
-
-        const auth = getAuth(req);
-
-        if (!auth.isAuthenticated || !auth.userId) {
-            throw new AppError(
-                401,
-                'INVALID_AUTH_TOKEN',
-                'Authentication token is invalid or expired'
-            );
-        }
-
-        req.user = await authService.getActiveUserByClerkUserId(auth.userId);
+        req.authIdentity = identity;
+        req.user = await authService.getActiveUserByClerkUserId(identity.clerkUserId);
 
         next();
     } catch (error) {

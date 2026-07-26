@@ -8,7 +8,10 @@ import { ToastProvider } from './components/feedback';
 
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const signInUrl = '/login';
-const afterSignInUrl = '/dashboard';
+const signUpUrl = '/sign-up';
+const signInFallbackRedirectUrl = '/dashboard';
+const signUpFallbackRedirectUrl = '/';
+const afterSignOutUrl = '/login?signout=success';
 
 if (!clerkPublishableKey) {
     throw new Error('VITE_CLERK_PUBLISHABLE_KEY is not configured.');
@@ -19,8 +22,10 @@ createRoot(document.getElementById('root')!).render(
         <ClerkProvider
             publishableKey={clerkPublishableKey}
             signInUrl={signInUrl}
-            signInFallbackRedirectUrl={afterSignInUrl}
-            afterSignOutUrl={signInUrl}
+            signUpUrl={signUpUrl}
+            signInFallbackRedirectUrl={signInFallbackRedirectUrl}
+            signUpFallbackRedirectUrl={signUpFallbackRedirectUrl}
+            afterSignOutUrl={afterSignOutUrl}
         >
             <ApiAuthProvider>
                 <ToastProvider>

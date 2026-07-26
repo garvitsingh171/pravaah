@@ -1,4 +1,4 @@
-import { useAuth } from '@clerk/react';
+import { SignOutButton, useAuth } from '@clerk/react';
 import type { PropsWithChildren } from 'react';
 import { useEffect, useState } from 'react';
 import { ErrorMessage, LoadingState } from '../components/feedback';
@@ -31,6 +31,11 @@ type ActiveClinicProviderState =
           error: {
               details: string[];
           };
+      }
+    | {
+          status: 'unprovisioned';
+          activeClinic: null;
+          error: null;
       }
     | {
           status: 'error';
@@ -153,6 +158,35 @@ function ActiveClinicErrorState({ message, code }: { message: string; code?: str
     );
 }
 
+function UnprovisionedIdentityState() {
+    return (
+        <div className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900">
+            <div className="mx-auto flex max-w-2xl flex-col gap-4">
+                <ErrorMessage
+                    title="Account is not provisioned yet"
+                    message="Your Clerk session is valid, but this identity does not have an internal Pravaah user, role, or clinic assignment yet."
+                    code="INTERNAL_USER_NOT_FOUND"
+                    details={[
+                        'This account is authenticated but not an Admin, Staff member, clinic owner, or operational application user.',
+                        'Clinic onboarding and internal user provisioning are not implemented in this issue.',
+                        'Ask a project administrator to provision an ACTIVE internal Pravaah user for operational access.',
+                    ]}
+                />
+                <div className="flex justify-end">
+                    <SignOutButton>
+                        <button
+                            type="button"
+                            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                        >
+                            Sign out
+                        </button>
+                    </SignOutButton>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function ActiveClinicProvider({ children }: PropsWithChildren) {
     const { getToken } = useAuth();
     const [state, setState] = useState<ActiveClinicProviderState>(loadingState);
@@ -195,6 +229,15 @@ function ActiveClinicProvider({ children }: PropsWithChildren) {
                 }
 
                 if (isApiClientError(error)) {
+                    if (error.code === 'INTERNAL_USER_NOT_FOUND') {
+                        setState({
+                            status: 'unprovisioned',
+                            activeClinic: null,
+                            error: null,
+                        });
+                        return;
+                    }
+
                     setState({
                         status: 'error',
                         activeClinic: null,
@@ -231,6 +274,10 @@ function ActiveClinicProvider({ children }: PropsWithChildren) {
 
     if (state.status === 'missing') {
         return <MissingActiveClinicState details={state.error.details} />;
+    }
+
+    if (state.status === 'unprovisioned') {
+        return <UnprovisionedIdentityState />;
     }
 
     return (
