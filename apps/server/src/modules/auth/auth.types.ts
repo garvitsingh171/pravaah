@@ -1,4 +1,5 @@
 import type { UserRole, UserStatus } from '../../generated/prisma/client.js';
+import type { CreateClinicInput } from '../clinics/clinic.types.js';
 
 export type ClerkIdentity = {
     clerkUserId: string;
@@ -75,4 +76,22 @@ export type OnboardingStatusResult = {
 export type OnboardingUserRecord = OnboardingUserSummary & {
     clinicId: string | null;
     clinic: (OnboardingClinicSummary & { isActive: boolean }) | null;
+};
+
+export type OnboardingClinicInput = CreateClinicInput;
+
+export type TrustedClerkUserIdentity = {
+    clerkUserId: string;
+    email: string;
+    fullName: string;
+};
+
+export type ProvisionClinicWithAdminInput = {
+    clinic: OnboardingClinicInput;
+    admin: TrustedClerkUserIdentity;
+};
+
+export type ProvisionClinicWithAdminResult = {
+    user: OnboardingUserSummary;
+    clinic: OnboardingClinicSummary;
 };
