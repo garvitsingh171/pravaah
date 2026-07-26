@@ -1,24 +1,19 @@
 import type { Request, Response, NextFunction } from 'express';
+import { AppError } from '../../utils/AppError.js';
 import { clinicService } from './clinic.service.js';
-import type { CreateClinicInput, UpdateClinicInput } from './clinic.types.js';
+import type { UpdateClinicInput } from './clinic.types.js';
 
 export async function createClinicController(
-    req: Request,
-    res: Response,
+    _req: Request,
+    _res: Response,
     next: NextFunction
 ): Promise<void> {
     try {
-        const clinicData = req.body as CreateClinicInput;
-
-        const clinic = await clinicService.createClinic(clinicData);
-
-        res.status(201).json({
-            success: true,
-            message: 'Clinic created successfully',
-            data: {
-                clinic,
-            },
-        });
+        throw new AppError(
+            405,
+            'STANDALONE_CLINIC_CREATION_DISABLED',
+            'Standalone clinic creation is not supported'
+        );
     } catch (error) {
         next(error);
     }

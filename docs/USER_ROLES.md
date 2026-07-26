@@ -27,7 +27,8 @@ v0.2 adds an authenticated-but-unprovisioned onboarding state, but that state is
 | ------------------------------------------- | -------------------------- | --------------- | -------------- | ------------- |
 | Sign in to web app                          | Yes                        | Yes             | No             | No            |
 | Fetch current internal user profile         | Yes                        | Yes             | No             | No            |
-| Create clinic                               | Yes                        | No              | No             | No            |
+| Create clinic through onboarding            | First active provisioned user only | No              | No             | No            |
+| Create standalone clinic                    | Disabled                   | No              | No             | No            |
 | Update clinic                               | Yes, for own active clinic | No              | No             | No            |
 | Create/list/update doctors through backend  | Yes                        | Yes             | No             | No            |
 | Use doctor create/list UI                   | Yes                        | Yes             | No             | No            |

@@ -360,10 +360,13 @@ Consistency rules:
 - `Clinic.slug` remains unique.
 - The first user is created with server-controlled `role = ADMIN`, `status = ACTIVE`, and `clinicId = newly created clinic`.
 - Failures must roll back all related writes.
-- Retries must not create duplicate clinics or users.
+- Completed retries return the existing completed user and clinic summaries without creating, updating, or reassigning records.
+- Existing inconsistent users require recovery and cannot create another clinic through onboarding.
+- Unique conflicts during onboarding are resolved by re-reading the current Clerk identity before returning an idempotent replay or safe conflict.
 - Onboarding must not leave an orphan clinic without an active owning Admin.
 - Client-provided role, status, clinic ownership, user ID, or Clerk user ID must be ignored or rejected.
 - Clinic ownership and role assignment are server-controlled.
+- The ordinary `POST /api/clinics` path is disabled so it cannot create standalone clinic records.
 
 Prefer deriving onboarding state from the existing `User` and `Clinic` relationship. Do not add an `Onboarding` table unless a future implementation issue proves durable onboarding-step persistence is required.
 

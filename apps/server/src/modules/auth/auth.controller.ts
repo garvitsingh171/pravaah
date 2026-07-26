@@ -60,11 +60,14 @@ export async function createClinicOnboardingController(
             req.authIdentity.clerkUserId,
             clinicData
         );
+        const isReplay = result.outcome === 'ALREADY_COMPLETED';
 
-        res.status(201).json({
+        res.status(isReplay ? 200 : 201).json({
             success: true,
-            message: 'Clinic onboarding completed successfully',
-            data: result,
+            message: isReplay
+                ? 'Clinic onboarding already completed'
+                : 'Clinic onboarding completed successfully',
+            data: result.data,
         });
     } catch (error) {
         next(error);

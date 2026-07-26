@@ -121,6 +121,8 @@ The backend is responsible for:
 - performing Prisma database access through repositories
 - keeping appointment, queue, and prediction writes transactionally consistent
 - keeping clinic and first Admin provisioning transactionally consistent in v0.2 onboarding
+- replaying completed onboarding attempts idempotently from the current Clerk identity
+- disabling standalone clinic creation so a clinic cannot be created without a linked Admin
 - returning consistent JSON success and error shapes
 
 ## Database Responsibility
@@ -213,6 +215,19 @@ apps/server/src/modules/onboarding/
 ```
 
 Onboarding services should own the provisioning workflow, including one Prisma transaction for clinic creation plus first Admin creation. Onboarding repositories should own Prisma reads/writes and transaction bodies. Do not route clinic bootstrap through the normal Admin-only clinic creation path.
+
+The clinic bootstrap flow treats a completed current account as authoritative:
+retries return the existing completed user and clinic summaries instead of
+creating, updating, or comparing the retry body. If a unique constraint conflict
+occurs during provisioning, the service re-reads the current Clerk identity
+before returning an idempotent replay or a safe conflict. This keeps the database
+constraints as the final concurrency protection without relying on in-memory
+locks.
+
+The ordinary `POST /api/clinics` route is retained only as a protected disabled
+operation. It must not validate a creation body or write a standalone clinic.
+Clinic updates remain protected by internal-user authentication, clinic access,
+and Admin role checks.
 
 ## Deployment Shape
 

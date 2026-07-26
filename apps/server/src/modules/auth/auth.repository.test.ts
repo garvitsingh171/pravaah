@@ -186,6 +186,8 @@ describe('authRepository.createClinicWithAdmin', () => {
         });
 
         expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+        expect(mockPrisma.clinic.create).not.toHaveBeenCalled();
+        expect(mockPrisma.user.create).not.toHaveBeenCalled();
         expect(tx.clinic.create).toHaveBeenCalledWith({
             data: {
                 name: input.clinic.name,
