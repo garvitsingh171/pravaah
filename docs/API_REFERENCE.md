@@ -57,6 +57,50 @@ Response data:
 
 ## Auth
 
+### Get Onboarding Status
+
+| Field             | Value                                                      |
+| ----------------- | ---------------------------------------------------------- |
+| Method            | GET                                                        |
+| Path              | `/api/auth/onboarding-status`                              |
+| Auth              | Required, valid Clerk identity; internal user not required |
+| Params/query/body | None                                                       |
+
+This read-only endpoint derives provisioning state from the existing internal `User`
+and assigned `Clinic` records. It does not create a clinic, create an internal user,
+assign a role, or provision sample data.
+
+Response shape:
+
+```json
+{
+    "success": true,
+    "message": "Onboarding status retrieved successfully",
+    "data": {
+        "onboarding": {
+            "status": "NOT_STARTED",
+            "nextStep": "CREATE_CLINIC",
+            "isComplete": false
+        },
+        "user": null,
+        "clinic": null
+    }
+}
+```
+
+States:
+
+| Status              | Meaning                                                        | Next step          |
+| ------------------- | -------------------------------------------------------------- | ------------------ |
+| `NOT_STARTED`       | Valid Clerk identity exists, but no internal Pravaah user does | `CREATE_CLINIC`    |
+| `COMPLETED`         | Active Admin/Staff user has an active assigned clinic          | `OPEN_APPLICATION` |
+| `RECOVERY_REQUIRED` | Internal user exists, but role/status/clinic state is invalid  | `RECOVER_ACCOUNT`  |
+
+Main errors:
+
+- `AUTHENTICATION_REQUIRED`
+- `INVALID_AUTH_TOKEN`
+
 ### Get Current User
 
 | Field             | Value          |
