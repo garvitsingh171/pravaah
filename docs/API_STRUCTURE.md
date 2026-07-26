@@ -54,11 +54,14 @@ Planned v0.2 onboarding:
 
 - `GET /api/auth/onboarding-status` requires a valid Clerk identity while allowing the internal `User` to be missing
 - `POST /api/auth/onboarding/clinic` requires a valid Clerk identity while allowing the internal `User` to be missing
+- completed onboarding retries return the existing completed account instead of creating new records
+- unique conflicts during onboarding are followed by a current-identity re-read before returning a safe replay or conflict
 - these endpoints must be explicitly onboarding-aware and must not expose operational clinic data
 
 Protected:
 
 - all `/api/auth/me`, clinic, doctor, patient, appointment, queue, and dashboard routes
+- `POST /api/clinics` remains protected but is disabled with `STANDALONE_CLINIC_CREATION_DISABLED`
 
 Protected routes require:
 
@@ -195,7 +198,7 @@ The global error handler maps `AppError` to the standard error response.
 - Auth/current user
 - Auth/onboarding status
 - v0.2 clinic bootstrap under `POST /api/auth/onboarding/clinic`
-- Clinics
+- Clinics; standalone `POST /api/clinics` is disabled, while clinic update remains protected
 - Doctors
 - Patients
 - Appointments

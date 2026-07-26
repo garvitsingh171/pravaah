@@ -105,7 +105,7 @@ Current backend role helpers:
 
 Admin-only routes:
 
-- `POST /api/clinics`
+- `POST /api/clinics` is protected but disabled for standalone creation
 - `PATCH /api/clinics/:clinicId`
 
 Most workflow routes allow Admin and Staff.

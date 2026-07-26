@@ -6,9 +6,11 @@ import {
     OnboardingNextStep,
     OnboardingStatus,
     type AuthenticatedUser,
+    type ClinicOnboardingMutationResult,
     type CurrentUserProfile,
     type OnboardingClinicInput,
     type OnboardingClinicSummary,
+    type OnboardingSummary,
     type OnboardingStatusResult,
     type OnboardingUserRecord,
     type OnboardingUserSummary,
@@ -51,6 +53,43 @@ const isOnboardingComplete = (user: OnboardingUserRecord): boolean => {
     );
 };
 
+const completedOnboarding = {
+    status: OnboardingStatus.COMPLETED,
+    nextStep: OnboardingNextStep.OPEN_APPLICATION,
+    isComplete: true,
+} satisfies OnboardingSummary;
+
+const toCompletedOnboardingResult = (user: OnboardingUserRecord): OnboardingStatusResult => {
+    return {
+        onboarding: completedOnboarding,
+        user: toOnboardingUserSummary(user),
+        clinic: toOnboardingClinicSummary(user),
+    };
+};
+
+const toAlreadyCompletedMutationResult = (
+    user: OnboardingUserRecord
+): ClinicOnboardingMutationResult => {
+    return {
+        outcome: 'ALREADY_COMPLETED',
+        data: toCompletedOnboardingResult(user),
+    };
+};
+
+const provisioningConflictError = () =>
+    new AppError(
+        409,
+        'CLINIC_PROVISIONING_CONFLICT',
+        'Account requires recovery before clinic onboarding can continue'
+    );
+
+const internalUserAlreadyExistsError = () =>
+    new AppError(
+        409,
+        'INTERNAL_USER_ALREADY_EXISTS',
+        'An internal user already exists for this identity'
+    );
+
 const isUniqueConstraintError = (error: unknown): error is Prisma.PrismaClientKnownRequestError => {
     return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 };
@@ -58,11 +97,48 @@ const isUniqueConstraintError = (error: unknown): error is Prisma.PrismaClientKn
 const uniqueConstraintTargets = (error: Prisma.PrismaClientKnownRequestError): string[] => {
     const target = error.meta?.target;
 
-    if (!Array.isArray(target)) {
-        return [];
+    if (Array.isArray(target)) {
+        return target
+            .filter((value): value is string => typeof value === 'string')
+            .map((value) => value.toLowerCase());
     }
 
-    return target.filter((value): value is string => typeof value === 'string');
+    if (typeof target === 'string') {
+        return [target.toLowerCase()];
+    }
+
+    return [];
+};
+
+const uniqueConstraintCategory = (
+    error: Prisma.PrismaClientKnownRequestError
+): 'slug' | 'identity' | 'unknown' => {
+    const targets = uniqueConstraintTargets(error);
+
+    if (targets.some((target) => target.includes('slug'))) {
+        return 'slug';
+    }
+
+    if (
+        targets.some(
+            (target) =>
+                target.includes('clerkuserid') ||
+                target.includes('clerk_user_id') ||
+                target.includes('email')
+        )
+    ) {
+        return 'identity';
+    }
+
+    return 'unknown';
+};
+
+const logClinicOnboardingEvent = (event: string, details: Record<string, string> = {}): void => {
+    const suffix = Object.entries(details)
+        .map(([key, value]) => `${key}=${value}`)
+        .join(' ');
+
+    console.info(`[auth.onboarding.clinic] event=${event}${suffix ? ` ${suffix}` : ''}`);
 };
 
 export const authService = {
@@ -137,15 +213,7 @@ export const authService = {
         const clinicSummary = toOnboardingClinicSummary(user);
 
         if (isOnboardingComplete(user)) {
-            return {
-                onboarding: {
-                    status: OnboardingStatus.COMPLETED,
-                    nextStep: OnboardingNextStep.OPEN_APPLICATION,
-                    isComplete: true,
-                },
-                user: userSummary,
-                clinic: clinicSummary,
-            };
+            return toCompletedOnboardingResult(user);
         }
 
         return {
@@ -162,42 +230,71 @@ export const authService = {
     async createClinicOnboarding(
         clerkUserId: string,
         clinicInput: OnboardingClinicInput
-    ): Promise<OnboardingStatusResult> {
+    ): Promise<ClinicOnboardingMutationResult> {
         if (!clerkUserId.trim()) {
             throw new AppError(401, 'AUTHENTICATION_REQUIRED', 'Authentication is required');
         }
 
-        const existingUser = await authRepository.findUserByClerkUserId(clerkUserId);
+        const existingUser = await authRepository.findOnboardingUserByClerkUserId(clerkUserId);
 
         if (existingUser) {
-            throw new AppError(
-                409,
-                'ONBOARDING_ALREADY_COMPLETED',
-                'Onboarding has already been completed for this identity'
-            );
+            if (isOnboardingComplete(existingUser)) {
+                logClinicOnboardingEvent('replayed', { outcome: 'ALREADY_COMPLETED' });
+
+                return toAlreadyCompletedMutationResult(existingUser);
+            }
+
+            logClinicOnboardingEvent('conflicted', { code: 'CLINIC_PROVISIONING_CONFLICT' });
+            throw provisioningConflictError();
         }
 
         const adminIdentity = await clerkIdentityService.getTrustedUserIdentity(clerkUserId);
-        const existingClinic = await authRepository.findClinicBySlug(clinicInput.slug);
-
-        if (existingClinic) {
-            throw new AppError(409, 'CLINIC_SLUG_ALREADY_EXISTS', 'Clinic slug already exists');
-        }
 
         try {
+            const existingClinic = await authRepository.findClinicBySlug(clinicInput.slug);
+
+            if (existingClinic) {
+                const currentUser =
+                    await authRepository.findOnboardingUserByClerkUserId(clerkUserId);
+
+                if (currentUser) {
+                    if (isOnboardingComplete(currentUser)) {
+                        logClinicOnboardingEvent('replayed_after_slug_precheck', {
+                            outcome: 'ALREADY_COMPLETED',
+                            conflict: 'slug',
+                        });
+
+                        return toAlreadyCompletedMutationResult(currentUser);
+                    }
+
+                    logClinicOnboardingEvent('conflicted_after_slug_precheck', {
+                        code: 'CLINIC_PROVISIONING_CONFLICT',
+                        conflict: 'slug',
+                    });
+                    throw provisioningConflictError();
+                }
+
+                logClinicOnboardingEvent('conflicted', {
+                    code: 'CLINIC_SLUG_ALREADY_EXISTS',
+                    conflict: 'slug',
+                });
+                throw new AppError(409, 'CLINIC_SLUG_ALREADY_EXISTS', 'Clinic slug already exists');
+            }
+
             const result = await authRepository.createClinicWithAdmin({
                 clinic: clinicInput,
                 admin: adminIdentity,
             });
 
+            logClinicOnboardingEvent('created', { outcome: 'CREATED' });
+
             return {
-                onboarding: {
-                    status: OnboardingStatus.COMPLETED,
-                    nextStep: OnboardingNextStep.OPEN_APPLICATION,
-                    isComplete: true,
+                outcome: 'CREATED',
+                data: {
+                    onboarding: completedOnboarding,
+                    user: result.user,
+                    clinic: result.clinic,
                 },
-                user: result.user,
-                clinic: result.clinic,
             };
         } catch (error) {
             if (error instanceof AppError) {
@@ -205,9 +302,33 @@ export const authService = {
             }
 
             if (isUniqueConstraintError(error)) {
-                const targets = uniqueConstraintTargets(error);
+                const currentUser =
+                    await authRepository.findOnboardingUserByClerkUserId(clerkUserId);
 
-                if (targets.includes('slug')) {
+                if (currentUser) {
+                    if (isOnboardingComplete(currentUser)) {
+                        logClinicOnboardingEvent('replayed_after_conflict', {
+                            outcome: 'ALREADY_COMPLETED',
+                            conflict: uniqueConstraintCategory(error),
+                        });
+
+                        return toAlreadyCompletedMutationResult(currentUser);
+                    }
+
+                    logClinicOnboardingEvent('conflicted_after_reread', {
+                        code: 'CLINIC_PROVISIONING_CONFLICT',
+                        conflict: uniqueConstraintCategory(error),
+                    });
+                    throw provisioningConflictError();
+                }
+
+                const category = uniqueConstraintCategory(error);
+
+                if (category === 'slug') {
+                    logClinicOnboardingEvent('conflicted', {
+                        code: 'CLINIC_SLUG_ALREADY_EXISTS',
+                        conflict: 'slug',
+                    });
                     throw new AppError(
                         409,
                         'CLINIC_SLUG_ALREADY_EXISTS',
@@ -215,15 +336,22 @@ export const authService = {
                     );
                 }
 
-                if (targets.includes('clerkUserId')) {
-                    throw new AppError(
-                        409,
-                        'ONBOARDING_ALREADY_COMPLETED',
-                        'Onboarding has already been completed for this identity'
-                    );
+                if (category === 'identity') {
+                    logClinicOnboardingEvent('conflicted', {
+                        code: 'INTERNAL_USER_ALREADY_EXISTS',
+                        conflict: 'identity',
+                    });
+                    throw internalUserAlreadyExistsError();
                 }
+
+                logClinicOnboardingEvent('conflicted', {
+                    code: 'CLINIC_PROVISIONING_CONFLICT',
+                    conflict: 'unknown',
+                });
+                throw provisioningConflictError();
             }
 
+            logClinicOnboardingEvent('failed', { code: 'CLINIC_PROVISIONING_FAILED' });
             throw new AppError(500, 'CLINIC_PROVISIONING_FAILED', 'Clinic provisioning failed');
         }
     },

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { UserRole, UserStatus } from '../../generated/prisma/client.js';
+import { Prisma, UserRole, UserStatus } from '../../generated/prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
 import { OnboardingNextStep, OnboardingStatus, type OnboardingUserRecord } from './auth.types.js';
 
@@ -257,10 +257,20 @@ const provisionedResult = {
     },
 };
 
+const createUniqueConstraintError = (
+    target?: string | string[]
+): Prisma.PrismaClientKnownRequestError => {
+    return new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: 'test',
+        ...(target === undefined ? {} : { meta: { target } }),
+    });
+};
+
 describe('authService.createClinicOnboarding', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockAuthRepository.findUserByClerkUserId.mockResolvedValue(null);
+        mockAuthRepository.findOnboardingUserByClerkUserId.mockResolvedValue(null);
         mockClerkIdentityService.getTrustedUserIdentity.mockResolvedValue(trustedAdminIdentity);
         mockAuthRepository.findClinicBySlug.mockResolvedValue(null);
         mockAuthRepository.createClinicWithAdmin.mockResolvedValue(provisionedResult);
@@ -270,16 +280,19 @@ describe('authService.createClinicOnboarding', () => {
         await expect(
             authService.createClinicOnboarding('trusted-clerk-user-id', onboardingClinicInput)
         ).resolves.toEqual({
-            onboarding: {
-                status: OnboardingStatus.COMPLETED,
-                nextStep: OnboardingNextStep.OPEN_APPLICATION,
-                isComplete: true,
+            outcome: 'CREATED',
+            data: {
+                onboarding: {
+                    status: OnboardingStatus.COMPLETED,
+                    nextStep: OnboardingNextStep.OPEN_APPLICATION,
+                    isComplete: true,
+                },
+                user: provisionedResult.user,
+                clinic: provisionedResult.clinic,
             },
-            user: provisionedResult.user,
-            clinic: provisionedResult.clinic,
         });
 
-        expect(mockAuthRepository.findUserByClerkUserId).toHaveBeenCalledWith(
+        expect(mockAuthRepository.findOnboardingUserByClerkUserId).toHaveBeenCalledWith(
             'trusted-clerk-user-id'
         );
         expect(mockClerkIdentityService.getTrustedUserIdentity).toHaveBeenCalledWith(
@@ -325,27 +338,140 @@ describe('authService.createClinicOnboarding', () => {
         );
     });
 
-    it('rejects existing internal users with ONBOARDING_ALREADY_COMPLETED', async () => {
-        mockAuthRepository.findUserByClerkUserId.mockResolvedValue({
+    it('returns ALREADY_COMPLETED for an existing active Admin with a valid active clinic', async () => {
+        const existingUser = createOnboardingUser({
             id: 'existing-user-id',
-            clerkUserId: 'trusted-clerk-user-id',
+            fullName: 'Existing Admin',
+            email: 'existing-admin@example.com',
             role: UserRole.ADMIN,
             status: UserStatus.ACTIVE,
-            clinicId: 'clinic-id',
         });
+
+        mockAuthRepository.findOnboardingUserByClerkUserId.mockResolvedValue(existingUser);
+
+        await expect(
+            authService.createClinicOnboarding('trusted-clerk-user-id', onboardingClinicInput)
+        ).resolves.toEqual({
+            outcome: 'ALREADY_COMPLETED',
+            data: {
+                onboarding: {
+                    status: OnboardingStatus.COMPLETED,
+                    nextStep: OnboardingNextStep.OPEN_APPLICATION,
+                    isComplete: true,
+                },
+                user: {
+                    id: 'existing-user-id',
+                    fullName: 'Existing Admin',
+                    email: 'existing-admin@example.com',
+                    role: UserRole.ADMIN,
+                    status: UserStatus.ACTIVE,
+                },
+                clinic: {
+                    id: activeClinic.id,
+                    name: activeClinic.name,
+                    slug: activeClinic.slug,
+                },
+            },
+        });
+
+        expect(mockClerkIdentityService.getTrustedUserIdentity).not.toHaveBeenCalled();
+        expect(mockAuthRepository.findClinicBySlug).not.toHaveBeenCalled();
+        expect(mockAuthRepository.createClinicWithAdmin).not.toHaveBeenCalled();
+    });
+
+    it('returns ALREADY_COMPLETED for an existing active Staff user with a valid active clinic', async () => {
+        mockAuthRepository.findOnboardingUserByClerkUserId.mockResolvedValue(
+            createOnboardingUser({
+                role: UserRole.STAFF,
+            })
+        );
+
+        const result = await authService.createClinicOnboarding(
+            'trusted-clerk-user-id',
+            onboardingClinicInput
+        );
+
+        expect(result.outcome).toBe('ALREADY_COMPLETED');
+        expect(result.data.user?.role).toBe(UserRole.STAFF);
+        expect(mockAuthRepository.createClinicWithAdmin).not.toHaveBeenCalled();
+    });
+
+    it('returns CLINIC_PROVISIONING_CONFLICT for an existing inactive user', async () => {
+        mockAuthRepository.findOnboardingUserByClerkUserId.mockResolvedValue(
+            createOnboardingUser({
+                status: UserStatus.INVITED,
+            })
+        );
 
         await expect(
             authService.createClinicOnboarding('trusted-clerk-user-id', onboardingClinicInput)
         ).rejects.toThrow(
             new AppError(
                 409,
-                'ONBOARDING_ALREADY_COMPLETED',
-                'Onboarding has already been completed for this identity'
+                'CLINIC_PROVISIONING_CONFLICT',
+                'Account requires recovery before clinic onboarding can continue'
             )
         );
 
-        expect(mockClerkIdentityService.getTrustedUserIdentity).not.toHaveBeenCalled();
         expect(mockAuthRepository.createClinicWithAdmin).not.toHaveBeenCalled();
+    });
+
+    it('returns CLINIC_PROVISIONING_CONFLICT for an existing user without a clinic id', async () => {
+        mockAuthRepository.findOnboardingUserByClerkUserId.mockResolvedValue(
+            createOnboardingUser({
+                clinicId: null,
+                clinic: null,
+            })
+        );
+
+        await expect(
+            authService.createClinicOnboarding('trusted-clerk-user-id', onboardingClinicInput)
+        ).rejects.toThrow(
+            new AppError(
+                409,
+                'CLINIC_PROVISIONING_CONFLICT',
+                'Account requires recovery before clinic onboarding can continue'
+            )
+        );
+    });
+
+    it('returns CLINIC_PROVISIONING_CONFLICT for an existing user with an inactive clinic', async () => {
+        mockAuthRepository.findOnboardingUserByClerkUserId.mockResolvedValue(
+            createOnboardingUser({
+                clinic: {
+                    ...activeClinic,
+                    isActive: false,
+                },
+            })
+        );
+
+        await expect(
+            authService.createClinicOnboarding('trusted-clerk-user-id', onboardingClinicInput)
+        ).rejects.toThrow(
+            new AppError(
+                409,
+                'CLINIC_PROVISIONING_CONFLICT',
+                'Account requires recovery before clinic onboarding can continue'
+            )
+        );
+    });
+
+    it('returns CLINIC_PROVISIONING_CONFLICT for an existing user with a missing clinic relation', async () => {
+        mockAuthRepository.findOnboardingUserByClerkUserId.mockResolvedValue(
+            createOnboardingUser({
+                clinic: null,
+            })
+        );
+
+        await expect(
+            authService.createClinicOnboarding('trusted-clerk-user-id', onboardingClinicInput)
+        ).rejects.toThrow(
+            new AppError(
+                409,
+                'CLINIC_PROVISIONING_CONFLICT',
+                'Account requires recovery before clinic onboarding can continue'
+            )
+        );
     });
 
     it('rejects duplicate clinic slugs before opening the transaction', async () => {
@@ -359,6 +485,24 @@ describe('authService.createClinicOnboarding', () => {
             new AppError(409, 'CLINIC_SLUG_ALREADY_EXISTS', 'Clinic slug already exists')
         );
 
+        expect(mockAuthRepository.createClinicWithAdmin).not.toHaveBeenCalled();
+    });
+
+    it('returns ALREADY_COMPLETED when the slug precheck races with a completed current account', async () => {
+        mockAuthRepository.findOnboardingUserByClerkUserId
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(createOnboardingUser());
+        mockAuthRepository.findClinicBySlug.mockResolvedValue({
+            id: 'existing-clinic-id',
+        });
+
+        const result = await authService.createClinicOnboarding(
+            'trusted-clerk-user-id',
+            onboardingClinicInput
+        );
+
+        expect(result.outcome).toBe('ALREADY_COMPLETED');
+        expect(result.data.clinic?.slug).toBe(activeClinic.slug);
         expect(mockAuthRepository.createClinicWithAdmin).not.toHaveBeenCalled();
     });
 
@@ -412,6 +556,245 @@ describe('authService.createClinicOnboarding', () => {
             authService.createClinicOnboarding('trusted-clerk-user-id', onboardingClinicInput)
         ).rejects.toThrow(
             new AppError(500, 'CLINIC_PROVISIONING_FAILED', 'Clinic provisioning failed')
+        );
+    });
+
+    it('maps unexpected slug precheck failures to a safe application error', async () => {
+        mockAuthRepository.findClinicBySlug.mockRejectedValue(
+            new Error('raw database precheck error should not leak')
+        );
+
+        await expect(
+            authService.createClinicOnboarding('trusted-clerk-user-id', onboardingClinicInput)
+        ).rejects.toThrow(
+            new AppError(500, 'CLINIC_PROVISIONING_FAILED', 'Clinic provisioning failed')
+        );
+
+        expect(mockAuthRepository.createClinicWithAdmin).not.toHaveBeenCalled();
+    });
+
+    it('returns ALREADY_COMPLETED when a clerkUserId P2002 is followed by a completed-user re-read', async () => {
+        mockAuthRepository.findOnboardingUserByClerkUserId
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(createOnboardingUser());
+        mockAuthRepository.createClinicWithAdmin.mockRejectedValue(
+            createUniqueConstraintError(['clerkUserId'])
+        );
+
+        const result = await authService.createClinicOnboarding(
+            'trusted-clerk-user-id',
+            onboardingClinicInput
+        );
+
+        expect(result.outcome).toBe('ALREADY_COMPLETED');
+        expect(result.data.clinic).toEqual({
+            id: activeClinic.id,
+            name: activeClinic.name,
+            slug: activeClinic.slug,
+        });
+    });
+
+    it('returns ALREADY_COMPLETED when a slug P2002 is followed by a completed-user re-read', async () => {
+        mockAuthRepository.findOnboardingUserByClerkUserId
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(createOnboardingUser());
+        mockAuthRepository.createClinicWithAdmin.mockRejectedValue(
+            createUniqueConstraintError(['slug'])
+        );
+
+        const result = await authService.createClinicOnboarding(
+            'trusted-clerk-user-id',
+            onboardingClinicInput
+        );
+
+        expect(result.outcome).toBe('ALREADY_COMPLETED');
+        expect(result.data.clinic?.slug).toBe(activeClinic.slug);
+    });
+
+    it('maps a slug P2002 with no current user to CLINIC_SLUG_ALREADY_EXISTS', async () => {
+        mockAuthRepository.findOnboardingUserByClerkUserId
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(null);
+        mockAuthRepository.createClinicWithAdmin.mockRejectedValue(
+            createUniqueConstraintError(['slug'])
+        );
+
+        await expect(
+            authService.createClinicOnboarding('trusted-clerk-user-id', onboardingClinicInput)
+        ).rejects.toThrow(
+            new AppError(409, 'CLINIC_SLUG_ALREADY_EXISTS', 'Clinic slug already exists')
+        );
+    });
+
+    it('maps an email P2002 with no current user to INTERNAL_USER_ALREADY_EXISTS', async () => {
+        mockAuthRepository.findOnboardingUserByClerkUserId
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(null);
+        mockAuthRepository.createClinicWithAdmin.mockRejectedValue(
+            createUniqueConstraintError(['email'])
+        );
+
+        await expect(
+            authService.createClinicOnboarding('trusted-clerk-user-id', onboardingClinicInput)
+        ).rejects.toThrow(
+            new AppError(
+                409,
+                'INTERNAL_USER_ALREADY_EXISTS',
+                'An internal user already exists for this identity'
+            )
+        );
+    });
+
+    it('maps a Clerk identity P2002 followed by an inconsistent user to CLINIC_PROVISIONING_CONFLICT', async () => {
+        mockAuthRepository.findOnboardingUserByClerkUserId
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(
+                createOnboardingUser({
+                    clinicId: null,
+                    clinic: null,
+                })
+            );
+        mockAuthRepository.createClinicWithAdmin.mockRejectedValue(
+            createUniqueConstraintError(['clerkUserId'])
+        );
+
+        await expect(
+            authService.createClinicOnboarding('trusted-clerk-user-id', onboardingClinicInput)
+        ).rejects.toThrow(
+            new AppError(
+                409,
+                'CLINIC_PROVISIONING_CONFLICT',
+                'Account requires recovery before clinic onboarding can continue'
+            )
+        );
+    });
+
+    it('maps an unknown P2002 target with no current user to CLINIC_PROVISIONING_CONFLICT', async () => {
+        mockAuthRepository.findOnboardingUserByClerkUserId
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(null);
+        mockAuthRepository.createClinicWithAdmin.mockRejectedValue(
+            createUniqueConstraintError(['unknown_constraint'])
+        );
+
+        await expect(
+            authService.createClinicOnboarding('trusted-clerk-user-id', onboardingClinicInput)
+        ).rejects.toThrow(
+            new AppError(
+                409,
+                'CLINIC_PROVISIONING_CONFLICT',
+                'Account requires recovery before clinic onboarding can continue'
+            )
+        );
+    });
+
+    it('handles Prisma meta.target as a string', async () => {
+        mockAuthRepository.findOnboardingUserByClerkUserId
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(null);
+        mockAuthRepository.createClinicWithAdmin.mockRejectedValue(
+            createUniqueConstraintError('User_email_key')
+        );
+
+        await expect(
+            authService.createClinicOnboarding('trusted-clerk-user-id', onboardingClinicInput)
+        ).rejects.toThrow(
+            new AppError(
+                409,
+                'INTERNAL_USER_ALREADY_EXISTS',
+                'An internal user already exists for this identity'
+            )
+        );
+    });
+
+    it('handles generated clinic slug constraint names', async () => {
+        mockAuthRepository.findOnboardingUserByClerkUserId
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(null);
+        mockAuthRepository.createClinicWithAdmin.mockRejectedValue(
+            createUniqueConstraintError('Clinic_slug_key')
+        );
+
+        await expect(
+            authService.createClinicOnboarding('trusted-clerk-user-id', onboardingClinicInput)
+        ).rejects.toThrow(
+            new AppError(409, 'CLINIC_SLUG_ALREADY_EXISTS', 'Clinic slug already exists')
+        );
+    });
+
+    it('handles generated Clerk user id constraint names', async () => {
+        mockAuthRepository.findOnboardingUserByClerkUserId
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(null);
+        mockAuthRepository.createClinicWithAdmin.mockRejectedValue(
+            createUniqueConstraintError('User_clerkUserId_key')
+        );
+
+        await expect(
+            authService.createClinicOnboarding('trusted-clerk-user-id', onboardingClinicInput)
+        ).rejects.toThrow(
+            new AppError(
+                409,
+                'INTERNAL_USER_ALREADY_EXISTS',
+                'An internal user already exists for this identity'
+            )
+        );
+    });
+
+    it('handles missing P2002 target metadata', async () => {
+        mockAuthRepository.findOnboardingUserByClerkUserId
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(null);
+        mockAuthRepository.createClinicWithAdmin.mockRejectedValue(createUniqueConstraintError());
+
+        await expect(
+            authService.createClinicOnboarding('trusted-clerk-user-id', onboardingClinicInput)
+        ).rejects.toThrow(
+            new AppError(
+                409,
+                'CLINIC_PROVISIONING_CONFLICT',
+                'Account requires recovery before clinic onboarding can continue'
+            )
+        );
+    });
+
+    it('recovers a simulated same-identity race with one CREATED and one ALREADY_COMPLETED result', async () => {
+        let postConflictReadEnabled = false;
+
+        mockAuthRepository.findOnboardingUserByClerkUserId.mockImplementation(async () => {
+            if (postConflictReadEnabled) {
+                return createOnboardingUser();
+            }
+
+            return null;
+        });
+        mockAuthRepository.createClinicWithAdmin
+            .mockImplementationOnce(async () => {
+                postConflictReadEnabled = true;
+                return provisionedResult;
+            })
+            .mockImplementationOnce(async () => {
+                throw createUniqueConstraintError(['clerkUserId']);
+            });
+
+        const results = await Promise.all([
+            authService.createClinicOnboarding('trusted-clerk-user-id', onboardingClinicInput),
+            authService.createClinicOnboarding('trusted-clerk-user-id', {
+                ...onboardingClinicInput,
+                slug: 'different-request-slug',
+            }),
+        ]);
+
+        expect(results.map((result) => result.outcome).sort()).toEqual([
+            'ALREADY_COMPLETED',
+            'CREATED',
+        ]);
+        expect(results.find((result) => result.outcome === 'ALREADY_COMPLETED')?.data.clinic).toEqual(
+            {
+                id: activeClinic.id,
+                name: activeClinic.name,
+                slug: activeClinic.slug,
+            }
         );
     });
 });

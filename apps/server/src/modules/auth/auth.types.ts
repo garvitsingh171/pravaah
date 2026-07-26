@@ -95,3 +95,10 @@ export type ProvisionClinicWithAdminResult = {
     user: OnboardingUserSummary;
     clinic: OnboardingClinicSummary;
 };
+
+export type ClinicOnboardingMutationOutcome = 'CREATED' | 'ALREADY_COMPLETED';
+
+export type ClinicOnboardingMutationResult = {
+    outcome: ClinicOnboardingMutationOutcome;
+    data: OnboardingStatusResult;
+};

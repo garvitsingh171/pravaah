@@ -6,21 +6,11 @@ import {
     requireClinicAccess,
 } from '../auth/auth.middleware.js';
 import { createClinicController, updateClinicController } from './clinic.controller.js';
-import {
-    createClinicSchema,
-    updateClinicSchema,
-    clinicIdParamsSchema,
-} from './clinic.validation.js';
+import { updateClinicSchema, clinicIdParamsSchema } from './clinic.validation.js';
 
 const clinicRouter = Router();
 
-clinicRouter.post(
-    '/',
-    authenticateRequest,
-    validateRequest({ body: createClinicSchema }),
-    requireAdminRole,
-    createClinicController
-);
+clinicRouter.post('/', authenticateRequest, requireAdminRole, createClinicController);
 
 clinicRouter.patch(
     '/:clinicId',

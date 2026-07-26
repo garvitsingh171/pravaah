@@ -114,6 +114,9 @@ This endpoint is the first-time onboarding bootstrap path. It is not the ordinar
 Admin-only `POST /api/clinics` endpoint. The backend uses the trusted Clerk user
 ID from the authenticated request to look up the Clerk user server-side, then
 creates the clinic and first internal Admin in one Prisma transaction.
+Completed retries are idempotent: if the current Clerk identity already has a
+completed onboarding state, the endpoint returns that existing account and
+clinic instead of creating, updating, or comparing against the retry body.
 
 Body:
 
@@ -135,7 +138,7 @@ The backend sets `role = ADMIN`, `status = ACTIVE`, and links the user to the
 new clinic. Client-supplied role, status, user ID, Clerk user ID, clinic ID, or
 ownership fields are rejected by validation.
 
-Success response:
+First successful creation returns `201 Created`:
 
 ```json
 {
@@ -163,14 +166,48 @@ Success response:
 }
 ```
 
+Completed replay returns `200 OK` with the same data shape and this message:
+
+```json
+{
+    "success": true,
+    "message": "Clinic onboarding already completed",
+    "data": {
+        "onboarding": {
+            "status": "COMPLETED",
+            "nextStep": "OPEN_APPLICATION",
+            "isComplete": true
+        },
+        "user": {
+            "id": "existing-user-id",
+            "fullName": "Existing User",
+            "email": "user@example.com",
+            "role": "ADMIN",
+            "status": "ACTIVE"
+        },
+        "clinic": {
+            "id": "existing-clinic-id",
+            "name": "Existing Clinic",
+            "slug": "existing-clinic"
+        }
+    }
+}
+```
+
+If a unique constraint conflict occurs during provisioning, the backend re-reads
+the current Clerk identity before mapping the error. A completed current account
+wins over the submitted slug and returns the idempotent replay response. An
+existing inconsistent account returns a recovery conflict.
+
 Main errors:
 
 - `AUTHENTICATION_REQUIRED`
 - `INVALID_AUTH_TOKEN`
 - `VALIDATION_ERROR`
-- `ONBOARDING_ALREADY_COMPLETED`
 - `CLINIC_SLUG_ALREADY_EXISTS`
+- `CLINIC_PROVISIONING_CONFLICT`
 - `CLERK_IDENTITY_DATA_MISSING`
+- `INTERNAL_USER_ALREADY_EXISTS`
 - `CLINIC_PROVISIONING_FAILED`
 
 ### Get Current User
@@ -198,7 +235,7 @@ Main errors:
 
 ## Clinics
 
-### Create Clinic
+### Create Clinic Disabled
 
 | Field  | Value           |
 | ------ | --------------- |
@@ -206,30 +243,17 @@ Main errors:
 | Path   | `/api/clinics`  |
 | Auth   | Required, Admin |
 
-Body summary:
+Standalone clinic creation is disabled in v0.2 because it can create a clinic
+without creating and linking an owning Admin. First-time clinic creation must use
+`POST /api/auth/onboarding/clinic`.
 
-```txt
-name, slug required
-phone, email, address fields optional
-country default India
-timezone default Asia/Kolkata
-openingTime default 09:00
-closingTime default 18:00
-slotDurationMinutes default 15
-bufferMinutes default 0
-```
-
-Response summary:
-
-```txt
-data.clinic
-```
+The endpoint remains protected for compatibility, but it does not validate a
+create body and does not call Prisma.
 
 Main errors:
 
-- `CLINIC_SLUG_ALREADY_EXISTS`
+- `STANDALONE_CLINIC_CREATION_DISABLED`
 - `ADMIN_REQUIRED`
-- `VALIDATION_ERROR`
 
 ### Update Clinic
 
