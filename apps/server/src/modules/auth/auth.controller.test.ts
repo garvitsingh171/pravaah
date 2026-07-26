@@ -8,13 +8,17 @@ const mockAuthService = vi.hoisted(() => ({
     getActiveUserByClerkUserId: vi.fn(),
     getCurrentUserProfile: vi.fn(),
     getOnboardingStatus: vi.fn(),
+    createClinicOnboarding: vi.fn(),
 }));
 
 vi.mock('./auth.service.js', () => ({
     authService: mockAuthService,
 }));
 
-import { getOnboardingStatusController } from './auth.controller.js';
+import {
+    createClinicOnboardingController,
+    getOnboardingStatusController,
+} from './auth.controller.js';
 
 describe('getOnboardingStatusController', () => {
     beforeEach(() => {
@@ -112,5 +116,109 @@ describe('getOnboardingStatusController', () => {
         expect(next).toHaveBeenCalledWith(
             new AppError(401, 'AUTHENTICATION_REQUIRED', 'Authentication is required')
         );
+    });
+});
+
+describe('createClinicOnboardingController', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('requires trusted identity context', async () => {
+        const req = {
+            body: {
+                name: 'Pravaah Family Clinic',
+                slug: 'pravaah-family-clinic',
+            },
+        } as unknown as Request;
+        const res = {
+            status: vi.fn(),
+        } as unknown as Response;
+        const next = vi.fn() as NextFunction;
+
+        await createClinicOnboardingController(req, res, next);
+
+        expect(mockAuthService.createClinicOnboarding).not.toHaveBeenCalled();
+        expect(next).toHaveBeenCalledWith(
+            new AppError(401, 'AUTHENTICATION_REQUIRED', 'Authentication is required')
+        );
+    });
+
+    it('passes trusted Clerk user id and validated clinic body to the service', async () => {
+        const clinicBody = {
+            name: 'Pravaah Family Clinic',
+            slug: 'pravaah-family-clinic',
+            email: 'clinic@example.com',
+        };
+        const result = {
+            onboarding: {
+                status: OnboardingStatus.COMPLETED,
+                nextStep: OnboardingNextStep.OPEN_APPLICATION,
+                isComplete: true,
+            },
+            user: {
+                id: 'user-id',
+                fullName: 'Dr. Asha Rao',
+                email: 'asha@example.com',
+                role: UserRole.ADMIN,
+                status: UserStatus.ACTIVE,
+            },
+            clinic: {
+                id: 'clinic-id',
+                name: 'Pravaah Family Clinic',
+                slug: 'pravaah-family-clinic',
+            },
+        };
+        const req = {
+            authIdentity: {
+                clerkUserId: 'trusted-clerk-user-id',
+            },
+            body: clinicBody,
+        } as unknown as Request;
+        const json = vi.fn();
+        const status = vi.fn(() => ({ json }));
+        const res = {
+            status,
+        } as unknown as Response;
+        const next = vi.fn() as NextFunction;
+
+        mockAuthService.createClinicOnboarding.mockResolvedValue(result);
+
+        await createClinicOnboardingController(req, res, next);
+
+        expect(mockAuthService.createClinicOnboarding).toHaveBeenCalledWith(
+            'trusted-clerk-user-id',
+            clinicBody
+        );
+        expect(status).toHaveBeenCalledWith(201);
+        expect(json).toHaveBeenCalledWith({
+            success: true,
+            message: 'Clinic onboarding completed successfully',
+            data: result,
+        });
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it('passes service errors to next', async () => {
+        const req = {
+            authIdentity: {
+                clerkUserId: 'trusted-clerk-user-id',
+            },
+            body: {
+                name: 'Pravaah Family Clinic',
+                slug: 'pravaah-family-clinic',
+            },
+        } as unknown as Request;
+        const res = {
+            status: vi.fn(),
+        } as unknown as Response;
+        const next = vi.fn() as NextFunction;
+        const error = new Error('service unavailable');
+
+        mockAuthService.createClinicOnboarding.mockRejectedValue(error);
+
+        await createClinicOnboardingController(req, res, next);
+
+        expect(next).toHaveBeenCalledWith(error);
     });
 });

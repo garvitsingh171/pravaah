@@ -101,6 +101,78 @@ Main errors:
 - `AUTHENTICATION_REQUIRED`
 - `INVALID_AUTH_TOKEN`
 
+### Create Clinic Onboarding
+
+| Field        | Value                                                      |
+| ------------ | ---------------------------------------------------------- |
+| Method       | POST                                                       |
+| Path         | `/api/auth/onboarding/clinic`                              |
+| Auth         | Required, valid Clerk identity; internal user not required |
+| Params/query | None                                                       |
+
+This endpoint is the first-time onboarding bootstrap path. It is not the ordinary
+Admin-only `POST /api/clinics` endpoint. The backend uses the trusted Clerk user
+ID from the authenticated request to look up the Clerk user server-side, then
+creates the clinic and first internal Admin in one Prisma transaction.
+
+Body:
+
+```txt
+name, slug required
+phone, email, address fields optional
+country default India
+timezone default Asia/Kolkata
+openingTime default 09:00
+closingTime default 18:00
+slotDurationMinutes default 15
+bufferMinutes default 0
+```
+
+The request body accepts clinic profile fields only. The clinic `email` field is
+clinic contact data and is not used as the internal Admin email. The internal
+Admin email, first name, and last name are resolved from Clerk on the backend.
+The backend sets `role = ADMIN`, `status = ACTIVE`, and links the user to the
+new clinic. Client-supplied role, status, user ID, Clerk user ID, clinic ID, or
+ownership fields are rejected by validation.
+
+Success response:
+
+```json
+{
+    "success": true,
+    "message": "Clinic onboarding completed successfully",
+    "data": {
+        "onboarding": {
+            "status": "COMPLETED",
+            "nextStep": "OPEN_APPLICATION",
+            "isComplete": true
+        },
+        "user": {
+            "id": "internal-user-id",
+            "fullName": "Clinic Admin",
+            "email": "admin@example.com",
+            "role": "ADMIN",
+            "status": "ACTIVE"
+        },
+        "clinic": {
+            "id": "clinic-id",
+            "name": "Example Clinic",
+            "slug": "example-clinic"
+        }
+    }
+}
+```
+
+Main errors:
+
+- `AUTHENTICATION_REQUIRED`
+- `INVALID_AUTH_TOKEN`
+- `VALIDATION_ERROR`
+- `ONBOARDING_ALREADY_COMPLETED`
+- `CLINIC_SLUG_ALREADY_EXISTS`
+- `CLERK_IDENTITY_DATA_MISSING`
+- `CLINIC_PROVISIONING_FAILED`
+
 ### Get Current User
 
 | Field             | Value          |

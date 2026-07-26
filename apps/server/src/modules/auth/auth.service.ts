@@ -1,11 +1,13 @@
-import { UserRole, UserStatus } from '../../generated/prisma/client.js';
+import { Prisma, UserRole, UserStatus } from '../../generated/prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
 import { authRepository } from './auth.repository.js';
+import { clerkIdentityService } from './clerkIdentity.service.js';
 import {
     OnboardingNextStep,
     OnboardingStatus,
     type AuthenticatedUser,
     type CurrentUserProfile,
+    type OnboardingClinicInput,
     type OnboardingClinicSummary,
     type OnboardingStatusResult,
     type OnboardingUserRecord,
@@ -47,6 +49,20 @@ const isOnboardingComplete = (user: OnboardingUserRecord): boolean => {
         user.clinic.id === user.clinicId &&
         user.clinic.isActive === true
     );
+};
+
+const isUniqueConstraintError = (error: unknown): error is Prisma.PrismaClientKnownRequestError => {
+    return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+};
+
+const uniqueConstraintTargets = (error: Prisma.PrismaClientKnownRequestError): string[] => {
+    const target = error.meta?.target;
+
+    if (!Array.isArray(target)) {
+        return [];
+    }
+
+    return target.filter((value): value is string => typeof value === 'string');
 };
 
 export const authService = {
@@ -141,5 +157,74 @@ export const authService = {
             user: userSummary,
             clinic: clinicSummary,
         };
+    },
+
+    async createClinicOnboarding(
+        clerkUserId: string,
+        clinicInput: OnboardingClinicInput
+    ): Promise<OnboardingStatusResult> {
+        if (!clerkUserId.trim()) {
+            throw new AppError(401, 'AUTHENTICATION_REQUIRED', 'Authentication is required');
+        }
+
+        const existingUser = await authRepository.findUserByClerkUserId(clerkUserId);
+
+        if (existingUser) {
+            throw new AppError(
+                409,
+                'ONBOARDING_ALREADY_COMPLETED',
+                'Onboarding has already been completed for this identity'
+            );
+        }
+
+        const adminIdentity = await clerkIdentityService.getTrustedUserIdentity(clerkUserId);
+        const existingClinic = await authRepository.findClinicBySlug(clinicInput.slug);
+
+        if (existingClinic) {
+            throw new AppError(409, 'CLINIC_SLUG_ALREADY_EXISTS', 'Clinic slug already exists');
+        }
+
+        try {
+            const result = await authRepository.createClinicWithAdmin({
+                clinic: clinicInput,
+                admin: adminIdentity,
+            });
+
+            return {
+                onboarding: {
+                    status: OnboardingStatus.COMPLETED,
+                    nextStep: OnboardingNextStep.OPEN_APPLICATION,
+                    isComplete: true,
+                },
+                user: result.user,
+                clinic: result.clinic,
+            };
+        } catch (error) {
+            if (error instanceof AppError) {
+                throw error;
+            }
+
+            if (isUniqueConstraintError(error)) {
+                const targets = uniqueConstraintTargets(error);
+
+                if (targets.includes('slug')) {
+                    throw new AppError(
+                        409,
+                        'CLINIC_SLUG_ALREADY_EXISTS',
+                        'Clinic slug already exists'
+                    );
+                }
+
+                if (targets.includes('clerkUserId')) {
+                    throw new AppError(
+                        409,
+                        'ONBOARDING_ALREADY_COMPLETED',
+                        'Onboarding has already been completed for this identity'
+                    );
+                }
+            }
+
+            throw new AppError(500, 'CLINIC_PROVISIONING_FAILED', 'Clinic provisioning failed');
+        }
     },
 };
