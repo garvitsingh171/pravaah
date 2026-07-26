@@ -66,8 +66,6 @@ const workflowSteps = [
 
 function PublicHeader() {
     const { isLoaded, isSignedIn } = useAuth();
-    const ctaLabel = isLoaded && isSignedIn ? 'Open dashboard' : 'Sign in';
-    const ctaPath = isLoaded && isSignedIn ? defaultDashboardPath : '/login';
 
     return (
         <header className="border-b border-slate-200 bg-white/95">
@@ -91,12 +89,31 @@ function PublicHeader() {
                         </div>
                     </Link>
 
-                    <Link
-                        to={ctaPath}
-                        className="whitespace-nowrap rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-                    >
-                        {ctaLabel}
-                    </Link>
+                    <div className="flex shrink-0 items-center gap-2">
+                        {isLoaded && isSignedIn ? (
+                            <Link
+                                to={defaultDashboardPath}
+                                className="whitespace-nowrap rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                            >
+                                Open dashboard
+                            </Link>
+                        ) : (
+                            <>
+                                <Link
+                                    to="/login"
+                                    className="whitespace-nowrap rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                                >
+                                    Sign in
+                                </Link>
+                                <Link
+                                    to="/sign-up"
+                                    className="whitespace-nowrap rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                                >
+                                    Create account
+                                </Link>
+                            </>
+                        )}
+                    </div>
                 </div>
 
                 <nav className="flex gap-2 overflow-x-auto pb-1" aria-label="Public navigation">
@@ -115,10 +132,26 @@ function PublicHeader() {
     );
 }
 
-function PublicCtaLink({ variant = 'primary' }: { variant?: 'primary' | 'secondary' }) {
+function PublicCtaLink({
+    action = 'primary',
+    variant = 'primary',
+}: {
+    action?: 'primary' | 'sign-in' | 'sign-up';
+    variant?: 'primary' | 'secondary';
+}) {
     const { isLoaded, isSignedIn } = useAuth();
-    const label = isLoaded && isSignedIn ? 'Open dashboard' : 'Sign in';
-    const path = isLoaded && isSignedIn ? defaultDashboardPath : '/login';
+    const label =
+        isLoaded && isSignedIn
+            ? 'Open dashboard'
+            : action === 'sign-up'
+              ? 'Create clinic account'
+              : 'Sign in';
+    const path =
+        isLoaded && isSignedIn
+            ? defaultDashboardPath
+            : action === 'sign-up'
+              ? '/sign-up'
+              : '/login';
     const className =
         variant === 'primary'
             ? 'bg-blue-600 text-white hover:bg-blue-700 focus-visible:outline-blue-600'
@@ -131,6 +164,21 @@ function PublicCtaLink({ variant = 'primary' }: { variant?: 'primary' | 'seconda
         >
             {label}
         </Link>
+    );
+}
+
+function PublicCtaActions() {
+    const { isLoaded, isSignedIn } = useAuth();
+
+    if (isLoaded && isSignedIn) {
+        return <PublicCtaLink />;
+    }
+
+    return (
+        <>
+            <PublicCtaLink action="sign-up" />
+            <PublicCtaLink action="sign-in" variant="secondary" />
+        </>
     );
 }
 
@@ -158,7 +206,7 @@ function PublicLandingPage() {
                             </p>
 
                             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                                <PublicCtaLink />
+                                <PublicCtaActions />
                                 <a
                                     href="#capabilities"
                                     className="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
@@ -168,9 +216,9 @@ function PublicLandingPage() {
                             </div>
 
                             <div className="mt-6 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
-                                Public self-service clinic setup is part of the v0.2 release path.
-                                This page keeps sign-in available for already provisioned Admin and
-                                Staff users.
+                                Clerk account creation is now available. Clinic setup, internal
+                                Pravaah role assignment, and clinic access remain separate backend
+                                provisioning steps.
                             </div>
                         </div>
 
@@ -331,12 +379,13 @@ function PublicLandingPage() {
                         <div className="max-w-2xl">
                             <h2 className="text-3xl font-bold">Ready to open Pravaah?</h2>
                             <p className="mt-3 text-base leading-7 text-slate-300">
-                                Provisioned clinic Admin and Staff users can continue into the
-                                current operational workspace through the existing Clerk sign-in
-                                flow.
+                                Create a Clerk identity or sign in with a provisioned Admin or Staff
+                                account to continue toward the clinic workspace.
                             </p>
                         </div>
-                        <PublicCtaLink />
+                        <div className="flex flex-col gap-3 sm:flex-row">
+                            <PublicCtaActions />
+                        </div>
                     </div>
                 </section>
             </main>

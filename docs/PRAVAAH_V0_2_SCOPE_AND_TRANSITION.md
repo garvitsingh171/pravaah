@@ -199,28 +199,28 @@ These do not define the onboarding architecture, but they are required before v0
 
 ## 6. Included issues and intended outcomes
 
-| Order | Issue | Intended release outcome |
-| --- | --- | --- |
-| 1 | Freeze MVP and initialize v0.2 | Preserve the deployed MVP as v0.1.0 and establish release governance for v0.2.0. |
-| 2 | Define v0.2 scope in documentation | Create a source-of-truth scope, architecture boundary, order, non-goals, and acceptance criteria. |
-| 3 | Add public landing page and public routes | Make the deployed URL useful before authentication. |
-| 4 | Enable Clerk sign-up flow | Permit external users to create a Clerk identity through supported Clerk UI and routes. |
-| 5 | Separate Clerk identity from internal authorization | Stop treating every valid Clerk identity as if it must already have an internal user. |
-| 6 | Add onboarding status API | Return the authenticated identity's provisioning state and next required action. |
-| 7 | Create clinic and Admin transactionally | Bootstrap the clinic and its first active Admin as one atomic operation. |
-| 8 | Prevent orphan clinic creation | Make retries, failures, and duplicate requests incapable of leaving an unowned clinic. |
-| 9 | Build first-time clinic onboarding UI | Collect clinic details and drive the bootstrap API with clear feedback. |
-| 10 | Provision isolated sample clinic data | Give a new clinic optional fake demo data scoped only to its own clinic. |
-| 11 | Add onboarding-aware application routing | Route signed-out, unprovisioned, and active users to the correct application state. |
-| 12 | Build functional clinic settings page | Allow authorized Admins to review and update operational clinic settings. |
-| 13 | Add first-run setup checklist | Guide a new Admin through clinic settings, doctors, patients, appointments, and queue setup. |
-| 14 | Harden public onboarding APIs | Add validation, abuse protection, safe errors, audit-friendly logging, and strict server authority. |
-| 15 | Add backend onboarding tests | Cover status, provisioning, rollback, idempotency, authorization, and isolation. |
-| 16 | Add frontend and end-to-end onboarding tests | Cover the visitor-to-dashboard journey and important failure/retry states. |
-| 17 | Publish v0.2 documentation and demo assets | Update README, setup, screenshots, demo instructions, limitations, and release notes. |
-| 18 | Add doctor edit workflow | Complete doctor management without adding doctor authentication. |
-| 19 | Add patient edit workflow | Complete patient management without adding patient authentication. |
-| 20 | Add queue reorder controls | Expose the existing human-controlled queue ordering capability safely in the UI. |
+| Order | Issue                                               | Intended release outcome                                                                            |
+| ----- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| 1     | Freeze MVP and initialize v0.2                      | Preserve the deployed MVP as v0.1.0 and establish release governance for v0.2.0.                    |
+| 2     | Define v0.2 scope in documentation                  | Create a source-of-truth scope, architecture boundary, order, non-goals, and acceptance criteria.   |
+| 3     | Add public landing page and public routes           | Make the deployed URL useful before authentication.                                                 |
+| 4     | Enable Clerk sign-up flow                           | Permit external users to create a Clerk identity through supported Clerk UI and routes.             |
+| 5     | Separate Clerk identity from internal authorization | Stop treating every valid Clerk identity as if it must already have an internal user.               |
+| 6     | Add onboarding status API                           | Return the authenticated identity's provisioning state and next required action.                    |
+| 7     | Create clinic and Admin transactionally             | Bootstrap the clinic and its first active Admin as one atomic operation.                            |
+| 8     | Prevent orphan clinic creation                      | Make retries, failures, and duplicate requests incapable of leaving an unowned clinic.              |
+| 9     | Build first-time clinic onboarding UI               | Collect clinic details and drive the bootstrap API with clear feedback.                             |
+| 10    | Provision isolated sample clinic data               | Give a new clinic optional fake demo data scoped only to its own clinic.                            |
+| 11    | Add onboarding-aware application routing            | Route signed-out, unprovisioned, and active users to the correct application state.                 |
+| 12    | Build functional clinic settings page               | Allow authorized Admins to review and update operational clinic settings.                           |
+| 13    | Add first-run setup checklist                       | Guide a new Admin through clinic settings, doctors, patients, appointments, and queue setup.        |
+| 14    | Harden public onboarding APIs                       | Add validation, abuse protection, safe errors, audit-friendly logging, and strict server authority. |
+| 15    | Add backend onboarding tests                        | Cover status, provisioning, rollback, idempotency, authorization, and isolation.                    |
+| 16    | Add frontend and end-to-end onboarding tests        | Cover the visitor-to-dashboard journey and important failure/retry states.                          |
+| 17    | Publish v0.2 documentation and demo assets          | Update README, setup, screenshots, demo instructions, limitations, and release notes.               |
+| 18    | Add doctor edit workflow                            | Complete doctor management without adding doctor authentication.                                    |
+| 19    | Add patient edit workflow                           | Complete patient management without adding patient authentication.                                  |
+| 20    | Add queue reorder controls                          | Expose the existing human-controlled queue ordering capability safely in the UI.                    |
 
 ---
 
@@ -270,13 +270,13 @@ Important dependency rules:
 
 Pravaah v0.2 must recognize at least these application states:
 
-| State | Clerk session | Internal user | Clinic | Expected destination |
-| --- | --- | --- | --- | --- |
-| Signed out | No | Unknown | Unknown | Public landing or sign-in/sign-up |
-| Authenticated, unprovisioned | Yes | No | No | Clinic onboarding |
-| Authenticated, invalid internal state | Yes | Missing/inactive/inconsistent | Missing or invalid | Recovery/error state; never operational app access |
-| Active Admin | Yes | ACTIVE ADMIN | Assigned | Dashboard/application |
-| Active Staff | Yes | ACTIVE STAFF | Assigned | Dashboard/application with role restrictions |
+| State                                 | Clerk session | Internal user                 | Clinic             | Expected destination                               |
+| ------------------------------------- | ------------- | ----------------------------- | ------------------ | -------------------------------------------------- |
+| Signed out                            | No            | Unknown                       | Unknown            | Public landing or sign-in/sign-up                  |
+| Authenticated, unprovisioned          | Yes           | No                            | No                 | Clinic onboarding                                  |
+| Authenticated, invalid internal state | Yes           | Missing/inactive/inconsistent | Missing or invalid | Recovery/error state; never operational app access |
+| Active Admin                          | Yes           | ACTIVE ADMIN                  | Assigned           | Dashboard/application                              |
+| Active Staff                          | Yes           | ACTIVE STAFF                  | Assigned           | Dashboard/application with role restrictions       |
 
 A missing internal user is not automatically an authentication failure. It is a valid onboarding state only on explicitly onboarding-aware endpoints and routes.
 
@@ -308,12 +308,12 @@ The exact file names may follow the existing codebase, but the responsibility bo
 
 ### 8.3 Endpoint classes
 
-| Endpoint class | Identity requirement | Internal user requirement | Example purpose |
-| --- | --- | --- | --- |
-| Public | None | None | Health, landing support where applicable |
-| Clerk-authenticated onboarding | Valid Clerk identity | Not required | Onboarding status and clinic bootstrap |
-| Internal application | Valid Clerk identity | ACTIVE internal user | Doctors, patients, appointments, queue, dashboard |
-| Admin-only application | Valid Clerk identity | ACTIVE ADMIN | Clinic settings and restricted administration |
+| Endpoint class                 | Identity requirement | Internal user requirement | Example purpose                                   |
+| ------------------------------ | -------------------- | ------------------------- | ------------------------------------------------- |
+| Public                         | None                 | None                      | Health, landing support where applicable          |
+| Clerk-authenticated onboarding | Valid Clerk identity | Not required              | Onboarding status and clinic bootstrap            |
+| Internal application           | Valid Clerk identity | ACTIVE internal user      | Doctors, patients, appointments, queue, dashboard |
+| Admin-only application         | Valid Clerk identity | ACTIVE ADMIN              | Clinic settings and restricted administration     |
 
 ---
 
@@ -334,15 +334,15 @@ A possible response shape is:
 
 ```json
 {
-  "success": true,
-  "data": {
-    "onboarding": {
-      "status": "NOT_STARTED",
-      "nextStep": "CREATE_CLINIC"
-    },
-    "user": null,
-    "clinic": null
-  }
+    "success": true,
+    "data": {
+        "onboarding": {
+            "status": "NOT_STARTED",
+            "nextStep": "CREATE_CLINIC"
+        },
+        "user": null,
+        "clinic": null
+    }
 }
 ```
 
@@ -366,11 +366,11 @@ The bootstrap endpoint must:
 6. Start one Prisma transaction.
 7. Create the clinic.
 8. Create the internal user with server-controlled values:
-   - matching `clerkUserId`
-   - trusted email/name where available
-   - role `ADMIN`
-   - status `ACTIVE`
-   - the newly created `clinicId`
+    - matching `clerkUserId`
+    - trusted email/name where available
+    - role `ADMIN`
+    - status `ACTIVE`
+    - the newly created `clinicId`
 9. Commit both records together.
 10. Return the completed internal user and clinic summary.
 
@@ -700,13 +700,13 @@ Do not create a long-lived `v0.1` branch unless you genuinely plan to maintain p
 1. Open the deployed Vercel frontend.
 2. Sign in using the existing provisioned demo/Admin account.
 3. Verify:
-   - dashboard loads
-   - doctors list loads
-   - patients list loads
-   - appointment flow works
-   - today's queue loads and status updates work
-   - no-show risk is visible
-   - clinic isolation/auth checks still behave correctly
+    - dashboard loads
+    - doctors list loads
+    - patients list loads
+    - appointment flow works
+    - today's queue loads and status updates work
+    - no-show risk is visible
+    - clinic isolation/auth checks still behave correctly
 4. Record any known issue. Fix only a release-blocking problem before tagging.
 5. In Vercel, identify the production deployment commit SHA.
 6. In Render, identify the backend production deployment commit SHA.

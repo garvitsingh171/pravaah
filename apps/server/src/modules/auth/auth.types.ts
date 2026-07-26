@@ -1,5 +1,9 @@
 import type { UserRole, UserStatus } from '../../generated/prisma/client.js';
 
+export type ClerkIdentity = {
+    clerkUserId: string;
+};
+
 export type AuthenticatedUser = {
     id: string;
     clerkUserId: string;

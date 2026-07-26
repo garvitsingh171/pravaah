@@ -33,6 +33,11 @@ type ActiveClinicProviderState =
           };
       }
     | {
+          status: 'unprovisioned';
+          activeClinic: null;
+          error: null;
+      }
+    | {
           status: 'error';
           activeClinic: null;
           error: {
@@ -153,6 +158,25 @@ function ActiveClinicErrorState({ message, code }: { message: string; code?: str
     );
 }
 
+function UnprovisionedIdentityState() {
+    return (
+        <div className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900">
+            <div className="mx-auto max-w-2xl">
+                <ErrorMessage
+                    title="Account is not provisioned yet"
+                    message="Your Clerk session is valid, but this identity does not have an internal Pravaah user, role, or clinic assignment yet."
+                    code="INTERNAL_USER_NOT_FOUND"
+                    details={[
+                        'This account is authenticated but not an Admin, Staff member, clinic owner, or operational application user.',
+                        'Clinic onboarding and internal user provisioning are not implemented in this issue.',
+                        'Ask a project administrator to provision an ACTIVE internal Pravaah user for operational access.',
+                    ]}
+                />
+            </div>
+        </div>
+    );
+}
+
 function ActiveClinicProvider({ children }: PropsWithChildren) {
     const { getToken } = useAuth();
     const [state, setState] = useState<ActiveClinicProviderState>(loadingState);
@@ -195,6 +219,15 @@ function ActiveClinicProvider({ children }: PropsWithChildren) {
                 }
 
                 if (isApiClientError(error)) {
+                    if (error.code === 'INTERNAL_USER_NOT_FOUND') {
+                        setState({
+                            status: 'unprovisioned',
+                            activeClinic: null,
+                            error: null,
+                        });
+                        return;
+                    }
+
                     setState({
                         status: 'error',
                         activeClinic: null,
@@ -231,6 +264,10 @@ function ActiveClinicProvider({ children }: PropsWithChildren) {
 
     if (state.status === 'missing') {
         return <MissingActiveClinicState details={state.error.details} />;
+    }
+
+    if (state.status === 'unprovisioned') {
+        return <UnprovisionedIdentityState />;
     }
 
     return (
