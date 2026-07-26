@@ -52,7 +52,8 @@ Public/currently unauthenticated:
 
 Planned v0.2 onboarding:
 
-- onboarding status and clinic bootstrap endpoints may require a valid Clerk identity while allowing the internal `User` to be missing
+- `GET /api/auth/onboarding-status` requires a valid Clerk identity while allowing the internal `User` to be missing
+- future clinic bootstrap endpoints may require a valid Clerk identity while allowing the internal `User` to be missing
 - these endpoints must be explicitly onboarding-aware and must not expose operational clinic data
 
 Protected:
@@ -101,17 +102,17 @@ Because that route does not include `clinicId`, the service loads the appointmen
 
 Source: `apps/server/src/app.ts`.
 
-| Mount          | Router                    |
-| -------------- | ------------------------- |
-| `/api/health`  | `healthRouter`            |
-| `/api/auth`    | `authRouter`              |
-| `/api/clinics` | `clinicRouter`            |
-| `/api/clinics` | `doctorRouter`            |
-| `/api/clinics` | `patientRouter`           |
-| `/api/clinics` | `clinicAppointmentRouter` |
-| `/api`         | `appointmentRouter`       |
-| `/api/clinics` | `queueRouter`             |
-| `/api/clinics` | `dashboardRouter`         |
+| Mount          | Router                                     |
+| -------------- | ------------------------------------------ |
+| `/api/health`  | `healthRouter`                             |
+| `/api/auth`    | `authRouter` (`/me`, `/onboarding-status`) |
+| `/api/clinics` | `clinicRouter`                             |
+| `/api/clinics` | `doctorRouter`                             |
+| `/api/clinics` | `patientRouter`                            |
+| `/api/clinics` | `clinicAppointmentRouter`                  |
+| `/api`         | `appointmentRouter`                        |
+| `/api/clinics` | `queueRouter`                              |
+| `/api/clinics` | `dashboardRouter`                          |
 
 ## Validation Flow
 
@@ -192,7 +193,8 @@ The global error handler maps `AppError` to the standard error response.
 
 - Health
 - Auth/current user
-- v0.2 Onboarding, planned under `apps/server/src/modules/onboarding/`
+- Auth/onboarding status
+- v0.2 clinic bootstrap, planned under `apps/server/src/modules/onboarding/`
 - Clinics
 - Doctors
 - Patients
