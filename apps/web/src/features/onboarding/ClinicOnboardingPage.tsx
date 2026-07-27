@@ -191,6 +191,19 @@ const getBackendFieldErrors = (details: unknown): ClinicOnboardingFieldErrors =>
     );
 };
 
+const getApiErrorFieldErrors = (code: string, message: string, details: unknown) => {
+    const backendFieldErrors = getBackendFieldErrors(details);
+
+    if (code === 'CLINIC_SLUG_ALREADY_EXISTS') {
+        return {
+            ...backendFieldErrors,
+            slug: message,
+        };
+    }
+
+    return backendFieldErrors;
+};
+
 const validateClinicOnboardingForm = (
     values: ClinicOnboardingFormValues
 ): ClinicOnboardingFieldErrors => {
@@ -730,7 +743,53 @@ function ClinicOnboardingPage() {
             });
         } catch (error) {
             if (isApiClientError(error)) {
-                setFieldErrors(getBackendFieldErrors(error.details));
+                if (error.code === 'API_NETWORK_ERROR') {
+                    try {
+                        const reconciledStatus = await getOnboardingStatus();
+
+                        if (reconciledStatus.onboarding.status === OnboardingStatus.COMPLETED) {
+                            showSuccessToast('Clinic workspace created successfully.');
+                            navigate(defaultDashboardPath, {
+                                replace: true,
+                                state: {
+                                    statusMessage: 'Clinic workspace created successfully.',
+                                },
+                            });
+                            return;
+                        }
+
+                        if (
+                            reconciledStatus.onboarding.status ===
+                            OnboardingStatus.RECOVERY_REQUIRED
+                        ) {
+                            setStatusState({
+                                status: 'ready',
+                                data: reconciledStatus,
+                                error: null,
+                            });
+                            setFieldErrors({});
+                            setFormError(null);
+                            setFormErrorCode(undefined);
+                            setFormErrorDetails([]);
+                            return;
+                        }
+
+                        setStatusState({
+                            status: 'ready',
+                            data: reconciledStatus,
+                            error: null,
+                        });
+                    } catch (statusError) {
+                        if (
+                            statusError instanceof Error &&
+                            statusError.name === 'AbortError'
+                        ) {
+                            return;
+                        }
+                    }
+                }
+
+                setFieldErrors(getApiErrorFieldErrors(error.code, error.message, error.details));
                 setFormError(error.message);
                 setFormErrorCode(error.code);
                 setFormErrorDetails(getBackendValidationDetails(error.details));
