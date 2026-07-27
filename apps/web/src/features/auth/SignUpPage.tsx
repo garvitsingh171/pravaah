@@ -2,7 +2,7 @@ import { SignUp, useAuth } from '@clerk/react';
 import { Link, Navigate } from 'react-router-dom';
 import { LoadingState } from '../../components/feedback';
 
-const signUpFallbackRedirectPath = '/';
+const signUpFallbackRedirectPath = '/onboarding/clinic';
 
 function SignUpPage() {
     const { isLoaded, isSignedIn } = useAuth();

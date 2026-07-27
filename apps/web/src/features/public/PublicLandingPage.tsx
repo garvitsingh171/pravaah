@@ -1,12 +1,13 @@
 import { useAuth } from '@clerk/react';
 import { Link } from 'react-router-dom';
-import { defaultDashboardPath } from '../../routes/dashboardRoutes';
 
 const publicNavigationItems = [
     { label: 'Capabilities', href: '#capabilities' },
     { label: 'Workflow', href: '#workflow' },
     { label: 'Risk support', href: '#risk-support' },
 ];
+
+const onboardingClinicPath = '/onboarding/clinic';
 
 const capabilityItems = [
     {
@@ -92,10 +93,10 @@ function PublicHeader() {
                     <div className="flex shrink-0 items-center gap-2">
                         {isLoaded && isSignedIn ? (
                             <Link
-                                to={defaultDashboardPath}
+                                to={onboardingClinicPath}
                                 className="whitespace-nowrap rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
                             >
-                                Open dashboard
+                                Continue setup
                             </Link>
                         ) : (
                             <>
@@ -142,13 +143,13 @@ function PublicCtaLink({
     const { isLoaded, isSignedIn } = useAuth();
     const label =
         isLoaded && isSignedIn
-            ? 'Open dashboard'
+            ? 'Continue setup'
             : action === 'sign-up'
               ? 'Create clinic account'
               : 'Sign in';
     const path =
         isLoaded && isSignedIn
-            ? defaultDashboardPath
+            ? onboardingClinicPath
             : action === 'sign-up'
               ? '/sign-up'
               : '/login';
