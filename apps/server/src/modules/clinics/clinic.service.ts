@@ -39,6 +39,14 @@ export const clinicService = {
             throw new AppError(404, 'CLINIC_NOT_FOUND', 'Clinic not found');
         }
 
+        if (result.outcome === 'INVALID_CLINIC_TIMEZONE') {
+            throw new AppError(
+                422,
+                'INVALID_CLINIC_TIMEZONE',
+                'Clinic timezone is invalid. Update clinic settings before provisioning sample data.'
+            );
+        }
+
         return {
             outcome: result.outcome,
             summary: {

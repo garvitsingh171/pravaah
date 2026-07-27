@@ -124,7 +124,7 @@ Body:
 name, slug required
 phone, email, address fields optional
 country default India
-timezone default Asia/Kolkata
+timezone default Asia/Kolkata; must be a valid IANA time zone
 openingTime default 09:00
 closingTime default 18:00
 slotDurationMinutes default 15
@@ -292,6 +292,7 @@ Main errors:
 - `CLINIC_ACCESS_DENIED`
 - `CLINIC_NOT_FOUND`
 - `CLINIC_INACTIVE`
+- `INVALID_CLINIC_TIMEZONE`
 - `ADMIN_REQUIRED`
 - `VALIDATION_ERROR`
 

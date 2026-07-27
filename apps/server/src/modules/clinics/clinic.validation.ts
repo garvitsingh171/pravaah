@@ -1,8 +1,18 @@
 import { z } from 'zod';
+import { isSupportedClinicTimezone } from './clinicTimezone.js';
 
 const uuidSchema = z
     .string()
     .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, 'Invalid id');
+
+const timezoneSchema = z
+    .string()
+    .trim()
+    .min(1, 'Clinic timezone is required')
+    .refine(
+        isSupportedClinicTimezone,
+        'Clinic timezone must be a valid IANA time zone, such as Asia/Kolkata'
+    );
 
 export const createClinicSchema = z
     .object({
@@ -26,7 +36,7 @@ export const createClinicSchema = z
         country: z.string().default('India'),
         pincode: z.string().optional(),
 
-        timezone: z.string().default('Asia/Kolkata'),
+        timezone: timezoneSchema.default('Asia/Kolkata'),
 
         openingTime: z.string().default('09:00'),
         closingTime: z.string().default('18:00'),
@@ -66,7 +76,7 @@ export const updateClinicSchema = z
         country: z.string().optional(),
         pincode: z.string().optional(),
 
-        timezone: z.string().optional(),
+        timezone: timezoneSchema.optional(),
 
         openingTime: z.string().optional(),
         closingTime: z.string().optional(),

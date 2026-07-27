@@ -22,6 +22,7 @@ import type {
     SampleDataProvisioningRecordCounts,
     UpdateClinicInput,
 } from './clinic.types.js';
+import { isSupportedClinicTimezone } from './clinicTimezone.js';
 
 type SampleAppointmentDefinition = {
     doctorIndex: number;
@@ -376,6 +377,14 @@ export const clinicRepository = {
             if (!clinic) {
                 return {
                     outcome: 'CLINIC_NOT_FOUND' as const,
+                    today: '',
+                    summary: null,
+                };
+            }
+
+            if (!isSupportedClinicTimezone(clinic.timezone)) {
+                return {
+                    outcome: 'INVALID_CLINIC_TIMEZONE' as const,
                     today: '',
                     summary: null,
                 };

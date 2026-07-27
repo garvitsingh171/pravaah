@@ -119,4 +119,25 @@ describe('clinicService.provisionSampleData', () => {
             })
         ).rejects.toThrow(new AppError(404, 'CLINIC_NOT_FOUND', 'Clinic not found'));
     });
+
+    it('maps an invalid stored clinic timezone to a controlled provisioning error', async () => {
+        mockClinicRepository.provisionSampleData.mockResolvedValue({
+            outcome: 'INVALID_CLINIC_TIMEZONE',
+            today: '',
+            summary: null,
+        });
+
+        await expect(
+            clinicService.provisionSampleData({
+                clinicId: 'clinic-id',
+                user: activeAdminUser,
+            })
+        ).rejects.toThrow(
+            new AppError(
+                422,
+                'INVALID_CLINIC_TIMEZONE',
+                'Clinic timezone is invalid. Update clinic settings before provisioning sample data.'
+            )
+        );
+    });
 });
