@@ -5,8 +5,16 @@ import {
     requireAdminRole,
     requireClinicAccess,
 } from '../auth/auth.middleware.js';
-import { createClinicController, updateClinicController } from './clinic.controller.js';
-import { updateClinicSchema, clinicIdParamsSchema } from './clinic.validation.js';
+import {
+    createClinicController,
+    provisionSampleDataController,
+    updateClinicController,
+} from './clinic.controller.js';
+import {
+    updateClinicSchema,
+    clinicIdParamsSchema,
+    provisionSampleDataBodySchema,
+} from './clinic.validation.js';
 
 const clinicRouter = Router();
 
@@ -22,6 +30,18 @@ clinicRouter.patch(
     requireClinicAccess,
     requireAdminRole,
     updateClinicController
+);
+
+clinicRouter.post(
+    '/:clinicId/sample-data',
+    authenticateRequest,
+    validateRequest({
+        params: clinicIdParamsSchema,
+        body: provisionSampleDataBodySchema,
+    }),
+    requireClinicAccess,
+    requireAdminRole,
+    provisionSampleDataController
 );
 
 export { clinicRouter };

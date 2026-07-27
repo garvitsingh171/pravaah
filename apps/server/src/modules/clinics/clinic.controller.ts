@@ -41,3 +41,31 @@ export async function updateClinicController(
         next(error);
     }
 }
+
+export async function provisionSampleDataController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { clinicId } = req.params as { clinicId: string };
+        const result = await clinicService.provisionSampleData({
+            clinicId,
+            user: req.user,
+        });
+        const alreadyProvisioned = result.outcome === 'ALREADY_PROVISIONED';
+
+        res.status(alreadyProvisioned ? 200 : 201).json({
+            success: true,
+            message: alreadyProvisioned
+                ? 'Sample data is already provisioned'
+                : 'Sample data provisioned successfully',
+            data: {
+                outcome: result.outcome,
+                summary: result.summary,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+}

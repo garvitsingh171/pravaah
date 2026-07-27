@@ -9,8 +9,10 @@ import {
     createClinicOnboarding,
     getOnboardingStatus,
     OnboardingStatus,
+    provisionSampleData,
     type CreateClinicOnboardingRequest,
     type OnboardingStatusResponseData,
+    type ProvisionSampleDataResponseData,
 } from './onboardingApi';
 
 type ClinicOnboardingFormValues = {
@@ -57,6 +59,16 @@ type StatusState =
               code?: string;
           };
       };
+
+type SampleDataDecisionState = {
+    clinic: NonNullable<OnboardingStatusResponseData['clinic']>;
+    status: 'idle' | 'provisioning' | 'error';
+    error: {
+        message: string;
+        code?: string;
+    } | null;
+    summary: ProvisionSampleDataResponseData['summary'] | null;
+};
 
 const redirectParamName = 'redirect_url';
 
@@ -588,6 +600,96 @@ function ClinicOnboardingForm({
     );
 }
 
+function SampleDataDecisionPanel({
+    state,
+    onAddSampleData,
+    onSkipSampleData,
+}: {
+    state: SampleDataDecisionState;
+    onAddSampleData: () => void;
+    onSkipSampleData: () => void;
+}) {
+    const isProvisioning = state.status === 'provisioning';
+
+    return (
+        <section className="mx-auto grid w-full max-w-5xl gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-start">
+            <div className="space-y-5">
+                <div>
+                    <p className="text-sm font-semibold uppercase text-blue-600">
+                        Workspace created
+                    </p>
+                    <h1 className="mt-3 text-3xl font-bold leading-tight text-slate-950 md:text-4xl">
+                        Add fictional sample data?
+                    </h1>
+                    <p className="mt-4 text-base leading-7 text-slate-600">
+                        {state.clinic.name} is ready. You can add demonstration records now, or
+                        open Pravaah with an empty clinic and build the workflow yourself.
+                    </p>
+                </div>
+
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-950">
+                    All generated records are fictional demonstration content. They are created only
+                    inside this clinic and are not based on real patient data.
+                </div>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+                {state.status === 'error' && state.error ? (
+                    <div className="mb-5">
+                        <ErrorMessage
+                            title="Sample data was not added"
+                            message={state.error.message}
+                            code={state.error.code}
+                            details={[
+                                'You can retry provisioning sample data.',
+                                'You can also continue with an empty clinic and add records manually.',
+                            ]}
+                        />
+                    </div>
+                ) : null}
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-lg border border-slate-200 p-4">
+                        <p className="text-2xl font-bold text-slate-950">3</p>
+                        <p className="mt-1 text-sm text-slate-600">sample doctors</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 p-4">
+                        <p className="text-2xl font-bold text-slate-950">6</p>
+                        <p className="mt-1 text-sm text-slate-600">sample patients</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 p-4">
+                        <p className="text-2xl font-bold text-slate-950">9</p>
+                        <p className="mt-1 text-sm text-slate-600">appointments and predictions</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 p-4">
+                        <p className="text-2xl font-bold text-slate-950">6</p>
+                        <p className="mt-1 text-sm text-slate-600">today queue entries</p>
+                    </div>
+                </div>
+
+                <div className="mt-6 flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
+                    <button
+                        type="button"
+                        className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                        disabled={isProvisioning}
+                        onClick={onSkipSampleData}
+                    >
+                        Continue with an empty clinic
+                    </button>
+                    <button
+                        type="button"
+                        className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                        disabled={isProvisioning}
+                        onClick={onAddSampleData}
+                    >
+                        {isProvisioning ? 'Adding sample data...' : 'Add fictional sample data'}
+                    </button>
+                </div>
+            </div>
+        </section>
+    );
+}
+
 function ClinicOnboardingPage() {
     const { isLoaded, isSignedIn } = useAuth();
     const location = useLocation();
@@ -605,6 +707,21 @@ function ClinicOnboardingPage() {
     const [formErrorDetails, setFormErrorDetails] = useState<BackendValidationDetail[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [hasEditedSlug, setHasEditedSlug] = useState(false);
+    const [sampleDataDecision, setSampleDataDecision] = useState<SampleDataDecisionState | null>(
+        null
+    );
+
+    const navigateToDashboard = useCallback(
+        (statusMessage: string) => {
+            navigate(defaultDashboardPath, {
+                replace: true,
+                state: {
+                    statusMessage,
+                },
+            });
+        },
+        [navigate]
+    );
 
     const loadOnboardingStatus = useCallback(
         (signal?: AbortSignal) => {
@@ -617,12 +734,7 @@ function ClinicOnboardingPage() {
             void getOnboardingStatus(signal)
                 .then((data) => {
                     if (data.onboarding.status === OnboardingStatus.COMPLETED) {
-                        navigate(defaultDashboardPath, {
-                            replace: true,
-                            state: {
-                                statusMessage: 'Clinic onboarding is already complete.',
-                            },
-                        });
+                        navigateToDashboard('Clinic onboarding is already complete.');
                         return;
                     }
 
@@ -663,7 +775,7 @@ function ClinicOnboardingPage() {
                     });
                 });
         },
-        [navigate]
+        [navigateToDashboard]
     );
 
     useEffect(() => {
@@ -732,14 +844,25 @@ function ClinicOnboardingPage() {
         setIsSubmitting(true);
 
         try {
-            await createClinicOnboarding(toCreateClinicOnboardingRequest(values));
+            const onboardingResult = await createClinicOnboarding(
+                toCreateClinicOnboardingRequest(values)
+            );
+
+            if (!onboardingResult.clinic) {
+                throw new Error('Clinic onboarding response did not include a clinic.');
+            }
 
             showSuccessToast('Clinic workspace created successfully.');
-            navigate(defaultDashboardPath, {
-                replace: true,
-                state: {
-                    statusMessage: 'Clinic workspace created successfully.',
-                },
+            setStatusState({
+                status: 'ready',
+                data: onboardingResult,
+                error: null,
+            });
+            setSampleDataDecision({
+                clinic: onboardingResult.clinic,
+                status: 'idle',
+                error: null,
+                summary: null,
             });
         } catch (error) {
             if (isApiClientError(error)) {
@@ -748,12 +871,22 @@ function ClinicOnboardingPage() {
                         const reconciledStatus = await getOnboardingStatus();
 
                         if (reconciledStatus.onboarding.status === OnboardingStatus.COMPLETED) {
+                            if (!reconciledStatus.clinic) {
+                                navigateToDashboard('Clinic workspace created successfully.');
+                                return;
+                            }
+
                             showSuccessToast('Clinic workspace created successfully.');
-                            navigate(defaultDashboardPath, {
-                                replace: true,
-                                state: {
-                                    statusMessage: 'Clinic workspace created successfully.',
-                                },
+                            setStatusState({
+                                status: 'ready',
+                                data: reconciledStatus,
+                                error: null,
+                            });
+                            setSampleDataDecision({
+                                clinic: reconciledStatus.clinic,
+                                status: 'idle',
+                                error: null,
+                                summary: null,
                             });
                             return;
                         }
@@ -805,6 +938,72 @@ function ClinicOnboardingPage() {
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    const handleAddSampleData = async () => {
+        if (!sampleDataDecision || sampleDataDecision.status === 'provisioning') {
+            return;
+        }
+
+        setSampleDataDecision({
+            ...sampleDataDecision,
+            status: 'provisioning',
+            error: null,
+        });
+
+        try {
+            const result = await provisionSampleData(sampleDataDecision.clinic.id);
+            const statusMessage =
+                result.outcome === 'ALREADY_PROVISIONED'
+                    ? 'Sample data was already available.'
+                    : 'Fictional sample data added successfully.';
+
+            showSuccessToast(statusMessage);
+            navigateToDashboard(statusMessage);
+        } catch (error) {
+            if (isApiClientError(error)) {
+                if (error.code === 'SAMPLE_DATA_ALREADY_PROVISIONED') {
+                    showSuccessToast('Sample data was already available.');
+                    navigateToDashboard('Sample data was already available.');
+                    return;
+                }
+
+                setSampleDataDecision((currentDecision) =>
+                    currentDecision
+                        ? {
+                              ...currentDecision,
+                              status: 'error',
+                              error: {
+                                  message: error.message,
+                                  code: error.code,
+                              },
+                          }
+                        : currentDecision
+                );
+                showErrorToast(error.message);
+                return;
+            }
+
+            const fallbackMessage = 'Sample data could not be added. Please try again.';
+
+            setSampleDataDecision((currentDecision) =>
+                currentDecision
+                    ? {
+                          ...currentDecision,
+                          status: 'error',
+                          error: {
+                              message: fallbackMessage,
+                              code: 'SAMPLE_DATA_PROVISIONING_FAILED',
+                          },
+                      }
+                    : currentDecision
+            );
+            showErrorToast(fallbackMessage);
+        }
+    };
+
+    const handleSkipSampleData = () => {
+        navigateToDashboard('Clinic workspace created successfully.');
     };
 
     if (!isLoaded) {
@@ -876,6 +1075,18 @@ function ClinicOnboardingPage() {
                         </SignOutButton>
                     </div>
                 </div>
+            </OnboardingPageShell>
+        );
+    }
+
+    if (sampleDataDecision) {
+        return (
+            <OnboardingPageShell eyebrow="Sample data choice">
+                <SampleDataDecisionPanel
+                    state={sampleDataDecision}
+                    onAddSampleData={handleAddSampleData}
+                    onSkipSampleData={handleSkipSampleData}
+                />
             </OnboardingPageShell>
         );
     }
