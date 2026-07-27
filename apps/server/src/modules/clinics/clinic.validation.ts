@@ -93,3 +93,7 @@ export const clinicIdParamsSchema = z.object({
 });
 
 export type ClinicIdParamsInput = z.infer<typeof clinicIdParamsSchema>;
+
+export const provisionSampleDataBodySchema = z.object({}).strict().default({});
+
+export type ProvisionSampleDataBodySchemaInput = z.infer<typeof provisionSampleDataBodySchema>;

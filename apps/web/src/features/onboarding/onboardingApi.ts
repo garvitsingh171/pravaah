@@ -43,6 +43,23 @@ export type OnboardingStatusResponseData = {
     clinic: OnboardingClinicSummary | null;
 };
 
+export type SampleDataProvisioningSummary = {
+    doctors: number;
+    patients: number;
+    appointments: number;
+    noShowPredictions: number;
+    queueEntries: number;
+    todayQueueEntries: number;
+    today: string;
+};
+
+export type SampleDataProvisioningOutcome = 'CREATED' | 'ALREADY_PROVISIONED';
+
+export type ProvisionSampleDataResponseData = {
+    outcome: SampleDataProvisioningOutcome;
+    summary: SampleDataProvisioningSummary;
+};
+
 export type CreateClinicOnboardingRequest = {
     name: string;
     slug: string;
@@ -67,4 +84,8 @@ export const getOnboardingStatus = (signal?: AbortSignal) => {
 
 export const createClinicOnboarding = (payload: CreateClinicOnboardingRequest) => {
     return apiClient.post<OnboardingStatusResponseData>('/auth/onboarding/clinic', payload);
+};
+
+export const provisionSampleData = (clinicId: string) => {
+    return apiClient.post<ProvisionSampleDataResponseData>(`/clinics/${clinicId}/sample-data`, {});
 };

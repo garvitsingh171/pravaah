@@ -22,6 +22,23 @@ const activeAdminUser: AuthenticatedUser = {
     clinicId: 'clinic-id',
 };
 
+describe('accessService.requireAdmin', () => {
+    it('allows active Admin users', () => {
+        expect(accessService.requireAdmin(activeAdminUser)).toEqual(activeAdminUser);
+    });
+
+    it('denies active Staff users', () => {
+        const activeStaffUser: AuthenticatedUser = {
+            ...activeAdminUser,
+            role: UserRole.STAFF,
+        };
+
+        expect(() => accessService.requireAdmin(activeStaffUser)).toThrow(
+            new AppError(403, 'ADMIN_REQUIRED', 'Admin access is required')
+        );
+    });
+});
+
 describe('accessService.requireClinicStaff', () => {
     it('allows Admin and Staff users', () => {
         const activeStaffUser: AuthenticatedUser = {

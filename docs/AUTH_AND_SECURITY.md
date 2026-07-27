@@ -109,6 +109,7 @@ Admin-only routes:
 
 - `POST /api/clinics` is protected but disabled for standalone creation
 - `PATCH /api/clinics/:clinicId`
+- `POST /api/clinics/:clinicId/sample-data`
 
 Most workflow routes allow Admin and Staff.
 
@@ -148,6 +149,10 @@ The backend must still enforce:
 Any browser request can be modified, so frontend checks are not security boundaries.
 
 For v0.2 onboarding, the frontend must not send trusted authority values such as internal role, user status, clinic ownership, or another clinic's ID. The backend must assign the first clinic user as `ADMIN`, `ACTIVE`, and linked to the newly created clinic inside one transaction.
+
+Optional sample-data provisioning runs only after that clinic and Admin exist. The
+runtime endpoint requires the normal protected API stack, own-clinic access, and
+Admin role, and uses the authenticated internal user as the trusted creator.
 
 ## Secrets Handling
 

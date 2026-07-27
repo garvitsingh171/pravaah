@@ -217,7 +217,7 @@ Implemented states include:
 | --------------- | ---------------------------------------------------------------------------------------------------- |
 | Login           | Clerk `SignIn`, safe redirect handling, sign-out toast.                                              |
 | Sign Up         | Clerk `SignUp`, then directs signed-in users toward clinic onboarding.                                |
-| Clinic Onboarding | Resolves onboarding status, renders first-time clinic form for `NOT_STARTED`, posts clinic bootstrap, and redirects completed users to the dashboard. |
+| Clinic Onboarding | Resolves onboarding status, renders first-time clinic form for `NOT_STARTED`, posts clinic bootstrap, offers optional fictional sample data after successful clinic creation, and redirects completed users to the dashboard. |
 | Landing         | Public product overview with sign-in/sign-up CTAs and a signed-in continuation CTA to onboarding.    |
 | Dashboard       | Fetches summary, high-risk appointments, and today activity in parallel.                             |
 | Doctors         | Lists doctors, local search, create link.                                                            |
@@ -253,6 +253,7 @@ Implemented states include:
 - Doctor edit and patient edit screens are not implemented.
 - Queue reorder API is not surfaced in the UI.
 - Public landing, public sign-up, and first-time clinic onboarding UI exist.
+- First-time onboarding includes an optional fictional sample-data decision after clinic bootstrap.
 - Full onboarding-aware protected application routing is not implemented yet.
 - No frontend automated tests are configured.
 - No screenshots are committed.

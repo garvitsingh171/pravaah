@@ -109,7 +109,7 @@ Source: `apps/server/src/app.ts`.
 | -------------- | ---------------------------------------------------------------- |
 | `/api/health`  | `healthRouter`                                                   |
 | `/api/auth`    | `authRouter` (`/me`, `/onboarding-status`, `/onboarding/clinic`) |
-| `/api/clinics` | `clinicRouter`                                                   |
+| `/api/clinics` | `clinicRouter` (`POST /:clinicId/sample-data`, clinic update, disabled standalone create) |
 | `/api/clinics` | `doctorRouter`                                                   |
 | `/api/clinics` | `patientRouter`                                                  |
 | `/api/clinics` | `clinicAppointmentRouter`                                        |
@@ -199,6 +199,7 @@ The global error handler maps `AppError` to the standard error response.
 - Auth/onboarding status
 - v0.2 clinic bootstrap under `POST /api/auth/onboarding/clinic`
 - Clinics; standalone `POST /api/clinics` is disabled, while clinic update remains protected
+- Clinic sample data provisioning under `POST /api/clinics/:clinicId/sample-data`
 - Doctors
 - Patients
 - Appointments

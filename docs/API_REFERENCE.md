@@ -255,6 +255,46 @@ Main errors:
 - `STANDALONE_CLINIC_CREATION_DISABLED`
 - `ADMIN_REQUIRED`
 
+### Provision Sample Data
+
+| Field | Value |
+| ----- | ----- |
+| Method | POST |
+| Path | `/api/clinics/:clinicId/sample-data` |
+| Auth | Required, own active clinic, Admin |
+
+This endpoint provisions fictional demonstration records for the authenticated
+Admin's clinic after onboarding has completed. It does not run the development
+seed script and does not reuse fixed seed IDs. The backend uses the authenticated
+internal user as `createdByUserId`, creates the sample records in one transaction,
+and returns an idempotent success response when sample data is already present.
+
+Body:
+
+```json
+{}
+```
+
+Response summary:
+
+```txt
+data.outcome: CREATED | ALREADY_PROVISIONED
+data.summary:
+  doctors, patients, appointments, noShowPredictions, queueEntries,
+  todayQueueEntries, today
+```
+
+Main errors:
+
+- `AUTHENTICATION_REQUIRED`
+- `INTERNAL_USER_NOT_FOUND`
+- `USER_NOT_ACTIVE`
+- `CLINIC_ACCESS_DENIED`
+- `CLINIC_NOT_FOUND`
+- `CLINIC_INACTIVE`
+- `ADMIN_REQUIRED`
+- `VALIDATION_ERROR`
+
 ### Update Clinic
 
 | Field  | Value                              |

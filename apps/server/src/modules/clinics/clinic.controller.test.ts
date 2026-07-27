@@ -5,13 +5,18 @@ import { AppError } from '../../utils/AppError.js';
 const mockClinicService = vi.hoisted(() => ({
     createClinic: vi.fn(),
     updateClinic: vi.fn(),
+    provisionSampleData: vi.fn(),
 }));
 
 vi.mock('./clinic.service.js', () => ({
     clinicService: mockClinicService,
 }));
 
-import { createClinicController, updateClinicController } from './clinic.controller.js';
+import {
+    createClinicController,
+    provisionSampleDataController,
+    updateClinicController,
+} from './clinic.controller.js';
 
 describe('createClinicController', () => {
     beforeEach(() => {
@@ -86,5 +91,102 @@ describe('updateClinicController', () => {
             },
         });
         expect(next).not.toHaveBeenCalled();
+    });
+});
+
+describe('provisionSampleDataController', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('returns created sample data summary', async () => {
+        const summary = {
+            doctors: 3,
+            patients: 6,
+            appointments: 9,
+            noShowPredictions: 9,
+            queueEntries: 6,
+            todayQueueEntries: 6,
+            today: '2026-06-20',
+        };
+        const req = {
+            params: {
+                clinicId: 'clinic-id',
+            },
+            user: {
+                id: 'admin-user-id',
+            },
+        } as unknown as Request;
+        const json = vi.fn();
+        const status = vi.fn(() => ({ json }));
+        const res = {
+            status,
+        } as unknown as Response;
+        const next = vi.fn() as NextFunction;
+
+        mockClinicService.provisionSampleData.mockResolvedValue({
+            outcome: 'CREATED',
+            summary,
+        });
+
+        await provisionSampleDataController(req, res, next);
+
+        expect(mockClinicService.provisionSampleData).toHaveBeenCalledWith({
+            clinicId: 'clinic-id',
+            user: req.user,
+        });
+        expect(status).toHaveBeenCalledWith(201);
+        expect(json).toHaveBeenCalledWith({
+            success: true,
+            message: 'Sample data provisioned successfully',
+            data: {
+                outcome: 'CREATED',
+                summary,
+            },
+        });
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it('returns idempotent success when sample data already exists', async () => {
+        const summary = {
+            doctors: 3,
+            patients: 6,
+            appointments: 9,
+            noShowPredictions: 9,
+            queueEntries: 6,
+            todayQueueEntries: 6,
+            today: '2026-06-20',
+        };
+        const req = {
+            params: {
+                clinicId: 'clinic-id',
+            },
+            user: {
+                id: 'admin-user-id',
+            },
+        } as unknown as Request;
+        const json = vi.fn();
+        const status = vi.fn(() => ({ json }));
+        const res = {
+            status,
+        } as unknown as Response;
+        const next = vi.fn() as NextFunction;
+
+        mockClinicService.provisionSampleData.mockResolvedValue({
+            outcome: 'ALREADY_PROVISIONED',
+            summary,
+        });
+
+        await provisionSampleDataController(req, res, next);
+
+        expect(status).toHaveBeenCalledWith(200);
+        expect(json).toHaveBeenCalledWith({
+            success: true,
+            message: 'Sample data is already provisioned',
+            data: {
+                outcome: 'ALREADY_PROVISIONED',
+                summary,
+            },
+        });
     });
 });

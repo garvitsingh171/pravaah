@@ -5,12 +5,19 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import {
     AppointmentStatus,
     BookingSource,
-    Gender,
     PrismaClient,
     QueueStatus,
     UserRole,
     UserStatus,
 } from '../src/generated/prisma/client.js';
+import {
+    addClinicDays,
+    addMinutes,
+    getClinicDateTime,
+    getClinicTodayParts,
+    sampleDoctorDefinitions,
+    samplePatientDefinitions,
+} from '../src/modules/clinics/sampleData.definitions.js';
 import { predictNoShowRisk } from '../src/modules/predictions/prediction.service.js';
 
 const DEFAULT_DEMO_CLINIC_ID = '00000000-0000-4000-8000-000000000000';
@@ -95,210 +102,15 @@ const assertEmailIsAvailableForClerkUser = async (email: string, clerkUserId: st
     }
 };
 
-const getClinicTodayParts = (timeZone: string) => {
-    const parts = new Intl.DateTimeFormat('en-CA', {
-        timeZone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-    }).formatToParts(new Date());
-
-    return {
-        year: Number(parts.find((part) => part.type === 'year')?.value),
-        month: Number(parts.find((part) => part.type === 'month')?.value),
-        day: Number(parts.find((part) => part.type === 'day')?.value),
-    };
-};
-
-const addClinicDays = (
-    dateParts: { year: number; month: number; day: number },
-    dayOffset: number
-) => {
-    const utcDate = new Date(Date.UTC(dateParts.year, dateParts.month - 1, dateParts.day));
-    utcDate.setUTCDate(utcDate.getUTCDate() + dayOffset);
-
-    return {
-        year: utcDate.getUTCFullYear(),
-        month: utcDate.getUTCMonth() + 1,
-        day: utcDate.getUTCDate(),
-    };
-};
-
-const padDatePart = (value: number): string => String(value).padStart(2, '0');
-
-const getClinicDateLabel = (dateParts: { year: number; month: number; day: number }): string => {
-    return `${dateParts.year}-${padDatePart(dateParts.month)}-${padDatePart(dateParts.day)}`;
-};
-
 const getAsiaKolkataDateTime = (
     dateParts: { year: number; month: number; day: number },
     time: string
 ): Date => {
-    return new Date(`${getClinicDateLabel(dateParts)}T${time}:00+05:30`);
+    return getClinicDateTime(dateParts, time, 'Asia/Kolkata');
 };
 
-const addMinutes = (date: Date, minutes: number): Date => {
-    return new Date(date.getTime() + minutes * 60 * 1000);
-};
-
-const doctors = [
-    {
-        id: '10000000-0000-4000-8000-000000000001',
-        fullName: 'Dr. Asha Raman',
-        specialization: 'Family Medicine',
-        qualification: 'MBBS, DNB Family Medicine',
-        registrationNumber: 'DEMO-KMC-1001',
-        phone: '+91 00000 01001',
-        email: 'asha.raman@example.test',
-        gender: Gender.FEMALE,
-        experienceYears: 12,
-        displayName: 'Dr. Asha',
-        consultationFee: '650.00',
-    },
-    {
-        id: '10000000-0000-4000-8000-000000000002',
-        fullName: 'Dr. Nikhil Varma',
-        specialization: 'Pediatrics',
-        qualification: 'MBBS, MD Pediatrics',
-        registrationNumber: 'DEMO-KMC-1002',
-        phone: '+91 00000 01002',
-        email: 'nikhil.varma@example.test',
-        gender: Gender.MALE,
-        experienceYears: 9,
-        displayName: 'Dr. Nikhil',
-        consultationFee: '700.00',
-    },
-    {
-        id: '10000000-0000-4000-8000-000000000003',
-        fullName: 'Dr. Leela Nair',
-        specialization: 'General Physician',
-        qualification: 'MBBS',
-        registrationNumber: 'DEMO-KMC-1003',
-        phone: '+91 00000 01003',
-        email: 'leela.nair@example.test',
-        gender: Gender.FEMALE,
-        experienceYears: 7,
-        displayName: 'Dr. Leela',
-        consultationFee: '550.00',
-    },
-];
-
-const patients = [
-    {
-        id: '20000000-0000-4000-8000-000000000001',
-        fullName: 'Riya Malhotra',
-        phone: '+91 00000 02001',
-        email: 'riya.malhotra@example.test',
-        gender: Gender.FEMALE,
-        age: 31,
-        address: 'Flat 2A, Demo Residency',
-        city: 'Bengaluru',
-        emergencyContactName: 'Arun Malhotra',
-        emergencyContactPhone: '+91 00000 02901',
-        history: {
-            totalAppointments: 8,
-            totalNoShows: 0,
-            totalLateArrivals: 0,
-            distanceFromClinicKm: '2.40',
-            notes: 'Demo low-risk patient with consistent attendance.',
-        },
-    },
-    {
-        id: '20000000-0000-4000-8000-000000000002',
-        fullName: 'Kabir Sen',
-        phone: '+91 00000 02002',
-        email: 'kabir.sen@example.test',
-        gender: Gender.MALE,
-        age: 44,
-        address: '18 Demo Cross Road',
-        city: 'Bengaluru',
-        emergencyContactName: 'Mira Sen',
-        emergencyContactPhone: '+91 00000 02902',
-        history: {
-            totalAppointments: 1,
-            totalNoShows: 0,
-            totalLateArrivals: 1,
-            distanceFromClinicKm: '9.00',
-            notes: 'Demo medium-risk patient with one late arrival and moderate travel distance.',
-        },
-    },
-    {
-        id: '20000000-0000-4000-8000-000000000003',
-        fullName: 'Anika Iyer',
-        phone: '+91 00000 02003',
-        email: 'anika.iyer@example.test',
-        gender: Gender.FEMALE,
-        age: 27,
-        address: '42 Fictional Layout',
-        city: 'Bengaluru',
-        emergencyContactName: 'Dev Iyer',
-        emergencyContactPhone: '+91 00000 02903',
-        history: {
-            totalAppointments: 5,
-            totalNoShows: 2,
-            totalLateArrivals: 3,
-            distanceFromClinicKm: '18.00',
-            notes: 'Demo high-risk patient with repeated no-shows and late arrivals.',
-        },
-    },
-    {
-        id: '20000000-0000-4000-8000-000000000004',
-        fullName: 'Meera Kapoor',
-        phone: '+91 00000 02004',
-        email: 'meera.kapoor@example.test',
-        gender: Gender.FEMALE,
-        age: 38,
-        address: '7 Sample Street',
-        city: 'Bengaluru',
-        emergencyContactName: 'Naveen Kapoor',
-        emergencyContactPhone: '+91 00000 02904',
-        history: {
-            totalAppointments: 4,
-            totalNoShows: 0,
-            totalLateArrivals: 0,
-            distanceFromClinicKm: '3.10',
-            notes: 'Demo low-risk returning patient.',
-        },
-    },
-    {
-        id: '20000000-0000-4000-8000-000000000005',
-        fullName: 'Omar Khan',
-        phone: '+91 00000 02005',
-        email: 'omar.khan@example.test',
-        gender: Gender.MALE,
-        age: 52,
-        address: '12 Placeholder Avenue',
-        city: 'Bengaluru',
-        emergencyContactName: 'Sara Khan',
-        emergencyContactPhone: '+91 00000 02905',
-        history: {
-            totalAppointments: 2,
-            totalNoShows: 1,
-            totalLateArrivals: 1,
-            distanceFromClinicKm: '11.50',
-            notes: 'Demo medium-risk patient with some attendance concerns.',
-        },
-    },
-    {
-        id: '20000000-0000-4000-8000-000000000006',
-        fullName: 'Tara Dsouza',
-        phone: '+91 00000 02006',
-        email: 'tara.dsouza@example.test',
-        gender: Gender.FEMALE,
-        age: 24,
-        address: '5 Training Clinic Lane',
-        city: 'Bengaluru',
-        emergencyContactName: 'Joel Dsouza',
-        emergencyContactPhone: '+91 00000 02906',
-        history: {
-            totalAppointments: 0,
-            totalNoShows: 0,
-            totalLateArrivals: 0,
-            distanceFromClinicKm: '5.80',
-            notes: 'Demo new patient with no prior clinic history.',
-        },
-    },
-];
+const doctors = sampleDoctorDefinitions;
+const patients = samplePatientDefinitions;
 
 async function main() {
     const clinicId = getDemoClinicId();
