@@ -54,6 +54,9 @@ Routes:
 | ------------------ | ------------------------------------------------------ |
 | `/`                | Public landing page                                    |
 | `/login/*`         | Clerk sign-in page wrapper                             |
+| `/sign-up/*`       | Clerk sign-up page wrapper                             |
+| `/onboarding`      | Redirects to clinic onboarding                         |
+| `/onboarding/clinic` | First-time clinic onboarding form outside protected app shell |
 | `/dashboard`       | Dashboard overview                                     |
 | `/doctors`         | Doctor list/search                                     |
 | `/doctors/new`     | Doctor create form                                     |
@@ -65,7 +68,7 @@ Routes:
 | `*`                | Public-safe not found page                             |
 
 `ProtectedAppShell` blocks unauthenticated users and redirects them to `/login?redirect_url=...`.
-The public landing and auth routes are outside `ProtectedAppShell`; protected application routes keep the existing app shell and active clinic resolution.
+The public landing, auth, and onboarding routes are outside `ProtectedAppShell`; protected application routes keep the existing app shell and active clinic resolution.
 
 ## Layout Structure
 
@@ -84,6 +87,7 @@ src/features/
 ├── clinics/
 ├── doctors/
 ├── patients/
+├── onboarding/
 ├── appointments/
 └── queues/
 ```
@@ -92,6 +96,8 @@ Current pages:
 
 - `PublicLandingPage`
 - `LoginPage`
+- `SignUpPage`
+- `ClinicOnboardingPage`
 - `DashboardOverviewPage`
 - `ClinicSettingsPage`
 - `DoctorsPage`
@@ -210,7 +216,9 @@ Implemented states include:
 | Page            | Current behavior                                                                                     |
 | --------------- | ---------------------------------------------------------------------------------------------------- |
 | Login           | Clerk `SignIn`, safe redirect handling, sign-out toast.                                              |
-| Landing         | Public product overview with sign-in or dashboard CTA based only on Clerk session state.             |
+| Sign Up         | Clerk `SignUp`, then directs signed-in users toward clinic onboarding.                                |
+| Clinic Onboarding | Resolves onboarding status, renders first-time clinic form for `NOT_STARTED`, posts clinic bootstrap, and redirects completed users to the dashboard. |
+| Landing         | Public product overview with sign-in/sign-up CTAs and a signed-in continuation CTA to onboarding.    |
 | Dashboard       | Fetches summary, high-risk appointments, and today activity in parallel.                             |
 | Doctors         | Lists doctors, local search, create link.                                                            |
 | Doctor Create   | Creates doctor through backend API.                                                                  |
@@ -244,7 +252,8 @@ Implemented states include:
 - Clinic settings is placeholder UI.
 - Doctor edit and patient edit screens are not implemented.
 - Queue reorder API is not surfaced in the UI.
-- Public landing page exists; public sign-up and self-service onboarding are not implemented yet.
+- Public landing, public sign-up, and first-time clinic onboarding UI exist.
+- Full onboarding-aware protected application routing is not implemented yet.
 - No frontend automated tests are configured.
 - No screenshots are committed.
 - Shared types are manually maintained and can drift from backend schemas if not reviewed.

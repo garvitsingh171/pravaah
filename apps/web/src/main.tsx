@@ -10,7 +10,7 @@ const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const signInUrl = '/login';
 const signUpUrl = '/sign-up';
 const signInFallbackRedirectUrl = '/dashboard';
-const signUpFallbackRedirectUrl = '/';
+const signUpFallbackRedirectUrl = '/onboarding/clinic';
 const afterSignOutUrl = '/login?signout=success';
 
 if (!clerkPublishableKey) {

@@ -1,6 +1,7 @@
 import { SignOutButton, useAuth } from '@clerk/react';
 import type { PropsWithChildren } from 'react';
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ErrorMessage, LoadingState } from '../components/feedback';
 import {
     ACTIVE_CLINIC_MISSING_ERROR_CODE,
@@ -168,11 +169,11 @@ function UnprovisionedIdentityState() {
                     code="INTERNAL_USER_NOT_FOUND"
                     details={[
                         'This account is authenticated but not an Admin, Staff member, clinic owner, or operational application user.',
-                        'Clinic onboarding and internal user provisioning are not implemented in this issue.',
-                        'Ask a project administrator to provision an ACTIVE internal Pravaah user for operational access.',
+                        'Use clinic onboarding to create the first clinic workspace and provision this identity.',
+                        'Onboarding-aware protected application routing remains outside this issue.',
                     ]}
                 />
-                <div className="flex justify-end">
+                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                     <SignOutButton>
                         <button
                             type="button"
@@ -181,6 +182,12 @@ function UnprovisionedIdentityState() {
                             Sign out
                         </button>
                     </SignOutButton>
+                    <Link
+                        to="/onboarding/clinic"
+                        className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                    >
+                        Continue setup
+                    </Link>
                 </div>
             </div>
         </div>

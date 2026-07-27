@@ -1,7 +1,8 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import ProtectedAppShell from './app/ProtectedAppShell';
 import LoginPage from './features/auth/LoginPage';
 import SignUpPage from './features/auth/SignUpPage';
+import ClinicOnboardingPage from './features/onboarding/ClinicOnboardingPage';
 import PublicLandingPage from './features/public/PublicLandingPage';
 import { dashboardRoutes } from './routes/dashboardRoutes';
 import NotFoundPage from './routes/NotFoundPage';
@@ -13,6 +14,8 @@ function App() {
                 <Route path="/" element={<PublicLandingPage />} />
                 <Route path="/login/*" element={<LoginPage />} />
                 <Route path="/sign-up/*" element={<SignUpPage />} />
+                <Route path="/onboarding" element={<Navigate to="/onboarding/clinic" replace />} />
+                <Route path="/onboarding/clinic" element={<ClinicOnboardingPage />} />
                 <Route element={<ProtectedAppShell />}>
                     {dashboardRoutes.map((route) => (
                         <Route

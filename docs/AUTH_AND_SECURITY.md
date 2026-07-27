@@ -16,11 +16,13 @@
 `apps/web/src/features/auth/LoginPage.tsx` renders Clerk `SignIn` with:
 
 - path `/login`
-- sign-up disabled with `withSignUp={false}` in frozen v0.1
+- sign-up enabled through `/sign-up`
 - safe redirect handling
 - sign-out success toast
 
-v0.2 will enable Clerk sign-up for public onboarding. Sign-up must not grant operational app access until Pravaah creates an internal active `User` and clinic assignment through the backend onboarding flow.
+`apps/web/src/features/auth/SignUpPage.tsx` renders Clerk `SignUp` with a fallback redirect to `/onboarding/clinic`. Sign-up must not grant operational app access until Pravaah creates an internal active `User` and clinic assignment through the backend onboarding flow.
+
+`apps/web/src/features/onboarding/ClinicOnboardingPage.tsx` lives outside `ProtectedAppShell`, requires a Clerk session, reads onboarding status through `/api/auth/onboarding-status`, and posts clinic profile fields to `/api/auth/onboarding/clinic`.
 
 `ProtectedAppShell` uses Clerk `useAuth()`:
 
