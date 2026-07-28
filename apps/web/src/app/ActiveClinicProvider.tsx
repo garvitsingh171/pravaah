@@ -1,7 +1,6 @@
-import { SignOutButton, useAuth } from '@clerk/react';
+import { useAuth } from '@clerk/react';
 import type { PropsWithChildren } from 'react';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { ErrorMessage, LoadingState } from '../components/feedback';
 import {
     ACTIVE_CLINIC_MISSING_ERROR_CODE,
@@ -32,11 +31,6 @@ type ActiveClinicProviderState =
           error: {
               details: string[];
           };
-      }
-    | {
-          status: 'unprovisioned';
-          activeClinic: null;
-          error: null;
       }
     | {
           status: 'error';
@@ -159,41 +153,6 @@ function ActiveClinicErrorState({ message, code }: { message: string; code?: str
     );
 }
 
-function UnprovisionedIdentityState() {
-    return (
-        <div className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900">
-            <div className="mx-auto flex max-w-2xl flex-col gap-4">
-                <ErrorMessage
-                    title="Account is not provisioned yet"
-                    message="Your Clerk session is valid, but this identity does not have an internal Pravaah user, role, or clinic assignment yet."
-                    code="INTERNAL_USER_NOT_FOUND"
-                    details={[
-                        'This account is authenticated but not an Admin, Staff member, clinic owner, or operational application user.',
-                        'Use clinic onboarding to create the first clinic workspace and provision this identity.',
-                        'Onboarding-aware protected application routing remains outside this issue.',
-                    ]}
-                />
-                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                    <SignOutButton>
-                        <button
-                            type="button"
-                            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-                        >
-                            Sign out
-                        </button>
-                    </SignOutButton>
-                    <Link
-                        to="/onboarding/clinic"
-                        className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-                    >
-                        Continue setup
-                    </Link>
-                </div>
-            </div>
-        </div>
-    );
-}
-
 function ActiveClinicProvider({ children }: PropsWithChildren) {
     const { getToken } = useAuth();
     const [state, setState] = useState<ActiveClinicProviderState>(loadingState);
@@ -236,15 +195,6 @@ function ActiveClinicProvider({ children }: PropsWithChildren) {
                 }
 
                 if (isApiClientError(error)) {
-                    if (error.code === 'INTERNAL_USER_NOT_FOUND') {
-                        setState({
-                            status: 'unprovisioned',
-                            activeClinic: null,
-                            error: null,
-                        });
-                        return;
-                    }
-
                     setState({
                         status: 'error',
                         activeClinic: null,
@@ -281,10 +231,6 @@ function ActiveClinicProvider({ children }: PropsWithChildren) {
 
     if (state.status === 'missing') {
         return <MissingActiveClinicState details={state.error.details} />;
-    }
-
-    if (state.status === 'unprovisioned') {
-        return <UnprovisionedIdentityState />;
     }
 
     return (

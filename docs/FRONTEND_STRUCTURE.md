@@ -68,7 +68,11 @@ Routes:
 | `*`                | Public-safe not found page                             |
 
 `ProtectedAppShell` blocks unauthenticated users and redirects them to `/login?redirect_url=...`.
-The public landing, auth, and onboarding routes are outside `ProtectedAppShell`; protected application routes keep the existing app shell and active clinic resolution.
+For signed-in users, it resolves `GET /api/auth/onboarding-status` before mounting
+the operational app shell. `NOT_STARTED` redirects to `/onboarding/clinic`,
+`RECOVERY_REQUIRED` shows a safe recovery state, and only `COMPLETED` active Admin
+or Staff users reach `ActiveClinicProvider` and the existing app layout.
+The public landing, auth, and onboarding routes are outside `ProtectedAppShell`.
 
 ## Layout Structure
 
@@ -254,7 +258,7 @@ Implemented states include:
 - Queue reorder API is not surfaced in the UI.
 - Public landing, public sign-up, and first-time clinic onboarding UI exist.
 - First-time onboarding includes an optional fictional sample-data decision after clinic bootstrap.
-- Full onboarding-aware protected application routing is not implemented yet.
+- Protected application routing is onboarding-aware; `ActiveClinicProvider` is mounted only after completed active Admin/Staff onboarding status.
 - No frontend automated tests are configured.
 - No screenshots are committed.
 - Shared types are manually maintained and can drift from backend schemas if not reviewed.

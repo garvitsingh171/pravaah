@@ -24,11 +24,16 @@
 
 `apps/web/src/features/onboarding/ClinicOnboardingPage.tsx` lives outside `ProtectedAppShell`, requires a Clerk session, reads onboarding status through `/api/auth/onboarding-status`, and posts clinic profile fields to `/api/auth/onboarding/clinic`.
 
-`ProtectedAppShell` uses Clerk `useAuth()`:
+`ProtectedAppShell` uses Clerk `useAuth()` and backend onboarding status:
 
 - while Clerk is loading, it shows a loading state
 - if not signed in, it redirects to `/login`
-- if signed in, it renders `ActiveClinicProvider` and the app layout
+- if signed in, it calls `GET /api/auth/onboarding-status`
+- `NOT_STARTED` redirects to `/onboarding/clinic`
+- `RECOVERY_REQUIRED` shows a safe recovery state and does not mount the clinic app
+- `COMPLETED` for an active Admin or Staff user renders `ActiveClinicProvider` and the app layout
+
+`ActiveClinicProvider` is not mounted for authenticated-but-unprovisioned or recovery-required identities.
 
 ## Backend Auth Middleware
 
