@@ -123,7 +123,7 @@ v0.2 onboarding rules:
 
 Current UI limitations:
 
-- clinic settings page is placeholder only
+- clinic settings page loads and updates supported Admin-only clinic settings
 - doctor edit page is not implemented
 - patient edit page is not implemented
 - queue reorder UI is not implemented

@@ -19,6 +19,27 @@ export async function createClinicController(
     }
 }
 
+export async function getClinicSettingsController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { clinicId } = req.params as { clinicId: string };
+        const clinic = await clinicService.getClinicSettings(clinicId);
+
+        res.status(200).json({
+            success: true,
+            message: 'Clinic settings fetched successfully',
+            data: {
+                clinic,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
 export async function updateClinicController(
     req: Request,
     res: Response,

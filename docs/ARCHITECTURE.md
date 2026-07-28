@@ -79,7 +79,7 @@ The frontend is responsible for:
 - resolving active clinic context through `GET /api/auth/me`
 - resolving onboarding state before sending an authenticated-but-unprovisioned user into the protected app
 - sending Clerk Bearer tokens through the API client
-- rendering dashboard, doctor, patient, appointment, queue, and placeholder clinic settings pages
+- rendering dashboard, doctor, patient, appointment, queue, and Admin clinic settings pages
 - showing loading, empty, error, success, and toast states
 - displaying starter no-show risk results from the backend
 

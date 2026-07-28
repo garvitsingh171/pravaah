@@ -14,6 +14,12 @@ const timezoneSchema = z
         'Clinic timezone must be a valid IANA time zone, such as Asia/Kolkata'
     );
 
+const timeSchema = z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use a 24-hour time such as 09:00');
+
+const optionalNullableTextSchema = z.string().nullable().optional();
+
 export const createClinicSchema = z
     .object({
         name: z.string().min(2, 'Clinic name must be at least 2 characters long'),
@@ -38,8 +44,8 @@ export const createClinicSchema = z
 
         timezone: timezoneSchema.default('Asia/Kolkata'),
 
-        openingTime: z.string().default('09:00'),
-        closingTime: z.string().default('18:00'),
+        openingTime: timeSchema.default('09:00'),
+        closingTime: timeSchema.default('18:00'),
 
         slotDurationMinutes: z
             .number()
@@ -57,29 +63,20 @@ export const updateClinicSchema = z
     .object({
         name: z.string().min(2, 'Clinic name must be at least 2 characters long').optional(),
 
-        slug: z
-            .string()
-            .min(2, 'Clinic slug must be at least 2 characters long')
-            .regex(
-                /^[a-z0-9-]+$/,
-                'Clinic slug can only contain lowercase letters, numbers, and hyphens'
-            )
-            .optional(),
+        phone: optionalNullableTextSchema,
+        email: z.string().email('Invalid clinic email').nullable().optional(),
 
-        phone: z.string().optional(),
-        email: z.string().email('Invalid clinic email').optional(),
-
-        addressLine1: z.string().optional(),
-        addressLine2: z.string().optional(),
-        city: z.string().optional(),
-        state: z.string().optional(),
-        country: z.string().optional(),
-        pincode: z.string().optional(),
+        addressLine1: optionalNullableTextSchema,
+        addressLine2: optionalNullableTextSchema,
+        city: optionalNullableTextSchema,
+        state: optionalNullableTextSchema,
+        country: z.string().min(1, 'Country is required').optional(),
+        pincode: optionalNullableTextSchema,
 
         timezone: timezoneSchema.optional(),
 
-        openingTime: z.string().optional(),
-        closingTime: z.string().optional(),
+        openingTime: timeSchema.optional(),
+        closingTime: timeSchema.optional(),
 
         slotDurationMinutes: z
             .number()
@@ -88,8 +85,6 @@ export const updateClinicSchema = z
             .optional(),
 
         bufferMinutes: z.number().int().min(0, 'Buffer minutes cannot be negative').optional(),
-
-        isActive: z.boolean().optional(),
     })
     .strict()
     .refine((data) => Object.keys(data).length > 0, {

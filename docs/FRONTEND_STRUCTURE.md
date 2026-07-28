@@ -64,7 +64,7 @@ Routes:
 | `/patients/new`    | Patient create form                                    |
 | `/appointments`    | Appointment list/filter/status update and booking form |
 | `/queue`           | Today's queue list/filter/status update                |
-| `/clinic-settings` | Placeholder clinic settings page                       |
+| `/clinic-settings` | Admin clinic settings load/edit/save workflow          |
 | `*`                | Public-safe not found page                             |
 
 `ProtectedAppShell` blocks unauthenticated users and redirects them to `/login?redirect_url=...`.
@@ -131,6 +131,7 @@ Feature API files live beside feature pages:
 
 ```txt
 features/auth/authApi.ts
+features/clinics/clinicApi.ts
 features/dashboard/dashboardApi.ts
 features/doctors/doctorApi.ts
 features/patients/patientApi.ts
@@ -230,7 +231,7 @@ Implemented states include:
 | Patient Create  | Creates patient and clinic link through backend API.                                                 |
 | Appointments    | Lists/filter appointments, books appointments, updates appointment status, shows prediction details. |
 | Queue           | Lists today's queue, filters by doctor/status, updates queue status, shows first risk details.       |
-| Clinic Settings | Placeholder only; no form connected to backend yet.                                                  |
+| Clinic Settings | Loads the active clinic settings, displays the slug read-only, and lets Admins update supported profile and operational fields. |
 
 ## How To Add A New Page
 
@@ -253,7 +254,7 @@ Implemented states include:
 
 ## UI Limitations
 
-- Clinic settings is placeholder UI.
+- Clinic settings UI is implemented for Admin profile and operational updates.
 - Doctor edit and patient edit screens are not implemented.
 - Queue reorder API is not surfaced in the UI.
 - Public landing, public sign-up, and first-time clinic onboarding UI exist.

@@ -32,4 +32,36 @@ describe('clinic validation timezone rules', () => {
 
         expect(result.success).toBe(false);
     });
+
+    it('rejects invalid opening and closing times during clinic update', () => {
+        const result = updateClinicSchema.safeParse({
+            openingTime: '9am',
+            closingTime: '18:99',
+        });
+
+        expect(result.success).toBe(false);
+    });
+});
+
+describe('clinic update validation settings surface', () => {
+    it('accepts nullable optional text fields so Admins can clear profile values', () => {
+        const result = updateClinicSchema.safeParse({
+            phone: null,
+            email: null,
+            addressLine2: null,
+            pincode: null,
+        });
+
+        expect(result.success).toBe(true);
+    });
+
+    it('rejects clinic slug and activation fields from settings updates', () => {
+        const result = updateClinicSchema.safeParse({
+            name: 'Updated Clinic',
+            slug: 'updated-clinic',
+            isActive: false,
+        });
+
+        expect(result.success).toBe(false);
+    });
 });
