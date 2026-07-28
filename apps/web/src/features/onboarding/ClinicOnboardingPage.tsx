@@ -1,10 +1,10 @@
 import { SignOutButton, useAuth } from '@clerk/react';
 import type { FormEvent, ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { ErrorMessage, FieldError, LoadingState, useToast } from '../../components/feedback';
 import { isApiClientError } from '../../lib';
-import { defaultDashboardPath } from '../../routes/dashboardRoutes';
+import { dashboardRoutes, defaultDashboardPath } from '../../routes/dashboardRoutes';
 import {
     createClinicOnboarding,
     getOnboardingStatus,
@@ -71,6 +71,33 @@ type SampleDataDecisionState = {
 };
 
 const redirectParamName = 'redirect_url';
+const protectedApplicationPaths = new Set(dashboardRoutes.map((route) => route.path));
+
+const normalizeApplicationPath = (path: string): string => {
+    return path.replace(/\/+$/, '') || defaultDashboardPath;
+};
+
+const getSafeApplicationRedirectPath = (redirectUrl: string | null): string => {
+    if (!redirectUrl) {
+        return defaultDashboardPath;
+    }
+
+    try {
+        const parsedUrl = new URL(redirectUrl, window.location.origin);
+        const normalizedPath = normalizeApplicationPath(parsedUrl.pathname);
+
+        if (
+            parsedUrl.origin !== window.location.origin ||
+            !protectedApplicationPaths.has(normalizedPath)
+        ) {
+            return defaultDashboardPath;
+        }
+
+        return `${normalizedPath}${parsedUrl.search}${parsedUrl.hash}`;
+    } catch {
+        return defaultDashboardPath;
+    }
+};
 
 const emptyFormValues: ClinicOnboardingFormValues = {
     name: '',
@@ -694,7 +721,11 @@ function ClinicOnboardingPage() {
     const { isLoaded, isSignedIn } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const { showErrorToast, showSuccessToast } = useToast();
+    const applicationRedirectPath = getSafeApplicationRedirectPath(
+        searchParams.get(redirectParamName)
+    );
     const [statusState, setStatusState] = useState<StatusState>({
         status: 'loading',
         data: null,
@@ -711,16 +742,16 @@ function ClinicOnboardingPage() {
         null
     );
 
-    const navigateToDashboard = useCallback(
+    const navigateToApplication = useCallback(
         (statusMessage: string) => {
-            navigate(defaultDashboardPath, {
+            navigate(applicationRedirectPath, {
                 replace: true,
                 state: {
                     statusMessage,
                 },
             });
         },
-        [navigate]
+        [applicationRedirectPath, navigate]
     );
 
     const loadOnboardingStatus = useCallback(
@@ -734,7 +765,7 @@ function ClinicOnboardingPage() {
             void getOnboardingStatus(signal)
                 .then((data) => {
                     if (data.onboarding.status === OnboardingStatus.COMPLETED) {
-                        navigateToDashboard('Clinic onboarding is already complete.');
+                        navigateToApplication('Clinic onboarding is already complete.');
                         return;
                     }
 
@@ -775,7 +806,7 @@ function ClinicOnboardingPage() {
                     });
                 });
         },
-        [navigateToDashboard]
+        [navigateToApplication]
     );
 
     useEffect(() => {
@@ -872,7 +903,7 @@ function ClinicOnboardingPage() {
 
                         if (reconciledStatus.onboarding.status === OnboardingStatus.COMPLETED) {
                             if (!reconciledStatus.clinic) {
-                                navigateToDashboard('Clinic workspace created successfully.');
+                                navigateToApplication('Clinic workspace created successfully.');
                                 return;
                             }
 
@@ -959,12 +990,12 @@ function ClinicOnboardingPage() {
                     : 'Fictional sample data added successfully.';
 
             showSuccessToast(statusMessage);
-            navigateToDashboard(statusMessage);
+            navigateToApplication(statusMessage);
         } catch (error) {
             if (isApiClientError(error)) {
                 if (error.code === 'SAMPLE_DATA_ALREADY_PROVISIONED') {
                     showSuccessToast('Sample data was already available.');
-                    navigateToDashboard('Sample data was already available.');
+                    navigateToApplication('Sample data was already available.');
                     return;
                 }
 
@@ -1003,7 +1034,7 @@ function ClinicOnboardingPage() {
     };
 
     const handleSkipSampleData = () => {
-        navigateToDashboard('Clinic workspace created successfully.');
+        navigateToApplication('Clinic workspace created successfully.');
     };
 
     if (!isLoaded) {

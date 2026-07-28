@@ -42,6 +42,8 @@ const protectedAppShellLoadingState: ProtectedAppShellState = {
     error: null,
 };
 
+const redirectParamName = 'redirect_url';
+
 const isCompletedActiveApplicationUser = (data: OnboardingStatusResponseData): boolean => {
     return (
         data.onboarding.status === OnboardingStatus.COMPLETED &&
@@ -120,10 +122,9 @@ function ProtectedAppShell() {
     const { isLoaded, isSignedIn } = useAuth();
     const location = useLocation();
     const [state, setState] = useState<ProtectedAppShellState>(protectedAppShellLoadingState);
+    const returnTo = `${location.pathname}${location.search}${location.hash}`;
 
     const loadOnboardingStatus = useCallback((signal?: AbortSignal) => {
-        setState(protectedAppShellLoadingState);
-
         void getOnboardingStatus(signal)
             .then((data) => {
                 if (isCompletedActiveApplicationUser(data)) {
@@ -177,6 +178,11 @@ function ProtectedAppShell() {
             });
     }, []);
 
+    const retryOnboardingStatus = useCallback(() => {
+        setState(protectedAppShellLoadingState);
+        loadOnboardingStatus();
+    }, [loadOnboardingStatus]);
+
     useEffect(() => {
         if (!isLoaded || !isSignedIn) {
             return;
@@ -196,8 +202,7 @@ function ProtectedAppShell() {
     }
 
     if (!isSignedIn) {
-        const returnTo = `${location.pathname}${location.search}${location.hash}`;
-        const loginPath = `/login?redirect_url=${encodeURIComponent(returnTo)}`;
+        const loginPath = `/login?${redirectParamName}=${encodeURIComponent(returnTo)}`;
 
         return <Navigate to={loginPath} replace />;
     }
@@ -207,7 +212,11 @@ function ProtectedAppShell() {
     }
 
     if (state.status === 'onboardingRequired') {
-        return <Navigate to="/onboarding/clinic" replace />;
+        const onboardingPath = `/onboarding/clinic?${redirectParamName}=${encodeURIComponent(
+            returnTo
+        )}`;
+
+        return <Navigate to={onboardingPath} replace />;
     }
 
     if (state.status === 'recoveryRequired') {
@@ -219,7 +228,7 @@ function ProtectedAppShell() {
             <OnboardingStatusErrorState
                 message={state.error.message}
                 code={state.error.code}
-                onRetry={() => loadOnboardingStatus()}
+                onRetry={retryOnboardingStatus}
             />
         );
     }
