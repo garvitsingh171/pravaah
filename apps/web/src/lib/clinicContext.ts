@@ -1,13 +1,18 @@
 import { ApiClientError } from './apiClient';
+import type { UserRole } from '../types';
 
 export type ActiveClinicSource = 'localStorage' | 'authenticatedUser' | 'environment';
 
 export type ActiveClinicContext = {
     clinicId: string;
     source: ActiveClinicSource;
+    currentUser: {
+        role: UserRole;
+    } | null;
 };
 
 export type ActiveClinicCurrentUser = {
+    role?: UserRole;
     clinicId?: string | null;
     clinic?: {
         id: string;
@@ -172,6 +177,11 @@ export const resolveActiveClinicContext = (
             activeClinic: {
                 clinicId: authenticatedUserClinic.clinicId,
                 source: 'authenticatedUser',
+                currentUser: currentUser?.role
+                    ? {
+                          role: currentUser.role,
+                      }
+                    : null,
             },
             sources: {
                 authenticatedUser: authenticatedUserClinic,
@@ -197,6 +207,7 @@ export const resolveActiveClinicContext = (
             activeClinic: {
                 clinicId: storedClinic.clinicId,
                 source: 'localStorage',
+                currentUser: null,
             },
             sources: {
                 authenticatedUser: authenticatedUserClinic,
@@ -211,6 +222,7 @@ export const resolveActiveClinicContext = (
             activeClinic: {
                 clinicId: environmentClinic.clinicId,
                 source: 'environment',
+                currentUser: null,
             },
             sources: {
                 authenticatedUser: authenticatedUserClinic,

@@ -7,6 +7,7 @@ import DoctorsPage from '../features/doctors/DoctorsPage';
 import PatientCreatePage from '../features/patients/PatientCreatePage';
 import PatientsPage from '../features/patients/PatientsPage';
 import QueuePage from '../features/queues/QueuePage';
+import { UserRole, type UserRole as UserRoleType } from '../types';
 import NotFoundPage from './NotFoundPage';
 
 export type AppRoute = {
@@ -14,6 +15,7 @@ export type AppRoute = {
     title: string;
     element: ReactNode;
     showInNavigation: boolean;
+    allowedRoles?: UserRoleType[];
 };
 
 export const dashboardRoutes: AppRoute[] = [
@@ -64,6 +66,7 @@ export const dashboardRoutes: AppRoute[] = [
         title: 'Clinic Settings',
         element: <ClinicSettingsPage />,
         showInNavigation: true,
+        allowedRoles: [UserRole.ADMIN],
     },
 ];
 
@@ -74,7 +77,21 @@ const notFoundRoute: AppRoute = {
     showInNavigation: false,
 };
 
-export const navigationRoutes = dashboardRoutes.filter((route) => route.showInNavigation);
+export const getNavigationRoutesForRole = (role?: UserRoleType | null): AppRoute[] => {
+    return dashboardRoutes.filter((route) => {
+        if (!route.showInNavigation) {
+            return false;
+        }
+
+        if (!route.allowedRoles || !role) {
+            return true;
+        }
+
+        return route.allowedRoles.includes(role);
+    });
+};
+
+export const navigationRoutes = getNavigationRoutesForRole();
 
 export const defaultDashboardPath = '/dashboard';
 

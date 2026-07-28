@@ -9,6 +9,7 @@ import {
     type ClinicSettings,
     type UpdateClinicSettingsRequest,
 } from './clinicApi';
+import { UserRole } from '../../types';
 
 type ClinicSettingsFormValues = {
     name: string;
@@ -124,7 +125,13 @@ const hasPositiveIntegerShape = (value: string): boolean => {
 };
 
 const hasNonNegativeIntegerShape = (value: string): boolean => {
-    const numberValue = Number(value);
+    const trimmedValue = value.trim();
+
+    if (!trimmedValue) {
+        return false;
+    }
+
+    const numberValue = Number(trimmedValue);
 
     return Number.isInteger(numberValue) && numberValue >= 0;
 };
@@ -250,6 +257,33 @@ const toComparableValues = (values: ClinicSettingsFormValues) => ({
     bufferMinutes: Number(values.bufferMinutes.trim()),
 });
 
+const toComparableFormValues = (values: ClinicSettingsFormValues) => ({
+    name: values.name.trim(),
+    phone: values.phone.trim(),
+    email: values.email.trim(),
+    addressLine1: values.addressLine1.trim(),
+    addressLine2: values.addressLine2.trim(),
+    city: values.city.trim(),
+    state: values.state.trim(),
+    country: values.country.trim(),
+    pincode: values.pincode.trim(),
+    timezone: values.timezone.trim(),
+    openingTime: values.openingTime.trim(),
+    closingTime: values.closingTime.trim(),
+    slotDurationMinutes: values.slotDurationMinutes.trim(),
+    bufferMinutes: values.bufferMinutes.trim(),
+});
+
+const hasClinicSettingsChanges = (
+    currentValues: ClinicSettingsFormValues,
+    initialValues: ClinicSettingsFormValues
+): boolean => {
+    return (
+        JSON.stringify(toComparableFormValues(currentValues)) !==
+        JSON.stringify(toComparableFormValues(initialValues))
+    );
+};
+
 const buildChangedSettingsPayload = (
     currentValues: ClinicSettingsFormValues,
     initialValues: ClinicSettingsFormValues
@@ -333,7 +367,9 @@ function TextField({
 }
 
 function ClinicSettingsPage() {
-    const { clinicId } = useActiveClinic();
+    const activeClinic = useActiveClinic();
+    const { clinicId } = activeClinic;
+    const isAdmin = activeClinic.currentUser?.role === UserRole.ADMIN;
     const { showErrorToast, showSuccessToast } = useToast();
     const [state, setState] = useState<SettingsPageState>({
         status: 'loading',
@@ -351,6 +387,10 @@ function ClinicSettingsPage() {
 
     const loadSettings = useCallback(
         (signal?: AbortSignal) => {
+            if (!isAdmin) {
+                return;
+            }
+
             setState({
                 status: 'loading',
                 clinic: null,
@@ -405,10 +445,14 @@ function ClinicSettingsPage() {
                     });
                 });
         },
-        [clinicId]
+        [clinicId, isAdmin]
     );
 
     useEffect(() => {
+        if (!isAdmin) {
+            return;
+        }
+
         const abortController = new AbortController();
 
         loadSettings(abortController.signal);
@@ -418,15 +462,13 @@ function ClinicSettingsPage() {
         };
     }, [loadSettings]);
 
-    const changedPayload = useMemo(() => {
+    const hasChanges = useMemo(() => {
         if (!values || !initialValues) {
-            return {};
+            return false;
         }
 
-        return buildChangedSettingsPayload(values, initialValues);
+        return hasClinicSettingsChanges(values, initialValues);
     }, [initialValues, values]);
-
-    const hasChanges = Object.keys(changedPayload).length > 0;
 
     const clearErrorsForChange = (field: keyof ClinicSettingsFormValues) => {
         setFieldErrors((currentErrors) => ({
@@ -529,6 +571,22 @@ function ClinicSettingsPage() {
         event.preventDefault();
         void handleSubmit();
     };
+
+    if (!isAdmin) {
+        return (
+            <section className="mx-auto max-w-2xl">
+                <ErrorMessage
+                    title="Admin access required"
+                    message="Clinic settings can only be opened by an active Admin."
+                    code="ADMIN_REQUIRED"
+                    details={[
+                        'The settings form was not loaded.',
+                        'Ask an Admin to update clinic profile or operational settings.',
+                    ]}
+                />
+            </section>
+        );
+    }
 
     if (state.status === 'loading') {
         return (
