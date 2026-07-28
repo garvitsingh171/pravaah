@@ -114,8 +114,8 @@ v0.2 onboarding rules:
 ## Current Frontend Rules
 
 - `main.tsx` sets up Clerk, API auth, Toast provider, and App.
-- `ProtectedAppShell` guards private routes.
-- `ActiveClinicProvider` resolves current clinic through `GET /api/auth/me`.
+- `ProtectedAppShell` guards private routes by resolving Clerk state first, then backend onboarding state through `GET /api/auth/onboarding-status`.
+- `ActiveClinicProvider` resolves current clinic through `GET /api/auth/me` only after onboarding is complete.
 - Feature API helpers live beside feature pages.
 - Use `apiClient` for backend calls.
 - Use `useActiveClinic()` for clinic-scoped pages.
