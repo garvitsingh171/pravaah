@@ -7,6 +7,7 @@ import {
 } from '../auth/auth.middleware.js';
 import {
     createClinicController,
+    getClinicSettingsController,
     provisionSampleDataController,
     updateClinicController,
 } from './clinic.controller.js';
@@ -19,6 +20,17 @@ import {
 const clinicRouter = Router();
 
 clinicRouter.post('/', authenticateRequest, requireAdminRole, createClinicController);
+
+clinicRouter.get(
+    '/:clinicId',
+    authenticateRequest,
+    validateRequest({
+        params: clinicIdParamsSchema,
+    }),
+    requireClinicAccess,
+    requireAdminRole,
+    getClinicSettingsController
+);
 
 clinicRouter.patch(
     '/:clinicId',

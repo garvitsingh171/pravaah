@@ -4,6 +4,7 @@ import { AppError } from '../../utils/AppError.js';
 
 const mockClinicService = vi.hoisted(() => ({
     createClinic: vi.fn(),
+    getClinicSettings: vi.fn(),
     updateClinic: vi.fn(),
     provisionSampleData: vi.fn(),
 }));
@@ -14,6 +15,7 @@ vi.mock('./clinic.service.js', () => ({
 
 import {
     createClinicController,
+    getClinicSettingsController,
     provisionSampleDataController,
     updateClinicController,
 } from './clinic.controller.js';
@@ -46,6 +48,60 @@ describe('createClinicController', () => {
                 'Standalone clinic creation is not supported'
             )
         );
+    });
+});
+
+describe('getClinicSettingsController', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('returns clinic settings from the clinic service', async () => {
+        const clinic = {
+            id: 'clinic-id',
+            name: 'Pravaah Family Clinic',
+            slug: 'pravaah-family-clinic',
+            phone: '+91 98765 43210',
+            email: 'frontdesk@example.com',
+            addressLine1: '12 Wellness Road',
+            addressLine2: null,
+            city: 'Mumbai',
+            state: 'Maharashtra',
+            country: 'India',
+            pincode: '400001',
+            timezone: 'Asia/Kolkata',
+            openingTime: '09:00',
+            closingTime: '18:00',
+            slotDurationMinutes: 15,
+            bufferMinutes: 0,
+            isActive: true,
+        };
+        const req = {
+            params: {
+                clinicId: 'clinic-id',
+            },
+        } as unknown as Request;
+        const json = vi.fn();
+        const status = vi.fn(() => ({ json }));
+        const res = {
+            status,
+        } as unknown as Response;
+        const next = vi.fn() as NextFunction;
+
+        mockClinicService.getClinicSettings.mockResolvedValue(clinic);
+
+        await getClinicSettingsController(req, res, next);
+
+        expect(mockClinicService.getClinicSettings).toHaveBeenCalledWith('clinic-id');
+        expect(status).toHaveBeenCalledWith(200);
+        expect(json).toHaveBeenCalledWith({
+            success: true,
+            message: 'Clinic settings fetched successfully',
+            data: {
+                clinic,
+            },
+        });
+        expect(next).not.toHaveBeenCalled();
     });
 });
 

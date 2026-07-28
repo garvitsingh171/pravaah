@@ -109,7 +109,7 @@ Source: `apps/server/src/app.ts`.
 | -------------- | ---------------------------------------------------------------- |
 | `/api/health`  | `healthRouter`                                                   |
 | `/api/auth`    | `authRouter` (`/me`, `/onboarding-status`, `/onboarding/clinic`) |
-| `/api/clinics` | `clinicRouter` (`POST /:clinicId/sample-data`, clinic update, disabled standalone create) |
+| `/api/clinics` | `clinicRouter` (clinic settings read/update, `POST /:clinicId/sample-data`, disabled standalone create) |
 | `/api/clinics` | `doctorRouter`                                                   |
 | `/api/clinics` | `patientRouter`                                                  |
 | `/api/clinics` | `clinicAppointmentRouter`                                        |

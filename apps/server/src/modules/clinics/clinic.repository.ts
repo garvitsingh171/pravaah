@@ -295,6 +295,27 @@ const acquireSampleDataProvisioningLock = (
     `;
 };
 
+const clinicSettingsSelect = {
+    id: true,
+    name: true,
+    slug: true,
+    phone: true,
+    email: true,
+    addressLine1: true,
+    addressLine2: true,
+    city: true,
+    state: true,
+    country: true,
+    pincode: true,
+    timezone: true,
+    openingTime: true,
+    closingTime: true,
+    slotDurationMinutes: true,
+    bufferMinutes: true,
+    createdAt: true,
+    updatedAt: true,
+} satisfies Prisma.ClinicSelect;
+
 export const clinicRepository = {
     findById(id: string) {
         return prisma.clinic.findUnique({
@@ -304,11 +325,12 @@ export const clinicRepository = {
         });
     },
 
-    findBySlug(slug: string) {
+    findSettingsById(id: string) {
         return prisma.clinic.findUnique({
             where: {
-                slug,
+                id,
             },
+            select: clinicSettingsSelect,
         });
     },
 
@@ -316,7 +338,6 @@ export const clinicRepository = {
         const updateData: Prisma.ClinicUpdateInput = {};
 
         if (data.name !== undefined) updateData.name = data.name;
-        if (data.slug !== undefined) updateData.slug = data.slug;
 
         if (data.phone !== undefined) updateData.phone = data.phone;
         if (data.email !== undefined) updateData.email = data.email;
@@ -341,13 +362,12 @@ export const clinicRepository = {
             updateData.bufferMinutes = data.bufferMinutes;
         }
 
-        if (data.isActive !== undefined) updateData.isActive = data.isActive;
-
         return prisma.clinic.update({
             where: {
                 id,
             },
             data: updateData,
+            select: clinicSettingsSelect,
         });
     },
 

@@ -296,6 +296,41 @@ Main errors:
 - `ADMIN_REQUIRED`
 - `VALIDATION_ERROR`
 
+### Get Clinic Settings
+
+| Field  | Value                              |
+| ------ | ---------------------------------- |
+| Method | GET                                |
+| Path   | `/api/clinics/:clinicId`           |
+| Auth   | Required, own active clinic, Admin |
+
+Params:
+
+- `clinicId` UUID-shaped string
+
+Response summary:
+
+```txt
+data.clinic:
+  id, name, slug
+  phone, email
+  addressLine1, addressLine2, city, state, country, pincode
+  timezone, openingTime, closingTime
+  slotDurationMinutes, bufferMinutes
+  createdAt, updatedAt
+```
+
+The response does not include clinic activation controls, ownership, Clerk identity,
+internal user identity, role, status, or clinic relationship data.
+
+Main errors:
+
+- `CLINIC_ACCESS_DENIED`
+- `CLINIC_NOT_FOUND`
+- `CLINIC_INACTIVE`
+- `ADMIN_REQUIRED`
+- `VALIDATION_ERROR`
+
 ### Update Clinic
 
 | Field  | Value                              |
@@ -310,8 +345,19 @@ Params:
 
 Body summary:
 
-- any create-clinic field plus `isActive`
+- any supported settings field except read-only `slug`
 - at least one field required
+- optional text fields may be sent as `null` to clear them
+
+Supported fields:
+
+```txt
+name
+phone, email
+addressLine1, addressLine2, city, state, country, pincode
+timezone, openingTime, closingTime
+slotDurationMinutes, bufferMinutes
+```
 
 Response summary:
 
@@ -324,7 +370,6 @@ Main errors:
 - `CLINIC_ACCESS_DENIED`
 - `CLINIC_NOT_FOUND`
 - `CLINIC_INACTIVE`
-- `CLINIC_SLUG_ALREADY_EXISTS`
 - `ADMIN_REQUIRED`
 - `VALIDATION_ERROR`
 

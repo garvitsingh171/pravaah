@@ -126,7 +126,7 @@ This is not full multi-clinic SaaS membership. Future multi-clinic support shoul
 - No user management UI exists for inviting or editing Staff users.
 - `User.clinicId` supports one active clinic context per internal user.
 - Staff currently has broad clinic-staff access for doctor/patient/appointment/queue/dashboard APIs.
-- Clinic create/update is backend-only from the current UI perspective because the clinic settings page is a placeholder.
+- Clinic settings can be reviewed and updated by Admins through the current UI.
 - Patient and doctor records cannot log in.
 
 ## Future Role Expansion
