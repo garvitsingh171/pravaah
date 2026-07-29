@@ -303,6 +303,19 @@ describe('authService.createClinicOnboarding', () => {
         mockAuthRepository.getClinicSetupStatus.mockResolvedValue(setupStatus);
     });
 
+    it('rejects missing trusted Clerk identity before repository or Clerk profile work', async () => {
+        await expect(
+            authService.createClinicOnboarding('   ', onboardingClinicInput)
+        ).rejects.toThrow(
+            new AppError(401, 'AUTHENTICATION_REQUIRED', 'Authentication is required')
+        );
+
+        expect(mockAuthRepository.findOnboardingUserByClerkUserId).not.toHaveBeenCalled();
+        expect(mockClerkIdentityService.getTrustedUserIdentity).not.toHaveBeenCalled();
+        expect(mockAuthRepository.findClinicBySlug).not.toHaveBeenCalled();
+        expect(mockAuthRepository.createClinicWithAdmin).not.toHaveBeenCalled();
+    });
+
     it('provisions an unprovisioned identity and returns completed onboarding state', async () => {
         await expect(
             authService.createClinicOnboarding('trusted-clerk-user-id', onboardingClinicInput)
