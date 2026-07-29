@@ -3,6 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 const webBaseURL = process.env.E2E_BASE_URL ?? 'http://localhost:5173';
 const apiBaseURL = process.env.E2E_API_BASE_URL ?? 'http://localhost:5000/api';
 const e2eDatabaseUrl = process.env.E2E_DATABASE_URL ?? '';
+const clerkPublishableKey = process.env.CLERK_PUBLISHABLE_KEY ?? '';
 const isCI = Boolean(process.env.CI);
 
 const shellQuote = (value: string) => `'${value.replace(/'/g, "'\\''")}'`;
@@ -30,13 +31,17 @@ export default defineConfig({
                 webBaseURL
             )} npm run dev:server`,
             url: apiBaseURL.replace(/\/api\/?$/, '/api/health'),
-            reuseExistingServer: !isCI,
+            reuseExistingServer: false,
             timeout: 120_000,
         },
         {
-            command: 'npm run dev:web',
+            command: `VITE_API_BASE_URL=${shellQuote(
+                apiBaseURL
+            )} VITE_CLERK_PUBLISHABLE_KEY=${shellQuote(
+                clerkPublishableKey
+            )} npm run dev:web`,
             url: webBaseURL,
-            reuseExistingServer: !isCI,
+            reuseExistingServer: false,
             timeout: 120_000,
         },
     ],
