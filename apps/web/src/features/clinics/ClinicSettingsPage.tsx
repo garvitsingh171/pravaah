@@ -455,12 +455,14 @@ function ClinicSettingsPage() {
 
         const abortController = new AbortController();
 
-        loadSettings(abortController.signal);
+        void Promise.resolve().then(() => {
+            loadSettings(abortController.signal);
+        });
 
         return () => {
             abortController.abort();
         };
-    }, [loadSettings]);
+    }, [isAdmin, loadSettings]);
 
     const hasChanges = useMemo(() => {
         if (!values || !initialValues) {

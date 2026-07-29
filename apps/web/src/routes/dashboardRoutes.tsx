@@ -10,6 +10,17 @@ import QueuePage from '../features/queues/QueuePage';
 import { UserRole, type UserRole as UserRoleType } from '../types';
 import NotFoundPage from './NotFoundPage';
 
+export const appRoutePaths = {
+    dashboard: '/dashboard',
+    doctors: '/doctors',
+    newDoctor: '/doctors/new',
+    patients: '/patients',
+    newPatient: '/patients/new',
+    appointments: '/appointments',
+    queue: '/queue',
+    clinicSettings: '/clinic-settings',
+} as const;
+
 export type AppRoute = {
     path: string;
     title: string;
@@ -20,49 +31,49 @@ export type AppRoute = {
 
 export const dashboardRoutes: AppRoute[] = [
     {
-        path: '/dashboard',
+        path: appRoutePaths.dashboard,
         title: 'Dashboard',
         element: <DashboardOverviewPage />,
         showInNavigation: true,
     },
     {
-        path: '/doctors',
+        path: appRoutePaths.doctors,
         title: 'Doctors',
         element: <DoctorsPage />,
         showInNavigation: true,
     },
     {
-        path: '/doctors/new',
+        path: appRoutePaths.newDoctor,
         title: 'Add Doctor',
         element: <DoctorCreatePage />,
         showInNavigation: false,
     },
     {
-        path: '/patients',
+        path: appRoutePaths.patients,
         title: 'Patients',
         element: <PatientsPage />,
         showInNavigation: true,
     },
     {
-        path: '/patients/new',
+        path: appRoutePaths.newPatient,
         title: 'Add Patient',
         element: <PatientCreatePage />,
         showInNavigation: false,
     },
     {
-        path: '/appointments',
+        path: appRoutePaths.appointments,
         title: 'Appointments',
         element: <AppointmentsPage />,
         showInNavigation: true,
     },
     {
-        path: '/queue',
+        path: appRoutePaths.queue,
         title: 'Queue',
         element: <QueuePage />,
         showInNavigation: true,
     },
     {
-        path: '/clinic-settings',
+        path: appRoutePaths.clinicSettings,
         title: 'Clinic Settings',
         element: <ClinicSettingsPage />,
         showInNavigation: true,
@@ -93,7 +104,7 @@ export const getNavigationRoutesForRole = (role?: UserRoleType | null): AppRoute
 
 export const navigationRoutes = getNavigationRoutesForRole();
 
-export const defaultDashboardPath = '/dashboard';
+export const defaultDashboardPath = appRoutePaths.dashboard;
 
 export const normalizeRoutePath = (path: string): string => {
     if (path === '/') {

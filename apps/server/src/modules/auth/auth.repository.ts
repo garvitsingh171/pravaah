@@ -134,4 +134,63 @@ export const authRepository = {
             };
         });
     },
+
+    async getClinicSetupStatus(clinicId: string) {
+        const [clinic, doctorCount, patientCount, appointmentCount] = await Promise.all([
+            prisma.clinic.findUnique({
+                where: {
+                    id: clinicId,
+                },
+                select: {
+                    name: true,
+                    slug: true,
+                    country: true,
+                    timezone: true,
+                    openingTime: true,
+                    closingTime: true,
+                    slotDurationMinutes: true,
+                    bufferMinutes: true,
+                },
+            }),
+            prisma.doctorClinic.count({
+                where: {
+                    clinicId,
+                    isActive: true,
+                    doctor: {
+                        isActive: true,
+                    },
+                },
+            }),
+            prisma.patientClinic.count({
+                where: {
+                    clinicId,
+                    isActive: true,
+                    patient: {
+                        isActive: true,
+                    },
+                },
+            }),
+            prisma.appointment.count({
+                where: {
+                    clinicId,
+                },
+            }),
+        ]);
+
+        return {
+            clinicSettingsComplete:
+                clinic !== null &&
+                clinic.name.trim().length >= 2 &&
+                clinic.slug.trim().length >= 2 &&
+                clinic.country.trim().length > 0 &&
+                clinic.timezone.trim().length > 0 &&
+                clinic.openingTime.trim().length > 0 &&
+                clinic.closingTime.trim().length > 0 &&
+                clinic.slotDurationMinutes > 0 &&
+                clinic.bufferMinutes >= 0,
+            hasDoctor: doctorCount > 0,
+            hasPatient: patientCount > 0,
+            hasAppointment: appointmentCount > 0,
+        };
+    },
 };
