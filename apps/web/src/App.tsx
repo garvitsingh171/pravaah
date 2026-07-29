@@ -7,26 +7,32 @@ import PublicLandingPage from './features/public/PublicLandingPage';
 import { dashboardRoutes } from './routes/dashboardRoutes';
 import NotFoundPage from './routes/NotFoundPage';
 
+export function AppRoutes() {
+    return (
+        <Routes>
+            <Route path="/" element={<PublicLandingPage />} />
+            <Route path="/login/*" element={<LoginPage />} />
+            <Route path="/sign-up/*" element={<SignUpPage />} />
+            <Route path="/onboarding" element={<Navigate to="/onboarding/clinic" replace />} />
+            <Route path="/onboarding/clinic" element={<ClinicOnboardingPage />} />
+            <Route element={<ProtectedAppShell />}>
+                {dashboardRoutes.map((route) => (
+                    <Route
+                        key={route.path}
+                        path={route.path.replace(/^\//, '')}
+                        element={route.element}
+                    />
+                ))}
+            </Route>
+            <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+    );
+}
+
 function App() {
     return (
         <BrowserRouter>
-            <Routes>
-                <Route path="/" element={<PublicLandingPage />} />
-                <Route path="/login/*" element={<LoginPage />} />
-                <Route path="/sign-up/*" element={<SignUpPage />} />
-                <Route path="/onboarding" element={<Navigate to="/onboarding/clinic" replace />} />
-                <Route path="/onboarding/clinic" element={<ClinicOnboardingPage />} />
-                <Route element={<ProtectedAppShell />}>
-                    {dashboardRoutes.map((route) => (
-                        <Route
-                            key={route.path}
-                            path={route.path.replace(/^\//, '')}
-                            element={route.element}
-                        />
-                    ))}
-                </Route>
-                <Route path="*" element={<NotFoundPage />} />
-            </Routes>
+            <AppRoutes />
         </BrowserRouter>
     );
 }

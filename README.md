@@ -17,6 +17,8 @@ The no-show feature is rule-based and explainable. It is not trained machine lea
 - stored `NoShowPrediction` results with reasons and suggested staff actions
 - Prisma/PostgreSQL schema and demo seed data
 - backend Vitest coverage for critical service and validation behavior
+- frontend Vitest/React Testing Library coverage for onboarding-aware routing
+- Playwright E2E scaffolding for public, Clerk sign-up, onboarding, and smoke journeys
 
 ## Tech Stack
 
@@ -103,8 +105,13 @@ Health:   http://localhost:5000/api/health
 | `npm run build:web`           | Build frontend.                         |
 | `npm run build:server`        | Build backend.                          |
 | `npm run lint`                | Run workspace lint scripts.             |
+| `npm run test:web`            | Run frontend Vitest tests.              |
+| `npm run test:server`         | Run backend Vitest tests.               |
+| `npm run test:e2e`            | Run Playwright browser E2E tests.       |
 | `npm run test -w apps/server` | Run backend Vitest tests.               |
 | `npm run seed:demo`           | Seed local demo clinic data.            |
+
+Frontend tests use mocked Clerk and mocked feature APIs for deterministic UI coverage. Playwright E2E tests use Clerk testing helpers, a real backend, and a required dedicated test database; never point `E2E_DATABASE_URL` at production.
 
 ## Documentation
 

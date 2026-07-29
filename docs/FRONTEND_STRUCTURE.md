@@ -17,6 +17,9 @@ Scripts from `apps/web/package.json`:
 | `lint`    | `eslint .`             |
 | `preview` | `vite preview`         |
 | `check`   | `npm run build`        |
+| `test`    | `vitest run`           |
+| `test:watch` | `vitest`            |
+| `test:coverage` | `vitest run --coverage` |
 
 ## Entry Point
 
@@ -95,6 +98,22 @@ src/features/
 ├── appointments/
 └── queues/
 ```
+
+## Frontend Test Structure
+
+Frontend tests live beside the source they cover and share helpers under:
+
+```txt
+src/test/
+├── fixtures/
+├── mocks/
+├── renderWithProviders.tsx
+└── setup.ts
+```
+
+The frontend test stack is Vitest, jsdom, React Testing Library, `@testing-library/jest-dom`, and `@testing-library/user-event`. Clerk is mocked only in frontend tests to represent loading, signed-out, and signed-in states. Feature API modules are mocked in component and routing tests to keep UI coverage deterministic and network-free.
+
+Current coverage focuses on public routing, protected onboarding-aware routing, first-time clinic onboarding validation and retry states, sample-data decisions, dashboard checklist integration, and the shared API client boundary.
 
 Current pages:
 
@@ -260,7 +279,8 @@ Implemented states include:
 - Public landing, public sign-up, and first-time clinic onboarding UI exist.
 - First-time onboarding includes an optional fictional sample-data decision after clinic bootstrap.
 - Protected application routing is onboarding-aware; `ActiveClinicProvider` is mounted only after completed active Admin/Staff onboarding status.
-- No frontend automated tests are configured.
+- Frontend automated tests are configured with Vitest and React Testing Library.
+- Browser E2E tests are configured at the repository root with Playwright and Clerk testing helpers. They require real Clerk test credentials and a dedicated non-production test database.
 - No screenshots are committed.
 - Shared types are manually maintained and can drift from backend schemas if not reviewed.
 
