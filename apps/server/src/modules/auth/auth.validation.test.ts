@@ -61,6 +61,33 @@ describe('onboardingClinicSchema', () => {
         expect(result.success).toBe(false);
     });
 
+    it('rejects an empty request body', () => {
+        const result = onboardingClinicSchema.safeParse({});
+
+        expect(result.success).toBe(false);
+    });
+
+    it('rejects missing required clinic fields', () => {
+        const missingName = onboardingClinicSchema.safeParse({
+            slug: minimumClinicInput.slug,
+        });
+        const missingSlug = onboardingClinicSchema.safeParse({
+            name: minimumClinicInput.name,
+        });
+
+        expect(missingName.success).toBe(false);
+        expect(missingSlug.success).toBe(false);
+    });
+
+    it('rejects invalid field types', () => {
+        const result = onboardingClinicSchema.safeParse({
+            ...minimumClinicInput,
+            slotDurationMinutes: '15',
+        });
+
+        expect(result.success).toBe(false);
+    });
+
     it('rejects unknown body fields', () => {
         const result = onboardingClinicSchema.safeParse({
             ...minimumClinicInput,
@@ -101,16 +128,38 @@ describe('onboardingClinicSchema', () => {
         'clerkUserId',
         'userId',
         'internalUserId',
+        'adminUserId',
         'role',
         'status',
         'clinicId',
         'ownerId',
         'ownership',
         'createdBy',
+        'createdByUserId',
     ])('rejects client-supplied authority field %s', (field) => {
         const result = onboardingClinicSchema.safeParse({
             ...minimumClinicInput,
             [field]: 'client-controlled-value',
+        });
+
+        expect(result.success).toBe(false);
+    });
+
+    it('rejects combined role and Clerk id injection attempts', () => {
+        const result = onboardingClinicSchema.safeParse({
+            ...minimumClinicInput,
+            role: 'ADMIN',
+            clerkUserId: 'another-clerk-user',
+        });
+
+        expect(result.success).toBe(false);
+    });
+
+    it('rejects combined internal user and existing clinic injection attempts', () => {
+        const result = onboardingClinicSchema.safeParse({
+            ...minimumClinicInput,
+            userId: 'another-internal-user',
+            clinicId: 'existing-clinic-id',
         });
 
         expect(result.success).toBe(false);
