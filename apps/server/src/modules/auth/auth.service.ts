@@ -14,6 +14,7 @@ import {
     type OnboardingStatusResult,
     type OnboardingUserRecord,
     type OnboardingUserSummary,
+    type SetupStatusSummary,
 } from './auth.types.js';
 
 const isSupportedOperationalRole = (role: UserRole): boolean => {
@@ -64,15 +65,27 @@ const toCompletedOnboardingResult = (user: OnboardingUserRecord): OnboardingStat
         onboarding: completedOnboarding,
         user: toOnboardingUserSummary(user),
         clinic: toOnboardingClinicSummary(user),
+        setup: null,
     };
 };
 
-const toAlreadyCompletedMutationResult = (
+const toCompletedOnboardingResultWithSetup = async (
     user: OnboardingUserRecord
-): ClinicOnboardingMutationResult => {
+): Promise<OnboardingStatusResult> => {
+    const result = toCompletedOnboardingResult(user);
+
+    return {
+        ...result,
+        setup: user.clinicId ? await authRepository.getClinicSetupStatus(user.clinicId) : null,
+    };
+};
+
+const toAlreadyCompletedMutationResult = async (
+    user: OnboardingUserRecord
+): Promise<ClinicOnboardingMutationResult> => {
     return {
         outcome: 'ALREADY_COMPLETED',
-        data: toCompletedOnboardingResult(user),
+        data: await toCompletedOnboardingResultWithSetup(user),
     };
 };
 
@@ -206,6 +219,7 @@ export const authService = {
                 },
                 user: null,
                 clinic: null,
+                setup: null,
             };
         }
 
@@ -213,7 +227,7 @@ export const authService = {
         const clinicSummary = toOnboardingClinicSummary(user);
 
         if (isOnboardingComplete(user)) {
-            return toCompletedOnboardingResult(user);
+            return toCompletedOnboardingResultWithSetup(user);
         }
 
         return {
@@ -224,6 +238,7 @@ export const authService = {
             },
             user: userSummary,
             clinic: clinicSummary,
+            setup: null,
         };
     },
 
@@ -294,6 +309,12 @@ export const authService = {
                     onboarding: completedOnboarding,
                     user: result.user,
                     clinic: result.clinic,
+                    setup: {
+                        clinicSettingsComplete: true,
+                        hasDoctor: false,
+                        hasPatient: false,
+                        hasAppointment: false,
+                    } satisfies SetupStatusSummary,
                 },
             };
         } catch (error) {

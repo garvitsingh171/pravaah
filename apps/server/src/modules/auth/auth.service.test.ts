@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma, UserRole, UserStatus } from '../../generated/prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
-import { OnboardingNextStep, OnboardingStatus, type OnboardingUserRecord } from './auth.types.js';
+import {
+    OnboardingNextStep,
+    OnboardingStatus,
+    type OnboardingUserRecord,
+    type SetupStatusSummary,
+} from './auth.types.js';
 
 const mockAuthRepository = vi.hoisted(() => ({
     findUserByClerkUserId: vi.fn(),
@@ -9,6 +14,7 @@ const mockAuthRepository = vi.hoisted(() => ({
     findOnboardingUserByClerkUserId: vi.fn(),
     findClinicBySlug: vi.fn(),
     createClinicWithAdmin: vi.fn(),
+    getClinicSetupStatus: vi.fn(),
 }));
 
 const mockClerkIdentityService = vi.hoisted(() => ({
@@ -57,9 +63,24 @@ const recoveryRequiredOnboarding = {
     isComplete: false,
 };
 
+const setupStatus = {
+    clinicSettingsComplete: true,
+    hasDoctor: true,
+    hasPatient: true,
+    hasAppointment: false,
+} satisfies SetupStatusSummary;
+
+const createdClinicSetupStatus = {
+    clinicSettingsComplete: true,
+    hasDoctor: false,
+    hasPatient: false,
+    hasAppointment: false,
+} satisfies SetupStatusSummary;
+
 describe('authService.getOnboardingStatus', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockAuthRepository.getClinicSetupStatus.mockResolvedValue(setupStatus);
     });
 
     it('returns NOT_STARTED when no internal user exists', async () => {
@@ -73,6 +94,7 @@ describe('authService.getOnboardingStatus', () => {
             },
             user: null,
             clinic: null,
+            setup: null,
         });
 
         expect(mockAuthRepository.findOnboardingUserByClerkUserId).toHaveBeenCalledWith(
@@ -99,7 +121,10 @@ describe('authService.getOnboardingStatus', () => {
                 name: activeClinic.name,
                 slug: activeClinic.slug,
             },
+            setup: setupStatus,
         });
+
+        expect(mockAuthRepository.getClinicSetupStatus).toHaveBeenCalledWith(activeClinic.id);
     });
 
     it('returns COMPLETED for an active Staff user with an active clinic', async () => {
@@ -187,6 +212,7 @@ describe('authService.getOnboardingStatus', () => {
                 name: activeClinic.name,
                 slug: activeClinic.slug,
             },
+            setup: null,
         });
     });
 
@@ -274,6 +300,7 @@ describe('authService.createClinicOnboarding', () => {
         mockClerkIdentityService.getTrustedUserIdentity.mockResolvedValue(trustedAdminIdentity);
         mockAuthRepository.findClinicBySlug.mockResolvedValue(null);
         mockAuthRepository.createClinicWithAdmin.mockResolvedValue(provisionedResult);
+        mockAuthRepository.getClinicSetupStatus.mockResolvedValue(setupStatus);
     });
 
     it('provisions an unprovisioned identity and returns completed onboarding state', async () => {
@@ -289,6 +316,7 @@ describe('authService.createClinicOnboarding', () => {
                 },
                 user: provisionedResult.user,
                 clinic: provisionedResult.clinic,
+                setup: createdClinicSetupStatus,
             },
         });
 
@@ -371,6 +399,7 @@ describe('authService.createClinicOnboarding', () => {
                     name: activeClinic.name,
                     slug: activeClinic.slug,
                 },
+                setup: setupStatus,
             },
         });
 

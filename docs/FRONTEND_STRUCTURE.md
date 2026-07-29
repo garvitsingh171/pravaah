@@ -224,7 +224,7 @@ Implemented states include:
 | Sign Up         | Clerk `SignUp`, then directs signed-in users toward clinic onboarding.                                |
 | Clinic Onboarding | Resolves onboarding status, renders first-time clinic form for `NOT_STARTED`, posts clinic bootstrap, offers optional fictional sample data after successful clinic creation, and redirects completed users to the dashboard. |
 | Landing         | Public product overview with sign-in/sign-up CTAs and a signed-in continuation CTA to onboarding.    |
-| Dashboard       | Fetches summary, high-risk appointments, and today activity in parallel.                             |
+| Dashboard       | Fetches summary, high-risk appointments, today activity, and the Admin first-run setup checklist status. |
 | Doctors         | Lists doctors, local search, create link.                                                            |
 | Doctor Create   | Creates doctor through backend API.                                                                  |
 | Patients        | Lists patients from `PatientClinic` API, backend search, create link.                                |

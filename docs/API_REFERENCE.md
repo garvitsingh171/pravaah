@@ -83,10 +83,25 @@ Response shape:
             "isComplete": false
         },
         "user": null,
-        "clinic": null
+        "clinic": null,
+        "setup": null
     }
 }
 ```
+
+When onboarding is completed, `data.setup` contains the server-derived first-run
+setup status used by the Admin dashboard checklist:
+
+```json
+{
+    "clinicSettingsComplete": true,
+    "hasDoctor": false,
+    "hasPatient": false,
+    "hasAppointment": false
+}
+```
+
+`setup` is `null` for `NOT_STARTED` and `RECOVERY_REQUIRED` states.
 
 States:
 
@@ -161,6 +176,12 @@ First successful creation returns `201 Created`:
             "id": "clinic-id",
             "name": "Example Clinic",
             "slug": "example-clinic"
+        },
+        "setup": {
+            "clinicSettingsComplete": true,
+            "hasDoctor": false,
+            "hasPatient": false,
+            "hasAppointment": false
         }
     }
 }
@@ -189,6 +210,12 @@ Completed replay returns `200 OK` with the same data shape and this message:
             "id": "existing-clinic-id",
             "name": "Existing Clinic",
             "slug": "existing-clinic"
+        },
+        "setup": {
+            "clinicSettingsComplete": true,
+            "hasDoctor": true,
+            "hasPatient": true,
+            "hasAppointment": true
         }
     }
 }

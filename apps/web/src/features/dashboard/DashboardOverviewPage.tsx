@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { useActiveClinic } from '../../app/activeClinicContext';
 import { EmptyState, ErrorMessage, LoadingState } from '../../components/feedback';
 import { isApiClientError } from '../../lib';
-import type { RiskLevel } from '../../types';
+import { UserRole, type RiskLevel } from '../../types';
+import FirstRunSetupChecklist from '../onboarding/components/FirstRunSetupChecklist';
+import { getOnboardingStatus, type SetupStatusSummary } from '../onboarding/onboardingApi';
 import {
     getDashboardSummary,
     listHighRiskAppointments,
@@ -39,6 +41,26 @@ type DashboardState =
           };
       };
 
+type SetupChecklistState =
+    | {
+          status: 'loading';
+          setup: SetupStatusSummary | null;
+          error: null;
+      }
+    | {
+          status: 'success';
+          setup: SetupStatusSummary;
+          error: null;
+      }
+    | {
+          status: 'error';
+          setup: SetupStatusSummary | null;
+          error: {
+              message: string;
+              code?: string;
+          };
+      };
+
 type SummaryCard = {
     label: string;
     value: number;
@@ -49,6 +71,12 @@ type SummaryCard = {
 const emptyDashboardState: DashboardState = {
     status: 'loading',
     data: null,
+    error: null,
+};
+
+const emptySetupChecklistState: SetupChecklistState = {
+    status: 'loading',
+    setup: null,
     error: null,
 };
 
@@ -113,6 +141,39 @@ const getDashboardErrorState = (
         error: {
             message: 'Dashboard data could not be loaded. Please try again.',
             code: 'DASHBOARD_LOAD_FAILED',
+        },
+    };
+};
+
+const getSetupChecklistErrorState = (
+    error: unknown,
+    setup: SetupStatusSummary | null = null
+): SetupChecklistState | null => {
+    if (error instanceof Error && error.name === 'AbortError') {
+        return null;
+    }
+
+    if (isApiClientError(error)) {
+        if (error.code === 'API_REQUEST_ABORTED') {
+            return null;
+        }
+
+        return {
+            status: 'error',
+            setup,
+            error: {
+                message: error.message,
+                code: error.code,
+            },
+        };
+    }
+
+    return {
+        status: 'error',
+        setup,
+        error: {
+            message: 'Setup checklist progress could not be loaded. Please try again.',
+            code: 'SETUP_STATUS_LOAD_FAILED',
         },
     };
 };
@@ -206,6 +267,31 @@ function SummaryCardItem({ card }: { card: SummaryCard }) {
             <p className="mt-2 text-sm text-slate-500">{card.helper}</p>
         </article>
     );
+}
+
+function SetupChecklistSection({
+    state,
+    onRetry,
+}: {
+    state: SetupChecklistState;
+    onRetry: () => void;
+}) {
+    if (state.status === 'loading') {
+        return <LoadingState message="Loading setup checklist..." />;
+    }
+
+    if (state.status === 'error') {
+        return (
+            <ErrorMessage
+                title="Setup checklist could not be loaded"
+                message={state.error.message}
+                code={state.error.code}
+                onRetry={onRetry}
+            />
+        );
+    }
+
+    return <FirstRunSetupChecklist setup={state.setup} />;
 }
 
 function RiskBadge({ riskLevel }: { riskLevel: RiskLevel }) {
@@ -338,8 +424,12 @@ function TodayActivitySection({ activityItems }: { activityItems: DashboardActiv
 }
 
 function DashboardOverviewPage() {
-    const { clinicId } = useActiveClinic();
+    const activeClinic = useActiveClinic();
+    const { clinicId } = activeClinic;
+    const isAdmin = activeClinic.currentUser?.role === UserRole.ADMIN;
     const [dashboardState, setDashboardState] = useState<DashboardState>(emptyDashboardState);
+    const [setupChecklistState, setSetupChecklistState] =
+        useState<SetupChecklistState>(emptySetupChecklistState);
 
     const loadDashboard = useCallback(
         async (signal?: AbortSignal): Promise<DashboardData> => {
@@ -380,7 +470,43 @@ function DashboardOverviewPage() {
                     return errorState ?? currentState;
                 });
             });
-    }, [loadDashboard]);
+
+        if (isAdmin) {
+            setSetupChecklistState((currentState) => ({
+                status: 'loading',
+                setup: currentState.setup,
+                error: null,
+            }));
+
+            void getOnboardingStatus()
+                .then((data) => {
+                    if (!data.setup) {
+                        setSetupChecklistState({
+                            status: 'error',
+                            setup: null,
+                            error: {
+                                message: 'Setup checklist progress was not included by the backend.',
+                                code: 'SETUP_STATUS_MISSING',
+                            },
+                        });
+                        return;
+                    }
+
+                    setSetupChecklistState({
+                        status: 'success',
+                        setup: data.setup,
+                        error: null,
+                    });
+                })
+                .catch((error: unknown) => {
+                    setSetupChecklistState((currentState) => {
+                        const errorState = getSetupChecklistErrorState(error, currentState.setup);
+
+                        return errorState ?? currentState;
+                    });
+                });
+        }
+    }, [isAdmin, loadDashboard]);
 
     useEffect(() => {
         const abortController = new AbortController();
@@ -405,6 +531,46 @@ function DashboardOverviewPage() {
             abortController.abort();
         };
     }, [loadDashboard]);
+
+    useEffect(() => {
+        if (!isAdmin) {
+            return;
+        }
+
+        const abortController = new AbortController();
+
+        void getOnboardingStatus(abortController.signal)
+            .then((data) => {
+                if (!data.setup) {
+                    setSetupChecklistState({
+                        status: 'error',
+                        setup: null,
+                        error: {
+                            message: 'Setup checklist progress was not included by the backend.',
+                            code: 'SETUP_STATUS_MISSING',
+                        },
+                    });
+                    return;
+                }
+
+                setSetupChecklistState({
+                    status: 'success',
+                    setup: data.setup,
+                    error: null,
+                });
+            })
+            .catch((error: unknown) => {
+                const errorState = getSetupChecklistErrorState(error);
+
+                if (errorState) {
+                    setSetupChecklistState(errorState);
+                }
+            });
+
+        return () => {
+            abortController.abort();
+        };
+    }, [isAdmin]);
 
     const dashboardData = dashboardState.data;
     const summaryCards = dashboardData ? buildSummaryCards(dashboardData.summary) : [];
@@ -453,6 +619,10 @@ function DashboardOverviewPage() {
                     code={dashboardState.error.code}
                     onRetry={refreshDashboard}
                 />
+            ) : null}
+
+            {isAdmin ? (
+                <SetupChecklistSection state={setupChecklistState} onRetry={refreshDashboard} />
             ) : null}
 
             {dashboardData ? (

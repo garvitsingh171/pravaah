@@ -37,10 +37,18 @@ export type OnboardingClinicSummary = {
     slug: string;
 };
 
+export type SetupStatusSummary = {
+    clinicSettingsComplete: boolean;
+    hasDoctor: boolean;
+    hasPatient: boolean;
+    hasAppointment: boolean;
+};
+
 export type OnboardingStatusResponseData = {
     onboarding: OnboardingSummary;
     user: OnboardingUserSummary | null;
     clinic: OnboardingClinicSummary | null;
+    setup: SetupStatusSummary | null;
 };
 
 export type SampleDataProvisioningSummary = {
