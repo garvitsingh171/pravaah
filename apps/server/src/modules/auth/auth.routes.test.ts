@@ -1,4 +1,4 @@
-import type { Router } from 'express';
+import type { RequestHandler, Router } from 'express';
 import { describe, expect, it, vi } from 'vitest';
 
 const mockPrisma = vi.hoisted(() => ({}));
@@ -13,14 +13,14 @@ import { dashboardRouter } from '../dashboard/dashboard.routes.js';
 import { doctorRouter } from '../doctors/doctor.routes.js';
 import { patientRouter } from '../patients/patient.routes.js';
 import { queueRouter } from '../queues/queue.routes.js';
-import { authRouter } from './auth.routes.js';
+import { authRouter, validateOnboardingClinicRequest } from './auth.routes.js';
 
 type ExpressRouteLayer = {
     route?: {
         path: string;
         methods: Record<string, boolean>;
         stack: Array<{
-            handle: {
+            handle: RequestHandler & {
                 name: string;
             };
         }>;
@@ -44,6 +44,19 @@ const getRouteHandlerNames = (router: Router, method: string, path: string): str
     return route.stack.map((layer) => layer.handle.name);
 };
 
+const getRouteHandlers = (router: Router, method: string, path: string): RequestHandler[] => {
+    const stack = (router as InspectableRouter).stack ?? [];
+    const route = stack
+        .map((layer) => layer.route)
+        .find((candidate) => candidate?.path === path && candidate.methods[method] === true);
+
+    if (!route) {
+        return [];
+    }
+
+    return route.stack.map((layer) => layer.handle);
+};
+
 describe('authRouter onboarding route middleware', () => {
     it('uses Clerk identity-only authentication for onboarding status', () => {
         expect(getRouteHandlerNames(authRouter, 'get', '/onboarding-status')).toEqual([
@@ -55,9 +68,19 @@ describe('authRouter onboarding route middleware', () => {
     it('authenticates Clerk identity before validating and provisioning clinic onboarding', () => {
         const handlers = getRouteHandlerNames(authRouter, 'post', '/onboarding/clinic');
 
-        expect(handlers[0]).toBe('authenticateClerkIdentity');
-        expect(handlers.at(-1)).toBe('createClinicOnboardingController');
+        expect(handlers).toEqual([
+            'authenticateClerkIdentity',
+            'validateOnboardingClinicRequest',
+            'createClinicOnboardingController',
+        ]);
         expect(handlers).not.toContain('authenticateRequest');
+    });
+
+    it('uses the onboarding clinic body validator before the provisioning controller', () => {
+        const handlers = getRouteHandlers(authRouter, 'post', '/onboarding/clinic');
+
+        expect(handlers).toHaveLength(3);
+        expect(handlers[1]).toBe(validateOnboardingClinicRequest);
     });
 
     it('keeps current-user lookup behind full internal-user authentication', () => {
