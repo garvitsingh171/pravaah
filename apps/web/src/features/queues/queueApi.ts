@@ -58,6 +58,15 @@ export type UpdateQueueStatusResponseData = {
     queueEntry: QueueListItem;
 };
 
+export type ReorderQueueRequest = {
+    date: string;
+    queueEntryIds: string[];
+};
+
+export type ReorderQueueResponseData = {
+    queueEntries: QueueListItem[];
+};
+
 const getQueueCollectionPath = (clinicId: string): string => {
     return `/clinics/${encodeURIComponent(clinicId)}/queue`;
 };
@@ -77,5 +86,12 @@ export const updateQueueStatus = (clinicId: string, queueEntryId: string, status
         {
             status,
         }
+    );
+};
+
+export const reorderQueue = (clinicId: string, payload: ReorderQueueRequest) => {
+    return apiClient.patch<ReorderQueueResponseData>(
+        `${getQueueCollectionPath(clinicId)}/reorder`,
+        payload
     );
 };

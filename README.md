@@ -8,10 +8,10 @@ The no-show feature is rule-based and explainable. It is not trained machine lea
 
 - Clerk sign-in for clinic-side Admin/Staff users
 - internal Pravaah `User` mapping for role, status, and clinic access
-- doctor record create/list workflows
-- patient record create/list workflows with clinic-specific history
+- doctor record create/list/edit workflows
+- patient record create/list/edit workflows with clinic-specific history
 - appointment booking, filtering, listing, and status updates
-- queue listing, filtering, and status updates
+- queue listing, filtering, status updates, and manual reorder controls
 - backend queue reorder API
 - dashboard summary, high-risk appointments, and activity feed
 - stored `NoShowPrediction` results with reasons and suggested staff actions

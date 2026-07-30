@@ -485,7 +485,8 @@ function DashboardOverviewPage() {
                             status: 'error',
                             setup: null,
                             error: {
-                                message: 'Setup checklist progress was not included by the backend.',
+                                message:
+                                    'Setup checklist progress was not included by the backend.',
                                 code: 'SETUP_STATUS_MISSING',
                             },
                         });

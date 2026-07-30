@@ -4,7 +4,7 @@ import { EmptyState, ErrorMessage, LoadingState, useToast } from '../../componen
 import { isApiClientError } from '../../lib';
 import { QueueStatus } from '../../types';
 import type { QueueStatus as QueueStatusType, RiskLevel } from '../../types';
-import { listTodayQueue, updateQueueStatus, type QueueListItem } from './queueApi';
+import { listTodayQueue, reorderQueue, updateQueueStatus, type QueueListItem } from './queueApi';
 
 type QueueListState =
     | {
@@ -75,6 +75,10 @@ const finalQueueStatuses: QueueStatusType[] = [
     QueueStatus.CANCELLED,
     QueueStatus.NO_SHOW,
 ];
+
+const isFinalQueueStatus = (status: QueueStatusType): boolean => {
+    return finalQueueStatuses.includes(status);
+};
 
 const queueStatusActionsByCurrentStatus: Record<QueueStatusType, QueueStatusAction[]> = {
     WAITING: [
@@ -247,6 +251,54 @@ const getUniqueQueueDoctors = (queueEntries: QueueListItem[]) => {
     );
 };
 
+const getActiveQueueEntries = (queueEntries: QueueListItem[]): QueueListItem[] => {
+    return queueEntries.filter((queueEntry) => !isFinalQueueStatus(queueEntry.status));
+};
+
+const getQueueEntryIds = (queueEntries: QueueListItem[]): string[] => {
+    return queueEntries.map((queueEntry) => queueEntry.id);
+};
+
+const moveQueueEntryId = (queueEntryIds: string[], queueEntryId: string, offset: -1 | 1) => {
+    const currentIndex = queueEntryIds.indexOf(queueEntryId);
+    const nextIndex = currentIndex + offset;
+
+    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= queueEntryIds.length) {
+        return queueEntryIds;
+    }
+
+    const nextQueueEntryIds = [...queueEntryIds];
+    const currentId = nextQueueEntryIds[currentIndex];
+    const targetId = nextQueueEntryIds[nextIndex];
+
+    if (!currentId || !targetId) {
+        return queueEntryIds;
+    }
+
+    nextQueueEntryIds[currentIndex] = targetId;
+    nextQueueEntryIds[nextIndex] = currentId;
+
+    return nextQueueEntryIds;
+};
+
+const mergeQueueEntriesWithReorderedActiveEntries = (
+    currentQueueEntries: QueueListItem[],
+    reorderedActiveEntries: QueueListItem[]
+): QueueListItem[] => {
+    const reorderedActiveEntryIds = new Set(
+        reorderedActiveEntries.map((queueEntry) => queueEntry.id)
+    );
+    const inactiveEntries = currentQueueEntries.filter(
+        (queueEntry) => !reorderedActiveEntryIds.has(queueEntry.id)
+    );
+
+    return [...reorderedActiveEntries, ...inactiveEntries].sort(
+        (firstEntry, secondEntry) =>
+            firstEntry.position - secondEntry.position ||
+            firstEntry.appointment.scheduledAt.localeCompare(secondEntry.appointment.scheduledAt)
+    );
+};
+
 function QueueStatusBadge({ status }: { status: QueueStatusType }) {
     return (
         <span
@@ -318,6 +370,12 @@ function QueuePage() {
         code?: string;
     } | null>(null);
     const [statusUpdateMessage, setStatusUpdateMessage] = useState<string | null>(null);
+    const [reorderingQueueEntryId, setReorderingQueueEntryId] = useState<string | null>(null);
+    const [reorderError, setReorderError] = useState<{
+        message: string;
+        code?: string;
+    } | null>(null);
+    const [reorderMessage, setReorderMessage] = useState<string | null>(null);
 
     const loadQueue = useCallback(
         async (signal?: AbortSignal) => {
@@ -379,17 +437,21 @@ function QueuePage() {
     const handleRetryQueue = () => {
         setStatusUpdateError(null);
         setStatusUpdateMessage(null);
+        setReorderError(null);
+        setReorderMessage(null);
         refreshQueue();
     };
 
     const handleStatusUpdate = async (queueEntry: QueueListItem, nextStatus: QueueStatusType) => {
-        if (nextStatus === queueEntry.status) {
+        if (nextStatus === queueEntry.status || reorderingQueueEntryId) {
             return;
         }
 
         setUpdatingQueueEntryId(queueEntry.id);
         setStatusUpdateError(null);
         setStatusUpdateMessage(null);
+        setReorderError(null);
+        setReorderMessage(null);
 
         try {
             const data = await updateQueueStatus(clinicId, queueEntry.id, nextStatus);
@@ -427,6 +489,73 @@ function QueuePage() {
         }
     };
 
+    const handleQueueMove = async (queueEntry: QueueListItem, offset: -1 | 1) => {
+        if (queueListState.status !== 'success' || reorderingQueueEntryId || updatingQueueEntryId) {
+            return;
+        }
+
+        const confirmedQueueEntries = queueListState.queueEntries;
+        const activeQueueEntries = getActiveQueueEntries(confirmedQueueEntries);
+        const activeQueueEntryIds = getQueueEntryIds(activeQueueEntries);
+        const nextQueueEntryIds = moveQueueEntryId(activeQueueEntryIds, queueEntry.id, offset);
+
+        if (
+            nextQueueEntryIds === activeQueueEntryIds ||
+            new Set(nextQueueEntryIds).size !== nextQueueEntryIds.length
+        ) {
+            return;
+        }
+
+        setReorderingQueueEntryId(queueEntry.id);
+        setReorderError(null);
+        setReorderMessage(null);
+        setStatusUpdateError(null);
+        setStatusUpdateMessage(null);
+
+        try {
+            const data = await reorderQueue(clinicId, {
+                date: todayDate,
+                queueEntryIds: nextQueueEntryIds,
+            });
+
+            setQueueListState({
+                status: 'success',
+                queueEntries: mergeQueueEntriesWithReorderedActiveEntries(
+                    confirmedQueueEntries,
+                    data.queueEntries
+                ),
+                error: null,
+            });
+            setReorderMessage(`Moved ${queueEntry.patient.fullName}.`);
+            showSuccessToast('Queue order updated successfully.');
+        } catch (error) {
+            setQueueListState({
+                status: 'success',
+                queueEntries: confirmedQueueEntries,
+                error: null,
+            });
+
+            if (isApiClientError(error)) {
+                setReorderError({
+                    message: error.message,
+                    code: error.code,
+                });
+                showErrorToast(error.message);
+                return;
+            }
+
+            const fallbackMessage = 'Queue order could not be updated. Please try again.';
+
+            setReorderError({
+                message: fallbackMessage,
+                code: 'QUEUE_REORDER_FAILED',
+            });
+            showErrorToast(fallbackMessage);
+        } finally {
+            setReorderingQueueEntryId(null);
+        }
+    };
+
     const hasQueueEntries =
         queueListState.status === 'success' && queueListState.queueEntries.length > 0;
     const queueDoctors = useMemo(
@@ -448,6 +577,22 @@ function QueuePage() {
     const hasFilteredQueueEntries =
         queueListState.status === 'success' && displayedQueueEntries.length > 0;
     const hasQueueFilters = Boolean(selectedDoctorId || selectedStatus);
+    const activeQueueEntries = useMemo(
+        () => getActiveQueueEntries(queueListState.queueEntries),
+        [queueListState.queueEntries]
+    );
+    const activeQueueEntryIds = useMemo(
+        () => getQueueEntryIds(activeQueueEntries),
+        [activeQueueEntries]
+    );
+    const activeQueueIndexById = useMemo(() => {
+        return activeQueueEntryIds.reduce<Map<string, number>>((indexes, queueEntryId, index) => {
+            indexes.set(queueEntryId, index);
+
+            return indexes;
+        }, new Map<string, number>());
+    }, [activeQueueEntryIds]);
+    const isReordering = Boolean(reorderingQueueEntryId);
 
     return (
         <section className="space-y-6">
@@ -490,7 +635,7 @@ function QueuePage() {
                         <p className="mt-1 text-sm font-semibold text-slate-900">
                             {
                                 queueListState.queueEntries.filter(
-                                    (entry) => !finalQueueStatuses.includes(entry.status)
+                                    (entry) => !isFinalQueueStatus(entry.status)
                                 ).length
                             }
                         </p>
@@ -586,6 +731,14 @@ function QueuePage() {
                 />
             ) : null}
 
+            {reorderError ? (
+                <ErrorMessage
+                    title="Queue order was not updated"
+                    message={reorderError.message}
+                    code={reorderError.code}
+                />
+            ) : null}
+
             {statusUpdateMessage ? (
                 <div
                     className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
@@ -596,6 +749,22 @@ function QueuePage() {
                         type="button"
                         className="ml-3 text-emerald-700 underline decoration-emerald-300 underline-offset-2"
                         onClick={() => setStatusUpdateMessage(null)}
+                    >
+                        Dismiss
+                    </button>
+                </div>
+            ) : null}
+
+            {reorderMessage ? (
+                <div
+                    className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
+                    role="status"
+                >
+                    {reorderMessage}
+                    <button
+                        type="button"
+                        className="ml-3 text-emerald-700 underline decoration-emerald-300 underline-offset-2"
+                        onClick={() => setReorderMessage(null)}
                     >
                         Dismiss
                     </button>
@@ -636,7 +805,20 @@ function QueuePage() {
                                 {displayedQueueEntries.map((queueEntry) => {
                                     const statusActions = getQueueStatusActions(queueEntry.status);
                                     const isUpdating = updatingQueueEntryId === queueEntry.id;
+                                    const isMoving = reorderingQueueEntryId === queueEntry.id;
                                     const isWaiting = queueEntry.status === QueueStatus.WAITING;
+                                    const activeQueueIndex =
+                                        activeQueueIndexById.get(queueEntry.id) ?? -1;
+                                    const canMoveUp =
+                                        activeQueueIndex > 0 &&
+                                        activeQueueEntryIds.length > 1 &&
+                                        !isReordering &&
+                                        !updatingQueueEntryId;
+                                    const canMoveDown =
+                                        activeQueueIndex >= 0 &&
+                                        activeQueueIndex < activeQueueEntryIds.length - 1 &&
+                                        !isReordering &&
+                                        !updatingQueueEntryId;
 
                                     return (
                                         <tr
@@ -706,6 +888,30 @@ function QueuePage() {
                                                 <RiskBadge queueEntry={queueEntry} />
                                             </td>
                                             <td className="min-w-44 px-4 py-5">
+                                                <div className="mb-3 flex flex-col gap-2">
+                                                    <button
+                                                        type="button"
+                                                        className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                                                        onClick={() =>
+                                                            void handleQueueMove(queueEntry, -1)
+                                                        }
+                                                        disabled={!canMoveUp}
+                                                        aria-label={`Move ${queueEntry.patient.fullName} up`}
+                                                    >
+                                                        {isMoving ? 'Moving...' : 'Move up'}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                                                        onClick={() =>
+                                                            void handleQueueMove(queueEntry, 1)
+                                                        }
+                                                        disabled={!canMoveDown}
+                                                        aria-label={`Move ${queueEntry.patient.fullName} down`}
+                                                    >
+                                                        {isMoving ? 'Moving...' : 'Move down'}
+                                                    </button>
+                                                </div>
                                                 {statusActions.length > 0 ? (
                                                     <select
                                                         className="w-40 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
@@ -721,7 +927,7 @@ function QueuePage() {
                                                                 );
                                                             }
                                                         }}
-                                                        disabled={isUpdating}
+                                                        disabled={isUpdating || isReordering}
                                                         aria-label={`Update queue status for ${queueEntry.patient.fullName}`}
                                                     >
                                                         <option value="">

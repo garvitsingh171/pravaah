@@ -15,13 +15,19 @@ import {
     testClinicId,
 } from '../test/fixtures/onboarding';
 import { renderWithProviders } from '../test/renderWithProviders';
-import {
-    setClerkLoading,
-    setClerkSignedIn,
-    setClerkSignedOut,
-} from '../test/mocks/clerk';
+import { setClerkLoading, setClerkSignedIn, setClerkSignedOut } from '../test/mocks/clerk';
 
 const mockGetOnboardingStatus = vi.hoisted(() => vi.fn());
+const mockActiveClinicRole = vi.hoisted(() => ({ value: 'ADMIN' as UserRole }));
+
+const protectedRouteHeadings: Record<string, RegExp> = {
+    '/dashboard': /protected dashboard/i,
+    '/doctors': /^doctors$/i,
+    '/patients': /^patients$/i,
+    '/appointments': /^appointments$/i,
+    '/queue': /^queue$/i,
+    '/clinic-settings': /^clinic settings$/i,
+};
 
 vi.mock('../features/onboarding/onboardingApi', async (importOriginal) => {
     const actual = await importOriginal<typeof import('../features/onboarding/onboardingApi')>();
@@ -39,7 +45,7 @@ vi.mock('./ActiveClinicProvider', () => ({
                 clinicId: testClinicId,
                 source: 'authenticatedUser',
                 currentUser: {
-                    role: UserRole.ADMIN,
+                    role: mockActiveClinicRole.value,
                 },
             }}
         >
@@ -82,6 +88,7 @@ function renderShell(route = '/dashboard?tab=today#risk') {
 describe('ProtectedAppShell', () => {
     beforeEach(() => {
         mockGetOnboardingStatus.mockReset();
+        mockActiveClinicRole.value = UserRole.ADMIN;
     });
 
     it('shows the current loading state while Clerk is loading', () => {
@@ -90,7 +97,9 @@ describe('ProtectedAppShell', () => {
         renderShell();
 
         expect(screen.getByText('Preparing Pravaah...')).toBeInTheDocument();
-        expect(screen.queryByRole('heading', { name: /protected dashboard/i })).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('heading', { name: /protected dashboard/i })
+        ).not.toBeInTheDocument();
         expect(mockGetOnboardingStatus).not.toHaveBeenCalled();
     });
 
@@ -104,7 +113,9 @@ describe('ProtectedAppShell', () => {
                 '/login?redirect_url=%2Fdashboard%3Ftab%3Dtoday%23risk'
             );
         });
-        expect(screen.queryByRole('heading', { name: /protected dashboard/i })).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('heading', { name: /protected dashboard/i })
+        ).not.toBeInTheDocument();
         expect(mockGetOnboardingStatus).not.toHaveBeenCalled();
     });
 
@@ -133,7 +144,9 @@ describe('ProtectedAppShell', () => {
             await waitFor(() => {
                 expect(screen.getByTestId('location')).toHaveTextContent('/onboarding/clinic');
             });
-            expect(screen.queryByText(/Dashboard overview|Doctors|Patients|Appointments|Queue|Clinic Settings/i)).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('heading', { name: protectedRouteHeadings[route] })
+            ).not.toBeInTheDocument();
         }
     );
 
@@ -143,17 +156,22 @@ describe('ProtectedAppShell', () => {
 
         renderShell('/dashboard');
 
-        expect(await screen.findByRole('heading', { name: /protected dashboard/i })).toBeInTheDocument();
+        expect(
+            await screen.findByRole('heading', { name: /protected dashboard/i })
+        ).toBeInTheDocument();
         expect(screen.getByRole('link', { name: /clinic settings/i })).toBeInTheDocument();
     });
 
     it('allows a completed active Staff user but does not expose Admin navigation', async () => {
         setClerkSignedIn();
+        mockActiveClinicRole.value = UserRole.STAFF;
         mockGetOnboardingStatus.mockResolvedValue(completedStaffOnboarding);
 
         renderShell('/dashboard');
 
-        expect(await screen.findByRole('heading', { name: /protected dashboard/i })).toBeInTheDocument();
+        expect(
+            await screen.findByRole('heading', { name: /protected dashboard/i })
+        ).toBeInTheDocument();
         expect(screen.queryByRole('link', { name: /clinic settings/i })).not.toBeInTheDocument();
     });
 
@@ -201,7 +219,9 @@ describe('ProtectedAppShell', () => {
 
         expect(await screen.findByText('Account needs recovery')).toBeInTheDocument();
         expect(screen.getByText('RECOVERY_REQUIRED')).toBeInTheDocument();
-        expect(screen.queryByRole('heading', { name: /protected dashboard/i })).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('heading', { name: /protected dashboard/i })
+        ).not.toBeInTheDocument();
     });
 
     it('shows structured status failures and retries successfully', async () => {
@@ -224,9 +244,11 @@ describe('ProtectedAppShell', () => {
         ).toBeInTheDocument();
         expect(screen.getByText('INVALID_AUTH_TOKEN')).toBeInTheDocument();
 
-        await user.click(screen.getByRole('button', { name: /retry/i }));
+        await user.click(screen.getByRole('button', { name: /try again/i }));
 
-        expect(await screen.findByRole('heading', { name: /protected dashboard/i })).toBeInTheDocument();
+        expect(
+            await screen.findByRole('heading', { name: /protected dashboard/i })
+        ).toBeInTheDocument();
         expect(mockGetOnboardingStatus).toHaveBeenCalledTimes(2);
     });
 });

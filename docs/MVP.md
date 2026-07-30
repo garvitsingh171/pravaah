@@ -72,10 +72,10 @@ Dashboard summarizes clinic activity and risk
 | Backend                      | Express + TypeScript API with feature modules, route/controller/service/repository layering, Zod validation, AppError, and global error handling. |
 | Auth                         | Clerk frontend and Express middleware. Protected APIs require Bearer tokens and an internal `User` row.                                           |
 | Clinic access                | MVP uses `User.clinicId` as the single active clinic access check.                                                                                |
-| Doctor records               | Backend create/list/update; frontend list/search/create. Doctors do not authenticate.                                                             |
-| Patient records              | Backend create/list/update; frontend list/search/create with clinic-specific history display. Patients do not authenticate.                       |
+| Doctor records               | Backend create/list/update; frontend list/search/create/edit. Doctors do not authenticate.                                                        |
+| Patient records              | Backend create/list/update; frontend list/search/create/edit with clinic-specific history display. Patients do not authenticate.                  |
 | Appointments                 | Backend create/list/status update; frontend booking, filters, list, status actions, and no-show risk detail panels.                               |
-| Queue                        | Backend list/status update/reorder; frontend list/filter/status update. Reorder exists in the API but is not surfaced in the current UI.          |
+| Queue                        | Backend list/status update/reorder; frontend list/filter/status update and manual move controls for active queue entries.                         |
 | Dashboard                    | Backend and frontend summary, high-risk appointments, and today's activity feed.                                                                  |
 | Starter no-show risk scoring | Rule-based scoring during appointment creation, stored as `NoShowPrediction`, with dashboard backfill for missing active appointment predictions. |
 | Testing                      | Vitest tests exist for auth access/middleware, appointments, queues, predictions, dashboard, and validation behavior.                             |
@@ -83,8 +83,8 @@ Dashboard summarizes clinic activity and risk
 ## Current Limitations
 
 - Clinic settings UI is a placeholder page; backend Admin APIs exist for clinic create/update.
-- Doctor and patient edit APIs exist, but dedicated frontend edit screens are not implemented.
-- Queue reorder API exists, but the frontend currently exposes only status updates and filters.
+- Doctor and patient edit workflows use clinic-scoped list-page edit panels rather than dedicated detail pages.
+- Queue reorder is manual through move-up and move-down controls for active queue entries.
 - No patient login, doctor login, patient portal, or doctor portal.
 - No SMS, WhatsApp, email reminder automation, billing, prescriptions, inventory, or full medical records.
 - No trained ML model. No-show scoring is deterministic rule logic.

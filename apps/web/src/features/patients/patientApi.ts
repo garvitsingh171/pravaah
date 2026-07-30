@@ -16,7 +16,27 @@ export type CreatePatientRequest = {
     distanceFromClinicKm?: number;
 };
 
+export type UpdatePatientRequest = {
+    fullName?: string;
+    phone?: string;
+    email?: string | null;
+    gender?: Gender | null;
+    dateOfBirth?: string | null;
+    age?: number | null;
+    address?: string | null;
+    city?: string | null;
+    emergencyContactName?: string | null;
+    emergencyContactPhone?: string | null;
+    notes?: string | null;
+    distanceFromClinicKm?: number | null;
+    isActive?: boolean;
+};
+
 export type CreatePatientResponseData = {
+    patient: PatientSummary;
+};
+
+export type UpdatePatientResponseData = {
     patient: PatientSummary;
 };
 
@@ -88,4 +108,15 @@ export const listPatients = async (
 
 export const createPatient = (clinicId: string, payload: CreatePatientRequest) => {
     return apiClient.post<CreatePatientResponseData>(getPatientCollectionPath(clinicId), payload);
+};
+
+export const updatePatient = (
+    clinicId: string,
+    patientId: string,
+    payload: UpdatePatientRequest
+) => {
+    return apiClient.patch<UpdatePatientResponseData>(
+        `${getPatientCollectionPath(clinicId)}/${encodeURIComponent(patientId)}`,
+        payload
+    );
 };

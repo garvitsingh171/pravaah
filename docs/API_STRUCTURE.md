@@ -105,17 +105,17 @@ Because that route does not include `clinicId`, the service loads the appointmen
 
 Source: `apps/server/src/app.ts`.
 
-| Mount          | Router                                                           |
-| -------------- | ---------------------------------------------------------------- |
-| `/api/health`  | `healthRouter`                                                   |
-| `/api/auth`    | `authRouter` (`/me`, `/onboarding-status`, `/onboarding/clinic`) |
+| Mount          | Router                                                                                                  |
+| -------------- | ------------------------------------------------------------------------------------------------------- |
+| `/api/health`  | `healthRouter`                                                                                          |
+| `/api/auth`    | `authRouter` (`/me`, `/onboarding-status`, `/onboarding/clinic`)                                        |
 | `/api/clinics` | `clinicRouter` (clinic settings read/update, `POST /:clinicId/sample-data`, disabled standalone create) |
-| `/api/clinics` | `doctorRouter`                                                   |
-| `/api/clinics` | `patientRouter`                                                  |
-| `/api/clinics` | `clinicAppointmentRouter`                                        |
-| `/api`         | `appointmentRouter`                                              |
-| `/api/clinics` | `queueRouter`                                                    |
-| `/api/clinics` | `dashboardRouter`                                                |
+| `/api/clinics` | `doctorRouter`                                                                                          |
+| `/api/clinics` | `patientRouter`                                                                                         |
+| `/api/clinics` | `clinicAppointmentRouter`                                                                               |
+| `/api`         | `appointmentRouter`                                                                                     |
+| `/api/clinics` | `queueRouter`                                                                                           |
+| `/api/clinics` | `dashboardRouter`                                                                                       |
 
 ## Validation Flow
 

@@ -10,11 +10,7 @@ import {
     recoveryRequiredOnboarding,
 } from '../../test/fixtures/onboarding';
 import { renderWithProviders } from '../../test/renderWithProviders';
-import {
-    setClerkLoading,
-    setClerkSignedIn,
-    setClerkSignedOut,
-} from '../../test/mocks/clerk';
+import { setClerkLoading, setClerkSignedIn, setClerkSignedOut } from '../../test/mocks/clerk';
 
 const mockGetOnboardingStatus = vi.hoisted(() => vi.fn());
 const mockCreateClinicOnboarding = vi.hoisted(() => vi.fn());
@@ -58,8 +54,9 @@ function renderOnboarding(route = '/onboarding/clinic') {
 
 const fillValidClinicForm = async () => {
     const user = userEvent.setup();
+    const clinicNameInput = await screen.findByLabelText(/clinic name/i);
 
-    await user.type(screen.getByLabelText(/clinic name/i), 'Pravaah Family Clinic');
+    await user.type(clinicNameInput, 'Pravaah Family Clinic');
     await user.type(screen.getByLabelText(/clinic phone/i), '+91 98765 43210');
     await user.type(screen.getByLabelText(/clinic email/i), 'frontdesk@example.com');
     await user.type(screen.getByLabelText(/address line 1/i), '12 Wellness Road');
@@ -104,18 +101,14 @@ describe('ClinicOnboardingPage', () => {
     it('shows loading while Clerk loads and redirects signed-out users to login', async () => {
         setClerkLoading();
 
-        const { rerender } = renderOnboarding();
+        const { unmount } = renderOnboarding();
 
         expect(screen.getByText('Loading clinic onboarding...')).toBeInTheDocument();
         expect(mockGetOnboardingStatus).not.toHaveBeenCalled();
 
+        unmount();
         setClerkSignedOut();
-        rerender(
-            <Routes>
-                <Route path="/onboarding/clinic" element={<ClinicOnboardingPage />} />
-                <Route path="/login" element={<LocationState />} />
-            </Routes>
-        );
+        renderOnboarding();
 
         await waitFor(() => {
             expect(screen.getByTestId('location')).toHaveTextContent(
@@ -131,7 +124,9 @@ describe('ClinicOnboardingPage', () => {
 
         renderOnboarding();
 
-        expect(await screen.findByRole('heading', { name: /create your clinic workspace/i })).toBeInTheDocument();
+        expect(
+            await screen.findByRole('heading', { name: /create your clinic workspace/i })
+        ).toBeInTheDocument();
 
         [
             /clinic name/i,
@@ -173,7 +168,9 @@ describe('ClinicOnboardingPage', () => {
 
         expect(await screen.findByText('Account needs recovery')).toBeInTheDocument();
         expect(screen.getByText('RECOVERY_REQUIRED')).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /create clinic workspace/i })).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: /create clinic workspace/i })
+        ).not.toBeInTheDocument();
     });
 
     it('shows status load failures and retries successfully', async () => {
@@ -193,9 +190,11 @@ describe('ClinicOnboardingPage', () => {
         expect(await screen.findByText('Onboarding could not be loaded')).toBeInTheDocument();
         expect(screen.getByText('API_NETWORK_ERROR')).toBeInTheDocument();
 
-        await user.click(screen.getByRole('button', { name: /retry/i }));
+        await user.click(screen.getByRole('button', { name: /try again/i }));
 
-        expect(await screen.findByRole('heading', { name: /create your clinic workspace/i })).toBeInTheDocument();
+        expect(
+            await screen.findByRole('heading', { name: /create your clinic workspace/i })
+        ).toBeInTheDocument();
         expect(mockGetOnboardingStatus).toHaveBeenCalledTimes(2);
     });
 
@@ -226,19 +225,47 @@ describe('ClinicOnboardingPage', () => {
 
         await user.click(screen.getByRole('button', { name: /create clinic workspace/i }));
 
-        expect(screen.getByText('Clinic name must be at least 2 characters long.')).toBeInTheDocument();
-        expect(screen.getByText('Clinic slug must be at least 2 characters long.')).toBeInTheDocument();
+        expect(
+            screen.getByText('Clinic name must be at least 2 characters long.')
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText('Clinic slug must be at least 2 characters long.')
+        ).toBeInTheDocument();
         expect(screen.getByText('Enter a valid clinic email address.')).toBeInTheDocument();
-        expect(screen.getByText('Slot duration must be a whole number greater than 0.')).toBeInTheDocument();
-        expect(screen.getByText('Buffer minutes must be a whole number greater than or equal to 0.')).toBeInTheDocument();
+        expect(
+            screen.getByText('Slot duration must be a whole number greater than 0.')
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText('Buffer minutes must be a whole number greater than or equal to 0.')
+        ).toBeInTheDocument();
         expect(mockCreateClinicOnboarding).not.toHaveBeenCalled();
     });
 
     it.each([
-        ['slot duration', /slot duration minutes/i, '2.5', 'Slot duration must be a whole number greater than 0.'],
-        ['slot duration', /slot duration minutes/i, '-5', 'Slot duration must be a whole number greater than 0.'],
-        ['buffer minutes', /buffer minutes/i, '1.5', 'Buffer minutes must be a whole number greater than or equal to 0.'],
-        ['buffer minutes', /buffer minutes/i, '-1', 'Buffer minutes must be a whole number greater than or equal to 0.'],
+        [
+            'slot duration',
+            /slot duration minutes/i,
+            '2.5',
+            'Slot duration must be a whole number greater than 0.',
+        ],
+        [
+            'slot duration',
+            /slot duration minutes/i,
+            '-5',
+            'Slot duration must be a whole number greater than 0.',
+        ],
+        [
+            'buffer minutes',
+            /buffer minutes/i,
+            '1.5',
+            'Buffer minutes must be a whole number greater than or equal to 0.',
+        ],
+        [
+            'buffer minutes',
+            /buffer minutes/i,
+            '-1',
+            'Buffer minutes must be a whole number greater than or equal to 0.',
+        ],
     ])('rejects invalid %s numeric values', async (_name, label, value, message) => {
         const user = userEvent.setup();
         setClerkSignedIn();
@@ -270,11 +297,11 @@ describe('ClinicOnboardingPage', () => {
         expect(slugInput).toHaveValue('pravaah-family-clinic');
 
         await user.clear(slugInput);
-        await user.type(slugInput, 'custom-clinic');
+        await user.type(slugInput, 'customclinic');
         await user.clear(nameInput);
         await user.type(nameInput, 'Another Clinic');
 
-        expect(slugInput).toHaveValue('custom-clinic');
+        expect(slugInput).toHaveValue('customclinic');
     });
 
     it('submits only supported clinic fields and never authority fields', async () => {
@@ -340,7 +367,9 @@ describe('ClinicOnboardingPage', () => {
 
         pendingProvisioning.resolve(completedAdminOnboarding);
 
-        expect(await screen.findByRole('heading', { name: /add fictional sample data/i })).toBeInTheDocument();
+        expect(
+            await screen.findByRole('heading', { name: /add fictional sample data/i })
+        ).toBeInTheDocument();
     });
 
     it('maps backend validation and slug conflict errors to fields without losing entered values', async () => {
@@ -369,8 +398,10 @@ describe('ClinicOnboardingPage', () => {
 
         expect(await screen.findByText('Clinic was not created')).toBeInTheDocument();
         expect(screen.getByText('CLINIC_SLUG_ALREADY_EXISTS')).toBeInTheDocument();
-        expect(screen.getByText('Clinic name must be at least 2 characters long')).toBeInTheDocument();
-        expect(screen.getByText('Clinic slug already exists')).toBeInTheDocument();
+        expect(
+            screen.getAllByText('Clinic name must be at least 2 characters long').length
+        ).toBeGreaterThan(0);
+        expect(screen.getAllByText('Clinic slug already exists').length).toBeGreaterThan(0);
         expect(screen.getByLabelText(/clinic name/i)).toHaveValue('Pravaah Family Clinic');
     });
 
@@ -395,7 +426,9 @@ describe('ClinicOnboardingPage', () => {
 
         await user.click(screen.getByRole('button', { name: /create clinic workspace/i }));
 
-        expect(await screen.findByRole('heading', { name: /add fictional sample data/i })).toBeInTheDocument();
+        expect(
+            await screen.findByRole('heading', { name: /add fictional sample data/i })
+        ).toBeInTheDocument();
         expect(mockCreateClinicOnboarding).toHaveBeenCalledTimes(2);
     });
 

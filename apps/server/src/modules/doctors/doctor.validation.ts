@@ -8,20 +8,21 @@ export const createDoctorSchema = z
     .object({
         fullName: z.string().min(2, 'Doctor name must be at least 2 characters long'),
 
-        specialization: z.string().optional(),
-        qualification: z.string().optional(),
-        registrationNumber: z.string().optional(),
+        specialization: z.string().nullable().optional(),
+        qualification: z.string().nullable().optional(),
+        registrationNumber: z.string().nullable().optional(),
 
-        phone: z.string().optional(),
+        phone: z.string().nullable().optional(),
 
-        email: z.string().email('Invalid doctor email').optional(),
+        email: z.string().email('Invalid doctor email').nullable().optional(),
 
-        gender: z.enum(['MALE', 'FEMALE', 'OTHER']).optional(),
+        gender: z.enum(['MALE', 'FEMALE', 'OTHER']).nullable().optional(),
 
         experienceYears: z
             .number()
             .int()
             .nonnegative('Experience years cannot be negative')
+            .nullable()
             .optional(),
     })
     .strict();

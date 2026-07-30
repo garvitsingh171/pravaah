@@ -106,7 +106,9 @@ function FirstRunSetupChecklist({ setup }: { setup: SetupStatusSummary }) {
                     <p className="text-sm font-semibold text-slate-900">
                         {completedSteps} of {totalChecklistSteps} steps completed
                     </p>
-                    <p className="text-sm font-medium text-slate-500">{progressPercent}% complete</p>
+                    <p className="text-sm font-medium text-slate-500">
+                        {progressPercent}% complete
+                    </p>
                 </div>
 
                 <div
