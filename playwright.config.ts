@@ -37,9 +37,7 @@ export default defineConfig({
         {
             command: `VITE_API_BASE_URL=${shellQuote(
                 apiBaseURL
-            )} VITE_CLERK_PUBLISHABLE_KEY=${shellQuote(
-                clerkPublishableKey
-            )} npm run dev:web`,
+            )} VITE_CLERK_PUBLISHABLE_KEY=${shellQuote(clerkPublishableKey)} npm run dev:web`,
             url: webBaseURL,
             reuseExistingServer: false,
             timeout: 120_000,

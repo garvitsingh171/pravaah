@@ -10,15 +10,15 @@ apps/web
 
 Scripts from `apps/web/package.json`:
 
-| Script    | Command                |
-| --------- | ---------------------- |
-| `dev`     | `vite`                 |
-| `build`   | `tsc -b && vite build` |
-| `lint`    | `eslint .`             |
-| `preview` | `vite preview`         |
-| `check`   | `npm run build`        |
-| `test`    | `vitest run`           |
-| `test:watch` | `vitest`            |
+| Script          | Command                 |
+| --------------- | ----------------------- |
+| `dev`           | `vite`                  |
+| `build`         | `tsc -b && vite build`  |
+| `lint`          | `eslint .`              |
+| `preview`       | `vite preview`          |
+| `check`         | `npm run build`         |
+| `test`          | `vitest run`            |
+| `test:watch`    | `vitest`                |
 | `test:coverage` | `vitest run --coverage` |
 
 ## Entry Point
@@ -53,22 +53,22 @@ Source: `apps/web/src/App.tsx` and `apps/web/src/routes/dashboardRoutes.tsx`.
 
 Routes:
 
-| Path               | Page                                                   |
-| ------------------ | ------------------------------------------------------ |
-| `/`                | Public landing page                                    |
-| `/login/*`         | Clerk sign-in page wrapper                             |
-| `/sign-up/*`       | Clerk sign-up page wrapper                             |
-| `/onboarding`      | Redirects to clinic onboarding                         |
+| Path                 | Page                                                          |
+| -------------------- | ------------------------------------------------------------- |
+| `/`                  | Public landing page                                           |
+| `/login/*`           | Clerk sign-in page wrapper                                    |
+| `/sign-up/*`         | Clerk sign-up page wrapper                                    |
+| `/onboarding`        | Redirects to clinic onboarding                                |
 | `/onboarding/clinic` | First-time clinic onboarding form outside protected app shell |
-| `/dashboard`       | Dashboard overview                                     |
-| `/doctors`         | Doctor list/search                                     |
-| `/doctors/new`     | Doctor create form                                     |
-| `/patients`        | Patient list/search                                    |
-| `/patients/new`    | Patient create form                                    |
-| `/appointments`    | Appointment list/filter/status update and booking form |
-| `/queue`           | Today's queue list/filter/status update                |
-| `/clinic-settings` | Admin clinic settings load/edit/save workflow          |
-| `*`                | Public-safe not found page                             |
+| `/dashboard`         | Dashboard overview                                            |
+| `/doctors`           | Doctor list/search                                            |
+| `/doctors/new`       | Doctor create form                                            |
+| `/patients`          | Patient list/search                                           |
+| `/patients/new`      | Patient create form                                           |
+| `/appointments`      | Appointment list/filter/status update and booking form        |
+| `/queue`             | Today's queue list/filter/status update                       |
+| `/clinic-settings`   | Admin clinic settings load/edit/save workflow                 |
+| `*`                  | Public-safe not found page                                    |
 
 `ProtectedAppShell` blocks unauthenticated users and redirects them to `/login?redirect_url=...`.
 For signed-in users, it resolves `GET /api/auth/onboarding-status` before mounting
@@ -237,20 +237,20 @@ Implemented states include:
 
 ## Current Pages
 
-| Page            | Current behavior                                                                                     |
-| --------------- | ---------------------------------------------------------------------------------------------------- |
-| Login           | Clerk `SignIn`, safe redirect handling, sign-out toast.                                              |
-| Sign Up         | Clerk `SignUp`, then directs signed-in users toward clinic onboarding.                                |
+| Page              | Current behavior                                                                                                                                                                                                              |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Login             | Clerk `SignIn`, safe redirect handling, sign-out toast.                                                                                                                                                                       |
+| Sign Up           | Clerk `SignUp`, then directs signed-in users toward clinic onboarding.                                                                                                                                                        |
 | Clinic Onboarding | Resolves onboarding status, renders first-time clinic form for `NOT_STARTED`, posts clinic bootstrap, offers optional fictional sample data after successful clinic creation, and redirects completed users to the dashboard. |
-| Landing         | Public product overview with sign-in/sign-up CTAs and a signed-in continuation CTA to onboarding.    |
-| Dashboard       | Fetches summary, high-risk appointments, today activity, and the Admin first-run setup checklist status. |
-| Doctors         | Lists doctors, local search, create link.                                                            |
-| Doctor Create   | Creates doctor through backend API.                                                                  |
-| Patients        | Lists patients from `PatientClinic` API, backend search, create link.                                |
-| Patient Create  | Creates patient and clinic link through backend API.                                                 |
-| Appointments    | Lists/filter appointments, books appointments, updates appointment status, shows prediction details. |
-| Queue           | Lists today's queue, filters by doctor/status, updates queue status, shows first risk details.       |
-| Clinic Settings | Loads the active clinic settings, displays the slug read-only, and lets Admins update supported profile and operational fields. |
+| Landing           | Public product overview with sign-in/sign-up CTAs and a signed-in continuation CTA to onboarding.                                                                                                                             |
+| Dashboard         | Fetches summary, high-risk appointments, today activity, and the Admin first-run setup checklist status.                                                                                                                      |
+| Doctors           | Lists doctors, local search, create link, and list-page edit workflow.                                                                                                                                                        |
+| Doctor Create     | Creates doctor through backend API.                                                                                                                                                                                           |
+| Patients          | Lists patients from `PatientClinic` API, backend search, create link, and list-page edit workflow.                                                                                                                            |
+| Patient Create    | Creates patient and clinic link through backend API.                                                                                                                                                                          |
+| Appointments      | Lists/filter appointments, books appointments, updates appointment status, shows prediction details.                                                                                                                          |
+| Queue             | Lists today's queue, filters by doctor/status, updates queue status, reorders active entries manually, shows first risk details.                                                                                              |
+| Clinic Settings   | Loads the active clinic settings, displays the slug read-only, and lets Admins update supported profile and operational fields.                                                                                               |
 
 ## How To Add A New Page
 
@@ -274,8 +274,8 @@ Implemented states include:
 ## UI Limitations
 
 - Clinic settings UI is implemented for Admin profile and operational updates.
-- Doctor edit and patient edit screens are not implemented.
-- Queue reorder API is not surfaced in the UI.
+- Doctor edit and patient edit workflows are implemented as list-page edit panels.
+- Queue reorder is surfaced as manual move-up and move-down controls for active queue entries.
 - Public landing, public sign-up, and first-time clinic onboarding UI exist.
 - First-time onboarding includes an optional fictional sample-data decision after clinic bootstrap.
 - Protected application routing is onboarding-aware; `ActiveClinicProvider` is mounted only after completed active Admin/Staff onboarding status.

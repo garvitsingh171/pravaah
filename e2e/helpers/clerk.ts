@@ -61,5 +61,7 @@ export const signUpWithClerk = async (page: Page, identity: E2EIdentity) => {
         await page.getByRole('button', { name: /continue|verify/i }).click();
     }
 
-    await expect(page).toHaveURL(/\/onboarding\/clinic|\/dashboard|\/doctors|\/patients|\/appointments|\/queue/);
+    await expect(page).toHaveURL(
+        /\/onboarding\/clinic|\/dashboard|\/doctors|\/patients|\/appointments|\/queue/
+    );
 };

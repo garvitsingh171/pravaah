@@ -27,11 +27,7 @@ type RenderOptions = {
     activeClinic?: ActiveClinicContext;
 };
 
-function TestProviders({
-    children,
-    route = '/',
-    activeClinic,
-}: PropsWithChildren<RenderOptions>) {
+function TestProviders({ children, route = '/', activeClinic }: PropsWithChildren<RenderOptions>) {
     const content = activeClinic ? (
         <ActiveClinicReactContext.Provider value={activeClinic}>
             {children}

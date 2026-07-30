@@ -15,27 +15,32 @@ import { patientRouter } from '../patients/patient.routes.js';
 import { queueRouter } from '../queues/queue.routes.js';
 import { authRouter, validateOnboardingClinicRequest } from './auth.routes.js';
 
-type ExpressRouteLayer = {
-    route?: {
-        path: string;
-        methods: Record<string, boolean>;
-        stack: Array<{
-            handle: RequestHandler & {
-                name: string;
-            };
-        }>;
-    };
+type InspectableRoute = {
+    path: string;
+    methods: Record<string, boolean | undefined>;
+    stack: Array<{
+        handle: RequestHandler & {
+            name?: string;
+        };
+    }>;
 };
 
-type InspectableRouter = Router & {
-    stack?: ExpressRouteLayer[];
+type ExpressRouteLayer = {
+    route?: InspectableRoute;
+};
+
+const getInspectableRoutes = (router: Router): InspectableRoute[] => {
+    const stack = (router as unknown as { stack?: ExpressRouteLayer[] }).stack ?? [];
+
+    return stack
+        .map((layer) => layer.route)
+        .filter((route): route is InspectableRoute => Boolean(route));
 };
 
 const getRouteHandlerNames = (router: Router, method: string, path: string): string[] => {
-    const stack = (router as InspectableRouter).stack ?? [];
-    const route = stack
-        .map((layer) => layer.route)
-        .find((candidate) => candidate?.path === path && candidate.methods[method] === true);
+    const route = getInspectableRoutes(router).find(
+        (candidate) => candidate.path === path && candidate.methods[method] === true
+    );
 
     if (!route) {
         return [];
@@ -45,10 +50,9 @@ const getRouteHandlerNames = (router: Router, method: string, path: string): str
 };
 
 const getRouteHandlers = (router: Router, method: string, path: string): RequestHandler[] => {
-    const stack = (router as InspectableRouter).stack ?? [];
-    const route = stack
-        .map((layer) => layer.route)
-        .find((candidate) => candidate?.path === path && candidate.methods[method] === true);
+    const route = getInspectableRoutes(router).find(
+        (candidate) => candidate.path === path && candidate.methods[method] === true
+    );
 
     if (!route) {
         return [];

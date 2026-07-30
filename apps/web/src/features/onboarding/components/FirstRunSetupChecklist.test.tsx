@@ -38,7 +38,9 @@ describe('FirstRunSetupChecklist', () => {
 
         expect(screen.getByText('2 of 4 steps completed')).toBeInTheDocument();
         expect(screen.getByText('50% complete')).toBeInTheDocument();
-        expect(screen.queryByRole('link', { name: /complete clinic settings/i })).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('link', { name: /complete clinic settings/i })
+        ).not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: /add doctor/i })).not.toBeInTheDocument();
         expect(screen.getByRole('link', { name: /add patient/i })).toHaveAttribute(
             'href',

@@ -37,7 +37,9 @@ export const completeClinicOnboardingWithoutSampleData = async (
     page: Page,
     clinic = createE2EClinic()
 ) => {
-    await expect(page.getByRole('heading', { name: /create your clinic workspace/i })).toBeVisible();
+    await expect(
+        page.getByRole('heading', { name: /create your clinic workspace/i })
+    ).toBeVisible();
     await fillClinicOnboardingForm(page, clinic);
     await page.getByRole('button', { name: /create clinic workspace/i }).click();
     await expect(page.getByRole('heading', { name: /add fictional sample data/i })).toBeVisible();

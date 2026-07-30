@@ -86,7 +86,7 @@ describe('DashboardOverviewPage', () => {
 
         expect(await screen.findByText("Today's appointments")).toBeInTheDocument();
         expect(screen.getByText('2 of 4 steps completed')).toBeInTheDocument();
-        expect(screen.getByText('Riya Sharma')).toBeInTheDocument();
+        expect(screen.getAllByText('Riya Sharma').length).toBeGreaterThan(0);
         expect(screen.getByText('Appointment booked')).toBeInTheDocument();
     });
 
@@ -127,7 +127,7 @@ describe('DashboardOverviewPage', () => {
         expect(await screen.findByText('Setup checklist could not be loaded')).toBeInTheDocument();
         expect(screen.getByText('INVALID_AUTH_TOKEN')).toBeInTheDocument();
 
-        await user.click(screen.getByRole('button', { name: /retry/i }));
+        await user.click(screen.getByRole('button', { name: /try again/i }));
 
         expect(await screen.findByText('4 of 4 steps completed')).toBeInTheDocument();
         expect(mockGetOnboardingStatus).toHaveBeenCalledTimes(2);
@@ -186,7 +186,7 @@ describe('DashboardOverviewPage', () => {
         await waitFor(() => {
             expect(screen.getByText('2 of 4 steps completed')).toBeInTheDocument();
         });
-        expect(screen.getByText('Riya Sharma')).toBeInTheDocument();
+        expect(screen.getAllByText('Riya Sharma').length).toBeGreaterThan(0);
     });
 
     it('does not request the Admin setup checklist for Staff users', async () => {
@@ -196,7 +196,9 @@ describe('DashboardOverviewPage', () => {
             activeClinic: staffActiveClinic,
         });
 
-        expect(await screen.findByRole('heading', { name: /dashboard overview/i })).toBeInTheDocument();
+        expect(
+            await screen.findByRole('heading', { name: /dashboard overview/i })
+        ).toBeInTheDocument();
         expect(screen.queryByText('First-run setup')).not.toBeInTheDocument();
         expect(mockGetOnboardingStatus).not.toHaveBeenCalled();
     });

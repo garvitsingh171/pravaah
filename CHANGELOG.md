@@ -11,10 +11,13 @@ The format follows a simple Keep a Changelog style. This project uses `v0.1.0` a
 - Initialized v0.2 documentation scope for Public Demo and Self-Service Clinic Onboarding.
 - Documented the planned onboarding architecture boundaries, including authenticated-but-unprovisioned user state.
 - Documented planned transactional clinic and first Admin provisioning rules for v0.2.
+- Added doctor edit, patient edit, and manual queue reorder workflows.
+- Added focused frontend and E2E coverage for doctor edit, patient edit, and queue reorder behavior.
 
 ### Changed
 
 - Marked v0.1.0 as the stable frozen MVP release in documentation.
+- Split the server production TypeScript build from test-aware compiler settings and clean stale `dist` output before emitting.
 
 ### Planned
 

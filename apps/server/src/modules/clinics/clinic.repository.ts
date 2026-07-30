@@ -223,49 +223,43 @@ const countSampleRecords = async (
             : {}),
     } satisfies Prisma.AppointmentWhereInput;
 
-    const [
-        doctors,
-        patients,
-        appointments,
-        noShowPredictions,
-        queueEntries,
-        todayQueueEntries,
-    ] = await Promise.all([
-        tx.doctor.count({
-            where: sampleRecordWhere(clinicId),
-        }),
-        tx.patientClinic.count({
-            where: {
-                clinicId,
-                notes: {
-                    contains: SAMPLE_DATA_NOTE_MARKER,
+    const [doctors, patients, appointments, noShowPredictions, queueEntries, todayQueueEntries] =
+        await Promise.all([
+            tx.doctor.count({
+                where: sampleRecordWhere(clinicId),
+            }),
+            tx.patientClinic.count({
+                where: {
+                    clinicId,
+                    notes: {
+                        contains: SAMPLE_DATA_NOTE_MARKER,
+                    },
                 },
-            },
-        }),
-        tx.appointment.count({
-            where: sampleAppointmentWhere,
-        }),
-        tx.noShowPrediction.count({
-            where: {
-                clinicId,
-                appointment: sampleAppointmentWhere,
-            },
-        }),
-        tx.queueEntry.count({
-            where: {
-                clinicId,
-                appointment: sampleAppointmentWhere,
-            },
-        }),
-        tx.queueEntry.count({
-            where: {
-                clinicId,
-                appointment: {
-                    ...todaySampleAppointmentWhere,
+            }),
+            tx.appointment.count({
+                where: sampleAppointmentWhere,
+            }),
+            tx.noShowPrediction.count({
+                where: {
+                    clinicId,
+                    appointment: sampleAppointmentWhere,
                 },
-            },
-        }),
-    ]);
+            }),
+            tx.queueEntry.count({
+                where: {
+                    clinicId,
+                    appointment: sampleAppointmentWhere,
+                },
+            }),
+            tx.queueEntry.count({
+                where: {
+                    clinicId,
+                    appointment: {
+                        ...todaySampleAppointmentWhere,
+                    },
+                },
+            }),
+        ]);
 
     return {
         doctors,

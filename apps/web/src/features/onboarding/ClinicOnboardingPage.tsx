@@ -381,9 +381,7 @@ function OnboardingPageShell({
                             className="h-10 w-10 shrink-0 rounded-md"
                         />
                         <div className="min-w-0">
-                            <p className="text-sm font-semibold uppercase text-blue-600">
-                                Pravaah
-                            </p>
+                            <p className="text-sm font-semibold uppercase text-blue-600">Pravaah</p>
                             <p className="text-base font-bold text-slate-950">{eyebrow}</p>
                         </div>
                     </Link>
@@ -649,8 +647,8 @@ function SampleDataDecisionPanel({
                         Add fictional sample data?
                     </h1>
                     <p className="mt-4 text-base leading-7 text-slate-600">
-                        {state.clinic.name} is ready. You can add demonstration records now, or
-                        open Pravaah with an empty clinic and build the workflow yourself.
+                        {state.clinic.name} is ready. You can add demonstration records now, or open
+                        Pravaah with an empty clinic and build the workflow yourself.
                     </p>
                 </div>
 
@@ -944,10 +942,7 @@ function ClinicOnboardingPage() {
                             error: null,
                         });
                     } catch (statusError) {
-                        if (
-                            statusError instanceof Error &&
-                            statusError.name === 'AbortError'
-                        ) {
+                        if (statusError instanceof Error && statusError.name === 'AbortError') {
                             return;
                         }
                     }
@@ -1142,9 +1137,13 @@ function ClinicOnboardingPage() {
                     <div className="rounded-lg border border-slate-200 bg-white p-5">
                         <h2 className="text-base font-bold text-slate-950">What happens next</h2>
                         <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
-                            <li>Pravaah uses your current Clerk identity as the trusted account.</li>
+                            <li>
+                                Pravaah uses your current Clerk identity as the trusted account.
+                            </li>
                             <li>The backend creates the clinic and first Admin together.</li>
-                            <li>Role, status, user ID, and clinic ownership are never chosen here.</li>
+                            <li>
+                                Role, status, user ID, and clinic ownership are never chosen here.
+                            </li>
                         </ul>
                     </div>
 

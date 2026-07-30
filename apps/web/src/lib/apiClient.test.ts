@@ -147,9 +147,7 @@ describe('apiClient onboarding boundaries', () => {
         );
 
         await expect(
-            createApiClient({ baseUrl: 'http://localhost:5000/api' }).get(
-                '/auth/onboarding-status'
-            )
+            createApiClient({ baseUrl: 'http://localhost:5000/api' }).get('/auth/onboarding-status')
         ).rejects.toMatchObject({
             code: 'API_REQUEST_ABORTED',
         });
@@ -157,14 +155,10 @@ describe('apiClient onboarding boundaries', () => {
         vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
 
         await expect(
-            createApiClient({ baseUrl: 'http://localhost:5000/api' }).get(
-                '/auth/onboarding-status'
-            )
+            createApiClient({ baseUrl: 'http://localhost:5000/api' }).get('/auth/onboarding-status')
         ).rejects.toBeInstanceOf(ApiClientError);
         await expect(
-            createApiClient({ baseUrl: 'http://localhost:5000/api' }).get(
-                '/auth/onboarding-status'
-            )
+            createApiClient({ baseUrl: 'http://localhost:5000/api' }).get('/auth/onboarding-status')
         ).rejects.toMatchObject({
             code: 'API_NETWORK_ERROR',
         });

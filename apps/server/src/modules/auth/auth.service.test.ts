@@ -831,12 +831,12 @@ describe('authService.createClinicOnboarding', () => {
             'ALREADY_COMPLETED',
             'CREATED',
         ]);
-        expect(results.find((result) => result.outcome === 'ALREADY_COMPLETED')?.data.clinic).toEqual(
-            {
-                id: activeClinic.id,
-                name: activeClinic.name,
-                slug: activeClinic.slug,
-            }
-        );
+        expect(
+            results.find((result) => result.outcome === 'ALREADY_COMPLETED')?.data.clinic
+        ).toEqual({
+            id: activeClinic.id,
+            name: activeClinic.name,
+            slug: activeClinic.slug,
+        });
     });
 });

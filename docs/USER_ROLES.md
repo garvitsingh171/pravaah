@@ -23,28 +23,28 @@ v0.2 adds an authenticated-but-unprovisioned onboarding state, but that state is
 
 ## Permission Table
 
-| Capability                                  | Admin                      | Staff           | Patient record | Doctor record |
-| ------------------------------------------- | -------------------------- | --------------- | -------------- | ------------- |
-| Sign in to web app                          | Yes                        | Yes             | No             | No            |
-| Fetch current internal user profile         | Yes                        | Yes             | No             | No            |
+| Capability                                  | Admin                              | Staff           | Patient record | Doctor record |
+| ------------------------------------------- | ---------------------------------- | --------------- | -------------- | ------------- |
+| Sign in to web app                          | Yes                                | Yes             | No             | No            |
+| Fetch current internal user profile         | Yes                                | Yes             | No             | No            |
 | Create clinic through onboarding            | First active provisioned user only | No              | No             | No            |
-| Create standalone clinic                    | Disabled                   | No              | No             | No            |
-| Update clinic                               | Yes, for own active clinic | No              | No             | No            |
-| Create/list/update doctors through backend  | Yes                        | Yes             | No             | No            |
-| Use doctor create/list UI                   | Yes                        | Yes             | No             | No            |
-| Use doctor edit UI                          | Not implemented            | Not implemented | No             | No            |
-| Create/list/update patients through backend | Yes                        | Yes             | No             | No            |
-| Use patient create/list UI                  | Yes                        | Yes             | No             | No            |
-| Use patient edit UI                         | Not implemented            | Not implemented | No             | No            |
-| Book appointments                           | Yes                        | Yes             | No             | No            |
-| List/filter appointments                    | Yes                        | Yes             | No             | No            |
-| Update appointment status                   | Yes                        | Yes             | No             | No            |
-| List today's queue                          | Yes                        | Yes             | No             | No            |
-| Update queue status                         | Yes                        | Yes             | No             | No            |
-| Reorder queue through backend API           | Yes                        | Yes             | No             | No            |
-| Reorder queue through frontend UI           | Not implemented            | Not implemented | No             | No            |
-| View dashboard                              | Yes                        | Yes             | No             | No            |
-| View starter no-show risk                   | Yes                        | Yes             | No             | No            |
+| Create standalone clinic                    | Disabled                           | No              | No             | No            |
+| Update clinic                               | Yes, for own active clinic         | No              | No             | No            |
+| Create/list/update doctors through backend  | Yes                                | Yes             | No             | No            |
+| Use doctor create/list UI                   | Yes                                | Yes             | No             | No            |
+| Use doctor edit UI                          | Not implemented                    | Not implemented | No             | No            |
+| Create/list/update patients through backend | Yes                                | Yes             | No             | No            |
+| Use patient create/list UI                  | Yes                                | Yes             | No             | No            |
+| Use patient edit UI                         | Not implemented                    | Not implemented | No             | No            |
+| Book appointments                           | Yes                                | Yes             | No             | No            |
+| List/filter appointments                    | Yes                                | Yes             | No             | No            |
+| Update appointment status                   | Yes                                | Yes             | No             | No            |
+| List today's queue                          | Yes                                | Yes             | No             | No            |
+| Update queue status                         | Yes                                | Yes             | No             | No            |
+| Reorder queue through backend API           | Yes                                | Yes             | No             | No            |
+| Reorder queue through frontend UI           | Not implemented                    | Not implemented | No             | No            |
+| View dashboard                              | Yes                                | Yes             | No             | No            |
+| View starter no-show risk                   | Yes                                | Yes             | No             | No            |
 
 Authenticated-but-unprovisioned identities may call only explicitly onboarding-aware endpoints. They cannot access operational clinic, doctor, patient, appointment, queue, dashboard, or prediction APIs.
 

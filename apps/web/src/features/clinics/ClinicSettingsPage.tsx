@@ -626,9 +626,7 @@ function ClinicSettingsPage() {
                     <p className="text-sm font-medium uppercase tracking-wide text-blue-600">
                         Clinic Settings
                     </p>
-                    <h1 className="mt-3 text-3xl font-bold text-slate-900">
-                        {state.clinic.name}
-                    </h1>
+                    <h1 className="mt-3 text-3xl font-bold text-slate-900">{state.clinic.name}</h1>
                     <p className="mt-3 text-sm text-slate-500">Slug: {state.clinic.slug}</p>
                 </div>
 

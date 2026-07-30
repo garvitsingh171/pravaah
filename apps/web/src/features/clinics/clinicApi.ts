@@ -46,9 +46,6 @@ export const getClinicSettings = (clinicId: string, signal?: AbortSignal) => {
     return apiClient.get<ClinicSettingsResponseData>(`/clinics/${clinicId}`, { signal });
 };
 
-export const updateClinicSettings = (
-    clinicId: string,
-    payload: UpdateClinicSettingsRequest
-) => {
+export const updateClinicSettings = (clinicId: string, payload: UpdateClinicSettingsRequest) => {
     return apiClient.patch<ClinicSettingsResponseData>(`/clinics/${clinicId}`, payload);
 };

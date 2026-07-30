@@ -284,11 +284,11 @@ Main errors:
 
 ### Provision Sample Data
 
-| Field | Value |
-| ----- | ----- |
-| Method | POST |
-| Path | `/api/clinics/:clinicId/sample-data` |
-| Auth | Required, own active clinic, Admin |
+| Field  | Value                                |
+| ------ | ------------------------------------ |
+| Method | POST                                 |
+| Path   | `/api/clinics/:clinicId/sample-data` |
+| Auth   | Required, own active clinic, Admin   |
 
 This endpoint provisions fictional demonstration records for the authenticated
 Admin's clinic after onboarding has completed. It does not run the development
@@ -466,6 +466,7 @@ Body summary:
 
 - any create-doctor field plus `isActive`
 - at least one field required
+- nullable optional fields may be sent as `null` to clear them
 
 Main errors:
 

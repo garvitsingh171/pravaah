@@ -61,32 +61,32 @@ npm run dev:server
 
 Source: `apps/web/package.json`.
 
-| Command                       | Purpose                        |
-| ----------------------------- | ------------------------------ |
-| `npm run dev -w apps/web`     | Start Vite dev server.         |
-| `npm run build -w apps/web`   | Type-check and build Vite app. |
-| `npm run lint -w apps/web`    | Run ESLint.                    |
-| `npm run preview -w apps/web` | Preview built frontend.        |
-| `npm run check -w apps/web`   | Run frontend build.            |
-| `npm run test -w apps/web`    | Run frontend Vitest tests.     |
-| `npm run test:watch -w apps/web` | Run frontend tests in watch mode. |
+| Command                             | Purpose                              |
+| ----------------------------------- | ------------------------------------ |
+| `npm run dev -w apps/web`           | Start Vite dev server.               |
+| `npm run build -w apps/web`         | Type-check and build Vite app.       |
+| `npm run lint -w apps/web`          | Run ESLint.                          |
+| `npm run preview -w apps/web`       | Preview built frontend.              |
+| `npm run check -w apps/web`         | Run frontend build.                  |
+| `npm run test -w apps/web`          | Run frontend Vitest tests.           |
+| `npm run test:watch -w apps/web`    | Run frontend tests in watch mode.    |
 | `npm run test:coverage -w apps/web` | Run frontend tests with V8 coverage. |
 
 ## Backend Scripts
 
 Source: `apps/server/package.json`.
 
-| Command                                        | Purpose                                       |
-| ---------------------------------------------- | --------------------------------------------- |
-| `npm run dev -w apps/server`                   | Start Express with `tsx watch src/server.ts`. |
-| `npm run build -w apps/server`                 | Generate Prisma Client and compile to `dist`. |
-| `npm run start -w apps/server`                 | Run `node dist/server.js`.                    |
-| `npm run check -w apps/server`                 | Run `tsc --noEmit`.                           |
-| `npm run lint -w apps/server`                  | Prints `server lint not configured yet`.      |
-| `npm run test -w apps/server`                  | Run Vitest tests.                             |
-| `npm run seed -w apps/server`                  | Run Prisma seed.                              |
-| `npm run seed:demo -w apps/server`             | Run Prisma seed.                              |
-| `npm run prisma:migrate:deploy -w apps/server` | Run production Prisma migrations.             |
+| Command                                        | Purpose                                                               |
+| ---------------------------------------------- | --------------------------------------------------------------------- |
+| `npm run dev -w apps/server`                   | Start Express with `tsx watch src/server.ts`.                         |
+| `npm run build -w apps/server`                 | Clean `dist`, generate Prisma Client, and compile production sources. |
+| `npm run start -w apps/server`                 | Run `node dist/server.js`.                                            |
+| `npm run check -w apps/server`                 | Run `tsc --noEmit`.                                                   |
+| `npm run lint -w apps/server`                  | Prints `server lint not configured yet`.                              |
+| `npm run test -w apps/server`                  | Run Vitest tests.                                                     |
+| `npm run seed -w apps/server`                  | Run Prisma seed.                                                      |
+| `npm run seed:demo -w apps/server`             | Run Prisma seed.                                                      |
+| `npm run prisma:migrate:deploy -w apps/server` | Run production Prisma migrations.                                     |
 
 ## Environment Files
 
