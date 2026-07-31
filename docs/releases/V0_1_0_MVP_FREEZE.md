@@ -168,7 +168,7 @@ Active development now moves to:
 v0.2.0 - Public Demo and Self-Service Clinic Onboarding
 ```
 
-The active scope source of truth is `docs/V0_2_SCOPE.md`.
+The active scope source of truth is `docs/scope/V0_2_SCOPE.md`.
 
 v0.2 must preserve v0.1 behavior while adding:
 
