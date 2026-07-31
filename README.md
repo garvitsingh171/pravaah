@@ -1,38 +1,50 @@
 # Pravaah
 
-Pravaah is an AI-assisted clinic flow management MVP for small and medium clinics. It helps clinic-side Admin and Staff users manage doctor records, patient records, appointments, today's queue, dashboard activity, and starter no-show risk scoring.
+Pravaah is an AI-assisted clinic flow management app for small and medium clinics. It helps clinic-side Admin and Staff users manage clinic setup, doctors, patients, appointments, today's queue, dashboard activity, and starter no-show risk scoring.
 
 The no-show feature is rule-based and explainable. It is not trained machine learning.
 
-## MVP Features
+## Release Status
 
-- Clerk sign-in for clinic-side Admin/Staff users
-- internal Pravaah `User` mapping for role, status, and clinic access
-- doctor record create/list/edit workflows
-- patient record create/list/edit workflows with clinic-specific history
-- appointment booking, filtering, listing, and status updates
-- queue listing, filtering, status updates, and manual reorder controls
-- backend queue reorder API
-- dashboard summary, high-risk appointments, and activity feed
-- stored `NoShowPrediction` results with reasons and suggested staff actions
-- Prisma/PostgreSQL schema and demo seed data
-- backend Vitest coverage for critical service and validation behavior
-- frontend Vitest/React Testing Library coverage for onboarding-aware routing
-- Playwright E2E scaffolding for public, Clerk sign-up, onboarding, and smoke journeys
+| Track             | Status                                                                                                              |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Frozen baseline   | `v0.1.0` MVP complete and preserved as a historical release record                                                  |
+| Current candidate | `v0.2.0` Public Demo and Self-Service Clinic Onboarding                                                             |
+| Publication state | Documentation prepared; release verification, deployment URL confirmation, and screenshot capture are still pending |
+
+Do not treat `v0.2.0` as fully released until the owner runs the verification checklist in [v0.2 Release Notes](docs/releases/V0_2_0_RELEASE_NOTES.md).
+
+## Current Capabilities
+
+- Public landing page plus Clerk sign-in and sign-up routes.
+- Onboarding-aware routing for signed-out, unprovisioned, active Admin, active Staff, and recovery states.
+- Identity-only onboarding status API for valid Clerk users without internal Pravaah accounts.
+- Transactional clinic plus first Admin provisioning with server-owned role/status/clinic authority.
+- Optional fictional sample data scoped to the newly created clinic.
+- Functional Admin clinic settings page.
+- First-run setup checklist.
+- Doctor create/list/edit workflows.
+- Patient create/list/edit workflows with clinic-specific history fields.
+- Appointment booking, filtering, listing, status updates, and queue entry creation.
+- Queue listing, filtering, status updates, and manual reorder controls.
+- Dashboard summary, high-risk appointments, and activity feed.
+- Stored `NoShowPrediction` results with reasons and suggested staff actions.
+- Prisma/PostgreSQL schema, migrations, and local demo seed data.
+- Backend, frontend, and Playwright test files covering the critical v0.2 paths. These checks still need to be run before release.
 
 ## Tech Stack
 
-| Layer      | Technology                |
-| ---------- | ------------------------- |
-| Monorepo   | npm workspaces            |
-| Frontend   | React + TypeScript + Vite |
-| Styling    | Tailwind CSS              |
-| Backend    | Express + TypeScript      |
-| Auth       | Clerk                     |
-| Database   | PostgreSQL                |
-| ORM        | Prisma                    |
-| Validation | Zod                       |
-| Testing    | Vitest where configured   |
+| Layer      | Technology                                |
+| ---------- | ----------------------------------------- |
+| Monorepo   | npm workspaces                            |
+| Frontend   | React + TypeScript + Vite                 |
+| Styling    | Tailwind CSS                              |
+| Backend    | Express + TypeScript                      |
+| Auth       | Clerk                                     |
+| Database   | PostgreSQL                                |
+| ORM        | Prisma                                    |
+| Validation | Zod                                       |
+| Testing    | Vitest, React Testing Library, Playwright |
 
 ## Repository Structure
 
@@ -41,7 +53,16 @@ pravaah/
 ├── apps/
 │   ├── web/              # React/Vite frontend
 │   └── server/           # Express API, Prisma schema, migrations, seed
-├── docs/                 # Current documentation source of truth
+├── docs/
+│   ├── product/          # Product scope, roles, workflows, decisions
+│   ├── architecture/     # System, API, database, auth, frontend/backend structure
+│   ├── guides/           # Setup, deployment, testing, troubleshooting, demo, contributing
+│   ├── scope/            # v0.2 scope and roadmap
+│   ├── releases/         # Historical and candidate release notes
+│   ├── interview/        # Interview prep and workflow walkthroughs
+│   ├── engineering/      # Code organization and consistency audit
+│   ├── ai/               # Guardrails for future AI assistants
+│   └── assets/           # Demo asset manifests and screenshot placeholders
 ├── packages/             # Reserved for future shared workspace packages
 ├── .github/              # Issue templates and PR template
 ├── .env.example          # Example environment variable names
@@ -57,16 +78,15 @@ pravaah/
     npm install
     ```
 
-2. Create local env files.
+2. Create local env files from the checked-in examples.
 
     ```txt
+    .env
     apps/web/.env
     apps/server/.env
     ```
 
-    Use `.env.example` for variable names. Do not commit real secrets.
-
-3. Generate and migrate Prisma from the backend workspace.
+3. Generate Prisma and run local migrations from the backend workspace.
 
     ```bash
     cd apps/server
@@ -96,22 +116,29 @@ API:      http://localhost:5000/api
 Health:   http://localhost:5000/api/health
 ```
 
+See [Setup](docs/guides/SETUP.md) for Clerk, database, seed, and E2E environment details.
+
 ## Main Scripts
 
-| Command                       | Purpose                                 |
-| ----------------------------- | --------------------------------------- |
-| `npm run dev:web`             | Start Vite frontend.                    |
-| `npm run dev:server`          | Start Express backend with `tsx watch`. |
-| `npm run build:web`           | Build frontend.                         |
-| `npm run build:server`        | Build backend.                          |
-| `npm run lint`                | Run workspace lint scripts.             |
-| `npm run test:web`            | Run frontend Vitest tests.              |
-| `npm run test:server`         | Run backend Vitest tests.               |
-| `npm run test:e2e`            | Run Playwright browser E2E tests.       |
-| `npm run test -w apps/server` | Run backend Vitest tests.               |
-| `npm run seed:demo`           | Seed local demo clinic data.            |
+| Command                | Purpose                                                 |
+| ---------------------- | ------------------------------------------------------- |
+| `npm run dev:web`      | Start Vite frontend.                                    |
+| `npm run dev:server`   | Start Express backend with `tsx watch`.                 |
+| `npm run build:web`    | Build frontend.                                         |
+| `npm run build:server` | Build backend.                                          |
+| `npm run lint`         | Run workspace lint scripts.                             |
+| `npm run format`       | Format the repo with Prettier. Writes files.            |
+| `npm run check`        | Run workspace build/check scripts. Writes build output. |
+| `npm run test:web`     | Run frontend Vitest tests.                              |
+| `npm run test:server`  | Run backend Vitest tests.                               |
+| `npm run test:e2e`     | Run Playwright browser E2E tests.                       |
+| `npm run seed:demo`    | Seed local demo clinic data.                            |
 
-Frontend tests use mocked Clerk and mocked feature APIs for deterministic UI coverage. Playwright E2E tests use Clerk testing helpers, a real backend, and a required dedicated test database; never point `E2E_DATABASE_URL` at production.
+For docs-only review, prefer a non-writing check first:
+
+```bash
+npx prettier --check README.md "docs/**/*.md"
+```
 
 ## Documentation
 
@@ -119,45 +146,50 @@ Start with [docs/README.md](docs/README.md).
 
 Key docs:
 
-- [MVP](docs/MVP.md)
-- [v0.2 Scope](docs/V0_2_SCOPE.md)
-- [v0.1.0 MVP Freeze](docs/releases/V0_1_0_MVP_FREEZE.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Roadmap](docs/ROADMAP.md)
-- [Setup](docs/SETUP.md)
-- [Database Design](docs/DATABASE_DESIGN.md)
-- [Backend Structure](docs/BACKEND_STRUCTURE.md)
-- [Frontend Structure](docs/FRONTEND_STRUCTURE.md)
-- [API Reference](docs/API_REFERENCE.md)
-- [Auth And Security](docs/AUTH_AND_SECURITY.md)
-- [Workflows](docs/WORKFLOWS.md)
-- [Interview Guide](docs/INTERVIEW_GUIDE.md)
-- [AI Context](docs/AI_CONTEXT.md)
+- [Product MVP Boundary](docs/product/MVP.md)
+- [v0.2 Scope](docs/scope/V0_2_SCOPE.md)
+- [v0.2 Release Notes](docs/releases/V0_2_0_RELEASE_NOTES.md)
+- [Demo Guide](docs/guides/DEMO_GUIDE.md)
+- [Setup](docs/guides/SETUP.md)
+- [Testing](docs/guides/TESTING.md)
+- [Deployment](docs/guides/DEPLOYMENT.md)
+- [Troubleshooting](docs/guides/TROUBLESHOOTING.md)
+- [Architecture](docs/architecture/ARCHITECTURE.md)
+- [API Reference](docs/architecture/API_REFERENCE.md)
+- [Auth And Security](docs/architecture/AUTH_AND_SECURITY.md)
+- [Interview Pack](docs/interview/README.md)
+- [AI Context](docs/ai/AI_CONTEXT.md)
 
-## Current Status
+## Verified From Source Inspection
 
-| Track                  | Status                                                    |
-| ---------------------- | --------------------------------------------------------- |
-| Current stable release | `v0.1.0` - MVP complete and deployed                      |
-| Active development     | `v0.2.0` - Public Demo and Self-Service Clinic Onboarding |
+The current source tree contains the implementation paths for public routing, sign-up, onboarding status, transactional clinic/Admin provisioning, orphan prevention, onboarding UI, sample data, onboarding-aware routing, clinic settings, first-run checklist, doctor edit, patient edit, queue reorder, and Render-safe backend build output.
 
-The MVP product boundary is preserved in [docs/MVP.md](docs/MVP.md). Active v0.2 scope is tracked in [docs/V0_2_SCOPE.md](docs/V0_2_SCOPE.md), and the frozen v0.1 release record is in [docs/releases/V0_1_0_MVP_FREEZE.md](docs/releases/V0_1_0_MVP_FREEZE.md).
+This Codex session did not run test suites, builds, deployments, migrations, or browser screenshot capture. Those remain owner release gates.
 
 ## Known Limitations
 
-- no patient login
-- no doctor login
-- no billing, prescriptions, inventory, or full medical records
-- no WhatsApp/SMS/email automation
-- no trained ML
-- no full multi-clinic SaaS membership model
-- no committed screenshots yet
+- No patient login or doctor login.
+- No billing, prescriptions, inventory, or full medical record system.
+- No WhatsApp/SMS/email automation.
+- No trained ML model.
+- No full multi-clinic SaaS membership model; current authorization uses one active `User.clinicId`.
+- No committed real screenshots yet; screenshot slots are documented in [v0.2 Assets](docs/assets/v0.2/README.md).
+- No verified public frontend/backend deployment URLs are recorded in the repository.
 
 ## Demo Flow
 
 ```txt
-Sign in -> dashboard -> add doctor -> add patient -> book appointment
--> view no-show risk -> manage queue status -> refresh dashboard
+Public landing
+-> Clerk sign-up
+-> onboarding status NOT_STARTED
+-> create clinic
+-> optional sample data
+-> dashboard
+-> clinic settings
+-> doctor edit
+-> patient edit
+-> appointment booking
+-> queue status and manual reorder
 ```
 
-Screenshots placeholder: add screenshots after a stable local or deployed demo flow is captured.
+Use [Demo Guide](docs/guides/DEMO_GUIDE.md) for the scripted walkthrough and [v0.2 Assets](docs/assets/v0.2/README.md) for screenshot capture requirements.

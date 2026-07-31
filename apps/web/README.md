@@ -38,6 +38,6 @@ src/
 
 See the root docs for details:
 
-- [Frontend Structure](../../docs/FRONTEND_STRUCTURE.md)
-- [Setup](../../docs/SETUP.md)
-- [Auth And Security](../../docs/AUTH_AND_SECURITY.md)
+- [Frontend Structure](../../docs/architecture/FRONTEND_STRUCTURE.md)
+- [Setup](../../docs/guides/SETUP.md)
+- [Auth And Security](../../docs/architecture/AUTH_AND_SECURITY.md)

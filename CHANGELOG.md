@@ -2,42 +2,57 @@
 
 All notable changes to Project Pravaah will be documented in this file.
 
-The format follows a simple Keep a Changelog style. This project uses `v0.1.0` as the frozen MVP baseline and `v0.2.0` as the active development release.
+The project uses `v0.1.0` as the frozen MVP baseline and `v0.2.0` as the current release candidate.
 
 ## Unreleased
 
+### Changed
+
+- Reorganized documentation into product, architecture, guides, scope, releases, interview, engineering, AI, and asset sections.
+- Prepared v0.2 publication docs, demo checklist, release notes, and screenshot manifest.
+
+## v0.2.0 - Release Candidate
+
+Release state: documentation ready; final release verification pending.
+
 ### Added
 
-- Initialized v0.2 documentation scope for Public Demo and Self-Service Clinic Onboarding.
-- Documented the planned onboarding architecture boundaries, including authenticated-but-unprovisioned user state.
-- Documented planned transactional clinic and first Admin provisioning rules for v0.2.
-- Added doctor edit, patient edit, and manual queue reorder workflows.
-- Added focused frontend and E2E coverage for doctor edit, patient edit, and queue reorder behavior.
+- Public landing page and public routing.
+- Clerk sign-up route.
+- Identity-only onboarding status API.
+- Authenticated-but-unprovisioned onboarding state.
+- Transactional clinic and first Admin provisioning.
+- Orphan clinic prevention through transactional bootstrap and idempotent replay handling.
+- First-time clinic onboarding UI.
+- Optional fictional sample clinic data.
+- Onboarding-aware application routing.
+- Functional Admin clinic settings page.
+- First-run setup checklist.
+- Backend tests for onboarding, authorization, provisioning, validation, and related service behavior.
+- Frontend tests for onboarding-aware routing, onboarding UI, checklist, doctor edit, patient edit, queue reorder, and API behavior.
+- Playwright E2E flows for public routing, sign-up onboarding, sample data, edit workflows, queue reorder, and smoke journeys.
+- Doctor edit workflow.
+- Patient edit workflow.
+- Manual queue reorder controls.
 
 ### Changed
 
-- Marked v0.1.0 as the stable frozen MVP release in documentation.
 - Split the server production TypeScript build from test-aware compiler settings and clean stale `dist` output before emitting.
+- Updated product, setup, deployment, testing, troubleshooting, and interview documentation for the v0.2 candidate.
 
-### Planned
+### Verification Required Before Release
 
-- Public landing page and public routes.
-- Clerk sign-up flow.
-- Onboarding status API.
-- Clinic and first Admin transactional bootstrap.
-- Orphan clinic prevention.
-- First-time clinic onboarding UI.
-- Isolated sample clinic data.
-- Onboarding-aware routing.
-- Functional clinic settings page.
-- First-run setup checklist.
-- Hardened public onboarding APIs.
-- Backend, frontend, and end-to-end onboarding tests.
-- Doctor edit workflow.
-- Patient edit workflow.
-- Queue reorder controls.
+- `npm run lint`
+- `npm run test:web`
+- `npm run test:server`
+- `npm run test:e2e`
+- `npm run build:web`
+- `npm run build:server`
+- deployed frontend smoke check
+- deployed backend health check
+- screenshot capture for the v0.2 asset manifest
 
-## v0.1.0 - MVP Complete And Deployed
+## v0.1.0 - MVP Complete And Frozen
 
 ### Added
 
@@ -48,15 +63,15 @@ The format follows a simple Keep a Changelog style. This project uses `v0.1.0` a
 - Prisma/PostgreSQL schema and demo seed data.
 - Backend Vitest coverage for critical MVP behavior.
 
-### Known Limitations
+### Historical Limitations
 
-- Public sign-up and self-service onboarding are not included.
-- Internal users and clinic access require manual provisioning.
-- Clinic settings UI is a placeholder.
-- Doctor and patient edit screens are not implemented in the frontend.
-- Queue reorder exists in the backend API but is not exposed in the frontend UI.
-- Patient login and doctor login are not included.
-- No trained machine-learning model; no-show scoring is deterministic rule logic.
+- Public sign-up and self-service onboarding were not included.
+- Internal users and clinic access required manual provisioning.
+- Clinic settings UI was a placeholder in the frozen v0.1 release.
+- Doctor and patient edit screens were not implemented in the frozen v0.1 frontend.
+- Queue reorder existed in the backend API but was not exposed in the frozen v0.1 frontend UI.
+- Patient login and doctor login were not included.
+- No trained machine-learning model; no-show scoring was deterministic rule logic.
 
 ### Release References
 
