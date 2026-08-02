@@ -30,21 +30,21 @@ Do not treat `v0.2.0` as fully released until the owner runs the verification ch
 - Dashboard summary, high-risk appointments, and activity feed.
 - Stored `NoShowPrediction` results with reasons and suggested staff actions.
 - Prisma/PostgreSQL schema, migrations, and local demo seed data.
-- Backend, frontend, and Playwright test files covering the critical v0.2 paths. These checks still need to be run before release.
+- Backend, frontend, and API-level automated tests where implemented. Browser-based end-to-end testing is intentionally deferred to a future release.
 
 ## Tech Stack
 
-| Layer      | Technology                                |
-| ---------- | ----------------------------------------- |
-| Monorepo   | npm workspaces                            |
-| Frontend   | React + TypeScript + Vite                 |
-| Styling    | Tailwind CSS                              |
-| Backend    | Express + TypeScript                      |
-| Auth       | Clerk                                     |
-| Database   | PostgreSQL                                |
-| ORM        | Prisma                                    |
-| Validation | Zod                                       |
-| Testing    | Vitest, React Testing Library, Playwright |
+| Layer      | Technology                    |
+| ---------- | ----------------------------- |
+| Monorepo   | npm workspaces                |
+| Frontend   | React + TypeScript + Vite     |
+| Styling    | Tailwind CSS                  |
+| Backend    | Express + TypeScript          |
+| Auth       | Clerk                         |
+| Database   | PostgreSQL                    |
+| ORM        | Prisma                        |
+| Validation | Zod                           |
+| Testing    | Vitest, React Testing Library |
 
 ## Repository Structure
 
@@ -116,7 +116,7 @@ API:      http://localhost:5000/api
 Health:   http://localhost:5000/api/health
 ```
 
-See [Setup](docs/guides/SETUP.md) for Clerk, database, seed, and E2E environment details.
+See [Setup](docs/guides/SETUP.md) for Clerk, database, seed, and local environment details.
 
 ## Main Scripts
 
@@ -131,7 +131,6 @@ See [Setup](docs/guides/SETUP.md) for Clerk, database, seed, and E2E environment
 | `npm run check`        | Run workspace build/check scripts. Writes build output. |
 | `npm run test:web`     | Run frontend Vitest tests.                              |
 | `npm run test:server`  | Run backend Vitest tests.                               |
-| `npm run test:e2e`     | Run Playwright browser E2E tests.                       |
 | `npm run seed:demo`    | Seed local demo clinic data.                            |
 
 For docs-only review, prefer a non-writing check first:

@@ -76,32 +76,32 @@ Supporting goals:
 - Provision optional fake sample data only inside the new clinic.
 - Build onboarding-aware routing and a first-run experience.
 - Include clinic settings, doctor edit, patient edit, and queue reorder controls in the release candidate.
-- Add backend, frontend, and end-to-end tests around the new security-sensitive paths.
+- Add backend and frontend tests around the new security-sensitive paths, with manual full-workflow verification for browser behavior.
 
 ## Complete Issue Scope
 
-| Order | Issue                                               | Outcome                                                                                           |
-| ----- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| 1     | Freeze MVP and initialize v0.2                      | Preserve the deployed MVP as `v0.1.0` and establish `v0.2.0` release governance.                  |
-| 2     | Define v0.2 scope in documentation                  | Publish this source-of-truth scope, boundaries, non-goals, dependencies, and acceptance criteria. |
-| 3     | Add public landing page and public routes           | Make the deployed URL useful before authentication.                                               |
-| 4     | Enable Clerk sign-up flow                           | Permit external users to create a Clerk identity through supported Clerk UI and routes.           |
-| 5     | Separate Clerk identity from internal authorization | Stop treating every valid Clerk identity as if it must already have an internal user.             |
-| 6     | Add onboarding status API                           | Return the authenticated identity's provisioning state and next required action.                  |
-| 7     | Create clinic and Admin transactionally             | Bootstrap the clinic and first active Admin as one atomic operation.                              |
-| 8     | Prevent orphan clinic creation                      | Make retries, failures, and duplicate requests incapable of leaving an unowned clinic.            |
-| 9     | Build first-time clinic onboarding UI               | Collect clinic details and drive the bootstrap API with clear feedback.                           |
-| 10    | Provision isolated sample clinic data               | Give a new clinic optional fake demo data scoped only to its own clinic.                          |
-| 11    | Add onboarding-aware application routing            | Route signed-out, unprovisioned, active Admin, and active Staff states correctly.                 |
-| 12    | Build functional clinic settings page               | Allow authorized Admins to review and update operational clinic settings.                         |
-| 13    | Add first-run setup checklist                       | Guide a new Admin through clinic settings, doctors, patients, appointments, and queue setup.      |
-| 14    | Harden public onboarding APIs                       | Add validation, abuse protection, safe errors, logging discipline, and strict server authority.   |
-| 15    | Add backend onboarding tests                        | Cover status, provisioning, rollback, idempotency, authorization, and isolation.                  |
-| 16    | Add frontend and end-to-end onboarding tests        | Cover the visitor-to-dashboard journey and important failure/retry states.                        |
-| 17    | Publish v0.2 documentation and demo assets          | Update README, setup docs, screenshots, demo instructions, limitations, and release notes.        |
-| 18    | Add doctor edit workflow                            | Complete doctor management without adding doctor authentication.                                  |
-| 19    | Add patient edit workflow                           | Complete patient management without adding patient authentication.                                |
-| 20    | Add queue reorder controls                          | Expose the existing human-controlled queue ordering capability safely in the UI.                  |
+| Order | Issue                                                    | Outcome                                                                                                              |
+| ----- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| 1     | Freeze MVP and initialize v0.2                           | Preserve the deployed MVP as `v0.1.0` and establish `v0.2.0` release governance.                                     |
+| 2     | Define v0.2 scope in documentation                       | Publish this source-of-truth scope, boundaries, non-goals, dependencies, and acceptance criteria.                    |
+| 3     | Add public landing page and public routes                | Make the deployed URL useful before authentication.                                                                  |
+| 4     | Enable Clerk sign-up flow                                | Permit external users to create a Clerk identity through supported Clerk UI and routes.                              |
+| 5     | Separate Clerk identity from internal authorization      | Stop treating every valid Clerk identity as if it must already have an internal user.                                |
+| 6     | Add onboarding status API                                | Return the authenticated identity's provisioning state and next required action.                                     |
+| 7     | Create clinic and Admin transactionally                  | Bootstrap the clinic and first active Admin as one atomic operation.                                                 |
+| 8     | Prevent orphan clinic creation                           | Make retries, failures, and duplicate requests incapable of leaving an unowned clinic.                               |
+| 9     | Build first-time clinic onboarding UI                    | Collect clinic details and drive the bootstrap API with clear feedback.                                              |
+| 10    | Provision isolated sample clinic data                    | Give a new clinic optional fake demo data scoped only to its own clinic.                                             |
+| 11    | Add onboarding-aware application routing                 | Route signed-out, unprovisioned, active Admin, and active Staff states correctly.                                    |
+| 12    | Build functional clinic settings page                    | Allow authorized Admins to review and update operational clinic settings.                                            |
+| 13    | Add first-run setup checklist                            | Guide a new Admin through clinic settings, doctors, patients, appointments, and queue setup.                         |
+| 14    | Harden public onboarding APIs                            | Add validation, abuse protection, safe errors, logging discipline, and strict server authority.                      |
+| 15    | Add backend onboarding tests                             | Cover status, provisioning, rollback, idempotency, authorization, and isolation.                                     |
+| 16    | Add frontend onboarding tests and manual workflow checks | Cover the visitor-to-dashboard journey and important failure/retry states without relying on browser E2E automation. |
+| 17    | Publish v0.2 documentation and demo assets               | Update README, setup docs, screenshots, demo instructions, limitations, and release notes.                           |
+| 18    | Add doctor edit workflow                                 | Complete doctor management without adding doctor authentication.                                                     |
+| 19    | Add patient edit workflow                                | Complete patient management without adding patient authentication.                                                   |
+| 20    | Add queue reorder controls                               | Expose the existing human-controlled queue ordering capability safely in the UI.                                     |
 
 ## Implementation Order And Dependencies
 
@@ -424,7 +424,7 @@ Frontend tests must cover:
 - retry does not create a duplicate visible workspace
 - first-run checklist reflects clinic state
 
-End-to-end coverage should include:
+Manual full-workflow verification should include:
 
 ```txt
 Open deployed public URL
@@ -460,7 +460,7 @@ v0.2 is complete when:
 - Doctor and patient records can be edited safely.
 - Queue order can be changed manually through the UI.
 - Backend onboarding tests pass.
-- Frontend and end-to-end onboarding tests pass.
+- Frontend onboarding tests pass and manual onboarding workflow verification is completed.
 - v0.1 workflows continue to pass regression checks.
 - README, setup docs, architecture docs, screenshots, demo notes, and release notes match the implementation.
 

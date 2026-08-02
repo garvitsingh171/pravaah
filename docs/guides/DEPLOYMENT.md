@@ -154,7 +154,6 @@ npx prettier --check README.md "docs/**/*.md"
 npm run lint
 npm run test:web
 npm run test:server
-npm run test:e2e
 npm run build:web
 npm run build:server
 npm run check

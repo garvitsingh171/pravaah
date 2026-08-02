@@ -46,8 +46,6 @@ Source: root `package.json`.
 | `npm run check`        | `npm run build && npm run lint`    |
 | `npm run test:web`     | `npm run test -w apps/web`         |
 | `npm run test:server`  | `npm run test -w apps/server`      |
-| `npm run test:e2e`     | `playwright test`                  |
-| `npm run test:e2e:ui`  | `playwright test --ui`             |
 | `npm run seed:demo`    | `npm run seed:demo -w apps/server` |
 
 For local development, running frontend and backend in separate terminals is usually clearer:
@@ -145,21 +143,6 @@ SEED_STAFF_USER_FULL_NAME=Local Pravaah Staff
 SEED_DEMO_CLINIC_ID=00000000-0000-4000-8000-000000000000
 ```
 
-### End-To-End Test Variables
-
-Put test-runner-only values in your local shell, CI secret store, or an ignored env file loaded by your shell. Do not expose backend secrets through `VITE_*`.
-
-```txt
-CLERK_PUBLISHABLE_KEY=your_test_clerk_publishable_key
-CLERK_SECRET_KEY=your_test_clerk_secret_key
-E2E_BASE_URL=http://localhost:5173
-E2E_API_BASE_URL=http://localhost:5000/api
-E2E_DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/pravaah_e2e
-E2E_ALLOW_TEST_DATABASE_WRITES=true
-```
-
-`CLERK_PUBLISHABLE_KEY`, `E2E_BASE_URL`, and `E2E_API_BASE_URL` are safe to disclose only as non-secret configuration. `CLERK_SECRET_KEY`, `E2E_DATABASE_URL`, and the write-safety switch are test-runner secrets. `E2E_DATABASE_URL` must be a dedicated non-production database and must not silently fall back to `DATABASE_URL`.
-
 Use a real Clerk development user ID for `SEED_CLERK_USER_ID` when you want your signed-in user to access protected APIs. Placeholder seed users do not bypass Clerk.
 
 ## Database Setup
@@ -242,12 +225,6 @@ Install dependencies from the repo root:
 npm install
 ```
 
-Install Playwright's Chromium browser after dependency installation:
-
-```bash
-npx playwright install chromium
-```
-
 Run frontend tests:
 
 ```bash
@@ -266,15 +243,9 @@ Run backend tests:
 npm run test:server
 ```
 
-Run browser E2E tests only after configuring Clerk testing keys and a dedicated test database:
+Generated frontend coverage writes to `apps/web/coverage/`.
 
-```bash
-npm run test:e2e
-```
-
-Generated frontend coverage writes to `apps/web/coverage/`. Playwright writes HTML reports to `playwright-report/` and run artifacts to `test-results/`; these paths are ignored by Git.
-
-Frontend Vitest tests mock Clerk and feature APIs so they can assert Pravaah UI states without making network calls. Those mocks do not replace backend authorization tests. Playwright E2E tests use real Clerk testing helpers and the real backend, so they must never run destructively against production data.
+Frontend Vitest tests mock Clerk and feature APIs so they can assert Pravaah UI states without making network calls. Those mocks do not replace backend authorization tests. Pravaah currently focuses automated testing on frontend, backend, and API-level behavior where implemented. Browser-based end-to-end testing is intentionally deferred to a future release.
 
 ## Render Backend Deployment
 

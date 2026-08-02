@@ -6,14 +6,13 @@ Backend tests focus on services, validation, middleware, repositories, onboardin
 
 Frontend tests use Vitest, jsdom, React Testing Library, Clerk mocks, and feature API mocks to check UI states without network calls.
 
-Playwright E2E tests cover browser flows that matter for v0.2: public routing, Clerk sign-up, onboarding, sample data, edit workflows, queue reorder, and smoke paths.
+Browser-based end-to-end testing is intentionally deferred. Current automated testing focuses on frontend behavior, backend business logic, and API-level behavior where implemented. Full browser workflows are verified manually through release and smoke-test checklists.
 
 ## Commands To Know
 
 ```bash
 npm run test:server
 npm run test:web
-npm run test:e2e
 npm run build:server
 npm run build:web
 npm run check

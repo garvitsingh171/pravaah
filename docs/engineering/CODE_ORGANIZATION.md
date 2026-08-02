@@ -11,12 +11,10 @@ pravaah/
 │   ├── server/        Express API, Prisma schema, migrations, seed
 │   └── web/           React/Vite frontend
 ├── docs/              product, architecture, guides, scope, releases, interview, engineering, AI, assets
-├── e2e/               Playwright tests spanning frontend, backend, Clerk, and database
-├── packages/          reserved for future shared workspace packages
-└── playwright.config.ts
+└── packages/          reserved for future shared workspace packages
 ```
 
-Generated and vendor folders such as `dist/`, `node_modules/`, `playwright-report/`, and `test-results/` are not source organization targets.
+Generated and vendor folders such as `dist/`, `node_modules/`, and coverage output are not source organization targets.
 
 Documentation folders are intentionally category-based:
 
@@ -160,19 +158,11 @@ Use `fixtures/` for stable cross-feature fake data, `mocks/` for shared framewor
 
 The frontend app build excludes `src/**/*.test.ts`, `src/**/*.test.tsx`, and `src/test`. The frontend Vitest TypeScript config includes colocated tests and `src/test`.
 
-## Root E2E Tests
+## Browser E2E Tests
 
-Keep Playwright configuration at the repository root:
+Browser-based E2E tests are intentionally not part of the current repository. Pravaah currently focuses automated testing on frontend behavior, backend business logic, and API-level behavior where implemented. Full browser workflow verification remains manual through release and smoke-test checklists.
 
-```txt
-playwright.config.ts
-e2e/
-├── helpers/
-├── setup/
-└── *.spec.ts
-```
-
-E2E tests span Vite, Express, Clerk, and a dedicated test database, so they do not belong inside either workspace. Add deeper `e2e/specs`, `e2e/fixtures`, or `e2e/setup` structure only when file count justifies it.
+If browser E2E is reintroduced later, do it through a focused testing issue with a small critical-path suite, explicit test identity/data isolation rules, and clear owner expectations.
 
 ## Naming
 
@@ -263,7 +253,7 @@ Do not create folders for one-line helpers, empty future placeholders, cosmetic 
 - Backend unit tests: `apps/server/src/modules/<feature>/__tests__/*.test.ts`.
 - Frontend page/component/API tests: colocated with the source under `apps/web/src`.
 - Shared frontend testing code: `apps/web/src/test`.
-- E2E tests: root `e2e`.
+- Browser E2E tests: intentionally absent in the current repository.
 
 ## Common Anti-Patterns
 
@@ -271,7 +261,7 @@ Do not create folders for one-line helpers, empty future placeholders, cosmetic 
 - Creating empty `fixtures`, `mocks`, or `helpers` folders.
 - Introducing barrels that hide dependency direction.
 - Moving generated Prisma code.
-- Moving E2E tests into a workspace.
+- Reintroducing browser E2E tests without an approved testing strategy.
 - Sharing two similar snippets that do not mean the same thing.
 - Exporting production internals solely for tests.
 - Adding path aliases, frameworks, or broad formatting churn during an organization-only refactor.

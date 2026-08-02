@@ -30,7 +30,7 @@ Release state: documentation ready; final release verification pending.
 - First-run setup checklist.
 - Backend tests for onboarding, authorization, provisioning, validation, and related service behavior.
 - Frontend tests for onboarding-aware routing, onboarding UI, checklist, doctor edit, patient edit, queue reorder, and API behavior.
-- Playwright E2E flows for public routing, sign-up onboarding, sample data, edit workflows, queue reorder, and smoke journeys.
+- Historical note: this candidate previously included Playwright browser E2E flows, but the current repository has intentionally removed browser-based E2E testing and defers it to a future release.
 - Doctor edit workflow.
 - Patient edit workflow.
 - Manual queue reorder controls.
@@ -45,7 +45,6 @@ Release state: documentation ready; final release verification pending.
 - `npm run lint`
 - `npm run test:web`
 - `npm run test:server`
-- `npm run test:e2e`
 - `npm run build:web`
 - `npm run build:server`
 - deployed frontend smoke check

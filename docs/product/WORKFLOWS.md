@@ -1,6 +1,6 @@
 # Workflows
 
-This document traces the implemented end-to-end flows across frontend, API, backend, and database.
+This document traces the implemented full product flows across frontend, API, backend, and database.
 
 ## Sign In And Load App
 
