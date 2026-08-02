@@ -1,6 +1,6 @@
 {
     "name": "pravaah",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "private": true,
     "description": "Pravaah is an AI-assisted clinic flow management system that helps small clinics manage appointments, reduce no-shows, and optimize daily patient queues.",
     "workspaces": [
