@@ -4,17 +4,17 @@ This document is for future AI coding assistants working on Project Pravaah.
 
 ## Current Stack
 
-| Layer      | Current implementation                    |
-| ---------- | ----------------------------------------- |
-| Monorepo   | npm workspaces                            |
-| Frontend   | React + TypeScript + Vite                 |
-| Backend    | Express + TypeScript                      |
-| Auth       | Clerk                                     |
-| Database   | PostgreSQL                                |
-| ORM        | Prisma                                    |
-| Styling    | Tailwind CSS                              |
-| Validation | Zod                                       |
-| Testing    | Vitest, React Testing Library, Playwright |
+| Layer      | Current implementation        |
+| ---------- | ----------------------------- |
+| Monorepo   | npm workspaces                |
+| Frontend   | React + TypeScript + Vite     |
+| Backend    | Express + TypeScript          |
+| Auth       | Clerk                         |
+| Database   | PostgreSQL                    |
+| ORM        | Prisma                        |
+| Styling    | Tailwind CSS                  |
+| Validation | Zod                           |
+| Testing    | Vitest, React Testing Library |
 
 Do not suggest replacing the stack unless the user explicitly asks for a stack decision.
 
@@ -156,7 +156,7 @@ Before changing behavior or docs, inspect:
 - `apps/server/prisma/schema.prisma`
 - backend `app.ts`, `server.ts`, config, middleware, routes, services, repositories, validation, tests
 - frontend `main.tsx`, `App.tsx`, providers, routes, feature pages, API helpers, types, tests
-- `e2e/` for Playwright flows
+- browser-based E2E testing is intentionally deferred; use manual workflow verification docs for full browser checks
 - seed files
 - GitHub issue/PR templates if contribution workflow is involved
 

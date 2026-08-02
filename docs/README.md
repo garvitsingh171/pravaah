@@ -57,7 +57,7 @@ For interview preparation:
 | ----------------------------------- | --------------------------------------------------------------------------------- |
 | [MVP](product/MVP.md)               | Frozen v0.1 MVP product boundary and historical limitations.                      |
 | [User Roles](product/USER_ROLES.md) | Admin, Staff, onboarding state, patient records, doctor records, and permissions. |
-| [Workflows](product/WORKFLOWS.md)   | End-to-end product flows across frontend, API, backend, and database.             |
+| [Workflows](product/WORKFLOWS.md)   | Full product flows across frontend, API, backend, and database.                   |
 | [Decisions](product/DECISIONS.md)   | Important product and technical decisions.                                        |
 
 ### Architecture
@@ -74,14 +74,14 @@ For interview preparation:
 
 ### Guides
 
-| Doc                                          | Purpose                                                                         |
-| -------------------------------------------- | ------------------------------------------------------------------------------- |
-| [Setup](guides/SETUP.md)                     | Local development, env vars, Prisma, seeds, Clerk, and E2E setup.               |
-| [Deployment](guides/DEPLOYMENT.md)           | Vercel, Render, Neon, Clerk, release gates, and deployment placeholders.        |
-| [Testing](guides/TESTING.md)                 | Test commands, coverage map, release verification, and gaps.                    |
-| [Troubleshooting](guides/TROUBLESHOOTING.md) | Common auth, onboarding, database, API, frontend, E2E, and deployment failures. |
-| [Contributing](guides/CONTRIBUTING.md)       | Issue, branch, PR, docs, checks, and definition-of-done rules.                  |
-| [Demo Guide](guides/DEMO_GUIDE.md)           | Scripted v0.2 walkthrough and capture checklist.                                |
+| Doc                                          | Purpose                                                                    |
+| -------------------------------------------- | -------------------------------------------------------------------------- |
+| [Setup](guides/SETUP.md)                     | Local development, env vars, Prisma, seeds, and Clerk setup.               |
+| [Deployment](guides/DEPLOYMENT.md)           | Vercel, Render, Neon, Clerk, release gates, and deployment placeholders.   |
+| [Testing](guides/TESTING.md)                 | Test commands, coverage map, release verification, and gaps.               |
+| [Troubleshooting](guides/TROUBLESHOOTING.md) | Common auth, onboarding, database, API, frontend, and deployment failures. |
+| [Contributing](guides/CONTRIBUTING.md)       | Issue, branch, PR, docs, checks, and definition-of-done rules.             |
+| [Demo Guide](guides/DEMO_GUIDE.md)           | Scripted v0.2 walkthrough and capture checklist.                           |
 
 ### Scope And Releases
 
@@ -93,6 +93,24 @@ For interview preparation:
 | [v0.1 Freeze](releases/V0_1_0_MVP_FREEZE.md)                            | Historical release snapshot.                                    |
 | [v0.2 Release Notes](releases/V0_2_0_RELEASE_NOTES.md)                  | Candidate release notes and owner verification gates.           |
 | [Pravaah v0.3 Release Charter](releases/V0.3_RELEASE_CHARTER.md)        | Planned v0.3 release boundary, definition of done, and gates.   |
+
+### Design And Content
+
+| Doc                                                | Purpose                                                                 |
+| -------------------------------------------------- | ----------------------------------------------------------------------- |
+| [Visual System](design/VISUAL_SYSTEM.md)           | v0.3 visual principles, approved tokens, component standards, and gaps. |
+| [Content Guidelines](design/CONTENT_GUIDELINES.md) | Product wording, role language, risk language, and release-claim rules. |
+
+### Project Score
+
+| Doc                                                           | Purpose                                                               |
+| ------------------------------------------------------------- | --------------------------------------------------------------------- |
+| [Project Score Index](project-score/README.md)                | Project Score rules, preparation strategy, evidence rules, and order. |
+| [Concept Tracker](project-score/CONCEPT_TRACKER.md)           | Exact 63-concept tracker mapped to Pravaah implementation evidence.   |
+| [Workflow Evidence](project-score/WORKFLOW_EVIDENCE.md)       | Product workflow traces mapped to code and Project Score concepts.    |
+| [Simulation Checklist](project-score/SIMULATION_CHECKLIST.md) | Practical readiness tracker for demos, debugging, and explanations.   |
+| [Question Architecture](project-score/INTERVIEW_QUESTIONS.md) | Representative viva question categories and prompts.                  |
+| [Concept Evidence Template](project-score/concepts/README.md) | Template and rules for future detailed concept evidence files.        |
 
 ### Interview, Engineering, AI, Assets
 

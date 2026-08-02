@@ -27,28 +27,28 @@ The MVP roadmap is complete. This file now tracks the frozen v0.1 baseline, the 
 
 ## v0.2 Candidate Scope In Dependency Order
 
-| Order | Issue                                               | Depends on         |
-| ----- | --------------------------------------------------- | ------------------ |
-| 1     | Freeze MVP and initialize v0.2                      | None               |
-| 2     | Define v0.2 scope in documentation                  | 1                  |
-| 3     | Add public landing page and public routes           | 1, 2               |
-| 4     | Enable Clerk sign-up flow                           | 3                  |
-| 5     | Separate Clerk identity from internal authorization | 1, 2               |
-| 6     | Add onboarding status API                           | 5                  |
-| 7     | Create clinic and Admin transactionally             | 5, 6               |
-| 8     | Prevent orphan clinic creation                      | 7                  |
-| 9     | Build first-time clinic onboarding UI               | 6, 7, 8            |
-| 10    | Provision isolated sample clinic data               | 7, 8               |
-| 11    | Add onboarding-aware application routing            | 6, 9               |
-| 12    | Build functional clinic settings page               | 7, 11              |
-| 13    | Add first-run setup checklist                       | 9, 10, 11, 12      |
-| 14    | Harden public onboarding APIs                       | 7, 8               |
-| 15    | Add backend onboarding tests                        | 6, 7, 8, 10, 14    |
-| 16    | Add frontend and end-to-end onboarding tests        | 9, 11, 12, 13      |
-| 17    | Publish v0.2 documentation and demo assets          | 15, 16, 18, 19, 20 |
-| 18    | Add doctor edit workflow                            | 5                  |
-| 19    | Add patient edit workflow                           | 5                  |
-| 20    | Add queue reorder controls                          | 5                  |
+| Order | Issue                                                    | Depends on         |
+| ----- | -------------------------------------------------------- | ------------------ |
+| 1     | Freeze MVP and initialize v0.2                           | None               |
+| 2     | Define v0.2 scope in documentation                       | 1                  |
+| 3     | Add public landing page and public routes                | 1, 2               |
+| 4     | Enable Clerk sign-up flow                                | 3                  |
+| 5     | Separate Clerk identity from internal authorization      | 1, 2               |
+| 6     | Add onboarding status API                                | 5                  |
+| 7     | Create clinic and Admin transactionally                  | 5, 6               |
+| 8     | Prevent orphan clinic creation                           | 7                  |
+| 9     | Build first-time clinic onboarding UI                    | 6, 7, 8            |
+| 10    | Provision isolated sample clinic data                    | 7, 8               |
+| 11    | Add onboarding-aware application routing                 | 6, 9               |
+| 12    | Build functional clinic settings page                    | 7, 11              |
+| 13    | Add first-run setup checklist                            | 9, 10, 11, 12      |
+| 14    | Harden public onboarding APIs                            | 7, 8               |
+| 15    | Add backend onboarding tests                             | 6, 7, 8, 10, 14    |
+| 16    | Add frontend onboarding tests and manual workflow checks | 9, 11, 12, 13      |
+| 17    | Publish v0.2 documentation and demo assets               | 15, 16, 18, 19, 20 |
+| 18    | Add doctor edit workflow                                 | 5                  |
+| 19    | Add patient edit workflow                                | 5                  |
+| 20    | Add queue reorder controls                               | 5                  |
 
 Dependency summary:
 
@@ -57,7 +57,7 @@ Freeze/scope -> public entry -> sign-up
 Freeze/scope -> identity split -> onboarding status -> transactional bootstrap -> orphan prevention -> API hardening
 Onboarding status/bootstrap -> onboarding UI -> onboarding-aware routing -> settings/checklist
 Workflow completion -> doctor edit, patient edit, queue reorder
-Verification -> backend, frontend, and end-to-end onboarding tests
+Verification -> backend tests, frontend tests, and manual onboarding workflow checks
 Publication -> docs, demo assets, release notes
 ```
 

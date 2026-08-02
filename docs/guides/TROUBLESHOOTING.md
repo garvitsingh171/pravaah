@@ -293,15 +293,3 @@ Fix:
 
 - for Vercel, confirm `apps/web/vercel.json` is used by the frontend project
 - make sure `/api` requests are not rewritten to the frontend
-
-## E2E Refuses To Run
-
-Meaning:
-
-The safety checks do not trust the configured test database.
-
-Fix:
-
-- set `E2E_DATABASE_URL` to a dedicated non-production database
-- set `E2E_ALLOW_TEST_DATABASE_WRITES=true`
-- confirm `E2E_DATABASE_URL` is not the same as `DATABASE_URL`

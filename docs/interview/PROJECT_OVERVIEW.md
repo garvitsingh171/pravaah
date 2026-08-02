@@ -18,7 +18,7 @@ Pravaah helps a clinic move from scattered appointment notes to a structured dai
 - doctor edit
 - patient edit
 - manual queue reorder
-- broader backend, frontend, and E2E test coverage
+- broader backend and frontend test coverage, with browser-based E2E testing deferred
 
 ## Product Boundary
 

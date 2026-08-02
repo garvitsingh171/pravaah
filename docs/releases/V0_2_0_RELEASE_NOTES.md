@@ -8,7 +8,7 @@ Release state: release candidate. Documentation is prepared, but final release v
 
 v0.2 turns Pravaah from an owner-provisioned MVP demo into a self-service product demonstration. A visitor can reach a public page, sign up with Clerk, enter an onboarding state without operational access, create a clinic, become that clinic's first Admin, optionally add fictional sample data, and continue into the existing clinic workflow.
 
-The source tree contains the expected v0.2 implementation paths. This Codex documentation pass did not run tests, builds, browser E2E, deployment checks, migrations, or screenshot capture.
+The source tree contains the expected v0.2 implementation paths. This Codex documentation pass did not run tests, builds, manual browser workflow checks, deployment checks, migrations, or screenshot capture.
 
 ## Added
 
@@ -26,7 +26,7 @@ The source tree contains the expected v0.2 implementation paths. This Codex docu
 - Doctor edit workflow.
 - Patient edit workflow.
 - Manual queue reorder controls.
-- Backend, frontend, and Playwright tests for critical v0.2 flows.
+- Backend and frontend tests for critical v0.2 flows, with browser-based end-to-end testing intentionally deferred to a future release.
 - Reorganized documentation, demo guide, interview pack, and asset manifest.
 
 ## Preserved From v0.1
@@ -39,23 +39,23 @@ The source tree contains the expected v0.2 implementation paths. This Codex docu
 
 ## Release Gate Classification
 
-| Gate                            | Source inspection state                                   | Release state                               |
-| ------------------------------- | --------------------------------------------------------- | ------------------------------------------- |
-| Public landing page             | Present in frontend routes/features.                      | Needs browser verification.                 |
-| Clerk sign-up                   | Present in frontend auth routes.                          | Needs Clerk environment verification.       |
-| Identity-only onboarding        | Present in auth middleware/API paths.                     | Needs backend test run.                     |
-| Onboarding status API           | Present as `GET /api/auth/onboarding-status`.             | Needs backend and E2E verification.         |
-| Transactional clinic plus Admin | Present in auth onboarding repository/service.            | Needs test run against configured DB.       |
-| Orphan prevention               | Present through transaction/idempotent conflict handling. | Needs regression verification.              |
-| Onboarding UI                   | Present in frontend onboarding feature.                   | Needs browser verification.                 |
-| Sample data                     | Present as Admin clinic sample-data endpoint.             | Needs test run and manual isolation check.  |
-| Onboarding-aware routing        | Present in protected app shell/routing.                   | Needs frontend and E2E verification.        |
-| Clinic settings                 | Present as Admin UI/API.                                  | Needs manual deployment smoke check.        |
-| First-run checklist             | Present in frontend/dashboard onboarding state.           | Needs frontend verification.                |
-| Doctor edit                     | Present in frontend/backend.                              | Needs frontend/E2E verification.            |
-| Patient edit                    | Present in frontend/backend.                              | Needs frontend/E2E verification.            |
-| Queue reorder controls          | Present in frontend/backend.                              | Needs frontend/E2E verification.            |
-| Render build correction         | Present through backend production `tsconfig.build.json`. | Needs production build and dist inspection. |
+| Gate                            | Source inspection state                                   | Release state                                    |
+| ------------------------------- | --------------------------------------------------------- | ------------------------------------------------ |
+| Public landing page             | Present in frontend routes/features.                      | Needs browser verification.                      |
+| Clerk sign-up                   | Present in frontend auth routes.                          | Needs Clerk environment verification.            |
+| Identity-only onboarding        | Present in auth middleware/API paths.                     | Needs backend test run.                          |
+| Onboarding status API           | Present as `GET /api/auth/onboarding-status`.             | Needs backend and manual workflow verification.  |
+| Transactional clinic plus Admin | Present in auth onboarding repository/service.            | Needs test run against configured DB.            |
+| Orphan prevention               | Present through transaction/idempotent conflict handling. | Needs regression verification.                   |
+| Onboarding UI                   | Present in frontend onboarding feature.                   | Needs browser verification.                      |
+| Sample data                     | Present as Admin clinic sample-data endpoint.             | Needs test run and manual isolation check.       |
+| Onboarding-aware routing        | Present in protected app shell/routing.                   | Needs frontend and manual workflow verification. |
+| Clinic settings                 | Present as Admin UI/API.                                  | Needs manual deployment smoke check.             |
+| First-run checklist             | Present in frontend/dashboard onboarding state.           | Needs frontend verification.                     |
+| Doctor edit                     | Present in frontend/backend.                              | Needs frontend and manual workflow verification. |
+| Patient edit                    | Present in frontend/backend.                              | Needs frontend and manual workflow verification. |
+| Queue reorder controls          | Present in frontend/backend.                              | Needs frontend and manual workflow verification. |
+| Render build correction         | Present through backend production `tsconfig.build.json`. | Needs production build and dist inspection.      |
 
 ## Required Owner Commands
 
@@ -67,7 +67,6 @@ npx prettier --check README.md "docs/**/*.md"
 npm run lint
 npm run test:web
 npm run test:server
-npm run test:e2e
 npm run build:web
 npm run build:server
 npm run check

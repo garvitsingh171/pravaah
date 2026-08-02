@@ -6,7 +6,7 @@ Pravaah is clinic-side flow management for Admin and Staff users.
 
 ## Stack
 
-React, Vite, TypeScript, Express, Prisma, PostgreSQL, Clerk, Tailwind, Vitest, Playwright.
+React, Vite, TypeScript, Express, Prisma, PostgreSQL, Clerk, Tailwind, Vitest.
 
 ## Core Flow
 

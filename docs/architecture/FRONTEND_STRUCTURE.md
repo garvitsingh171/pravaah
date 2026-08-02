@@ -280,7 +280,7 @@ Implemented states include:
 - First-time onboarding includes an optional fictional sample-data decision after clinic bootstrap.
 - Protected application routing is onboarding-aware; `ActiveClinicProvider` is mounted only after completed active Admin/Staff onboarding status.
 - Frontend automated tests are configured with Vitest and React Testing Library.
-- Browser E2E tests are configured at the repository root with Playwright and Clerk testing helpers. They require real Clerk test credentials and a dedicated non-production test database.
+- Browser-based end-to-end testing is intentionally not part of the current repository. Full browser workflow verification is handled through manual release and smoke-test checklists until a focused future E2E suite is reintroduced.
 - No screenshots are committed.
 - Shared types are manually maintained and can drift from backend schemas if not reviewed.
 

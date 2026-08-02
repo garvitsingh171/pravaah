@@ -15,15 +15,11 @@ Frontend:
 - Clerk is mocked in frontend tests for loading, signed-out, and signed-in UI states.
 - Feature API modules are mocked for component and routing tests; frontend tests must not make real network calls.
 
-End-to-end:
-
-- Playwright is configured at the repository root.
-- Clerk browser tests use `@clerk/testing/playwright`.
-- E2E tests require a real backend, real Clerk testing credentials, and a dedicated non-production database.
-
 Root:
 
 - `npm run check` runs build and lint across workspaces.
+
+Browser-based end-to-end testing is not part of the current repository. Pravaah currently focuses automated testing on frontend behavior, backend business logic, and API-level behavior where implemented. Complete browser-driven workflow verification is performed manually for the current release. A maintainable browser E2E automation suite is deferred until a future version.
 
 ## Existing Tests Found
 
@@ -49,17 +45,6 @@ Frontend tests currently include:
 - patient edit workflow
 - queue reorder controls
 - API client and onboarding API helpers
-
-Playwright E2E specs currently include:
-
-- public routing
-- sign-up plus onboarding without sample data
-- sign-up plus onboarding with sample data
-- onboarding validation, retry, refresh, and completed-redirect behavior
-- doctor edit
-- patient edit
-- manual queue reorder
-- v0.1 smoke workflow
 
 ## How To Run Tests
 
@@ -92,24 +77,6 @@ Frontend coverage:
 ```bash
 npm run test:coverage -w apps/web
 ```
-
-Playwright E2E tests:
-
-```bash
-npx playwright install chromium
-npm run test:e2e
-```
-
-Only run E2E after configuring:
-
-```txt
-CLERK_PUBLISHABLE_KEY
-CLERK_SECRET_KEY
-E2E_DATABASE_URL
-E2E_ALLOW_TEST_DATABASE_WRITES=true
-```
-
-`E2E_DATABASE_URL` must be dedicated test data. The E2E safety check refuses to use a database URL that matches `DATABASE_URL` or looks production-like.
 
 Backend type check:
 
@@ -166,10 +133,11 @@ Current automated coverage checks:
 
 ## What Still Needs Verification For v0.2 Release
 
-- Run all backend, frontend, and Playwright suites in a clean environment.
+- Run backend and frontend automated suites in a clean environment.
 - Run frontend and backend production builds.
 - Confirm deployed frontend public routes.
 - Confirm deployed backend health and authenticated API behavior.
+- Complete the manual workflow verification checklist below.
 - Capture real screenshots listed in [v0.2 Assets](../assets/v0.2/README.md).
 - Confirm no generated build output or reports are unintentionally committed.
 
@@ -177,8 +145,34 @@ Current automated coverage checks:
 
 - no committed CI deployment smoke test
 - no OpenAPI contract test generated from route definitions
-- no destructive E2E cleanup helper; current E2E uses unique test data and a dedicated test database
+- no browser-based E2E suite in the current repository
 - backend lint script is still a placeholder
+
+## Browser E2E Scope Decision
+
+Pravaah currently uses frontend, backend, and API-level automated tests where implemented. Browser-based end-to-end testing is intentionally deferred to a future release.
+
+Current advantages:
+
+- smaller test setup
+- lower maintenance overhead
+- easier ownership and explanation
+- focus on business rules and API behavior
+- no fragile browser-auth setup
+
+Current limitations:
+
+- full browser workflows are not automatically regression-tested
+- authentication redirects and cross-screen integration require manual checks
+- production smoke testing carries more importance
+- UI integration regressions may be detected later
+
+Future direction:
+
+- reintroduce browser E2E tests when the owner is ready to understand and maintain them
+- begin with a small critical-path suite
+- avoid testing every UI detail
+- cover authentication, onboarding, appointment booking, queue operations, and one authorization denial flow first
 
 ## Manual Test Checklist
 
@@ -218,6 +212,6 @@ Before a release or demo:
 ## Suggested Future Tests
 
 - add integration tests with a test PostgreSQL database
-- add safe targeted E2E cleanup for Clerk users and Pravaah records created by the current test run
 - add API contract tests for response shapes
 - add regression tests for generated no-show prediction response fields
+- reintroduce a focused browser-based E2E suite in a future release after the testing strategy, test identities, data isolation, and ownership expectations are fully understood
