@@ -92,6 +92,7 @@ For interview preparation:
 | [Scope And Transition Plan](scope/PRAVAAH_V0_2_SCOPE_AND_TRANSITION.md) | Historical planning record for v0.2.                            |
 | [v0.1 Freeze](releases/V0_1_0_MVP_FREEZE.md)                            | Historical release snapshot.                                    |
 | [v0.2 Release Notes](releases/V0_2_0_RELEASE_NOTES.md)                  | Candidate release notes and owner verification gates.           |
+| [Pravaah v0.3 Release Charter](releases/V0.3_RELEASE_CHARTER.md)        | Planned v0.3 release boundary, definition of done, and gates.   |
 
 ### Interview, Engineering, AI, Assets
 
