@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { PravaahLogo } from '../../components/brand';
 import { ErrorMessage, FieldError, LoadingState, useToast } from '../../components/feedback';
-import { fieldControlClassName } from '../../components/ui';
+import { Badge, fieldControlClassName } from '../../components/ui';
 import { isApiClientError } from '../../lib';
 import { dashboardRoutes, defaultDashboardPath } from '../../routes/dashboardRoutes';
 import {
@@ -36,6 +36,8 @@ type ClinicOnboardingFormValues = {
 };
 
 type ClinicOnboardingFieldErrors = Partial<Record<keyof ClinicOnboardingFormValues, string>>;
+
+const onboardingProgressItems = ['Identity', 'Clinic profile', 'Workspace'];
 
 type BackendValidationDetail = {
     field: string;
@@ -391,6 +393,21 @@ function OnboardingPageShell({
                         </button>
                     </SignOutButton>
                 </header>
+
+                <div className="rounded-lg border border-app-border bg-white p-4 shadow-sm">
+                    <div className="flex flex-wrap items-center gap-2">
+                        {onboardingProgressItems.map((item, index) => (
+                            <Badge key={item} tone={index === 1 ? 'brand' : 'neutral'}>
+                                {item}
+                            </Badge>
+                        ))}
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-app-muted">
+                        Pravaah keeps identity, clinic creation, and workspace access separate so
+                        recovery states can be handled without guessing operational roles in the
+                        browser.
+                    </p>
+                </div>
 
                 {children}
             </div>
@@ -1031,7 +1048,7 @@ function ClinicOnboardingPage() {
     if (!isLoaded) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-                <LoadingState message="Loading clinic onboarding..." />
+                <LoadingState message="Preparing clinic onboarding..." />
             </div>
         );
     }
@@ -1047,7 +1064,7 @@ function ClinicOnboardingPage() {
         return (
             <OnboardingPageShell>
                 <div className="flex min-h-[22rem] items-center justify-center">
-                    <LoadingState message="Checking onboarding status..." />
+                    <LoadingState message="Checking clinic workspace status..." />
                 </div>
             </OnboardingPageShell>
         );

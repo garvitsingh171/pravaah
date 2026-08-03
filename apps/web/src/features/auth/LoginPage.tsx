@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { LoadingState, useToast } from '../../components/feedback';
 import { defaultDashboardPath } from '../../routes/dashboardRoutes';
+import AuthPageLayout from './components/AuthPageLayout';
 
 const redirectParamName = 'redirect_url';
 
@@ -46,7 +47,7 @@ function LoginPage() {
     if (!isLoaded) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-                <LoadingState message="Loading sign-in..." />
+                <LoadingState message="Preparing sign-in..." />
             </div>
         );
     }
@@ -56,34 +57,19 @@ function LoginPage() {
     }
 
     return (
-        <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900">
-            <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-5xl flex-col justify-center gap-8 md:grid md:grid-cols-[minmax(0,0.85fr)_minmax(320px,1fr)] md:items-center">
-                <section className="max-w-xl">
-                    <p className="text-sm font-semibold uppercase tracking-wide text-brand-foreground">
-                        Clinic Admin/Staff
-                    </p>
-                    <h1 className="mt-3 text-3xl font-bold text-slate-950 md:text-4xl">
-                        Sign in to Pravaah
-                    </h1>
-                    <p className="mt-4 text-base leading-7 text-slate-600">
-                        Access the clinic workspace for Pravaah Admin and Staff users.
-                    </p>
-                </section>
-
-                <section
-                    className="flex justify-center md:justify-end"
-                    aria-label="Pravaah sign-in"
-                >
-                    <SignIn
-                        path="/login"
-                        routing="path"
-                        fallbackRedirectUrl={redirectPath}
-                        signUpUrl="/sign-up"
-                        withSignUp
-                    />
-                </section>
-            </div>
-        </main>
+        <AuthPageLayout
+            eyebrow="Clinic Admin/Staff"
+            title="Sign in to Pravaah"
+            description="Access the protected clinic workspace for appointment booking, risk review, arrivals, queue operations, and visit closure."
+        >
+            <SignIn
+                path="/login"
+                routing="path"
+                fallbackRedirectUrl={redirectPath}
+                signUpUrl="/sign-up"
+                withSignUp
+            />
+        </AuthPageLayout>
     );
 }
 

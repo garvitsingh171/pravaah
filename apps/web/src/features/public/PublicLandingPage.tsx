@@ -1,9 +1,11 @@
 import { useAuth } from '@clerk/react';
 import { Link } from 'react-router-dom';
 import { PravaahLogo } from '../../components/brand';
+import ProductShowcase from './components/ProductShowcase';
 
 const publicNavigationItems = [
     { label: 'Problem', href: '#problem' },
+    { label: 'Product', href: '#product' },
     { label: 'Workflow', href: '#workflow' },
     { label: 'Capabilities', href: '#capabilities' },
     { label: 'Risk support', href: '#risk-support' },
@@ -87,6 +89,18 @@ const roleItems = [
     },
 ];
 
+const riskFactorItems = [
+    'Previous no-show or late-arrival history stored in the clinic record.',
+    'Booking source and timing context captured during appointment creation.',
+    'Patient distance or visit-pattern context when available on the record.',
+];
+
+const riskGuardrailItems = [
+    'No attendance guarantees or medical conclusions.',
+    'No automatic cancellation, queue reorder, or patient contact.',
+    'Staff can review the reasons and decide the next follow-up step.',
+];
+
 function PublicHeader() {
     const { isLoaded, isSignedIn } = useAuth();
 
@@ -96,7 +110,7 @@ function PublicHeader() {
                 <div className="flex items-center justify-between gap-4">
                     <Link
                         to="/"
-                        className="flex min-w-0 items-center gap-3 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-600"
+                        className="flex min-w-0 items-center gap-3 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-action"
                         aria-label="Pravaah home"
                     >
                         <PravaahLogo layout="horizontal" surface="light" size="sm" />
@@ -109,7 +123,7 @@ function PublicHeader() {
                         {isLoaded && isSignedIn ? (
                             <Link
                                 to={dashboardPath}
-                                className="inline-flex min-h-10 items-center justify-center rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
+                                className="inline-flex min-h-10 items-center justify-center rounded-lg bg-action px-4 py-2 text-sm font-semibold text-white transition hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
                             >
                                 Open workspace
                             </Link>
@@ -117,13 +131,13 @@ function PublicHeader() {
                             <>
                                 <Link
                                     to="/login"
-                                    className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
+                                    className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-soft hover:bg-brand-subtle hover:text-brand-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
                                 >
                                     Sign in
                                 </Link>
                                 <Link
                                     to="/sign-up"
-                                    className="hidden min-h-10 items-center justify-center rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 sm:inline-flex"
+                                    className="hidden min-h-10 items-center justify-center rounded-lg bg-action px-4 py-2 text-sm font-semibold text-white transition hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action sm:inline-flex"
                                 >
                                     Start onboarding
                                 </Link>
@@ -137,7 +151,7 @@ function PublicHeader() {
                         <a
                             key={item.href}
                             href={item.href}
-                            className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
+                            className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
                         >
                             {item.label}
                         </a>
@@ -156,7 +170,7 @@ function PublicCtaActions() {
             <>
                 <Link
                     to={dashboardPath}
-                    className="inline-flex min-h-11 items-center justify-center rounded-lg bg-teal-500 px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-teal-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-300"
+                    className="inline-flex min-h-11 items-center justify-center rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-brand-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 >
                     Open workspace
                 </Link>
@@ -174,7 +188,7 @@ function PublicCtaActions() {
         <>
             <Link
                 to="/sign-up"
-                className="inline-flex min-h-11 items-center justify-center rounded-lg bg-teal-500 px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-teal-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-300"
+                className="inline-flex min-h-11 items-center justify-center rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-brand-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
             >
                 Start onboarding
             </Link>
@@ -199,7 +213,7 @@ function SectionHeading({
 }) {
     return (
         <div className="max-w-3xl">
-            <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">
+            <p className="text-sm font-semibold uppercase tracking-wide text-brand-foreground">
                 {eyebrow}
             </p>
             <h2 className="mt-3 text-3xl font-bold leading-tight text-slate-950">{title}</h2>
@@ -238,7 +252,7 @@ function PublicLandingPage() {
                                 size="lg"
                                 className="mb-8"
                             />
-                            <p className="text-sm font-semibold uppercase tracking-wide text-teal-300">
+                            <p className="text-sm font-semibold uppercase tracking-wide text-brand">
                                 Clinic appointment and queue-management platform
                             </p>
                             <h1 className="mt-4 text-4xl font-bold leading-tight sm:text-5xl">
@@ -276,7 +290,7 @@ function PublicLandingPage() {
                                     className="rounded-lg border border-slate-200 bg-[#F8FAFC] p-4"
                                 >
                                     <span
-                                        className="mb-3 flex h-8 w-8 items-center justify-center rounded-md bg-teal-50 text-sm font-bold text-teal-800 ring-1 ring-teal-200"
+                                        className="mb-3 flex h-8 w-8 items-center justify-center rounded-md bg-brand-subtle text-sm font-bold text-brand-foreground ring-1 ring-brand-soft"
                                         aria-hidden="true"
                                     >
                                         <svg
@@ -294,6 +308,22 @@ function PublicLandingPage() {
                                     <p className="text-sm leading-6 text-slate-700">{item}</p>
                                 </div>
                             ))}
+                        </div>
+                    </div>
+                </section>
+
+                <section
+                    id="product"
+                    className="scroll-mt-36 border-b border-slate-200 bg-[#F8FAFC] md:scroll-mt-32"
+                >
+                    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+                        <div className="grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
+                            <SectionHeading
+                                eyebrow="Product showcase"
+                                title="A faithful preview of the clinic-side workspace."
+                                description="These are product-focused React previews using fictional demo data. They mirror the implemented workflow surfaces: appointments, queue status, and explainable no-show risk context."
+                            />
+                            <ProductShowcase />
                         </div>
                     </div>
                 </section>
@@ -346,7 +376,7 @@ function PublicLandingPage() {
                                     key={step.title}
                                     className="rounded-lg border border-slate-200 bg-[#F8FAFC] p-5"
                                 >
-                                    <p className="text-sm font-bold text-teal-700">
+                                    <p className="text-sm font-bold text-brand-foreground">
                                         Step {index + 1}
                                     </p>
                                     <h3 className="mt-3 text-lg font-bold text-slate-950">
@@ -379,7 +409,7 @@ function PublicLandingPage() {
                                     className="rounded-lg border border-slate-200 bg-white p-5"
                                 >
                                     <div
-                                        className="mb-4 h-1.5 w-12 rounded-full bg-teal-500"
+                                        className="mb-4 h-1.5 w-12 rounded-full bg-brand"
                                         aria-hidden="true"
                                     />
                                     <h3 className="text-lg font-bold text-slate-950">
@@ -402,23 +432,49 @@ function PublicLandingPage() {
                             description="Pravaah can surface no-show risk level and reasons during appointment work, but it does not diagnose, guarantee attendance, cancel appointments, or automatically reorder the queue."
                         />
 
-                        <div className="grid gap-4 sm:grid-cols-3">
-                            {['Low', 'Medium', 'High'].map((level) => (
-                                <div
-                                    key={level}
-                                    className="rounded-lg border border-slate-200 bg-[#F8FAFC] p-5"
-                                >
-                                    <p className="text-sm font-semibold text-slate-500">
-                                        No-show risk
-                                    </p>
-                                    <p className="mt-2 text-2xl font-bold text-slate-950">
-                                        {level}
-                                    </p>
-                                    <p className="mt-3 text-sm leading-6 text-slate-600">
-                                        Reasons stay visible so staff can choose the right follow-up.
-                                    </p>
-                                </div>
-                            ))}
+                        <div className="grid gap-4">
+                            <div className="grid gap-4 sm:grid-cols-3">
+                                {['Low', 'Medium', 'High'].map((level) => (
+                                    <div
+                                        key={level}
+                                        className="rounded-lg border border-slate-200 bg-[#F8FAFC] p-5"
+                                    >
+                                        <p className="text-sm font-semibold text-slate-500">
+                                            No-show risk
+                                        </p>
+                                        <p className="mt-2 text-2xl font-bold text-slate-950">
+                                            {level}
+                                        </p>
+                                        <p className="mt-3 text-sm leading-6 text-slate-600">
+                                            Reasons stay visible so staff can choose the right
+                                            follow-up.
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <article className="rounded-lg border border-slate-200 bg-[#F8FAFC] p-5">
+                                    <h3 className="text-base font-bold text-slate-950">
+                                        Factors staff can inspect
+                                    </h3>
+                                    <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
+                                        {riskFactorItems.map((item) => (
+                                            <li key={item}>{item}</li>
+                                        ))}
+                                    </ul>
+                                </article>
+                                <article className="rounded-lg border border-[var(--color-status-warning-border)] bg-[var(--color-status-warning-bg)] p-5">
+                                    <h3 className="text-base font-bold text-[var(--color-status-warning-text)]">
+                                        Guardrails
+                                    </h3>
+                                    <ul className="mt-4 space-y-3 text-sm leading-6 text-[var(--color-status-warning-text)]">
+                                        {riskGuardrailItems.map((item) => (
+                                            <li key={item}>{item}</li>
+                                        ))}
+                                    </ul>
+                                </article>
+                            </div>
                         </div>
                     </div>
                 </section>
