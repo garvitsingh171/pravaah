@@ -1,5 +1,6 @@
 import type { FormEvent } from 'react';
 import { FieldError } from '../../components/feedback';
+import { Button, fieldControlClassName } from '../../components/ui';
 import type { DoctorSummary, PatientSummary } from '../../types';
 
 export type AppointmentBookingFormValues = {
@@ -26,12 +27,11 @@ type AppointmentBookingFormProps = {
     onSubmit: () => void;
 };
 
-const fieldBaseClass =
-    'mt-2 w-full rounded-md border bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
+const fieldBaseClass = fieldControlClassName;
 
 const getFieldClassName = (hasError: boolean): string => {
     return `${fieldBaseClass} ${
-        hasError ? 'border-red-300' : 'border-slate-300'
+        hasError ? 'border-[var(--color-status-danger-border)]' : ''
     } disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500`;
 };
 
@@ -65,7 +65,7 @@ const getPatientOptionLabel = (patient: PatientSummary): string => {
 };
 
 function RequiredMark() {
-    return <span className="text-red-600">*</span>;
+    return <span className="text-[var(--color-status-danger-text)]">*</span>;
 }
 
 function AppointmentBookingForm({
@@ -198,13 +198,14 @@ function AppointmentBookingForm({
             </div>
 
             <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
-                <button
+                <Button
                     type="submit"
-                    className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
                     disabled={controlsDisabled}
+                    isLoading={isSubmitting}
+                    loadingText="Booking appointment..."
                 >
-                    {isSubmitting ? 'Booking appointment...' : 'Book appointment'}
-                </button>
+                    Book appointment
+                </Button>
             </div>
         </form>
     );

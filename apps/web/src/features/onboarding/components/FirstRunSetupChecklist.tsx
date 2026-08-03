@@ -54,8 +54,8 @@ function CompletionStatus({ completed }: { completed: boolean }) {
         <span
             className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
                 completed
-                    ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
-                    : 'bg-amber-50 text-amber-700 ring-amber-200'
+                    ? 'bg-[var(--color-status-success-bg)] text-[var(--color-status-success-text)] ring-[var(--color-status-success-border)]'
+                    : 'bg-[var(--color-status-warning-bg)] text-[var(--color-status-warning-text)] ring-[var(--color-status-warning-border)]'
             }`}
         >
             {completed ? 'Completed' : 'Incomplete'}
@@ -78,7 +78,7 @@ function FirstRunSetupChecklist({ setup }: { setup: SetupStatusSummary }) {
         <section className="rounded-lg border border-slate-200 bg-white p-5 md:p-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div>
-                    <p className="text-sm font-medium uppercase tracking-wide text-blue-600">
+                    <p className="text-sm font-medium uppercase tracking-wide text-brand-foreground">
                         First-run setup
                     </p>
                     <h2 className="mt-2 text-xl font-bold text-slate-900">
@@ -93,7 +93,7 @@ function FirstRunSetupChecklist({ setup }: { setup: SetupStatusSummary }) {
                 {isComplete ? (
                     <button
                         type="button"
-                        className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                        className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
                         onClick={() => setIsCollapsed(true)}
                     >
                         Dismiss
@@ -121,16 +121,16 @@ function FirstRunSetupChecklist({ setup }: { setup: SetupStatusSummary }) {
                     aria-valuetext={`${completedSteps} of ${totalChecklistSteps} steps completed`}
                 >
                     <div
-                        className="h-full rounded-full bg-blue-600 transition-all"
+                        className="h-full rounded-full bg-action transition-all"
                         style={{ width: `${progressPercent}%` }}
                     />
                 </div>
             </div>
 
             {isComplete ? (
-                <div className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+                <div className="mt-5 rounded-lg border border-[var(--color-status-success-border)] bg-[var(--color-status-success-bg)] p-4 text-sm text-[var(--color-status-success-text)]">
                     <p className="font-semibold">Initial setup is complete.</p>
-                    <p className="mt-1 text-emerald-800">
+                    <p className="mt-1 text-[var(--color-status-success-text)]">
                         The clinic has the minimum configuration needed to use Pravaah.
                     </p>
                 </div>
@@ -145,7 +145,7 @@ function FirstRunSetupChecklist({ setup }: { setup: SetupStatusSummary }) {
                         <div
                             className={`flex h-9 w-9 items-center justify-center rounded-full border text-sm font-bold ${
                                 item.completed
-                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                    ? 'border-[var(--color-status-success-border)] bg-[var(--color-status-success-bg)] text-[var(--color-status-success-text)]'
                                     : 'border-slate-200 bg-slate-50 text-slate-700'
                             }`}
                             aria-hidden="true"
@@ -164,7 +164,7 @@ function FirstRunSetupChecklist({ setup }: { setup: SetupStatusSummary }) {
                         {item.completed ? null : (
                             <Link
                                 to={item.actionPath}
-                                className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                                className="inline-flex items-center justify-center rounded-md bg-action px-4 py-2 text-sm font-semibold text-white transition hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
                             >
                                 {item.actionLabel}
                             </Link>

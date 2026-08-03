@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { PravaahLogo } from '../../components/brand';
 import { ErrorMessage, FieldError, LoadingState, useToast } from '../../components/feedback';
+import { fieldControlClassName } from '../../components/ui';
 import { isApiClientError } from '../../lib';
 import { dashboardRoutes, defaultDashboardPath } from '../../routes/dashboardRoutes';
 import {
@@ -136,15 +137,14 @@ const validationFieldMap: Partial<Record<string, keyof ClinicOnboardingFormValue
     'body.bufferMinutes': 'bufferMinutes',
 };
 
-const fieldBaseClass =
-    'mt-2 w-full rounded-md border bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
+const fieldBaseClass = fieldControlClassName;
 
 const timeShape = /^([01]\d|2[0-3]):[0-5]\d$/;
 const emailShape = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const getFieldClassName = (hasError: boolean): string => {
     return `${fieldBaseClass} ${
-        hasError ? 'border-red-300' : 'border-slate-300'
+        hasError ? 'border-[var(--color-status-danger-border)]' : ''
     } disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500`;
 };
 
@@ -311,7 +311,7 @@ const toCreateClinicOnboardingRequest = (
 };
 
 function RequiredMark() {
-    return <span className="text-red-600">*</span>;
+    return <span className="text-[var(--color-status-danger-text)]">*</span>;
 }
 
 function FormField({
@@ -373,7 +373,7 @@ function OnboardingPageShell({
                 <header className="flex flex-col gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-center sm:justify-between">
                     <Link
                         to="/"
-                        className="flex min-w-0 items-center gap-3 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"
+                        className="flex min-w-0 items-center gap-3 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-action"
                         aria-label="Pravaah home"
                     >
                         <PravaahLogo layout="horizontal" surface="light" size="sm" />
@@ -385,7 +385,7 @@ function OnboardingPageShell({
                     <SignOutButton>
                         <button
                             type="button"
-                            className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 sm:w-auto"
+                            className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-soft hover:bg-brand-subtle hover:text-brand-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action sm:w-auto"
                         >
                             Sign out
                         </button>
@@ -611,7 +611,7 @@ function ClinicOnboardingForm({
 
                 <button
                     type="submit"
-                    className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                    className="rounded-md bg-action px-4 py-2 text-sm font-semibold text-white transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-action-soft"
                     disabled={isSubmitting}
                 >
                     {isSubmitting ? 'Creating clinic...' : 'Create clinic workspace'}
@@ -636,7 +636,7 @@ function SampleDataDecisionPanel({
         <section className="mx-auto grid w-full max-w-5xl gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-start">
             <div className="space-y-5">
                 <div>
-                    <p className="text-sm font-semibold uppercase text-blue-600">
+                    <p className="text-sm font-semibold uppercase text-brand-foreground">
                         Workspace created
                     </p>
                     <h1 className="mt-3 text-3xl font-bold leading-tight text-slate-950 md:text-4xl">
@@ -648,7 +648,7 @@ function SampleDataDecisionPanel({
                     </p>
                 </div>
 
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-950">
+                <div className="rounded-lg border border-[var(--color-status-warning-border)] bg-[var(--color-status-warning-bg)] p-5 text-sm leading-6 text-[var(--color-status-warning-text)]">
                     All generated records are fictional demonstration content. They are created only
                     inside this clinic and are not based on real patient data.
                 </div>
@@ -691,7 +691,7 @@ function SampleDataDecisionPanel({
                 <div className="mt-6 flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
                     <button
                         type="button"
-                        className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                        className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-soft hover:bg-brand-subtle hover:text-brand-foreground disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                         disabled={isProvisioning}
                         onClick={onSkipSampleData}
                     >
@@ -699,7 +699,7 @@ function SampleDataDecisionPanel({
                     </button>
                     <button
                         type="button"
-                        className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                        className="rounded-md bg-action px-4 py-2 text-sm font-semibold text-white transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-action-soft"
                         disabled={isProvisioning}
                         onClick={onAddSampleData}
                     >
@@ -1090,7 +1090,7 @@ function ClinicOnboardingPage() {
                         <SignOutButton>
                             <button
                                 type="button"
-                                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-soft hover:bg-brand-subtle hover:text-brand-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
                             >
                                 Sign out
                             </button>
@@ -1118,7 +1118,7 @@ function ClinicOnboardingPage() {
             <section className="grid gap-6 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)] lg:items-start">
                 <div className="space-y-6">
                     <div>
-                        <p className="text-sm font-semibold uppercase text-blue-600">
+                        <p className="text-sm font-semibold uppercase text-brand-foreground">
                             Clinic bootstrap
                         </p>
                         <h1 className="mt-3 text-3xl font-bold leading-tight text-slate-950 md:text-4xl">
@@ -1143,7 +1143,7 @@ function ClinicOnboardingPage() {
                         </ul>
                     </div>
 
-                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-5 text-sm leading-6 text-emerald-900">
+                    <div className="rounded-lg border border-[var(--color-status-success-border)] bg-[var(--color-status-success-bg)] p-5 text-sm leading-6 text-[var(--color-status-success-text)]">
                         Entered values stay on the page if validation or a recoverable server error
                         occurs, so you can correct only the fields that need attention.
                     </div>
