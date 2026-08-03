@@ -68,12 +68,14 @@ class PublicErrorBoundaryInner extends Component<
                             <Link
                                 to="/"
                                 className="inline-flex min-h-11 items-center justify-center rounded-lg border border-app-border-strong bg-white px-5 py-2.5 text-sm font-semibold text-app-muted transition hover:bg-app-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+                                onClick={this.handleRetry}
                             >
                                 Return home
                             </Link>
                             <Link
                                 to="/login"
                                 className="inline-flex min-h-11 items-center justify-center rounded-lg border border-brand-soft bg-brand-subtle px-5 py-2.5 text-sm font-semibold text-brand-foreground transition hover:bg-brand-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+                                onClick={this.handleRetry}
                             >
                                 Sign in
                             </Link>
