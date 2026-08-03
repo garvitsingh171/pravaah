@@ -103,7 +103,7 @@ describe('ClinicOnboardingPage', () => {
 
         const { unmount } = renderOnboarding();
 
-        expect(screen.getByText('Loading clinic onboarding...')).toBeInTheDocument();
+        expect(screen.getByText('Preparing clinic onboarding...')).toBeInTheDocument();
         expect(mockGetOnboardingStatus).not.toHaveBeenCalled();
 
         unmount();

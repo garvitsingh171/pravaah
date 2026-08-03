@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import ProtectedAppShell from './app/ProtectedAppShell';
+import PublicErrorBoundary from './components/public/PublicErrorBoundary';
 import LoginPage from './features/auth/LoginPage';
 import SignUpPage from './features/auth/SignUpPage';
 import ClinicOnboardingPage from './features/onboarding/ClinicOnboardingPage';
@@ -10,11 +11,46 @@ import NotFoundPage from './routes/NotFoundPage';
 export function AppRoutes() {
     return (
         <Routes>
-            <Route path="/" element={<PublicLandingPage />} />
-            <Route path="/login/*" element={<LoginPage />} />
-            <Route path="/sign-up/*" element={<SignUpPage />} />
-            <Route path="/onboarding" element={<Navigate to="/onboarding/clinic" replace />} />
-            <Route path="/onboarding/clinic" element={<ClinicOnboardingPage />} />
+            <Route
+                path="/"
+                element={
+                    <PublicErrorBoundary>
+                        <PublicLandingPage />
+                    </PublicErrorBoundary>
+                }
+            />
+            <Route
+                path="/login/*"
+                element={
+                    <PublicErrorBoundary>
+                        <LoginPage />
+                    </PublicErrorBoundary>
+                }
+            />
+            <Route
+                path="/sign-up/*"
+                element={
+                    <PublicErrorBoundary>
+                        <SignUpPage />
+                    </PublicErrorBoundary>
+                }
+            />
+            <Route
+                path="/onboarding"
+                element={
+                    <PublicErrorBoundary>
+                        <Navigate to="/onboarding/clinic" replace />
+                    </PublicErrorBoundary>
+                }
+            />
+            <Route
+                path="/onboarding/clinic"
+                element={
+                    <PublicErrorBoundary>
+                        <ClinicOnboardingPage />
+                    </PublicErrorBoundary>
+                }
+            />
             <Route element={<ProtectedAppShell />}>
                 {dashboardRoutes.map((route) => (
                     <Route
@@ -24,7 +60,14 @@ export function AppRoutes() {
                     />
                 ))}
             </Route>
-            <Route path="*" element={<NotFoundPage />} />
+            <Route
+                path="*"
+                element={
+                    <PublicErrorBoundary>
+                        <NotFoundPage />
+                    </PublicErrorBoundary>
+                }
+            />
         </Routes>
     );
 }

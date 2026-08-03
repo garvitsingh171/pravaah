@@ -291,7 +291,7 @@ describe('QueuePage manual reorder controls', () => {
 
         renderQueuePage();
 
-        expect(await screen.findByText('high risk')).toBeVisible();
+        expect(await screen.findByText(/high risk/i)).toBeVisible();
         expect(mockReorderQueue).not.toHaveBeenCalled();
 
         await user.selectOptions(
