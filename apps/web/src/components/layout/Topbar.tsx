@@ -3,30 +3,83 @@ import { SignOutButton } from '@clerk/react';
 type TopbarProps = {
     title: string;
     eyebrow?: string;
-    userContext?: string;
+    userName: string;
+    userEmail?: string;
+    userRole: string;
+    clinicTimezone?: string | null;
 };
 
-function Topbar({ title, eyebrow = 'Clinic Workspace', userContext = 'Staff Area' }: TopbarProps) {
+function Topbar({
+    title,
+    eyebrow = 'Clinic Operations',
+    userName,
+    userEmail,
+    userRole,
+    clinicTimezone,
+}: TopbarProps) {
     return (
-        <header className="flex min-h-16 flex-col items-start justify-between gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:flex-row sm:items-center md:px-6">
-            <div className="min-w-0">
-                <p className="text-sm text-slate-500">{eyebrow}</p>
-                <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-            </div>
-
-            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
-                <div className="whitespace-nowrap rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600">
-                    {userContext}
+        <header className="border-b border-slate-200 bg-white px-4 py-4 md:px-6">
+            <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="min-w-0">
+                    <p className="text-sm font-medium text-teal-700">{eyebrow}</p>
+                    <h2 className="mt-1 text-2xl font-bold leading-tight text-slate-950 sm:text-3xl">
+                        {title}
+                    </h2>
                 </div>
 
-                <SignOutButton>
-                    <button
-                        type="button"
-                        className="whitespace-nowrap rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-                    >
-                        Sign out
-                    </button>
-                </SignOutButton>
+                <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:w-auto lg:justify-end">
+                    <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+                        {clinicTimezone ? (
+                            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                                <p className="text-xs font-medium text-slate-500">Clinic time</p>
+                                <p className="mt-0.5 truncate text-sm font-semibold text-slate-800">
+                                    {clinicTimezone}
+                                </p>
+                            </div>
+                        ) : null}
+
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                            <p className="text-xs font-medium text-slate-500">Signed in</p>
+                            <p className="mt-0.5 truncate text-sm font-semibold text-slate-900">
+                                {userName}
+                            </p>
+                            {userEmail ? (
+                                <p className="mt-0.5 truncate text-xs text-slate-500">
+                                    {userEmail}
+                                </p>
+                            ) : null}
+                        </div>
+                    </div>
+
+                    <div className="flex shrink-0 items-center gap-2">
+                        <span className="inline-flex min-h-10 items-center rounded-full bg-teal-50 px-3 text-sm font-semibold text-teal-800 ring-1 ring-teal-200">
+                            {userRole}
+                        </span>
+
+                        <SignOutButton>
+                            <button
+                                type="button"
+                                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
+                            >
+                                <svg
+                                    className="h-4 w-4"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.8"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    aria-hidden="true"
+                                >
+                                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                                    <path d="m16 17 5-5-5-5" />
+                                    <path d="M21 12H9" />
+                                </svg>
+                                Sign out
+                            </button>
+                        </SignOutButton>
+                    </div>
+                </div>
             </div>
         </header>
     );

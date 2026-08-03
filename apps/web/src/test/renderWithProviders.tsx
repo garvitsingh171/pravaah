@@ -10,8 +10,15 @@ import { testClinicId } from './fixtures/onboarding';
 export const adminActiveClinic: ActiveClinicContext = {
     clinicId: testClinicId,
     source: 'authenticatedUser',
+    clinic: {
+        name: 'Pravaah Test Clinic',
+        slug: 'pravaah-test-clinic',
+        timezone: 'Asia/Kolkata',
+    },
     currentUser: {
         role: UserRole.ADMIN,
+        fullName: 'Test Admin',
+        email: 'admin+test@pravaah.local',
     },
 };
 

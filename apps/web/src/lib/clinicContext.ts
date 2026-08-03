@@ -6,17 +6,29 @@ export type ActiveClinicSource = 'localStorage' | 'authenticatedUser' | 'environ
 export type ActiveClinicContext = {
     clinicId: string;
     source: ActiveClinicSource;
+    clinic: {
+        name: string;
+        slug: string;
+        timezone?: string | null;
+    } | null;
     currentUser: {
         role: UserRole;
+        fullName?: string;
+        email?: string;
     } | null;
 };
 
 export type ActiveClinicCurrentUser = {
     role?: UserRole;
+    fullName?: string;
+    email?: string;
     clinicId?: string | null;
     clinic?: {
         id: string;
+        name?: string;
+        slug?: string;
         isActive: boolean;
+        timezone?: string | null;
     } | null;
 };
 
@@ -177,9 +189,18 @@ export const resolveActiveClinicContext = (
             activeClinic: {
                 clinicId: authenticatedUserClinic.clinicId,
                 source: 'authenticatedUser',
+                clinic: currentUser?.clinic
+                    ? {
+                          name: currentUser.clinic.name ?? 'Active clinic',
+                          slug: currentUser.clinic.slug ?? currentUser.clinic.id,
+                          timezone: currentUser.clinic.timezone,
+                      }
+                    : null,
                 currentUser: currentUser?.role
                     ? {
                           role: currentUser.role,
+                          fullName: currentUser.fullName,
+                          email: currentUser.email,
                       }
                     : null,
             },
@@ -207,6 +228,7 @@ export const resolveActiveClinicContext = (
             activeClinic: {
                 clinicId: storedClinic.clinicId,
                 source: 'localStorage',
+                clinic: null,
                 currentUser: null,
             },
             sources: {
@@ -222,6 +244,7 @@ export const resolveActiveClinicContext = (
             activeClinic: {
                 clinicId: environmentClinic.clinicId,
                 source: 'environment',
+                clinic: null,
                 currentUser: null,
             },
             sources: {

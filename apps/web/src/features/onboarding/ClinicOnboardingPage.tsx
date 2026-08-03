@@ -2,6 +2,7 @@ import { SignOutButton, useAuth } from '@clerk/react';
 import type { FormEvent, ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { PravaahLogo } from '../../components/brand';
 import { ErrorMessage, FieldError, LoadingState, useToast } from '../../components/feedback';
 import { isApiClientError } from '../../lib';
 import { dashboardRoutes, defaultDashboardPath } from '../../routes/dashboardRoutes';
@@ -375,15 +376,10 @@ function OnboardingPageShell({
                         className="flex min-w-0 items-center gap-3 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"
                         aria-label="Pravaah home"
                     >
-                        <img
-                            src="/pravaah-logo.png"
-                            alt=""
-                            className="h-10 w-10 shrink-0 rounded-md"
-                        />
-                        <div className="min-w-0">
-                            <p className="text-sm font-semibold uppercase text-blue-600">Pravaah</p>
-                            <p className="text-base font-bold text-slate-950">{eyebrow}</p>
-                        </div>
+                        <PravaahLogo layout="horizontal" surface="light" size="sm" />
+                        <span className="hidden text-base font-bold text-slate-950 sm:inline">
+                            {eyebrow}
+                        </span>
                     </Link>
 
                     <SignOutButton>

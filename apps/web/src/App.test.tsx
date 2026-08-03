@@ -25,14 +25,14 @@ describe('App routes', () => {
 
         expect(
             screen.getByRole('heading', {
-                name: /one operational workspace for small and medium clinic teams/i,
+                name: /pravaah helps clinics manage appointments, queues, and explainable no-show risk/i,
             })
         ).toBeInTheDocument();
         expect(screen.getAllByRole('link', { name: /^sign in$/i })[0]).toHaveAttribute(
             'href',
             '/login'
         );
-        expect(screen.getByRole('link', { name: /^create account$/i })).toHaveAttribute(
+        expect(screen.getAllByRole('link', { name: /^start onboarding$/i })[0]).toHaveAttribute(
             'href',
             '/sign-up'
         );

@@ -44,8 +44,19 @@ vi.mock('./ActiveClinicProvider', () => ({
             value={{
                 clinicId: testClinicId,
                 source: 'authenticatedUser',
+                clinic: {
+                    name: 'Pravaah Test Clinic',
+                    slug: 'pravaah-test-clinic',
+                    timezone: 'Asia/Kolkata',
+                },
                 currentUser: {
                     role: mockActiveClinicRole.value,
+                    fullName:
+                        mockActiveClinicRole.value === UserRole.ADMIN ? 'Test Admin' : 'Test Staff',
+                    email:
+                        mockActiveClinicRole.value === UserRole.ADMIN
+                            ? 'admin+test@pravaah.local'
+                            : 'staff+test@pravaah.local',
                 },
             }}
         >
