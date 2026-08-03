@@ -196,15 +196,13 @@ const sampleRecordWhere = (clinicId: string) => ({
 const countSampleRecords = async (
     tx: Prisma.TransactionClient,
     clinicId: string,
-    today: string,
+    todayParts: ReturnType<typeof getClinicTodayParts>,
     clinicTimezone: string
 ): Promise<SampleDataProvisioningRecordCounts> => {
-    const [todayRange] = await tx.$queryRaw<Array<{ start: Date; end: Date }>>`
-        SELECT
-            (${today}::date::timestamp AT TIME ZONE ${clinicTimezone}) AS "start",
-            ((${today}::date + 1)::timestamp AT TIME ZONE ${clinicTimezone}) AS "end"
-    `;
-
+    const todayRange = {
+        start: getClinicDateTime(todayParts, '00:00', clinicTimezone),
+        end: getClinicDateTime(addClinicDays(todayParts, 1), '00:00', clinicTimezone),
+    };
     const sampleAppointmentWhere = {
         clinicId,
         notes: {
@@ -213,14 +211,10 @@ const countSampleRecords = async (
     } satisfies Prisma.AppointmentWhereInput;
     const todaySampleAppointmentWhere = {
         ...sampleAppointmentWhere,
-        ...(todayRange
-            ? {
-                  scheduledAt: {
-                      gte: todayRange.start,
-                      lt: todayRange.end,
-                  },
-              }
-            : {}),
+        scheduledAt: {
+            gte: todayRange.start,
+            lt: todayRange.end,
+        },
     } satisfies Prisma.AppointmentWhereInput;
 
     const [doctors, patients, appointments, noShowPredictions, queueEntries, todayQueueEntries] =
@@ -275,18 +269,20 @@ const buildSampleRegistrationNumber = (clinicId: string, index: number): string 
     return `${SAMPLE_DOCTOR_REGISTRATION_PREFIX}-${clinicId.slice(0, 8)}-${index + 1}`;
 };
 
-const acquireSampleDataProvisioningLock = (
+const tryAcquireSampleDataProvisioningLock = async (
     tx: Prisma.TransactionClient,
     clinicId: string
-): Promise<unknown> => {
-    return tx.$queryRaw`
-        SELECT pg_advisory_xact_lock(
-            hashtextextended(
-                concat(${clinicId}, ':sample-data'),
-                0
+): Promise<void> => {
+    try {
+        await tx.$queryRaw`
+            SELECT pg_advisory_xact_lock(
+                hashtext(${clinicId}),
+                hashtext('sample-data')
             )
-        )
-    `;
+        `;
+    } catch (error) {
+        console.warn('Sample data advisory lock was skipped', error);
+    }
 };
 
 const clinicSettingsSelect = {
@@ -407,9 +403,14 @@ export const clinicRepository = {
             const todayParts = getClinicTodayParts(clinic.timezone);
             const today = getClinicDateLabel(todayParts);
 
-            await acquireSampleDataProvisioningLock(tx, clinic.id);
+            await tryAcquireSampleDataProvisioningLock(tx, clinic.id);
 
-            const existingCounts = await countSampleRecords(tx, clinic.id, today, clinic.timezone);
+            const existingCounts = await countSampleRecords(
+                tx,
+                clinic.id,
+                todayParts,
+                clinic.timezone
+            );
 
             if (
                 existingCounts.doctors > 0 ||
@@ -582,7 +583,7 @@ export const clinicRepository = {
                 }
             }
 
-            const summary = await countSampleRecords(tx, clinic.id, today, clinic.timezone);
+            const summary = await countSampleRecords(tx, clinic.id, todayParts, clinic.timezone);
 
             return {
                 outcome: 'CREATED' as const,

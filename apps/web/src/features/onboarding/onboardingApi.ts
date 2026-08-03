@@ -95,5 +95,8 @@ export const createClinicOnboarding = (payload: CreateClinicOnboardingRequest) =
 };
 
 export const provisionSampleData = (clinicId: string) => {
-    return apiClient.post<ProvisionSampleDataResponseData>(`/clinics/${clinicId}/sample-data`, {});
+    return apiClient.post<ProvisionSampleDataResponseData>(
+        `/clinics/${encodeURIComponent(clinicId)}/sample-data`,
+        {}
+    );
 };

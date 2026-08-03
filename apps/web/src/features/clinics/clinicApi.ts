@@ -43,9 +43,14 @@ export type UpdateClinicSettingsRequest = Partial<{
 }>;
 
 export const getClinicSettings = (clinicId: string, signal?: AbortSignal) => {
-    return apiClient.get<ClinicSettingsResponseData>(`/clinics/${clinicId}`, { signal });
+    return apiClient.get<ClinicSettingsResponseData>(`/clinics/${encodeURIComponent(clinicId)}`, {
+        signal,
+    });
 };
 
 export const updateClinicSettings = (clinicId: string, payload: UpdateClinicSettingsRequest) => {
-    return apiClient.patch<ClinicSettingsResponseData>(`/clinics/${clinicId}`, payload);
+    return apiClient.patch<ClinicSettingsResponseData>(
+        `/clinics/${encodeURIComponent(clinicId)}`,
+        payload
+    );
 };

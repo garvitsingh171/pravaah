@@ -46,7 +46,7 @@ const getRouteHandlerNames = (router: Router, method: string, path: string): str
         return [];
     }
 
-    return route.stack.map((layer) => layer.handle.name);
+    return route.stack.map((layer) => layer.handle.name ?? '');
 };
 
 const getRouteHandlers = (router: Router, method: string, path: string): RequestHandler[] => {
