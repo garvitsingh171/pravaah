@@ -9,6 +9,9 @@ export default {
                 'brand-soft': 'var(--color-brand-soft)',
                 'brand-subtle': 'var(--color-brand-subtle)',
                 'brand-foreground': 'var(--color-brand-foreground)',
+                action: 'var(--color-action)',
+                'action-hover': 'var(--color-action-hover)',
+                'action-soft': 'var(--color-action-soft)',
                 app: {
                     background: 'var(--color-app-background)',
                     surface: 'var(--color-app-surface)',

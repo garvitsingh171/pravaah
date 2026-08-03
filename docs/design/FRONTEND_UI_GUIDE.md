@@ -7,12 +7,13 @@ This guide describes the shared frontend layer used by the clinic-side Pravaah w
 Core tokens live in `apps/web/src/index.css` as CSS custom properties and are exposed to Tailwind in `apps/web/tailwind.config.js`.
 
 - Brand: `--color-brand`, `--color-brand-hover`, `--color-brand-soft`, `--color-brand-subtle`, `--color-brand-foreground`
+- Action: `--color-action`, `--color-action-hover`, `--color-action-soft`
 - App surfaces: `--color-app-background`, `--color-app-surface`, `--color-app-surface-muted`, `--color-app-border`, `--color-app-border-strong`
 - Text: `--color-app-text`, `--color-app-text-muted`, `--color-app-text-subtle`, `--color-app-text-disabled`
 - Status: success, warning, danger, info, and neutral each define `bg`, `text`, and `border` tokens
 - Radius: `--radius-app-sm`, `--radius-app-md`, `--radius-app-lg`
 
-Use the tokenized Tailwind names where available, such as `bg-brand`, `text-app-muted`, `border-app-border`, and `focus-visible:outline-brand`.
+Use the tokenized Tailwind names where available, such as `bg-action`, `text-app-muted`, `border-app-border`, and `focus-visible:outline-action`.
 
 ## Primitives
 

@@ -93,7 +93,7 @@ function FirstRunSetupChecklist({ setup }: { setup: SetupStatusSummary }) {
                 {isComplete ? (
                     <button
                         type="button"
-                        className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                        className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
                         onClick={() => setIsCollapsed(true)}
                     >
                         Dismiss
@@ -121,7 +121,7 @@ function FirstRunSetupChecklist({ setup }: { setup: SetupStatusSummary }) {
                     aria-valuetext={`${completedSteps} of ${totalChecklistSteps} steps completed`}
                 >
                     <div
-                        className="h-full rounded-full bg-brand transition-all"
+                        className="h-full rounded-full bg-action transition-all"
                         style={{ width: `${progressPercent}%` }}
                     />
                 </div>
@@ -164,7 +164,7 @@ function FirstRunSetupChecklist({ setup }: { setup: SetupStatusSummary }) {
                         {item.completed ? null : (
                             <Link
                                 to={item.actionPath}
-                                className="inline-flex items-center justify-center rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                                className="inline-flex items-center justify-center rounded-md bg-action px-4 py-2 text-sm font-semibold text-white transition hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
                             >
                                 {item.actionLabel}
                             </Link>

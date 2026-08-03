@@ -373,7 +373,7 @@ function OnboardingPageShell({
                 <header className="flex flex-col gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-center sm:justify-between">
                     <Link
                         to="/"
-                        className="flex min-w-0 items-center gap-3 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand"
+                        className="flex min-w-0 items-center gap-3 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-action"
                         aria-label="Pravaah home"
                     >
                         <PravaahLogo layout="horizontal" surface="light" size="sm" />
@@ -385,7 +385,7 @@ function OnboardingPageShell({
                     <SignOutButton>
                         <button
                             type="button"
-                            className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-soft hover:bg-brand-subtle hover:text-brand-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:w-auto"
+                            className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-soft hover:bg-brand-subtle hover:text-brand-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action sm:w-auto"
                         >
                             Sign out
                         </button>
@@ -611,7 +611,7 @@ function ClinicOnboardingForm({
 
                 <button
                     type="submit"
-                    className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:bg-brand-soft"
+                    className="rounded-md bg-action px-4 py-2 text-sm font-semibold text-white transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-action-soft"
                     disabled={isSubmitting}
                 >
                     {isSubmitting ? 'Creating clinic...' : 'Create clinic workspace'}
@@ -699,7 +699,7 @@ function SampleDataDecisionPanel({
                     </button>
                     <button
                         type="button"
-                        className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:bg-brand-soft"
+                        className="rounded-md bg-action px-4 py-2 text-sm font-semibold text-white transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-action-soft"
                         disabled={isProvisioning}
                         onClick={onAddSampleData}
                     >
@@ -1090,7 +1090,7 @@ function ClinicOnboardingPage() {
                         <SignOutButton>
                             <button
                                 type="button"
-                                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-soft hover:bg-brand-subtle hover:text-brand-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-soft hover:bg-brand-subtle hover:text-brand-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
                             >
                                 Sign out
                             </button>

@@ -15,12 +15,12 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 const variantClassNames: Record<ButtonVariant, string> = {
     primary:
-        'border-transparent bg-brand text-white shadow-sm hover:bg-brand-hover focus-visible:outline-brand',
+        'border-transparent bg-action text-white shadow-sm hover:bg-action-hover focus-visible:outline-action',
     secondary:
-        'border-brand-soft bg-brand-subtle text-brand-foreground hover:bg-brand-soft focus-visible:outline-brand',
+        'border-brand-soft bg-brand-subtle text-brand-foreground hover:bg-brand-soft focus-visible:outline-action',
     outline:
-        'border-app-border-strong bg-white text-app-muted hover:bg-app-surface-muted focus-visible:outline-brand',
-    ghost: 'border-transparent bg-transparent text-app-muted hover:bg-app-surface-muted focus-visible:outline-brand',
+        'border-app-border-strong bg-white text-app-muted hover:bg-app-surface-muted focus-visible:outline-action',
+    ghost: 'border-transparent bg-transparent text-app-muted hover:bg-app-surface-muted focus-visible:outline-action',
     danger:
         'border-transparent bg-[var(--color-status-danger-text)] text-white shadow-sm hover:brightness-95 focus-visible:outline-[var(--color-status-danger-text)]',
 };

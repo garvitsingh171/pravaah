@@ -1038,7 +1038,7 @@ function AppointmentsPage() {
                 actions={
                     <a
                         href="#book-appointment"
-                        className="inline-flex min-h-10 items-center justify-center rounded-md border border-transparent bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                        className="inline-flex min-h-10 items-center justify-center rounded-md border border-transparent bg-action px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
                     >
                         Book appointment
                     </a>
@@ -1358,7 +1358,7 @@ function AppointmentsPage() {
                         action={
                             <Link
                                 to="/doctors/new"
-                                className="inline-flex min-h-10 items-center justify-center rounded-md border border-transparent bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                                className="inline-flex min-h-10 items-center justify-center rounded-md border border-transparent bg-action px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
                             >
                                 Add doctor
                             </Link>
@@ -1373,7 +1373,7 @@ function AppointmentsPage() {
                         action={
                             <Link
                                 to="/patients/new"
-                                className="inline-flex min-h-10 items-center justify-center rounded-md border border-transparent bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                                className="inline-flex min-h-10 items-center justify-center rounded-md border border-transparent bg-action px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
                             >
                                 Add patient
                             </Link>

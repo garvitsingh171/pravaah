@@ -37,7 +37,7 @@ function SignUpPage() {
                         Already have an account?{' '}
                         <Link
                             to="/login"
-                            className="font-semibold text-brand-foreground underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                            className="font-semibold text-brand-foreground underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
                         >
                             Sign in
                         </Link>

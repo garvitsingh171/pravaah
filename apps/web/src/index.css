@@ -8,6 +8,9 @@
     --color-brand-soft: #ccfbf1;
     --color-brand-subtle: #f0fdfa;
     --color-brand-foreground: #0f766e;
+    --color-action: #0f766e;
+    --color-action-hover: #115e59;
+    --color-action-soft: #99f6e4;
     --color-app-background: #f8fafc;
     --color-app-surface: #ffffff;
     --color-app-surface-muted: #f1f5f9;
