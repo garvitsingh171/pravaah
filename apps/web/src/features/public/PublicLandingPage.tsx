@@ -258,7 +258,10 @@ function PublicLandingPage() {
                     </div>
                 </section>
 
-                <section id="problem" className="border-b border-slate-200 bg-white">
+                <section
+                    id="problem"
+                    className="scroll-mt-36 border-b border-slate-200 bg-white md:scroll-mt-32"
+                >
                     <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
                         <SectionHeading
                             eyebrow="The clinic problem"
@@ -326,7 +329,10 @@ function PublicLandingPage() {
                     </div>
                 </section>
 
-                <section id="workflow" className="border-b border-slate-200 bg-white">
+                <section
+                    id="workflow"
+                    className="scroll-mt-36 border-b border-slate-200 bg-white md:scroll-mt-32"
+                >
                     <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
                         <SectionHeading
                             eyebrow="Core workflow"
@@ -355,7 +361,10 @@ function PublicLandingPage() {
                     </div>
                 </section>
 
-                <section id="capabilities" className="border-b border-slate-200 bg-[#F8FAFC]">
+                <section
+                    id="capabilities"
+                    className="scroll-mt-36 border-b border-slate-200 bg-[#F8FAFC] md:scroll-mt-32"
+                >
                     <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
                         <SectionHeading
                             eyebrow="Capabilities"
@@ -385,7 +394,7 @@ function PublicLandingPage() {
                     </div>
                 </section>
 
-                <section id="risk-support" className="bg-white">
+                <section id="risk-support" className="scroll-mt-36 bg-white md:scroll-mt-32">
                     <div className="mx-auto grid max-w-7xl gap-8 px-4 py-16 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
                         <SectionHeading
                             eyebrow="Explainable risk support"

@@ -79,8 +79,12 @@ function Sidebar({ navigationItems, clinicName, clinicMeta }: SidebarProps) {
                 </p>
 
                 <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <p className="truncate text-sm font-semibold text-slate-950">{clinicName}</p>
-                    <p className="mt-1 truncate text-xs text-slate-500">{clinicMeta}</p>
+                    <p className="break-words text-sm font-semibold leading-5 text-slate-950">
+                        {clinicName}
+                    </p>
+                    <p className="mt-1 break-words text-xs leading-5 text-slate-500">
+                        {clinicMeta}
+                    </p>
                 </div>
             </div>
 
