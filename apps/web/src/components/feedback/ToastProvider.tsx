@@ -17,10 +17,10 @@ const TOAST_VISIBLE_MS = 4500;
 
 const getToastClassName = (type: ToastType): string => {
     if (type === 'success') {
-        return 'border-emerald-200 bg-emerald-50 text-emerald-900';
+        return 'border-[var(--color-status-success-border)] bg-[var(--color-status-success-bg)] text-[var(--color-status-success-text)]';
     }
 
-    return 'border-red-200 bg-red-50 text-red-900';
+    return 'border-[var(--color-status-danger-border)] bg-[var(--color-status-danger-bg)] text-[var(--color-status-danger-text)]';
 };
 
 function ToastProvider({ children }: PropsWithChildren) {

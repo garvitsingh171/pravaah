@@ -9,6 +9,13 @@ import {
     LoadingState,
     useToast,
 } from '../../components/feedback';
+import {
+    Button,
+    FilterBar,
+    PageHeader,
+    StatusBadge,
+    fieldControlClassName,
+} from '../../components/ui';
 import { isApiClientError } from '../../lib';
 import { Gender, type Gender as GenderType, type PatientSummary } from '../../types';
 import {
@@ -148,14 +155,8 @@ const getAgeOrDateOfBirthLabel = (patient: PatientSummary): string => {
     return 'Not added';
 };
 
-const getPatientStatusLabel = (patient: PatientSummary): string => {
-    return patient.isActive && patient.clinicLinkIsActive !== false ? 'Active' : 'Inactive';
-};
-
-const getPatientStatusClassName = (patient: PatientSummary): string => {
-    return patient.isActive && patient.clinicLinkIsActive !== false
-        ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
-        : 'bg-slate-100 text-slate-600 ring-slate-200';
+const isPatientActiveInClinic = (patient: PatientSummary): boolean => {
+    return patient.isActive && patient.clinicLinkIsActive !== false;
 };
 
 const getVisitSummary = (patient: PatientSummary): string => {
@@ -425,24 +426,19 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
     };
 
     return (
-        <div className="rounded-lg border border-blue-200 bg-white p-6 shadow-sm md:p-8">
+        <div className="rounded-lg border border-brand-soft bg-white p-6 shadow-sm md:p-8">
             <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
-                    <p className="text-sm font-medium uppercase tracking-wide text-blue-600">
+                    <p className="text-sm font-medium uppercase tracking-wide text-brand-foreground">
                         Edit patient
                     </p>
-                    <h2 className="mt-2 text-2xl font-bold text-slate-900">
+                    <h2 className="mt-2 text-2xl font-bold text-app-text">
                         Edit {patient.fullName}
                     </h2>
                 </div>
-                <button
-                    type="button"
-                    className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-70"
-                    onClick={onCancel}
-                    disabled={isSubmitting}
-                >
+                <Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
                     Cancel
-                </button>
+                </Button>
             </div>
 
             {formError ? (
@@ -461,7 +457,7 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
                     <label className="block text-sm font-medium text-slate-700 md:col-span-2">
                         Full name
                         <input
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                            className={fieldControlClassName}
                             value={values.fullName}
                             onChange={(event) => handleFieldChange('fullName', event.target.value)}
                             disabled={isSubmitting}
@@ -474,7 +470,7 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
                     <label className="block text-sm font-medium text-slate-700">
                         Phone
                         <input
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                            className={fieldControlClassName}
                             value={values.phone}
                             onChange={(event) => handleFieldChange('phone', event.target.value)}
                             disabled={isSubmitting}
@@ -487,7 +483,7 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
                     <label className="block text-sm font-medium text-slate-700">
                         Email
                         <input
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                            className={fieldControlClassName}
                             value={values.email}
                             onChange={(event) => handleFieldChange('email', event.target.value)}
                             disabled={isSubmitting}
@@ -500,7 +496,7 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
                     <label className="block text-sm font-medium text-slate-700">
                         Gender
                         <select
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                            className={fieldControlClassName}
                             value={values.gender}
                             onChange={(event) => handleFieldChange('gender', event.target.value)}
                             disabled={isSubmitting}
@@ -517,7 +513,7 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
                     <label className="block text-sm font-medium text-slate-700">
                         Date of birth
                         <input
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                            className={fieldControlClassName}
                             value={values.dateOfBirth}
                             onChange={(event) =>
                                 handleFieldChange('dateOfBirth', event.target.value)
@@ -531,7 +527,7 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
                     <label className="block text-sm font-medium text-slate-700">
                         Age
                         <input
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                            className={fieldControlClassName}
                             value={values.age}
                             onChange={(event) => handleFieldChange('age', event.target.value)}
                             disabled={isSubmitting}
@@ -543,7 +539,7 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
                     <label className="block text-sm font-medium text-slate-700">
                         City
                         <input
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                            className={fieldControlClassName}
                             value={values.city}
                             onChange={(event) => handleFieldChange('city', event.target.value)}
                             disabled={isSubmitting}
@@ -554,7 +550,7 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
                     <label className="block text-sm font-medium text-slate-700">
                         Distance from clinic (km)
                         <input
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                            className={fieldControlClassName}
                             value={values.distanceFromClinicKm}
                             onChange={(event) =>
                                 handleFieldChange('distanceFromClinicKm', event.target.value)
@@ -568,7 +564,7 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
                     <label className="block text-sm font-medium text-slate-700">
                         Emergency contact name
                         <input
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                            className={fieldControlClassName}
                             value={values.emergencyContactName}
                             onChange={(event) =>
                                 handleFieldChange('emergencyContactName', event.target.value)
@@ -581,7 +577,7 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
                     <label className="block text-sm font-medium text-slate-700">
                         Emergency contact phone
                         <input
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                            className={fieldControlClassName}
                             value={values.emergencyContactPhone}
                             onChange={(event) =>
                                 handleFieldChange('emergencyContactPhone', event.target.value)
@@ -595,7 +591,7 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
                     <label className="block text-sm font-medium text-slate-700 md:col-span-2">
                         Address
                         <textarea
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                            className={fieldControlClassName}
                             value={values.address}
                             onChange={(event) => handleFieldChange('address', event.target.value)}
                             disabled={isSubmitting}
@@ -607,7 +603,7 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
                     <label className="block text-sm font-medium text-slate-700 md:col-span-2">
                         Notes
                         <textarea
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                            className={fieldControlClassName}
                             value={values.notes}
                             onChange={(event) => handleFieldChange('notes', event.target.value)}
                             disabled={isSubmitting}
@@ -618,7 +614,7 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
 
                     <label className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm font-medium text-slate-700 md:col-span-2">
                         <input
-                            className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
+                            className="mt-1 h-4 w-4 rounded border-app-border-strong text-brand focus:ring-brand disabled:cursor-not-allowed"
                             type="checkbox"
                             checked={values.isActive}
                             onChange={(event) =>
@@ -641,13 +637,14 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
                             ? 'Only changed supported fields will be saved.'
                             : 'Change at least one supported field to save.'}
                     </p>
-                    <button
+                    <Button
                         type="submit"
-                        className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
                         disabled={isSubmitting || !hasChanges}
+                        isLoading={isSubmitting}
+                        loadingText="Saving patient..."
                     >
-                        {isSubmitting ? 'Saving patient...' : 'Save patient'}
-                    </button>
+                        Save patient
+                    </Button>
                 </div>
             </form>
         </div>
@@ -803,34 +800,26 @@ function PatientsPage() {
 
     return (
         <section className="space-y-6">
-            <div className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-6 md:flex-row md:items-start md:justify-between md:p-8">
-                <div>
-                    <p className="text-sm font-medium uppercase tracking-wide text-blue-600">
-                        Patients
-                    </p>
+            <PageHeader
+                eyebrow="Patients"
+                title="Patients"
+                description="Find or create patient records before booking appointments and managing the clinic queue."
+                actions={
+                    <Link
+                        to="/patients/new"
+                        className="inline-flex min-h-10 items-center justify-center rounded-md border border-transparent bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                    >
+                        Add patient
+                    </Link>
+                }
+            />
 
-                    <h1 className="mt-3 text-3xl font-bold text-slate-900">Patients</h1>
-
-                    <p className="mt-4 max-w-2xl text-slate-600">
-                        Find or create patient records before booking appointments and managing the
-                        clinic queue.
-                    </p>
-                </div>
-
-                <Link
-                    to="/patients/new"
-                    className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-                >
-                    Add patient
-                </Link>
-            </div>
-
-            <div className="rounded-lg border border-slate-200 bg-white p-4 md:p-5">
+            <FilterBar>
                 <div className="flex flex-col gap-3 md:flex-row md:items-end">
                     <label className="block flex-1 text-sm font-medium text-slate-700">
                         Search patients
                         <input
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                            className={fieldControlClassName}
                             value={searchTerm}
                             onChange={(event) => handleSearchChange(event.target.value)}
                             placeholder="Name, phone, or email"
@@ -839,16 +828,12 @@ function PatientsPage() {
                     </label>
 
                     {hasSearch ? (
-                        <button
-                            type="button"
-                            className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                            onClick={() => handleSearchChange('')}
-                        >
+                        <Button variant="outline" onClick={() => handleSearchChange('')}>
                             Clear
-                        </button>
+                        </Button>
                     ) : null}
                 </div>
-            </div>
+            </FilterBar>
 
             {editingPatient ? (
                 <PatientEditPanel
@@ -889,7 +874,7 @@ function PatientsPage() {
                         hasSearch ? undefined : (
                             <Link
                                 to="/patients/new"
-                                className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+                                className="inline-flex min-h-10 items-center justify-center rounded-md border border-transparent bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                             >
                                 Add patient
                             </Link>
@@ -954,23 +939,20 @@ function PatientsPage() {
                                             </p>
                                         </td>
                                         <td className="min-w-28 px-4 py-5">
-                                            <span
-                                                className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${getPatientStatusClassName(
-                                                    patient
-                                                )}`}
-                                            >
-                                                {getPatientStatusLabel(patient)}
-                                            </span>
+                                            <StatusBadge
+                                                kind="active"
+                                                status={isPatientActiveInClinic(patient)}
+                                            />
                                         </td>
                                         <td className="min-w-32 px-4 py-5">
-                                            <button
-                                                type="button"
-                                                className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
                                                 onClick={() => setEditingPatient(patient)}
                                                 aria-label={`Edit ${patient.fullName}`}
                                             >
                                                 Edit
-                                            </button>
+                                            </Button>
                                         </td>
                                     </tr>
                                 ))}

@@ -9,6 +9,13 @@ import {
     LoadingState,
     useToast,
 } from '../../components/feedback';
+import {
+    Button,
+    FilterBar,
+    PageHeader,
+    StatusBadge,
+    fieldControlClassName,
+} from '../../components/ui';
 import { isApiClientError } from '../../lib';
 import { Gender, type DoctorSummary, type Gender as GenderType } from '../../types';
 import { listDoctors, updateDoctor, type UpdateDoctorRequest } from './doctorApi';
@@ -90,14 +97,8 @@ const getOptionalText = (value: string | null | undefined): string => {
     return value?.trim() || 'Not added';
 };
 
-const getDoctorStatusLabel = (doctor: DoctorSummary): string => {
-    return doctor.isActive && doctor.clinicLinkIsActive !== false ? 'Active' : 'Inactive';
-};
-
-const getDoctorStatusClassName = (doctor: DoctorSummary): string => {
-    return doctor.isActive && doctor.clinicLinkIsActive !== false
-        ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
-        : 'bg-slate-100 text-slate-600 ring-slate-200';
+const isDoctorActiveInClinic = (doctor: DoctorSummary): boolean => {
+    return doctor.isActive && doctor.clinicLinkIsActive !== false;
 };
 
 const getDoctorListErrorState = (error: unknown): DoctorListState | null => {
@@ -361,24 +362,19 @@ function DoctorEditPanel({ clinicId, doctor, onCancel, onSaved }: DoctorEditPane
     };
 
     return (
-        <div className="rounded-lg border border-blue-200 bg-white p-6 shadow-sm md:p-8">
+        <div className="rounded-lg border border-brand-soft bg-white p-6 shadow-sm md:p-8">
             <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
-                    <p className="text-sm font-medium uppercase tracking-wide text-blue-600">
+                    <p className="text-sm font-medium uppercase tracking-wide text-brand-foreground">
                         Edit doctor
                     </p>
-                    <h2 className="mt-2 text-2xl font-bold text-slate-900">
+                    <h2 className="mt-2 text-2xl font-bold text-app-text">
                         Edit {doctor.fullName}
                     </h2>
                 </div>
-                <button
-                    type="button"
-                    className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-70"
-                    onClick={onCancel}
-                    disabled={isSubmitting}
-                >
+                <Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
                     Cancel
-                </button>
+                </Button>
             </div>
 
             {formError ? (
@@ -397,7 +393,7 @@ function DoctorEditPanel({ clinicId, doctor, onCancel, onSaved }: DoctorEditPane
                     <label className="block text-sm font-medium text-slate-700 md:col-span-2">
                         Full name
                         <input
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                            className={fieldControlClassName}
                             value={values.fullName}
                             onChange={(event) => handleFieldChange('fullName', event.target.value)}
                             disabled={isSubmitting}
@@ -410,7 +406,7 @@ function DoctorEditPanel({ clinicId, doctor, onCancel, onSaved }: DoctorEditPane
                     <label className="block text-sm font-medium text-slate-700">
                         Specialization
                         <input
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                            className={fieldControlClassName}
                             value={values.specialization}
                             onChange={(event) =>
                                 handleFieldChange('specialization', event.target.value)
@@ -423,7 +419,7 @@ function DoctorEditPanel({ clinicId, doctor, onCancel, onSaved }: DoctorEditPane
                     <label className="block text-sm font-medium text-slate-700">
                         Qualification
                         <input
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                            className={fieldControlClassName}
                             value={values.qualification}
                             onChange={(event) =>
                                 handleFieldChange('qualification', event.target.value)
@@ -436,7 +432,7 @@ function DoctorEditPanel({ clinicId, doctor, onCancel, onSaved }: DoctorEditPane
                     <label className="block text-sm font-medium text-slate-700">
                         Registration number
                         <input
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                            className={fieldControlClassName}
                             value={values.registrationNumber}
                             onChange={(event) =>
                                 handleFieldChange('registrationNumber', event.target.value)
@@ -449,7 +445,7 @@ function DoctorEditPanel({ clinicId, doctor, onCancel, onSaved }: DoctorEditPane
                     <label className="block text-sm font-medium text-slate-700">
                         Phone
                         <input
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                            className={fieldControlClassName}
                             value={values.phone}
                             onChange={(event) => handleFieldChange('phone', event.target.value)}
                             disabled={isSubmitting}
@@ -461,7 +457,7 @@ function DoctorEditPanel({ clinicId, doctor, onCancel, onSaved }: DoctorEditPane
                     <label className="block text-sm font-medium text-slate-700">
                         Email
                         <input
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                            className={fieldControlClassName}
                             value={values.email}
                             onChange={(event) => handleFieldChange('email', event.target.value)}
                             disabled={isSubmitting}
@@ -474,7 +470,7 @@ function DoctorEditPanel({ clinicId, doctor, onCancel, onSaved }: DoctorEditPane
                     <label className="block text-sm font-medium text-slate-700">
                         Gender
                         <select
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                            className={fieldControlClassName}
                             value={values.gender}
                             onChange={(event) => handleFieldChange('gender', event.target.value)}
                             disabled={isSubmitting}
@@ -490,7 +486,7 @@ function DoctorEditPanel({ clinicId, doctor, onCancel, onSaved }: DoctorEditPane
                     <label className="block text-sm font-medium text-slate-700">
                         Experience years
                         <input
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                            className={fieldControlClassName}
                             value={values.experienceYears}
                             onChange={(event) =>
                                 handleFieldChange('experienceYears', event.target.value)
@@ -503,7 +499,7 @@ function DoctorEditPanel({ clinicId, doctor, onCancel, onSaved }: DoctorEditPane
 
                     <label className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm font-medium text-slate-700 md:col-span-2">
                         <input
-                            className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
+                            className="mt-1 h-4 w-4 rounded border-app-border-strong text-brand focus:ring-brand disabled:cursor-not-allowed"
                             type="checkbox"
                             checked={values.isActive}
                             onChange={(event) =>
@@ -526,13 +522,14 @@ function DoctorEditPanel({ clinicId, doctor, onCancel, onSaved }: DoctorEditPane
                             ? 'Only changed supported fields will be saved.'
                             : 'Change at least one supported field to save.'}
                     </p>
-                    <button
+                    <Button
                         type="submit"
-                        className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
                         disabled={isSubmitting || !hasChanges}
+                        isLoading={isSubmitting}
+                        loadingText="Saving doctor..."
                     >
-                        {isSubmitting ? 'Saving doctor...' : 'Save doctor'}
-                    </button>
+                        Save doctor
+                    </Button>
                 </div>
             </form>
         </div>
@@ -632,34 +629,26 @@ function DoctorsPage() {
 
     return (
         <section className="space-y-6">
-            <div className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-6 md:flex-row md:items-start md:justify-between md:p-8">
-                <div>
-                    <p className="text-sm font-medium uppercase tracking-wide text-blue-600">
-                        Doctors
-                    </p>
+            <PageHeader
+                eyebrow="Doctors"
+                title="Doctors"
+                description="View clinic doctor records before booking appointments or managing the daily clinic flow."
+                actions={
+                    <Link
+                        to="/doctors/new"
+                        className="inline-flex min-h-10 items-center justify-center rounded-md border border-transparent bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                    >
+                        Add doctor
+                    </Link>
+                }
+            />
 
-                    <h1 className="mt-3 text-3xl font-bold text-slate-900">Doctors</h1>
-
-                    <p className="mt-4 max-w-2xl text-slate-600">
-                        View clinic doctor records before booking appointments or managing the daily
-                        clinic flow.
-                    </p>
-                </div>
-
-                <Link
-                    to="/doctors/new"
-                    className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-                >
-                    Add doctor
-                </Link>
-            </div>
-
-            <div className="rounded-lg border border-slate-200 bg-white p-4 md:p-5">
+            <FilterBar>
                 <div className="flex flex-col gap-3 md:flex-row md:items-end">
                     <label className="block flex-1 text-sm font-medium text-slate-700">
                         Search doctors
                         <input
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                            className={fieldControlClassName}
                             value={searchTerm}
                             onChange={(event) => setSearchTerm(event.target.value)}
                             placeholder="Name, specialization, phone, or email"
@@ -668,16 +657,12 @@ function DoctorsPage() {
                     </label>
 
                     {hasSearch ? (
-                        <button
-                            type="button"
-                            className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                            onClick={() => setSearchTerm('')}
-                        >
+                        <Button variant="outline" onClick={() => setSearchTerm('')}>
                             Clear
-                        </button>
+                        </Button>
                     ) : null}
                 </div>
-            </div>
+            </FilterBar>
 
             {editingDoctor ? (
                 <DoctorEditPanel
@@ -709,7 +694,7 @@ function DoctorsPage() {
                     action={
                         <Link
                             to="/doctors/new"
-                            className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+                            className="inline-flex min-h-10 items-center justify-center rounded-md border border-transparent bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                         >
                             Add doctor
                         </Link>
@@ -776,23 +761,20 @@ function DoctorsPage() {
                                             </span>
                                         </td>
                                         <td className="min-w-28 px-4 py-5">
-                                            <span
-                                                className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${getDoctorStatusClassName(
-                                                    doctor
-                                                )}`}
-                                            >
-                                                {getDoctorStatusLabel(doctor)}
-                                            </span>
+                                            <StatusBadge
+                                                kind="active"
+                                                status={isDoctorActiveInClinic(doctor)}
+                                            />
                                         </td>
                                         <td className="min-w-32 px-4 py-5">
-                                            <button
-                                                type="button"
-                                                className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
                                                 onClick={() => setEditingDoctor(doctor)}
                                                 aria-label={`Edit ${doctor.fullName}`}
                                             >
                                                 Edit
-                                            </button>
+                                            </Button>
                                         </td>
                                     </tr>
                                 ))}

@@ -2,6 +2,7 @@ import type { FormEvent } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useActiveClinic } from '../../app/activeClinicContext';
 import { ErrorMessage, FieldError, LoadingState, useToast } from '../../components/feedback';
+import { Button, PageHeader, fieldControlClassName } from '../../components/ui';
 import { isApiClientError } from '../../lib';
 import {
     getClinicSettings,
@@ -55,8 +56,7 @@ type SettingsPageState =
           };
       };
 
-const fieldBaseClass =
-    'mt-2 w-full rounded-md border bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
+const fieldBaseClass = fieldControlClassName;
 
 const timeShape = /^([01]\d|2[0-3]):[0-5]\d$/;
 const emailShape = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -97,7 +97,7 @@ const toFormValues = (clinic: ClinicSettings): ClinicSettingsFormValues => ({
 
 const getFieldClassName = (hasError: boolean): string => {
     return `${fieldBaseClass} ${
-        hasError ? 'border-red-300' : 'border-slate-300'
+        hasError ? 'border-[var(--color-status-danger-border)]' : ''
     } disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500`;
 };
 
@@ -317,7 +317,7 @@ const buildChangedSettingsPayload = (
 };
 
 function RequiredMark() {
-    return <span className="text-red-600">*</span>;
+    return <span className="text-[var(--color-status-danger-text)]">*</span>;
 }
 
 function TextField({
@@ -621,24 +621,20 @@ function ClinicSettingsPage() {
 
     return (
         <section className="space-y-6">
-            <div className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-6 md:flex-row md:items-start md:justify-between md:p-8">
-                <div>
-                    <p className="text-sm font-medium uppercase tracking-wide text-blue-600">
-                        Clinic Settings
-                    </p>
-                    <h1 className="mt-3 text-3xl font-bold text-slate-900">{state.clinic.name}</h1>
-                    <p className="mt-3 text-sm text-slate-500">Slug: {state.clinic.slug}</p>
-                </div>
-
-                <button
-                    type="button"
-                    className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-70"
-                    onClick={() => loadSettings()}
-                    disabled={isSubmitting}
-                >
-                    Reload
-                </button>
-            </div>
+            <PageHeader
+                eyebrow="Clinic Settings"
+                title={state.clinic.name}
+                description={`Slug: ${state.clinic.slug}`}
+                actions={
+                    <Button
+                        variant="outline"
+                        onClick={() => loadSettings()}
+                        disabled={isSubmitting}
+                    >
+                        Reload
+                    </Button>
+                }
+            />
 
             {formError ? (
                 <ErrorMessage
@@ -650,7 +646,7 @@ function ClinicSettingsPage() {
             ) : null}
 
             {statusMessage ? (
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-900">
+                <div className="rounded-lg border border-[var(--color-status-success-border)] bg-[var(--color-status-success-bg)] p-4 text-sm font-medium text-[var(--color-status-success-text)]">
                     {statusMessage}
                 </div>
             ) : null}
@@ -844,22 +840,22 @@ function ClinicSettingsPage() {
                 </div>
 
                 <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
-                    <button
-                        type="button"
-                        className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-70"
+                    <Button
+                        variant="outline"
                         onClick={handleReset}
                         disabled={isSubmitting || !hasChanges}
                     >
                         Reset changes
-                    </button>
+                    </Button>
 
-                    <button
+                    <Button
                         type="submit"
-                        className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
                         disabled={isSubmitting || !hasChanges}
+                        isLoading={isSubmitting}
+                        loadingText="Saving settings..."
                     >
-                        {isSubmitting ? 'Saving settings...' : 'Save settings'}
-                    </button>
+                        Save settings
+                    </Button>
                 </div>
             </form>
         </section>

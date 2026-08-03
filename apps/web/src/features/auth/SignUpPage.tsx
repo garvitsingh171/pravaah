@@ -23,7 +23,7 @@ function SignUpPage() {
         <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900">
             <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-5xl flex-col justify-center gap-8 md:grid md:grid-cols-[minmax(0,0.85fr)_minmax(320px,1fr)] md:items-center">
                 <section className="max-w-xl">
-                    <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
+                    <p className="text-sm font-semibold uppercase tracking-wide text-brand-foreground">
                         Pravaah identity
                     </p>
                     <h1 className="mt-3 text-3xl font-bold text-slate-950 md:text-4xl">
@@ -37,7 +37,7 @@ function SignUpPage() {
                         Already have an account?{' '}
                         <Link
                             to="/login"
-                            className="font-semibold text-blue-700 underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                            className="font-semibold text-brand-foreground underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                         >
                             Sign in
                         </Link>

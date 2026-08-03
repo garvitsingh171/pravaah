@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useActiveClinic } from '../../app/activeClinicContext';
 import { EmptyState, ErrorMessage, LoadingState } from '../../components/feedback';
+import { Badge, Card, RiskBadge, type BadgeTone } from '../../components/ui';
 import { isApiClientError } from '../../lib';
-import { UserRole, type RiskLevel } from '../../types';
+import { UserRole } from '../../types';
 import FirstRunSetupChecklist from '../onboarding/components/FirstRunSetupChecklist';
 import { getOnboardingStatus, type SetupStatusSummary } from '../onboarding/onboardingApi';
 import {
@@ -91,25 +92,15 @@ const activityLabels: Record<DashboardActivityType, string> = {
     QUEUE_NO_SHOW: 'Queue marked no-show',
 };
 
-const activityBadgeClassNames: Record<DashboardActivityType, string> = {
-    APPOINTMENT_BOOKED: 'bg-blue-50 text-blue-700 ring-blue-200',
-    APPOINTMENT_CANCELLED: 'bg-slate-100 text-slate-700 ring-slate-200',
-    APPOINTMENT_NO_SHOW: 'bg-red-50 text-red-700 ring-red-200',
-    QUEUE_JOINED: 'bg-cyan-50 text-cyan-700 ring-cyan-200',
-    PATIENT_CALLED: 'bg-violet-50 text-violet-700 ring-violet-200',
-    VISIT_COMPLETED: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-    QUEUE_CANCELLED: 'bg-slate-100 text-slate-700 ring-slate-200',
-    QUEUE_NO_SHOW: 'bg-red-50 text-red-700 ring-red-200',
-};
-
-const getRiskBadgeClassName = (riskLevel: RiskLevel): string => {
-    const classNames: Record<RiskLevel, string> = {
-        LOW: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-        MEDIUM: 'bg-amber-50 text-amber-700 ring-amber-200',
-        HIGH: 'bg-red-50 text-red-700 ring-red-200',
-    };
-
-    return classNames[riskLevel];
+const activityBadgeTones: Record<DashboardActivityType, BadgeTone> = {
+    APPOINTMENT_BOOKED: 'info',
+    APPOINTMENT_CANCELLED: 'neutral',
+    APPOINTMENT_NO_SHOW: 'danger',
+    QUEUE_JOINED: 'brand',
+    PATIENT_CALLED: 'info',
+    VISIT_COMPLETED: 'success',
+    QUEUE_CANCELLED: 'neutral',
+    QUEUE_NO_SHOW: 'danger',
 };
 
 const getDashboardErrorState = (
@@ -220,25 +211,25 @@ const buildSummaryCards = (summary: DashboardSummary): SummaryCard[] => {
             label: "Today's appointments",
             value: summary.appointmentSummary.total,
             helper: `${summary.appointmentSummary.scheduled} scheduled, ${summary.appointmentSummary.confirmed} confirmed`,
-            accentClassName: 'border-l-blue-500',
+            accentClassName: 'border-l-brand',
         },
         {
             label: 'Waiting queue',
             value: summary.queueSummary.waiting,
             helper: `${summary.queueSummary.total} queue entries today`,
-            accentClassName: 'border-l-amber-500',
+            accentClassName: 'border-l-[var(--color-status-warning-text)]',
         },
         {
             label: 'Completed visits',
             value: summary.appointmentSummary.completed,
             helper: `${summary.queueSummary.completed} queue visits completed`,
-            accentClassName: 'border-l-emerald-500',
+            accentClassName: 'border-l-[var(--color-status-success-text)]',
         },
         {
             label: 'Cancelled / no-show',
             value: cancelledNoShowCount,
             helper: `${summary.appointmentSummary.cancelled} cancelled, ${summary.appointmentSummary.noShow} no-show`,
-            accentClassName: 'border-l-red-500',
+            accentClassName: 'border-l-[var(--color-status-danger-text)]',
         },
     ];
 };
@@ -294,30 +285,18 @@ function SetupChecklistSection({
     return <FirstRunSetupChecklist setup={state.setup} />;
 }
 
-function RiskBadge({ riskLevel }: { riskLevel: RiskLevel }) {
-    return (
-        <span
-            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${getRiskBadgeClassName(
-                riskLevel
-            )}`}
-        >
-            {riskLevel.toLowerCase()} risk
-        </span>
-    );
-}
-
 function HighRiskAppointmentsCard({
     appointments,
 }: {
     appointments: DashboardHighRiskAppointment[];
 }) {
     return (
-        <section className="rounded-lg border border-slate-200 bg-white p-5">
+        <Card>
             <div>
-                <p className="text-sm font-medium uppercase tracking-wide text-red-600">
+                <p className="text-sm font-medium uppercase tracking-wide text-[var(--color-status-danger-text)]">
                     High-risk appointments
                 </p>
-                <h2 className="mt-2 text-xl font-bold text-slate-900">No-show attention list</h2>
+                <h2 className="mt-2 text-xl font-bold text-app-text">No-show attention list</h2>
             </div>
 
             {appointments.length === 0 ? (
@@ -357,28 +336,22 @@ function HighRiskAppointmentsCard({
                     ))}
                 </div>
             )}
-        </section>
+        </Card>
     );
 }
 
 function ActivityBadge({ type }: { type: DashboardActivityType }) {
-    return (
-        <span
-            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${activityBadgeClassNames[type]}`}
-        >
-            {activityLabels[type]}
-        </span>
-    );
+    return <Badge tone={activityBadgeTones[type]}>{activityLabels[type]}</Badge>;
 }
 
 function TodayActivitySection({ activityItems }: { activityItems: DashboardActivityItem[] }) {
     return (
-        <section className="rounded-lg border border-slate-200 bg-white p-5">
+        <Card>
             <div>
-                <p className="text-sm font-medium uppercase tracking-wide text-blue-600">
+                <p className="text-sm font-medium uppercase tracking-wide text-brand-foreground">
                     Today activity
                 </p>
-                <h2 className="mt-2 text-xl font-bold text-slate-900">Recent clinic activity</h2>
+                <h2 className="mt-2 text-xl font-bold text-app-text">Recent clinic activity</h2>
             </div>
 
             {activityItems.length === 0 ? (
@@ -419,7 +392,7 @@ function TodayActivitySection({ activityItems }: { activityItems: DashboardActiv
                     ))}
                 </div>
             )}
-        </section>
+        </Card>
     );
 }
 
@@ -581,7 +554,7 @@ function DashboardOverviewPage() {
         <section className="space-y-6">
             <div className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-6 md:flex-row md:items-start md:justify-between md:p-8">
                 <div>
-                    <p className="text-sm font-medium uppercase tracking-wide text-blue-600">
+                    <p className="text-sm font-medium uppercase tracking-wide text-brand-foreground">
                         Dashboard
                     </p>
 

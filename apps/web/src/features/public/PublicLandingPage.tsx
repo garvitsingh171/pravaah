@@ -321,7 +321,7 @@ function PublicLandingPage() {
                             ))}
                         </div>
 
-                        <p className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900 lg:col-start-2">
+                        <p className="rounded-lg border border-[var(--color-status-warning-border)] bg-[var(--color-status-warning-bg)] p-4 text-sm leading-6 text-[var(--color-status-warning-text)] lg:col-start-2">
                             Doctors and patients are managed as records in the current product.
                             Pravaah does not currently provide authenticated doctor or patient
                             portals.

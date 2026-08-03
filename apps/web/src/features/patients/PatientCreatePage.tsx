@@ -258,7 +258,7 @@ function PatientCreatePage() {
         <section className="space-y-6">
             <div className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-6 md:flex-row md:items-start md:justify-between md:p-8">
                 <div>
-                    <p className="text-sm font-medium uppercase tracking-wide text-blue-600">
+                    <p className="text-sm font-medium uppercase tracking-wide text-brand-foreground">
                         Patients
                     </p>
                     <h1 className="mt-3 text-3xl font-bold text-slate-900">Add Patient</h1>

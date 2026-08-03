@@ -2,6 +2,15 @@ import { Fragment, useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useActiveClinic } from '../../app/activeClinicContext';
 import { EmptyState, ErrorMessage, LoadingState, useToast } from '../../components/feedback';
+import {
+    Button,
+    FilterBar,
+    PageHeader,
+    RiskBadge as RiskLevelBadge,
+    StatusBadge,
+    fieldControlClassName,
+    getAppointmentStatusLabel,
+} from '../../components/ui';
 import { isApiClientError } from '../../lib';
 import { AppointmentStatus, BookingSource } from '../../types';
 import type { DoctorSummary, PatientSummary, RiskLevel } from '../../types';
@@ -113,32 +122,22 @@ const validationFieldMap: Partial<Record<string, keyof AppointmentBookingFormVal
 };
 
 const statusOptions: Array<{ value: AppointmentStatus; label: string }> = [
-    { value: AppointmentStatus.SCHEDULED, label: 'Scheduled' },
-    { value: AppointmentStatus.CONFIRMED, label: 'Confirmed' },
-    { value: AppointmentStatus.ARRIVED, label: 'Arrived' },
-    { value: AppointmentStatus.IN_QUEUE, label: 'In queue' },
-    { value: AppointmentStatus.CALLED, label: 'Called' },
-    { value: AppointmentStatus.COMPLETED, label: 'Completed' },
-    { value: AppointmentStatus.CANCELLED, label: 'Cancelled' },
-    { value: AppointmentStatus.NO_SHOW, label: 'No-show' },
-];
+    AppointmentStatus.SCHEDULED,
+    AppointmentStatus.CONFIRMED,
+    AppointmentStatus.ARRIVED,
+    AppointmentStatus.IN_QUEUE,
+    AppointmentStatus.CALLED,
+    AppointmentStatus.COMPLETED,
+    AppointmentStatus.CANCELLED,
+    AppointmentStatus.NO_SHOW,
+].map((status) => ({
+    value: status,
+    label: getAppointmentStatusLabel(status),
+}));
 
-const statusLabels = statusOptions.reduce<Record<AppointmentStatus, string>>(
-    (labels, option) => ({
-        ...labels,
-        [option.value]: option.label,
-    }),
-    {
-        SCHEDULED: 'Scheduled',
-        CONFIRMED: 'Confirmed',
-        ARRIVED: 'Arrived',
-        IN_QUEUE: 'In queue',
-        CALLED: 'Called',
-        COMPLETED: 'Completed',
-        CANCELLED: 'Cancelled',
-        NO_SHOW: 'No-show',
-    }
-);
+const getAppointmentStatusLabelLower = (status: AppointmentStatus): string => {
+    return getAppointmentStatusLabel(status).toLowerCase();
+};
 
 const statusActionLabels: Record<AppointmentStatus, string> = {
     SCHEDULED: 'Mark scheduled',
@@ -393,31 +392,6 @@ const getOptionalText = (value: string | null | undefined): string => {
     return value?.trim() || 'Not added';
 };
 
-const getStatusBadgeClassName = (status: AppointmentStatus): string => {
-    const classNames: Record<AppointmentStatus, string> = {
-        SCHEDULED: 'bg-sky-50 text-sky-700 ring-sky-200',
-        CONFIRMED: 'bg-indigo-50 text-indigo-700 ring-indigo-200',
-        ARRIVED: 'bg-cyan-50 text-cyan-700 ring-cyan-200',
-        IN_QUEUE: 'bg-amber-50 text-amber-700 ring-amber-200',
-        CALLED: 'bg-violet-50 text-violet-700 ring-violet-200',
-        COMPLETED: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-        CANCELLED: 'bg-slate-100 text-slate-600 ring-slate-200',
-        NO_SHOW: 'bg-red-50 text-red-700 ring-red-200',
-    };
-
-    return classNames[status];
-};
-
-const getRiskBadgeClassName = (riskLevel: RiskLevel): string => {
-    const classNames: Record<RiskLevel, string> = {
-        LOW: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-        MEDIUM: 'bg-amber-50 text-amber-700 ring-amber-200',
-        HIGH: 'bg-red-50 text-red-700 ring-red-200',
-    };
-
-    return classNames[riskLevel];
-};
-
 const getPredictionReasonMessages = (reasons: unknown[] | null | undefined): string[] => {
     if (!Array.isArray(reasons)) {
         return [];
@@ -550,30 +524,6 @@ const getAppointmentListFilters = (
     };
 };
 
-function StatusBadge({ status }: { status: AppointmentStatus }) {
-    return (
-        <span
-            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${getStatusBadgeClassName(
-                status
-            )}`}
-        >
-            {statusLabels[status]}
-        </span>
-    );
-}
-
-function RiskLevelBadge({ riskLevel }: { riskLevel: RiskLevel }) {
-    return (
-        <span
-            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${getRiskBadgeClassName(
-                riskLevel
-            )}`}
-        >
-            {riskLevel.toLowerCase()} risk
-        </span>
-    );
-}
-
 function RiskBadge({
     appointment,
     isExpanded,
@@ -591,7 +541,7 @@ function RiskBadge({
                 <span className="text-slate-500">Not available</span>
                 <button
                     type="button"
-                    className="mt-2 block text-xs font-semibold text-blue-700 underline decoration-blue-200 underline-offset-2 hover:text-blue-800"
+                    className="mt-2 block text-xs font-semibold text-brand-foreground underline decoration-brand-soft underline-offset-2 hover:text-brand-hover"
                     onClick={onToggle}
                 >
                     {isExpanded ? 'Hide details' : 'View details'}
@@ -610,7 +560,7 @@ function RiskBadge({
             ) : null}
             <button
                 type="button"
-                className="mt-2 text-xs font-semibold text-blue-700 underline decoration-blue-200 underline-offset-2 hover:text-blue-800"
+                className="mt-2 text-xs font-semibold text-brand-foreground underline decoration-brand-soft underline-offset-2 hover:text-brand-hover"
                 onClick={onToggle}
             >
                 {isExpanded ? 'Hide details' : 'View details'}
@@ -642,10 +592,10 @@ function PredictionDetailPanel({ appointment }: { appointment: AppointmentListIt
     const generatedAt = prediction.generatedAt ?? prediction.createdAt;
 
     return (
-        <div className="rounded-lg border border-blue-100 bg-blue-50/40 p-5">
+        <div className="rounded-lg border border-brand-soft bg-brand-subtle p-5">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-brand-foreground">
                         Starter no-show risk
                     </p>
                     <h3 className="mt-1 text-base font-semibold text-slate-900">
@@ -1040,12 +990,12 @@ function AppointmentsPage() {
                 };
             });
             setStatusUpdateMessage(
-                `Status updated to ${statusLabels[data.appointment.status].toLowerCase()}.`
+                `Status updated to ${getAppointmentStatusLabelLower(data.appointment.status)}.`
             );
             showSuccessToast(
-                `Appointment status updated to ${statusLabels[
+                `Appointment status updated to ${getAppointmentStatusLabelLower(
                     data.appointment.status
-                ].toLowerCase()}.`
+                )}.`
             );
         } catch (error) {
             if (isApiClientError(error)) {
@@ -1081,35 +1031,27 @@ function AppointmentsPage() {
 
     return (
         <section className="space-y-6">
-            <div className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-6 md:flex-row md:items-start md:justify-between md:p-8">
-                <div>
-                    <p className="text-sm font-medium uppercase tracking-wide text-blue-600">
-                        Appointments
-                    </p>
+            <PageHeader
+                eyebrow="Appointments"
+                title="Appointments"
+                description="View clinic appointments, filter by date, doctor, patient, or status, and update appointment status during daily operations."
+                actions={
+                    <a
+                        href="#book-appointment"
+                        className="inline-flex min-h-10 items-center justify-center rounded-md border border-transparent bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                    >
+                        Book appointment
+                    </a>
+                }
+            />
 
-                    <h1 className="mt-3 text-3xl font-bold text-slate-900">Appointments</h1>
-
-                    <p className="mt-4 max-w-2xl text-slate-600">
-                        View clinic appointments, filter by date, doctor, patient, or status, and
-                        update appointment status during daily operations.
-                    </p>
-                </div>
-
-                <a
-                    href="#book-appointment"
-                    className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-                >
-                    Book appointment
-                </a>
-            </div>
-
-            <div className="rounded-lg border border-slate-200 bg-white p-4 md:p-5">
+            <FilterBar>
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto] lg:items-end">
                     <label className="block text-sm font-medium text-slate-700">
                         Appointment date
                         <input
                             type="date"
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                            className={fieldControlClassName}
                             value={selectedDate}
                             onChange={(event) => handleDateFilterChange(event.target.value)}
                         />
@@ -1118,7 +1060,7 @@ function AppointmentsPage() {
                     <label className="block text-sm font-medium text-slate-700">
                         Doctor
                         <select
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                            className={fieldControlClassName}
                             value={selectedDoctorId}
                             onChange={(event) => handleDoctorFilterChange(event.target.value)}
                         >
@@ -1134,7 +1076,7 @@ function AppointmentsPage() {
                     <label className="block text-sm font-medium text-slate-700">
                         Patient
                         <select
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                            className={fieldControlClassName}
                             value={selectedPatientId}
                             onChange={(event) => handlePatientFilterChange(event.target.value)}
                         >
@@ -1150,7 +1092,7 @@ function AppointmentsPage() {
                     <label className="block text-sm font-medium text-slate-700">
                         Status
                         <select
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                            className={fieldControlClassName}
                             value={selectedStatus}
                             onChange={(event) =>
                                 handleStatusFilterChange(
@@ -1167,25 +1109,17 @@ function AppointmentsPage() {
                         </select>
                     </label>
 
-                    <button
-                        type="button"
-                        className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                        onClick={handleTodayFilterClick}
-                    >
+                    <Button variant="outline" onClick={handleTodayFilterClick}>
                         Today
-                    </button>
+                    </Button>
 
                     {hasAppointmentFilters ? (
-                        <button
-                            type="button"
-                            className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                            onClick={handleClearAppointmentFilters}
-                        >
+                        <Button variant="outline" onClick={handleClearAppointmentFilters}>
                             Clear
-                        </button>
+                        </Button>
                     ) : null}
                 </div>
-            </div>
+            </FilterBar>
 
             {appointmentListState.status === 'loading' ? (
                 <LoadingState message="Loading appointments..." />
@@ -1210,13 +1144,13 @@ function AppointmentsPage() {
 
             {statusUpdateMessage ? (
                 <div
-                    className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
+                    className="rounded-lg border border-[var(--color-status-success-border)] bg-[var(--color-status-success-bg)] px-4 py-3 text-sm font-medium text-[var(--color-status-success-text)]"
                     role="status"
                 >
                     {statusUpdateMessage}
                     <button
                         type="button"
-                        className="ml-3 text-emerald-700 underline decoration-emerald-300 underline-offset-2"
+                        className="ml-3 text-[var(--color-status-success-text)] underline decoration-[var(--color-status-success-border)] underline-offset-2"
                         onClick={() => setStatusUpdateMessage(null)}
                     >
                         Dismiss
@@ -1294,7 +1228,10 @@ function AppointmentsPage() {
                                                     </p>
                                                 </td>
                                                 <td className="min-w-32 px-4 py-5">
-                                                    <StatusBadge status={appointment.status} />
+                                                    <StatusBadge
+                                                        kind="appointment"
+                                                        status={appointment.status}
+                                                    />
                                                     {appointment.queueEntry ? (
                                                         <p className="mt-2 text-xs text-slate-500">
                                                             Queue #{appointment.queueEntry.position}
@@ -1327,7 +1264,7 @@ function AppointmentsPage() {
                                                 <td className="min-w-44 px-4 py-5">
                                                     {statusActions.length > 0 ? (
                                                         <select
-                                                            className="w-40 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                                                            className={`${fieldControlClassName} w-40`}
                                                             value=""
                                                             onChange={(event) => {
                                                                 const nextStatus = event.target
@@ -1391,7 +1328,7 @@ function AppointmentsPage() {
                 className="rounded-lg border border-slate-200 bg-white p-6 md:p-8"
             >
                 <div className="mb-6">
-                    <p className="text-sm font-medium uppercase tracking-wide text-blue-600">
+                    <p className="text-sm font-medium uppercase tracking-wide text-brand-foreground">
                         Booking
                     </p>
                     <h2 className="mt-2 text-2xl font-bold text-slate-900">Book appointment</h2>
@@ -1421,7 +1358,7 @@ function AppointmentsPage() {
                         action={
                             <Link
                                 to="/doctors/new"
-                                className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+                                className="inline-flex min-h-10 items-center justify-center rounded-md border border-transparent bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                             >
                                 Add doctor
                             </Link>
@@ -1436,7 +1373,7 @@ function AppointmentsPage() {
                         action={
                             <Link
                                 to="/patients/new"
-                                className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+                                className="inline-flex min-h-10 items-center justify-center rounded-md border border-transparent bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                             >
                                 Add patient
                             </Link>
@@ -1446,7 +1383,7 @@ function AppointmentsPage() {
 
                 {successState ? (
                     <div
-                        className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+                        className="mb-6 rounded-lg border border-[var(--color-status-success-border)] bg-[var(--color-status-success-bg)] px-4 py-3 text-sm text-[var(--color-status-success-text)]"
                         role="status"
                     >
                         <p className="font-semibold">{successState.message}</p>

@@ -9,7 +9,7 @@ function FieldError({ id, message }: FieldErrorProps) {
     }
 
     return (
-        <p id={id} className="mt-1 text-sm text-red-700">
+        <p id={id} className="mt-1 text-sm text-[var(--color-status-danger-text)]">
             {message}
         </p>
     );

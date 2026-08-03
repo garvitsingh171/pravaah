@@ -1,3 +1,5 @@
+import { Button } from '../ui';
+
 type ErrorDetail = {
     field?: string;
     message: string;
@@ -30,34 +32,30 @@ function ErrorMessage({
 }: ErrorMessageProps) {
     return (
         <div
-            className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-900"
+            className="rounded-lg border border-[var(--color-status-danger-border)] bg-[var(--color-status-danger-bg)] p-4 text-sm text-[var(--color-status-danger-text)]"
             role="alert"
         >
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
                     <p className="font-semibold">{title}</p>
-                    <p className="mt-1 text-red-800">{message}</p>
+                    <p className="mt-1">{message}</p>
 
                     {code ? (
-                        <p className="mt-2 font-mono text-xs uppercase tracking-wide text-red-700">
+                        <p className="mt-2 font-mono text-xs uppercase tracking-wide">
                             {code}
                         </p>
                     ) : null}
                 </div>
 
                 {onRetry ? (
-                    <button
-                        type="button"
-                        className="rounded-md border border-red-300 bg-white px-3 py-2 font-medium text-red-700 transition hover:bg-red-100"
-                        onClick={onRetry}
-                    >
+                    <Button variant="outline" size="sm" onClick={onRetry}>
                         {retryLabel}
-                    </button>
+                    </Button>
                 ) : null}
             </div>
 
             {details && details.length > 0 ? (
-                <ul className="mt-3 list-disc space-y-1 pl-5 text-red-800">
+                <ul className="mt-3 list-disc space-y-1 pl-5">
                     {details.map((detail) => {
                         const detailText = getDetailText(detail);
 

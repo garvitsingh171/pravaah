@@ -1,9 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useActiveClinic } from '../../app/activeClinicContext';
 import { EmptyState, ErrorMessage, LoadingState, useToast } from '../../components/feedback';
+import {
+    Button,
+    FilterBar,
+    PageHeader,
+    RiskBadge as RiskLevelBadge,
+    StatusBadge,
+    fieldControlClassName,
+    getQueueStatusLabel,
+} from '../../components/ui';
 import { isApiClientError } from '../../lib';
 import { QueueStatus } from '../../types';
-import type { QueueStatus as QueueStatusType, RiskLevel } from '../../types';
+import type { QueueStatus as QueueStatusType } from '../../types';
 import { listTodayQueue, reorderQueue, updateQueueStatus, type QueueListItem } from './queueApi';
 
 type QueueListState =
@@ -38,28 +47,20 @@ const emptyQueueListState: QueueListState = {
 };
 
 const queueStatusOptions: Array<{ value: QueueStatusType; label: string }> = [
-    { value: QueueStatus.WAITING, label: 'Waiting' },
-    { value: QueueStatus.ARRIVED, label: 'Arrived' },
-    { value: QueueStatus.CALLED, label: 'Called' },
-    { value: QueueStatus.COMPLETED, label: 'Completed' },
-    { value: QueueStatus.CANCELLED, label: 'Cancelled' },
-    { value: QueueStatus.NO_SHOW, label: 'No-show' },
-];
+    QueueStatus.WAITING,
+    QueueStatus.ARRIVED,
+    QueueStatus.CALLED,
+    QueueStatus.COMPLETED,
+    QueueStatus.CANCELLED,
+    QueueStatus.NO_SHOW,
+].map((status) => ({
+    value: status,
+    label: getQueueStatusLabel(status),
+}));
 
-const queueStatusLabels = queueStatusOptions.reduce<Record<QueueStatusType, string>>(
-    (labels, option) => ({
-        ...labels,
-        [option.value]: option.label,
-    }),
-    {
-        WAITING: 'Waiting',
-        ARRIVED: 'Arrived',
-        CALLED: 'Called',
-        COMPLETED: 'Completed',
-        CANCELLED: 'Cancelled',
-        NO_SHOW: 'No-show',
-    }
-);
+const getQueueStatusLabelLower = (status: QueueStatusType): string => {
+    return getQueueStatusLabel(status).toLowerCase();
+};
 
 const queueStatusActionLabels: Record<QueueStatusType, string> = {
     WAITING: 'Mark waiting',
@@ -182,29 +183,6 @@ const getOptionalText = (value: string | number | null | undefined): string => {
     return String(value).trim() || 'Not added';
 };
 
-const getStatusBadgeClassName = (status: QueueStatusType): string => {
-    const classNames: Record<QueueStatusType, string> = {
-        WAITING: 'bg-amber-50 text-amber-700 ring-amber-200',
-        ARRIVED: 'bg-cyan-50 text-cyan-700 ring-cyan-200',
-        CALLED: 'bg-violet-50 text-violet-700 ring-violet-200',
-        COMPLETED: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-        CANCELLED: 'bg-slate-100 text-slate-600 ring-slate-200',
-        NO_SHOW: 'bg-red-50 text-red-700 ring-red-200',
-    };
-
-    return classNames[status];
-};
-
-const getRiskBadgeClassName = (riskLevel: RiskLevel): string => {
-    const classNames: Record<RiskLevel, string> = {
-        LOW: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-        MEDIUM: 'bg-amber-50 text-amber-700 ring-amber-200',
-        HIGH: 'bg-red-50 text-red-700 ring-red-200',
-    };
-
-    return classNames[riskLevel];
-};
-
 const getPredictionReasonMessages = (reasons: unknown[]): string[] => {
     return reasons.reduce<string[]>((messages, reason) => {
         if (
@@ -299,18 +277,6 @@ const mergeQueueEntriesWithReorderedActiveEntries = (
     );
 };
 
-function QueueStatusBadge({ status }: { status: QueueStatusType }) {
-    return (
-        <span
-            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${getStatusBadgeClassName(
-                status
-            )}`}
-        >
-            {queueStatusLabels[status]}
-        </span>
-    );
-}
-
 function RiskBadge({ queueEntry }: { queueEntry: QueueListItem }) {
     const prediction = queueEntry.noShowPrediction;
 
@@ -323,13 +289,7 @@ function RiskBadge({ queueEntry }: { queueEntry: QueueListItem }) {
 
     return (
         <div>
-            <span
-                className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${getRiskBadgeClassName(
-                    prediction.riskLevel
-                )}`}
-            >
-                {prediction.riskLevel.toLowerCase()} risk
-            </span>
+            <RiskLevelBadge riskLevel={prediction.riskLevel} />
             {reasonMessages[0] ? (
                 <p className="mt-2 max-w-xs text-xs text-slate-500">{reasonMessages[0]}</p>
             ) : null}
@@ -457,14 +417,12 @@ function QueuePage() {
             const data = await updateQueueStatus(clinicId, queueEntry.id, nextStatus);
 
             setStatusUpdateMessage(
-                `${queueEntry.patient.fullName} is now ${queueStatusLabels[
+                `${queueEntry.patient.fullName} is now ${getQueueStatusLabelLower(
                     data.queueEntry.status
-                ].toLowerCase()}.`
+                )}.`
             );
             showSuccessToast(
-                `Queue status updated to ${queueStatusLabels[
-                    data.queueEntry.status
-                ].toLowerCase()}.`
+                `Queue status updated to ${getQueueStatusLabelLower(data.queueEntry.status)}.`
             );
             refreshQueue();
         } catch (error) {
@@ -596,29 +554,21 @@ function QueuePage() {
 
     return (
         <section className="space-y-6">
-            <div className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-6 md:flex-row md:items-start md:justify-between md:p-8">
-                <div>
-                    <p className="text-sm font-medium uppercase tracking-wide text-blue-600">
-                        Today queue
-                    </p>
-
-                    <h1 className="mt-3 text-3xl font-bold text-slate-900">Live queue</h1>
-
-                    <p className="mt-4 max-w-2xl text-slate-600">
-                        View today's appointment queue, check each patient's position, and update
-                        queue status as staff manage the clinic flow.
-                    </p>
-                </div>
-
-                <button
-                    type="button"
-                    className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
-                    onClick={handleRetryQueue}
-                    disabled={queueListState.status === 'loading'}
-                >
-                    {queueListState.status === 'loading' ? 'Refreshing...' : 'Refresh queue'}
-                </button>
-            </div>
+            <PageHeader
+                eyebrow="Today queue"
+                title="Live queue"
+                description="View today's appointment queue, check each patient's position, and update queue status as staff manage the clinic flow."
+                actions={
+                    <Button
+                        variant="outline"
+                        onClick={handleRetryQueue}
+                        isLoading={queueListState.status === 'loading'}
+                        loadingText="Refreshing..."
+                    >
+                        Refresh queue
+                    </Button>
+                }
+            />
 
             <div className="rounded-lg border border-slate-200 bg-white p-4 md:p-5">
                 <div className="grid gap-4 md:grid-cols-4">
@@ -659,12 +609,12 @@ function QueuePage() {
                 </div>
             </div>
 
-            <div className="rounded-lg border border-slate-200 bg-white p-4 md:p-5">
+            <FilterBar>
                 <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
                     <label className="block text-sm font-medium text-slate-700">
                         Doctor
                         <select
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                            className={fieldControlClassName}
                             value={selectedDoctorId}
                             onChange={(event) => setSelectedDoctorId(event.target.value)}
                         >
@@ -680,7 +630,7 @@ function QueuePage() {
                     <label className="block text-sm font-medium text-slate-700">
                         Queue status
                         <select
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                            className={fieldControlClassName}
                             value={selectedStatus}
                             onChange={(event) =>
                                 setSelectedStatus(event.target.value as QueueStatusType | '')
@@ -696,19 +646,18 @@ function QueuePage() {
                     </label>
 
                     {hasQueueFilters ? (
-                        <button
-                            type="button"
-                            className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                        <Button
+                            variant="outline"
                             onClick={() => {
                                 setSelectedDoctorId('');
                                 setSelectedStatus('');
                             }}
                         >
                             Clear
-                        </button>
+                        </Button>
                     ) : null}
                 </div>
-            </div>
+            </FilterBar>
 
             {queueListState.status === 'loading' ? (
                 <LoadingState message="Loading today's queue..." />
@@ -741,13 +690,13 @@ function QueuePage() {
 
             {statusUpdateMessage ? (
                 <div
-                    className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
+                    className="rounded-lg border border-[var(--color-status-success-border)] bg-[var(--color-status-success-bg)] px-4 py-3 text-sm font-medium text-[var(--color-status-success-text)]"
                     role="status"
                 >
                     {statusUpdateMessage}
                     <button
                         type="button"
-                        className="ml-3 text-emerald-700 underline decoration-emerald-300 underline-offset-2"
+                        className="ml-3 text-[var(--color-status-success-text)] underline decoration-[var(--color-status-success-border)] underline-offset-2"
                         onClick={() => setStatusUpdateMessage(null)}
                     >
                         Dismiss
@@ -757,13 +706,13 @@ function QueuePage() {
 
             {reorderMessage ? (
                 <div
-                    className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
+                    className="rounded-lg border border-[var(--color-status-success-border)] bg-[var(--color-status-success-bg)] px-4 py-3 text-sm font-medium text-[var(--color-status-success-text)]"
                     role="status"
                 >
                     {reorderMessage}
                     <button
                         type="button"
-                        className="ml-3 text-emerald-700 underline decoration-emerald-300 underline-offset-2"
+                        className="ml-3 text-[var(--color-status-success-text)] underline decoration-[var(--color-status-success-border)] underline-offset-2"
                         onClick={() => setReorderMessage(null)}
                     >
                         Dismiss
@@ -824,7 +773,7 @@ function QueuePage() {
                                         <tr
                                             key={queueEntry.id}
                                             className={`align-top transition hover:bg-slate-50/70 ${
-                                                isWaiting ? 'bg-amber-50/40' : ''
+                                                isWaiting ? 'bg-[var(--color-status-warning-bg)]' : ''
                                             }`}
                                         >
                                             <td className="min-w-28 px-4 py-5">
@@ -874,9 +823,12 @@ function QueuePage() {
                                                 ) : null}
                                             </td>
                                             <td className="min-w-32 px-4 py-5">
-                                                <QueueStatusBadge status={queueEntry.status} />
+                                                <StatusBadge
+                                                    kind="queue"
+                                                    status={queueEntry.status}
+                                                />
                                                 {isWaiting ? (
-                                                    <p className="mt-2 text-xs font-semibold text-amber-700">
+                                                    <p className="mt-2 text-xs font-semibold text-[var(--color-status-warning-text)]">
                                                         Waiting in queue
                                                     </p>
                                                 ) : null}
@@ -889,9 +841,9 @@ function QueuePage() {
                                             </td>
                                             <td className="min-w-44 px-4 py-5">
                                                 <div className="mb-3 flex flex-col gap-2">
-                                                    <button
-                                                        type="button"
-                                                        className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
                                                         onClick={() =>
                                                             void handleQueueMove(queueEntry, -1)
                                                         }
@@ -899,10 +851,10 @@ function QueuePage() {
                                                         aria-label={`Move ${queueEntry.patient.fullName} up`}
                                                     >
                                                         {isMoving ? 'Moving...' : 'Move up'}
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
                                                         onClick={() =>
                                                             void handleQueueMove(queueEntry, 1)
                                                         }
@@ -910,11 +862,11 @@ function QueuePage() {
                                                         aria-label={`Move ${queueEntry.patient.fullName} down`}
                                                     >
                                                         {isMoving ? 'Moving...' : 'Move down'}
-                                                    </button>
+                                                    </Button>
                                                 </div>
                                                 {statusActions.length > 0 ? (
                                                     <select
-                                                        className="w-40 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                                                        className={`${fieldControlClassName} w-40`}
                                                         value=""
                                                         onChange={(event) => {
                                                             const nextStatus = event.target
