@@ -1,5 +1,7 @@
 # Authorization And Security
 
+Authoritative current references: [High-Level Design](../HLD.md), [Product Requirements](../PRD.md), and [Interview Guide](../INTERVIEW_GUIDE.md). Do not treat Clerk identity as Pravaah authorization.
+
 ## Core Answer
 
 Clerk proves who is signed in. Pravaah decides what that person can access.

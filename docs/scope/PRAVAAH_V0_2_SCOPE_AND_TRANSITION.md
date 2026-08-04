@@ -1,5 +1,7 @@
 # Pravaah v0.2 Scope and Release Transition Plan
 
+Historical planning note: this document records the v0.2 transition plan and older deployment assumptions. Use [Product Requirements](../PRD.md) for current capability status and [High-Level Design](../HLD.md) for current architecture. Live deployment URLs, deployed commit SHAs, and smoke-test results remain owner verification required unless recorded with evidence.
+
 **Release name:** Public Demo and Self-Service Clinic Onboarding  
 **Version:** v0.2.0  
 **Previous release:** v0.1.0 - Deployed MVP  

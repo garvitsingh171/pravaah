@@ -14,6 +14,12 @@ The no-show feature is rule-based and explainable. It is not trained machine lea
 
 Do not treat `v0.2.0` as fully released until the owner runs the verification checklist in [v0.2 Release Notes](docs/releases/V0_2_0_RELEASE_NOTES.md).
 
+Authoritative current docs:
+
+- [Product Requirements](docs/PRD.md)
+- [High-Level Design](docs/HLD.md)
+- [Interview Guide](docs/INTERVIEW_GUIDE.md)
+
 ## Current Capabilities
 
 - Public landing page plus Clerk sign-in and sign-up routes.
@@ -145,6 +151,8 @@ Start with [docs/README.md](docs/README.md).
 
 Key docs:
 
+- [Product Requirements](docs/PRD.md)
+- [High-Level Design](docs/HLD.md)
 - [Product MVP Boundary](docs/product/MVP.md)
 - [v0.2 Scope](docs/scope/V0_2_SCOPE.md)
 - [v0.2 Release Notes](docs/releases/V0_2_0_RELEASE_NOTES.md)
@@ -156,12 +164,13 @@ Key docs:
 - [Architecture](docs/architecture/ARCHITECTURE.md)
 - [API Reference](docs/architecture/API_REFERENCE.md)
 - [Auth And Security](docs/architecture/AUTH_AND_SECURITY.md)
+- [Interview Guide](docs/INTERVIEW_GUIDE.md)
 - [Interview Pack](docs/interview/README.md)
 - [AI Context](docs/ai/AI_CONTEXT.md)
 
 ## Verified From Source Inspection
 
-The current source tree contains the implementation paths for public routing, sign-up, onboarding status, transactional clinic/Admin provisioning, orphan prevention, onboarding UI, sample data, onboarding-aware routing, clinic settings, first-run checklist, doctor edit, patient edit, queue reorder, and Render-safe backend build output.
+The current source tree contains the implementation paths for public routing, sign-up, onboarding status, transactional clinic/Admin provisioning, orphan prevention, onboarding UI, sample data, onboarding-aware routing, clinic settings, first-run checklist, doctor edit, patient edit, queue reorder, and Render-safe backend build output. The authoritative source-verified product and architecture summaries live in [Product Requirements](docs/PRD.md) and [High-Level Design](docs/HLD.md).
 
 This Codex session did not run test suites, builds, deployments, migrations, or browser screenshot capture. Those remain owner release gates.
 

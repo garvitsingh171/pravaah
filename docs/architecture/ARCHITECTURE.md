@@ -1,5 +1,7 @@
 # Pravaah Architecture
 
+This is the concise architecture entry point. The authoritative current technical design is [High-Level Design](../HLD.md), and the authoritative product scope is [Product Requirements](../PRD.md). If this summary and the HLD disagree, update this file from the HLD and current code.
+
 ## Product Identity
 
 Pravaah is an AI-assisted clinic flow management MVP. The name means "flow"; the product focuses on the daily movement from authenticated clinic staff to records, appointments, queue work, and explainable no-show risk context.

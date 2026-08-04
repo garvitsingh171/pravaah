@@ -1,5 +1,7 @@
 # Screen Share Guide
 
+Authoritative current references: [Interview Guide](../INTERVIEW_GUIDE.md), [Product Requirements](../PRD.md), and [High-Level Design](../HLD.md). Use this guide for file order during a walkthrough.
+
 ## Order
 
 1. Root README release status.

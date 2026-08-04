@@ -1,5 +1,7 @@
 # Pravaah Roadmap
 
+Current product scope and status taxonomy are defined in [Product Requirements](../PRD.md). Use this roadmap for sequencing and future direction, not as proof that a capability is deployed.
+
 ## Release Status
 
 | Track               | Status                                                   |

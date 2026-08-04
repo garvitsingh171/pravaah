@@ -1,5 +1,7 @@
 # Testing And Deployment
 
+Authoritative current references: [High-Level Design](../HLD.md), [Product Requirements](../PRD.md), and [Interview Guide](../INTERVIEW_GUIDE.md). Deployment behavior remains owner verification required unless live evidence is supplied.
+
 ## Test Strategy
 
 Backend tests focus on services, validation, middleware, repositories, onboarding, authorization, and critical workflow behavior.

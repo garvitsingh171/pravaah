@@ -1,5 +1,7 @@
 # Deployment
 
+Deployment status must be read with [Product Requirements](../PRD.md) and [High-Level Design](../HLD.md). Repository configuration can prove deployment shape; only owner-supplied URLs, deployed SHAs, and smoke checks can prove live deployment.
+
 ## Current Status
 
 The v0.1.0 MVP is recorded as completed and deployed in the release freeze record, but this repository still does not contain live deployment URLs or real production credentials.

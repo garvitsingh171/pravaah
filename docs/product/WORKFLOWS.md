@@ -1,5 +1,7 @@
 # Workflows
 
+Current product authority: [Product Requirements](../PRD.md). Current system-design authority: [High-Level Design](../HLD.md). This workflow file should stay source-verified and should not describe planned behavior as current.
+
 This document traces the implemented full product flows across frontend, API, backend, and database.
 
 ## Sign In And Load App

@@ -1,5 +1,7 @@
 # API Structure
 
+Current API conventions are summarized here. For end-to-end architecture, route catalog, transaction design, and traceability, use [High-Level Design](../HLD.md). For product requirements and capability status, use [Product Requirements](../PRD.md).
+
 ## API Design Conventions
 
 Pravaah uses REST-style JSON APIs mounted under:

@@ -1,5 +1,7 @@
 # Questions And Simulations
 
+Authoritative current references: [Interview Guide](../INTERVIEW_GUIDE.md), [Product Requirements](../PRD.md), and [High-Level Design](../HLD.md). Use "Owner input required" for personal or deployment claims the repository cannot prove.
+
 ## Likely Questions
 
 **Why Clerk and internal users?**
