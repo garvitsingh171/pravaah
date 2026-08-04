@@ -198,7 +198,7 @@ describe('DoctorsPage edit workflow', () => {
         expect(screen.getByLabelText(/phone/i)).toHaveValue('+91 90000 09999');
     });
 
-    it('blocks repeated submissions while saving and supports deactivation', async () => {
+    it('confirms deactivation and blocks repeated status submissions while saving', async () => {
         const user = userEvent.setup();
         let resolveUpdate: (value: unknown) => void = () => {};
         const updatePromise = new Promise((resolve) => {
@@ -221,18 +221,21 @@ describe('DoctorsPage edit workflow', () => {
 
         renderDoctorsPage();
 
-        await user.click(await screen.findByRole('button', { name: /edit dr\. asha raman/i }));
-        await user.click(screen.getByRole('checkbox', { name: /active doctor record/i }));
+        await user.click(
+            await screen.findByRole('button', { name: /deactivate dr\. asha raman/i })
+        );
 
-        const saveButton = screen.getByRole('button', { name: /save doctor/i });
-        await user.click(saveButton);
-        await user.click(saveButton);
+        expect(screen.getByRole('dialog', { name: /deactivate doctor record/i })).toBeVisible();
+
+        const confirmButton = screen.getByRole('button', { name: /^deactivate doctor$/i });
+        await user.click(confirmButton);
+        await user.click(confirmButton);
 
         expect(mockUpdateDoctor).toHaveBeenCalledTimes(1);
         expect(mockUpdateDoctor).toHaveBeenCalledWith(adminActiveClinic.clinicId, doctor.id, {
             isActive: false,
         });
-        expect(screen.getByRole('button', { name: /saving doctor/i })).toBeDisabled();
+        expect(screen.getByRole('button', { name: /deactivating doctor/i })).toBeDisabled();
 
         resolveUpdate({
             doctor: {

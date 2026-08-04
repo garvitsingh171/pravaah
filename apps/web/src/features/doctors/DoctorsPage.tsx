@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useActiveClinic } from '../../app/activeClinicContext';
@@ -11,22 +11,24 @@ import {
 } from '../../components/feedback';
 import {
     Button,
+    ConfirmationDialog,
     FilterBar,
+    FormSection,
     PageHeader,
     StatusBadge,
     fieldControlClassName,
 } from '../../components/ui';
-import { isApiClientError } from '../../lib';
+import {
+    getBackendFieldErrors,
+    getBackendValidationDetails,
+    isApiClientError,
+    type BackendValidationDetail,
+} from '../../lib';
 import { Gender, type DoctorSummary, type Gender as GenderType } from '../../types';
 import { listDoctors, updateDoctor, type UpdateDoctorRequest } from './doctorApi';
 
 type DoctorsLocationState = {
     statusMessage?: string;
-};
-
-type BackendValidationDetail = {
-    field: string;
-    message: string;
 };
 
 type DoctorListState =
@@ -64,7 +66,6 @@ type DoctorEditFormValues = {
     email: string;
     gender: '' | GenderType;
     experienceYears: string;
-    isActive: boolean;
 };
 
 type DoctorEditComparableValues = {
@@ -76,7 +77,6 @@ type DoctorEditComparableValues = {
     email: string | null;
     gender: GenderType | null;
     experienceYears: number | null;
-    isActive: boolean;
 };
 
 type DoctorEditFieldErrors = Partial<Record<keyof DoctorEditFormValues, string>>;
@@ -90,7 +90,13 @@ const doctorValidationFieldMap: Partial<Record<string, keyof DoctorEditFormValue
     'body.email': 'email',
     'body.gender': 'gender',
     'body.experienceYears': 'experienceYears',
-    'body.isActive': 'isActive',
+};
+
+type StatusFilter = 'all' | 'active' | 'inactive';
+
+type DoctorStatusAction = {
+    doctor: DoctorSummary;
+    nextIsActive: boolean;
 };
 
 const getOptionalText = (value: string | null | undefined): string => {
@@ -138,9 +144,24 @@ const doctorMatchesSearch = (doctor: DoctorSummary, searchTerm: string): boolean
         return true;
     }
 
-    return [doctor.fullName, doctor.specialization, doctor.phone, doctor.email].some((value) =>
-        value?.toLowerCase().includes(normalizedSearchTerm)
-    );
+    return [
+        doctor.fullName,
+        doctor.specialization,
+        doctor.qualification,
+        doctor.registrationNumber,
+        doctor.phone,
+        doctor.email,
+    ].some((value) => value?.toLowerCase().includes(normalizedSearchTerm));
+};
+
+const doctorMatchesStatus = (doctor: DoctorSummary, statusFilter: StatusFilter): boolean => {
+    if (statusFilter === 'all') {
+        return true;
+    }
+
+    const isActive = isDoctorActiveInClinic(doctor);
+
+    return statusFilter === 'active' ? isActive : !isActive;
 };
 
 const hasEmailShape = (email: string): boolean => {
@@ -160,7 +181,6 @@ const toDoctorEditValues = (doctor: DoctorSummary): DoctorEditFormValues => {
             doctor.experienceYears === undefined || doctor.experienceYears === null
                 ? ''
                 : String(doctor.experienceYears),
-        isActive: doctor.isActive,
     };
 };
 
@@ -180,7 +200,6 @@ const toComparableDoctorValues = (values: DoctorEditFormValues): DoctorEditCompa
         email: toNullableText(values.email),
         gender: values.gender || null,
         experienceYears: values.experienceYears.trim() ? Number(values.experienceYears) : null,
-        isActive: values.isActive,
     };
 };
 
@@ -231,47 +250,8 @@ const buildDoctorUpdatePayload = (
     if (nextValues.experienceYears !== initialValues.experienceYears) {
         payload.experienceYears = nextValues.experienceYears;
     }
-    if (nextValues.isActive !== initialValues.isActive) payload.isActive = nextValues.isActive;
 
     return payload;
-};
-
-const getBackendValidationDetails = (details: unknown): BackendValidationDetail[] => {
-    if (!Array.isArray(details)) {
-        return [];
-    }
-
-    return details.reduce<BackendValidationDetail[]>((validationDetails, detail) => {
-        if (
-            typeof detail !== 'object' ||
-            detail === null ||
-            !('field' in detail) ||
-            !('message' in detail) ||
-            typeof detail.field !== 'string' ||
-            typeof detail.message !== 'string'
-        ) {
-            return validationDetails;
-        }
-
-        validationDetails.push({
-            field: detail.field,
-            message: detail.message,
-        });
-
-        return validationDetails;
-    }, []);
-};
-
-const getBackendFieldErrors = (details: unknown): DoctorEditFieldErrors => {
-    return getBackendValidationDetails(details).reduce<DoctorEditFieldErrors>((errors, detail) => {
-        const field = doctorValidationFieldMap[detail.field];
-
-        if (field) {
-            errors[field] = detail.message;
-        }
-
-        return errors;
-    }, {});
 };
 
 type DoctorEditPanelProps = {
@@ -289,6 +269,7 @@ function DoctorEditPanel({ clinicId, doctor, onCancel, onSaved }: DoctorEditPane
     const [formErrorCode, setFormErrorCode] = useState<string | undefined>();
     const [formErrorDetails, setFormErrorDetails] = useState<BackendValidationDetail[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showDiscardDialog, setShowDiscardDialog] = useState(false);
 
     const initialComparableValues = useMemo(
         () => toComparableDoctorValues(toDoctorEditValues(doctor)),
@@ -313,6 +294,15 @@ function DoctorEditPanel({ clinicId, doctor, onCancel, onSaved }: DoctorEditPane
         setFormError(null);
         setFormErrorCode(undefined);
         setFormErrorDetails([]);
+    };
+
+    const handleCancel = () => {
+        if (hasChanges) {
+            setShowDiscardDialog(true);
+            return;
+        }
+
+        onCancel();
     };
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -343,7 +333,12 @@ function DoctorEditPanel({ clinicId, doctor, onCancel, onSaved }: DoctorEditPane
             showSuccessToast('Doctor updated successfully.');
         } catch (error) {
             if (isApiClientError(error)) {
-                setFieldErrors(getBackendFieldErrors(error.details));
+                setFieldErrors(
+                    getBackendFieldErrors<keyof DoctorEditFormValues>(
+                        error.details,
+                        doctorValidationFieldMap
+                    )
+                );
                 setFormError(error.message);
                 setFormErrorCode(error.code);
                 setFormErrorDetails(getBackendValidationDetails(error.details));
@@ -372,7 +367,7 @@ function DoctorEditPanel({ clinicId, doctor, onCancel, onSaved }: DoctorEditPane
                         Edit {doctor.fullName}
                     </h2>
                 </div>
-                <Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
+                <Button variant="outline" onClick={handleCancel} disabled={isSubmitting}>
                     Cancel
                 </Button>
             </div>
@@ -389,7 +384,10 @@ function DoctorEditPanel({ clinicId, doctor, onCancel, onSaved }: DoctorEditPane
             ) : null}
 
             <form className="space-y-6" noValidate onSubmit={handleSubmit}>
-                <div className="grid gap-5 md:grid-cols-2">
+                <FormSection
+                    title="Identity"
+                    description="These are the supported doctor profile fields for this record."
+                >
                     <label className="block text-sm font-medium text-slate-700 md:col-span-2">
                         Full name
                         <input
@@ -441,7 +439,9 @@ function DoctorEditPanel({ clinicId, doctor, onCancel, onSaved }: DoctorEditPane
                         />
                         <FieldError message={fieldErrors.registrationNumber} />
                     </label>
+                </FormSection>
 
+                <FormSection title="Contact and Profile">
                     <label className="block text-sm font-medium text-slate-700">
                         Phone
                         <input
@@ -496,25 +496,7 @@ function DoctorEditPanel({ clinicId, doctor, onCancel, onSaved }: DoctorEditPane
                         />
                         <FieldError message={fieldErrors.experienceYears} />
                     </label>
-
-                    <label className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm font-medium text-slate-700 md:col-span-2">
-                        <input
-                            className="mt-1 h-4 w-4 rounded border-app-border-strong text-brand focus:ring-brand disabled:cursor-not-allowed"
-                            type="checkbox"
-                            checked={values.isActive}
-                            onChange={(event) =>
-                                handleFieldChange('isActive', event.target.checked)
-                            }
-                            disabled={isSubmitting}
-                        />
-                        <span>
-                            Active doctor record
-                            <span className="mt-1 block text-xs font-normal text-slate-500">
-                                Deactivation keeps the doctor record and appointment history.
-                            </span>
-                        </span>
-                    </label>
-                </div>
+                </FormSection>
 
                 <div className="flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm text-slate-500" role="status">
@@ -532,6 +514,15 @@ function DoctorEditPanel({ clinicId, doctor, onCancel, onSaved }: DoctorEditPane
                     </Button>
                 </div>
             </form>
+            <ConfirmationDialog
+                open={showDiscardDialog}
+                title="Discard doctor changes?"
+                description="The doctor profile has unsaved edits."
+                confirmLabel="Discard changes"
+                cancelLabel="Continue editing"
+                onConfirm={onCancel}
+                onCancel={() => setShowDiscardDialog(false)}
+            />
         </div>
     );
 }
@@ -540,11 +531,16 @@ function DoctorsPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const { clinicId } = useActiveClinic();
-    const { showSuccessToast } = useToast();
+    const { showErrorToast, showSuccessToast } = useToast();
     const locationState = location.state as DoctorsLocationState | null;
     const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
     const [doctorListState, setDoctorListState] = useState<DoctorListState>(emptyDoctorListState);
     const [editingDoctor, setEditingDoctor] = useState<DoctorSummary | null>(null);
+    const [expandedDoctorId, setExpandedDoctorId] = useState<string | null>(null);
+    const [statusAction, setStatusAction] = useState<DoctorStatusAction | null>(null);
+    const [statusActionError, setStatusActionError] = useState<string | null>(null);
+    const [isStatusUpdating, setIsStatusUpdating] = useState(false);
 
     const loadDoctors = useCallback(
         (signal?: AbortSignal) => listDoctors(clinicId, signal),
@@ -586,6 +582,47 @@ function DoctorsPage() {
         setEditingDoctor(null);
     };
 
+    const refreshDoctorsAfterStatusChange = async () => {
+        const data = await loadDoctors();
+
+        setDoctorListState({
+            status: 'success',
+            doctors: data.doctors,
+            error: null,
+        });
+    };
+
+    const handleStatusActionConfirm = async () => {
+        if (!statusAction) {
+            return;
+        }
+
+        setIsStatusUpdating(true);
+        setStatusActionError(null);
+
+        try {
+            await updateDoctor(clinicId, statusAction.doctor.id, {
+                isActive: statusAction.nextIsActive,
+            });
+            await refreshDoctorsAfterStatusChange();
+            showSuccessToast(
+                statusAction.nextIsActive
+                    ? 'Doctor reactivated successfully.'
+                    : 'Doctor deactivated successfully.'
+            );
+            setStatusAction(null);
+        } catch (error) {
+            const message = isApiClientError(error)
+                ? error.message
+                : 'Doctor status could not be updated. Please try again.';
+
+            setStatusActionError(message);
+            showErrorToast(message);
+        } finally {
+            setIsStatusUpdating(false);
+        }
+    };
+
     useEffect(() => {
         const abortController = new AbortController();
 
@@ -622,9 +659,14 @@ function DoctorsPage() {
             return [];
         }
 
-        return doctorListState.doctors.filter((doctor) => doctorMatchesSearch(doctor, searchTerm));
-    }, [doctorListState, searchTerm]);
+        return doctorListState.doctors.filter(
+            (doctor) =>
+                doctorMatchesSearch(doctor, searchTerm) &&
+                doctorMatchesStatus(doctor, statusFilter)
+        );
+    }, [doctorListState, searchTerm, statusFilter]);
     const hasSearch = searchTerm.trim().length > 0;
+    const hasFilters = hasSearch || statusFilter !== 'all';
     const hasDoctors = doctorListState.status === 'success' && displayedDoctors.length > 0;
 
     return (
@@ -651,13 +693,32 @@ function DoctorsPage() {
                             className={fieldControlClassName}
                             value={searchTerm}
                             onChange={(event) => setSearchTerm(event.target.value)}
-                            placeholder="Name, specialization, phone, or email"
+                            placeholder="Name, specialization, qualification, registration, phone, or email"
                             type="search"
                         />
                     </label>
 
-                    {hasSearch ? (
-                        <Button variant="outline" onClick={() => setSearchTerm('')}>
+                    <label className="block text-sm font-medium text-slate-700 md:w-56">
+                        Status
+                        <select
+                            className={fieldControlClassName}
+                            value={statusFilter}
+                            onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+                        >
+                            <option value="all">All doctor records</option>
+                            <option value="active">Active for booking</option>
+                            <option value="inactive">Inactive or unavailable</option>
+                        </select>
+                    </label>
+
+                    {hasFilters ? (
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setSearchTerm('');
+                                setStatusFilter('all');
+                            }}
+                        >
                             Clear
                         </Button>
                     ) : null}
@@ -706,8 +767,8 @@ function DoctorsPage() {
             doctorListState.doctors.length > 0 &&
             displayedDoctors.length === 0 ? (
                 <EmptyState
-                    title="No doctors match this search."
-                    message="Try searching by another doctor name, specialization, phone number, or email."
+                    title="No doctors match these filters."
+                    message="Try another supported doctor identity field or status filter."
                 />
             ) : null}
 
@@ -726,63 +787,176 @@ function DoctorsPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-200">
-                                {displayedDoctors.map((doctor) => (
-                                    <tr
-                                        key={doctor.id}
-                                        className="align-top transition hover:bg-slate-50/70"
-                                    >
-                                        <td className="min-w-52 px-4 py-5">
-                                            <p className="font-semibold text-slate-900">
-                                                {doctor.fullName}
-                                            </p>
-                                            <p className="mt-1 text-slate-600">
-                                                {getOptionalText(doctor.specialization)}
-                                            </p>
-                                        </td>
-                                        <td className="min-w-52 px-4 py-5 text-slate-700">
-                                            <p className="font-medium text-slate-900">
-                                                {getOptionalText(doctor.qualification)}
-                                            </p>
-                                            <p className="mt-1 text-xs text-slate-500">
-                                                Reg. {getOptionalText(doctor.registrationNumber)}
-                                            </p>
-                                        </td>
-                                        <td className="min-w-56 px-4 py-5 text-slate-700">
-                                            <p className="font-medium text-slate-900">
-                                                {getOptionalText(doctor.phone)}
-                                            </p>
-                                            <p className="mt-1 text-slate-500">
-                                                {getOptionalText(doctor.email)}
-                                            </p>
-                                        </td>
-                                        <td className="min-w-32 px-4 py-5 text-slate-700">
-                                            <span className="font-medium text-slate-900">
-                                                {doctor.experienceYears ?? 'Not added'}
-                                            </span>
-                                        </td>
-                                        <td className="min-w-28 px-4 py-5">
-                                            <StatusBadge
-                                                kind="active"
-                                                status={isDoctorActiveInClinic(doctor)}
-                                            />
-                                        </td>
-                                        <td className="min-w-32 px-4 py-5">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => setEditingDoctor(doctor)}
-                                                aria-label={`Edit ${doctor.fullName}`}
-                                            >
-                                                Edit
-                                            </Button>
-                                        </td>
-                                    </tr>
-                                ))}
+                                {displayedDoctors.map((doctor) => {
+                                    const isActive = isDoctorActiveInClinic(doctor);
+                                    const isExpanded = expandedDoctorId === doctor.id;
+
+                                    return (
+                                        <Fragment key={doctor.id}>
+                                            <tr className="align-top transition hover:bg-slate-50/70">
+                                                <td className="min-w-52 px-4 py-5">
+                                                    <p className="font-semibold text-slate-900">
+                                                        {doctor.fullName}
+                                                    </p>
+                                                    <p className="mt-1 text-slate-600">
+                                                        {getOptionalText(doctor.specialization)}
+                                                    </p>
+                                                </td>
+                                                <td className="min-w-52 px-4 py-5 text-slate-700">
+                                                    <p className="font-medium text-slate-900">
+                                                        {getOptionalText(doctor.qualification)}
+                                                    </p>
+                                                    <p className="mt-1 text-xs text-slate-500">
+                                                        Reg.{' '}
+                                                        {getOptionalText(doctor.registrationNumber)}
+                                                    </p>
+                                                </td>
+                                                <td className="min-w-56 px-4 py-5 text-slate-700">
+                                                    <p className="font-medium text-slate-900">
+                                                        {getOptionalText(doctor.phone)}
+                                                    </p>
+                                                    <p className="mt-1 text-slate-500">
+                                                        {getOptionalText(doctor.email)}
+                                                    </p>
+                                                </td>
+                                                <td className="min-w-32 px-4 py-5 text-slate-700">
+                                                    <span className="font-medium text-slate-900">
+                                                        {doctor.experienceYears ?? 'Not added'}
+                                                    </span>
+                                                </td>
+                                                <td className="min-w-36 px-4 py-5">
+                                                    <div className="space-y-2">
+                                                        <StatusBadge kind="active" status={isActive} />
+                                                        {!doctor.isActive ? (
+                                                            <p className="text-xs text-slate-500">
+                                                                Doctor profile inactive
+                                                            </p>
+                                                        ) : doctor.clinicLinkIsActive === false ? (
+                                                            <p className="text-xs text-slate-500">
+                                                                Clinic link inactive
+                                                            </p>
+                                                        ) : null}
+                                                    </div>
+                                                </td>
+                                                <td className="min-w-56 px-4 py-5">
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() =>
+                                                                setExpandedDoctorId((currentId) =>
+                                                                    currentId === doctor.id
+                                                                        ? null
+                                                                        : doctor.id
+                                                                )
+                                                            }
+                                                            aria-expanded={isExpanded}
+                                                            aria-label={`${
+                                                                isExpanded ? 'Hide' : 'View'
+                                                            } details for ${doctor.fullName}`}
+                                                        >
+                                                            {isExpanded ? 'Hide details' : 'Details'}
+                                                        </Button>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => setEditingDoctor(doctor)}
+                                                            aria-label={`Edit ${doctor.fullName}`}
+                                                        >
+                                                            Edit
+                                                        </Button>
+                                                        <Button
+                                                            variant={doctor.isActive ? 'danger' : 'secondary'}
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                setStatusAction({
+                                                                    doctor,
+                                                                    nextIsActive: !doctor.isActive,
+                                                                });
+                                                                setStatusActionError(null);
+                                                            }}
+                                                            aria-label={`${
+                                                                doctor.isActive
+                                                                    ? 'Deactivate'
+                                                                    : 'Reactivate'
+                                                            } ${doctor.fullName}`}
+                                                        >
+                                                            {doctor.isActive
+                                                                ? 'Deactivate'
+                                                                : 'Reactivate'}
+                                                        </Button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {isExpanded ? (
+                                                <tr className="bg-slate-50/70">
+                                                    <td colSpan={6} className="px-4 py-4">
+                                                        <dl className="grid gap-4 text-sm md:grid-cols-3">
+                                                            <div>
+                                                                <dt className="font-medium text-slate-500">
+                                                                    Profile status
+                                                                </dt>
+                                                                <dd className="mt-1 text-slate-900">
+                                                                    {doctor.isActive
+                                                                        ? 'Active'
+                                                                        : 'Inactive'}
+                                                                </dd>
+                                                            </div>
+                                                            <div>
+                                                                <dt className="font-medium text-slate-500">
+                                                                    Clinic link status
+                                                                </dt>
+                                                                <dd className="mt-1 text-slate-900">
+                                                                    {doctor.clinicLinkIsActive ===
+                                                                    false
+                                                                        ? 'Inactive'
+                                                                        : 'Active'}
+                                                                </dd>
+                                                            </div>
+                                                            <div>
+                                                                <dt className="font-medium text-slate-500">
+                                                                    Gender
+                                                                </dt>
+                                                                <dd className="mt-1 text-slate-900">
+                                                                    {doctor.gender ?? 'Not added'}
+                                                                </dd>
+                                                            </div>
+                                                        </dl>
+                                                    </td>
+                                                </tr>
+                                            ) : null}
+                                        </Fragment>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
                 </div>
             ) : null}
+            <ConfirmationDialog
+                open={Boolean(statusAction)}
+                title={
+                    statusAction?.nextIsActive ? 'Reactivate doctor record?' : 'Deactivate doctor record?'
+                }
+                description={
+                    statusAction?.nextIsActive
+                        ? `Reactivate ${statusAction.doctor.fullName} for supported clinic workflows.`
+                        : `Deactivate ${statusAction?.doctor.fullName ?? 'this doctor'} without deleting the record or appointment history.`
+                }
+                confirmLabel={statusAction?.nextIsActive ? 'Reactivate doctor' : 'Deactivate doctor'}
+                cancelLabel="Keep current status"
+                confirmVariant={statusAction?.nextIsActive ? 'primary' : 'danger'}
+                isConfirming={isStatusUpdating}
+                confirmLoadingText={
+                    statusAction?.nextIsActive ? 'Reactivating doctor...' : 'Deactivating doctor...'
+                }
+                error={statusActionError}
+                onConfirm={handleStatusActionConfirm}
+                onCancel={() => {
+                    setStatusAction(null);
+                    setStatusActionError(null);
+                }}
+            />
         </section>
     );
 }

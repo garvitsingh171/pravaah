@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useActiveClinic } from '../../app/activeClinicContext';
@@ -11,12 +11,19 @@ import {
 } from '../../components/feedback';
 import {
     Button,
+    ConfirmationDialog,
     FilterBar,
+    FormSection,
     PageHeader,
     StatusBadge,
     fieldControlClassName,
 } from '../../components/ui';
-import { isApiClientError } from '../../lib';
+import {
+    getBackendFieldErrors,
+    getBackendValidationDetails,
+    isApiClientError,
+    type BackendValidationDetail,
+} from '../../lib';
 import { Gender, type Gender as GenderType, type PatientSummary } from '../../types';
 import {
     listPatients,
@@ -27,11 +34,6 @@ import {
 
 type PatientsLocationState = {
     statusMessage?: string;
-};
-
-type BackendValidationDetail = {
-    field: string;
-    message: string;
 };
 
 type PatientListState =
@@ -73,7 +75,6 @@ type PatientEditFormValues = {
     emergencyContactPhone: string;
     distanceFromClinicKm: string;
     notes: string;
-    isActive: boolean;
 };
 
 type PatientEditComparableValues = {
@@ -89,7 +90,6 @@ type PatientEditComparableValues = {
     emergencyContactPhone: string | null;
     distanceFromClinicKm: number | null;
     notes: string | null;
-    isActive: boolean;
 };
 
 type PatientEditFieldErrors = Partial<Record<keyof PatientEditFormValues, string>>;
@@ -107,7 +107,13 @@ const patientValidationFieldMap: Partial<Record<string, keyof PatientEditFormVal
     'body.emergencyContactPhone': 'emergencyContactPhone',
     'body.distanceFromClinicKm': 'distanceFromClinicKm',
     'body.notes': 'notes',
-    'body.isActive': 'isActive',
+};
+
+type StatusFilter = 'all' | 'active' | 'inactive';
+
+type PatientStatusAction = {
+    patient: PatientSummary;
+    nextIsActive: boolean;
 };
 
 const getOptionalText = (value: string | null | undefined): string => {
@@ -167,11 +173,16 @@ const getVisitSummary = (patient: PatientSummary): string => {
     return `${totalAppointments} appointments, ${totalNoShows} no-shows, ${totalLateArrivals} late`;
 };
 
-const getPatientListFilters = (searchTerm: string): PatientListFilters => {
+const getPatientListFilters = (
+    searchTerm: string,
+    statusFilter: StatusFilter
+): PatientListFilters => {
     const search = searchTerm.trim();
 
     return {
         search: search || undefined,
+        isActive:
+            statusFilter === 'all' ? undefined : statusFilter === 'active',
     };
 };
 
@@ -200,7 +211,6 @@ const toPatientEditValues = (patient: PatientSummary): PatientEditFormValues => 
                 ? ''
                 : String(patient.distanceFromClinicKm),
         notes: patient.notes ?? '',
-        isActive: patient.isActive,
     };
 };
 
@@ -228,7 +238,6 @@ const toComparablePatientValues = (values: PatientEditFormValues): PatientEditCo
         emergencyContactPhone: toNullableText(values.emergencyContactPhone),
         distanceFromClinicKm: toNullableNumber(values.distanceFromClinicKm),
         notes: toNullableText(values.notes),
-        isActive: values.isActive,
     };
 };
 
@@ -301,47 +310,8 @@ const buildPatientUpdatePayload = (
         payload.distanceFromClinicKm = nextValues.distanceFromClinicKm;
     }
     if (nextValues.notes !== initialValues.notes) payload.notes = nextValues.notes;
-    if (nextValues.isActive !== initialValues.isActive) payload.isActive = nextValues.isActive;
 
     return payload;
-};
-
-const getBackendValidationDetails = (details: unknown): BackendValidationDetail[] => {
-    if (!Array.isArray(details)) {
-        return [];
-    }
-
-    return details.reduce<BackendValidationDetail[]>((validationDetails, detail) => {
-        if (
-            typeof detail !== 'object' ||
-            detail === null ||
-            !('field' in detail) ||
-            !('message' in detail) ||
-            typeof detail.field !== 'string' ||
-            typeof detail.message !== 'string'
-        ) {
-            return validationDetails;
-        }
-
-        validationDetails.push({
-            field: detail.field,
-            message: detail.message,
-        });
-
-        return validationDetails;
-    }, []);
-};
-
-const getBackendFieldErrors = (details: unknown): PatientEditFieldErrors => {
-    return getBackendValidationDetails(details).reduce<PatientEditFieldErrors>((errors, detail) => {
-        const field = patientValidationFieldMap[detail.field];
-
-        if (field) {
-            errors[field] = detail.message;
-        }
-
-        return errors;
-    }, {});
 };
 
 type PatientEditPanelProps = {
@@ -359,13 +329,20 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
     const [formErrorCode, setFormErrorCode] = useState<string | undefined>();
     const [formErrorDetails, setFormErrorDetails] = useState<BackendValidationDetail[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showDiscardDialog, setShowDiscardDialog] = useState(false);
 
-    const initialComparableValues = toComparablePatientValues(toPatientEditValues(patient));
-    const nextComparableValues = toComparablePatientValues(values);
-    const updatePayload = buildPatientUpdatePayload(initialComparableValues, nextComparableValues);
+    const initialComparableValues = useMemo(
+        () => toComparablePatientValues(toPatientEditValues(patient)),
+        [patient]
+    );
+    const nextComparableValues = useMemo(() => toComparablePatientValues(values), [values]);
+    const updatePayload = useMemo(
+        () => buildPatientUpdatePayload(initialComparableValues, nextComparableValues),
+        [initialComparableValues, nextComparableValues]
+    );
     const hasChanges = Object.keys(updatePayload).length > 0;
 
-    const handleFieldChange = (field: keyof PatientEditFormValues, value: string | boolean) => {
+    const handleFieldChange = (field: keyof PatientEditFormValues, value: string) => {
         setValues((currentValues) => ({
             ...currentValues,
             [field]: value,
@@ -377,6 +354,15 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
         setFormError(null);
         setFormErrorCode(undefined);
         setFormErrorDetails([]);
+    };
+
+    const handleCancel = () => {
+        if (hasChanges) {
+            setShowDiscardDialog(true);
+            return;
+        }
+
+        onCancel();
     };
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -407,7 +393,12 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
             showSuccessToast('Patient updated successfully.');
         } catch (error) {
             if (isApiClientError(error)) {
-                setFieldErrors(getBackendFieldErrors(error.details));
+                setFieldErrors(
+                    getBackendFieldErrors<keyof PatientEditFormValues>(
+                        error.details,
+                        patientValidationFieldMap
+                    )
+                );
                 setFormError(error.message);
                 setFormErrorCode(error.code);
                 setFormErrorDetails(getBackendValidationDetails(error.details));
@@ -436,7 +427,7 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
                         Edit {patient.fullName}
                     </h2>
                 </div>
-                <Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
+                <Button variant="outline" onClick={handleCancel} disabled={isSubmitting}>
                     Cancel
                 </Button>
             </div>
@@ -453,7 +444,10 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
             ) : null}
 
             <form className="space-y-6" noValidate onSubmit={handleSubmit}>
-                <div className="grid gap-5 md:grid-cols-2">
+                <FormSection
+                    title="Identity"
+                    description="These are the supported patient profile fields for this record."
+                >
                     <label className="block text-sm font-medium text-slate-700 md:col-span-2">
                         Full name
                         <input
@@ -509,7 +503,9 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
                         </select>
                         <FieldError message={fieldErrors.gender} />
                     </label>
+                </FormSection>
 
+                <FormSection title="Demographics">
                     <label className="block text-sm font-medium text-slate-700">
                         Date of birth
                         <input
@@ -535,7 +531,12 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
                         />
                         <FieldError message={fieldErrors.age} />
                     </label>
+                </FormSection>
 
+                <FormSection
+                    title="Clinic Details"
+                    description="Notes and distance are scoped to this clinic only."
+                >
                     <label className="block text-sm font-medium text-slate-700">
                         City
                         <input
@@ -560,7 +561,9 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
                         />
                         <FieldError message={fieldErrors.distanceFromClinicKm} />
                     </label>
+                </FormSection>
 
+                <FormSection title="Emergency Contact">
                     <label className="block text-sm font-medium text-slate-700">
                         Emergency contact name
                         <input
@@ -587,7 +590,9 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
                         />
                         <FieldError message={fieldErrors.emergencyContactPhone} />
                     </label>
+                </FormSection>
 
+                <FormSection title="Address and Notes">
                     <label className="block text-sm font-medium text-slate-700 md:col-span-2">
                         Address
                         <textarea
@@ -611,25 +616,7 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
                         />
                         <FieldError message={fieldErrors.notes} />
                     </label>
-
-                    <label className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm font-medium text-slate-700 md:col-span-2">
-                        <input
-                            className="mt-1 h-4 w-4 rounded border-app-border-strong text-brand focus:ring-brand disabled:cursor-not-allowed"
-                            type="checkbox"
-                            checked={values.isActive}
-                            onChange={(event) =>
-                                handleFieldChange('isActive', event.target.checked)
-                            }
-                            disabled={isSubmitting}
-                        />
-                        <span>
-                            Active patient record
-                            <span className="mt-1 block text-xs font-normal text-slate-500">
-                                Deactivation keeps appointment, queue, and history records.
-                            </span>
-                        </span>
-                    </label>
-                </div>
+                </FormSection>
 
                 <div className="flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm text-slate-500" role="status">
@@ -647,6 +634,15 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
                     </Button>
                 </div>
             </form>
+            <ConfirmationDialog
+                open={showDiscardDialog}
+                title="Discard patient changes?"
+                description="The patient profile has unsaved edits."
+                confirmLabel="Discard changes"
+                cancelLabel="Continue editing"
+                onConfirm={onCancel}
+                onCancel={() => setShowDiscardDialog(false)}
+            />
         </div>
     );
 }
@@ -655,19 +651,24 @@ function PatientsPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const { clinicId } = useActiveClinic();
-    const { showSuccessToast } = useToast();
+    const { showErrorToast, showSuccessToast } = useToast();
     const locationState = location.state as PatientsLocationState | null;
     const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
     const [patientListState, setPatientListState] =
         useState<PatientListState>(emptyPatientListState);
     const [editingPatient, setEditingPatient] = useState<PatientSummary | null>(null);
+    const [expandedPatientId, setExpandedPatientId] = useState<string | null>(null);
+    const [statusAction, setStatusAction] = useState<PatientStatusAction | null>(null);
+    const [statusActionError, setStatusActionError] = useState<string | null>(null);
+    const [isStatusUpdating, setIsStatusUpdating] = useState(false);
 
     const loadPatients = useCallback(
         async (signal?: AbortSignal) => {
             try {
                 const data = await listPatients(
                     clinicId,
-                    getPatientListFilters(searchTerm),
+                    getPatientListFilters(searchTerm, statusFilter),
                     signal
                 );
 
@@ -707,7 +708,7 @@ function PatientsPage() {
                 });
             }
         },
-        [clinicId, searchTerm]
+        [clinicId, searchTerm, statusFilter]
     );
 
     const handleRetry = () => {
@@ -729,8 +730,17 @@ function PatientsPage() {
         setSearchTerm(value);
     };
 
+    const handleStatusFilterChange = (value: StatusFilter) => {
+        setPatientListState((currentState) => ({
+            status: 'loading',
+            patients: currentState.patients,
+            error: null,
+        }));
+        setStatusFilter(value);
+    };
+
     const refreshPatientsAfterSave = async () => {
-        const data = await listPatients(clinicId, getPatientListFilters(searchTerm));
+        const data = await listPatients(clinicId, getPatientListFilters(searchTerm, statusFilter));
 
         setPatientListState({
             status: 'success',
@@ -740,10 +750,55 @@ function PatientsPage() {
         setEditingPatient(null);
     };
 
+    const refreshPatientsAfterStatusChange = async () => {
+        const data = await listPatients(clinicId, getPatientListFilters(searchTerm, statusFilter));
+
+        setPatientListState({
+            status: 'success',
+            patients: data.patients,
+            error: null,
+        });
+    };
+
+    const handleStatusActionConfirm = async () => {
+        if (!statusAction) {
+            return;
+        }
+
+        setIsStatusUpdating(true);
+        setStatusActionError(null);
+
+        try {
+            await updatePatient(clinicId, statusAction.patient.id, {
+                isActive: statusAction.nextIsActive,
+            });
+            await refreshPatientsAfterStatusChange();
+            showSuccessToast(
+                statusAction.nextIsActive
+                    ? 'Patient reactivated successfully.'
+                    : 'Patient deactivated successfully.'
+            );
+            setStatusAction(null);
+        } catch (error) {
+            const message = isApiClientError(error)
+                ? error.message
+                : 'Patient status could not be updated. Please try again.';
+
+            setStatusActionError(message);
+            showErrorToast(message);
+        } finally {
+            setIsStatusUpdating(false);
+        }
+    };
+
     useEffect(() => {
         const abortController = new AbortController();
 
-        listPatients(clinicId, getPatientListFilters(searchTerm), abortController.signal)
+        listPatients(
+            clinicId,
+            getPatientListFilters(searchTerm, statusFilter),
+            abortController.signal
+        )
             .then((data) => {
                 setPatientListState({
                     status: 'success',
@@ -785,7 +840,7 @@ function PatientsPage() {
         return () => {
             abortController.abort();
         };
-    }, [clinicId, searchTerm]);
+    }, [clinicId, searchTerm, statusFilter]);
 
     useEffect(() => {
         if (locationState?.statusMessage) {
@@ -797,6 +852,7 @@ function PatientsPage() {
     const hasPatients =
         patientListState.status === 'success' && patientListState.patients.length > 0;
     const hasSearch = searchTerm.trim().length > 0;
+    const hasFilters = hasSearch || statusFilter !== 'all';
 
     return (
         <section className="space-y-6">
@@ -827,8 +883,29 @@ function PatientsPage() {
                         />
                     </label>
 
-                    {hasSearch ? (
-                        <Button variant="outline" onClick={() => handleSearchChange('')}>
+                    <label className="block text-sm font-medium text-slate-700 md:w-56">
+                        Status
+                        <select
+                            className={fieldControlClassName}
+                            value={statusFilter}
+                            onChange={(event) =>
+                                handleStatusFilterChange(event.target.value as StatusFilter)
+                            }
+                        >
+                            <option value="all">All patient records</option>
+                            <option value="active">Active for booking</option>
+                            <option value="inactive">Inactive or unavailable</option>
+                        </select>
+                    </label>
+
+                    {hasFilters ? (
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                handleSearchChange('');
+                                handleStatusFilterChange('all');
+                            }}
+                        >
                             Clear
                         </Button>
                     ) : null}
@@ -861,17 +938,17 @@ function PatientsPage() {
             {patientListState.status === 'success' && patientListState.patients.length === 0 ? (
                 <EmptyState
                     title={
-                        hasSearch
-                            ? 'No patients match this search.'
+                        hasFilters
+                            ? 'No patients match these filters.'
                             : 'No patients found for this clinic.'
                     }
                     message={
-                        hasSearch
-                            ? 'Try searching by another name, phone number, or email.'
+                        hasFilters
+                            ? 'Try searching by another supported identity field or status filter.'
                             : 'Add the first patient record so staff can book appointments and keep the daily flow moving.'
                     }
                     action={
-                        hasSearch ? undefined : (
+                        hasFilters ? undefined : (
                             <Link
                                 to="/patients/new"
                                 className="inline-flex min-h-10 items-center justify-center rounded-md border border-transparent bg-action px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
@@ -898,69 +975,204 @@ function PatientsPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-200">
-                                {patientListState.patients.map((patient) => (
-                                    <tr
-                                        key={patient.id}
-                                        className="align-top transition hover:bg-slate-50/70"
-                                    >
-                                        <td className="min-w-48 px-4 py-5">
-                                            <p className="font-semibold text-slate-900">
-                                                {patient.fullName}
-                                            </p>
-                                            <p className="mt-1 text-slate-600">
-                                                {getGenderLabel(patient.gender)}
-                                            </p>
-                                        </td>
-                                        <td className="min-w-56 px-4 py-5 text-slate-700">
-                                            <p className="font-medium text-slate-900">
-                                                {patient.phone}
-                                            </p>
-                                            <p className="mt-1 text-slate-500">
-                                                {getOptionalText(patient.email)}
-                                            </p>
-                                        </td>
-                                        <td className="min-w-40 px-4 py-5 text-slate-700">
-                                            <p className="font-medium text-slate-900">
-                                                {getAgeOrDateOfBirthLabel(patient)}
-                                            </p>
-                                            <p className="mt-1 text-slate-500">
-                                                {getOptionalText(patient.city)}
-                                            </p>
-                                        </td>
-                                        <td className="min-w-56 px-4 py-5 text-slate-700">
-                                            <p className="font-medium text-slate-900">
-                                                {getVisitSummary(patient)}
-                                            </p>
-                                            <p className="mt-1 text-slate-500">
-                                                Last visit:{' '}
-                                                {patient.lastVisitAt
-                                                    ? formatDate(patient.lastVisitAt)
-                                                    : 'Not added'}
-                                            </p>
-                                        </td>
-                                        <td className="min-w-28 px-4 py-5">
-                                            <StatusBadge
-                                                kind="active"
-                                                status={isPatientActiveInClinic(patient)}
-                                            />
-                                        </td>
-                                        <td className="min-w-32 px-4 py-5">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => setEditingPatient(patient)}
-                                                aria-label={`Edit ${patient.fullName}`}
-                                            >
-                                                Edit
-                                            </Button>
-                                        </td>
-                                    </tr>
-                                ))}
+                                {patientListState.patients.map((patient) => {
+                                    const isActive = isPatientActiveInClinic(patient);
+                                    const isExpanded = expandedPatientId === patient.id;
+
+                                    return (
+                                        <Fragment key={patient.id}>
+                                            <tr className="align-top transition hover:bg-slate-50/70">
+                                                <td className="min-w-48 px-4 py-5">
+                                                    <p className="font-semibold text-slate-900">
+                                                        {patient.fullName}
+                                                    </p>
+                                                    <p className="mt-1 text-slate-600">
+                                                        {getGenderLabel(patient.gender)}
+                                                    </p>
+                                                </td>
+                                                <td className="min-w-56 px-4 py-5 text-slate-700">
+                                                    <p className="font-medium text-slate-900">
+                                                        {patient.phone}
+                                                    </p>
+                                                    <p className="mt-1 text-slate-500">
+                                                        {getOptionalText(patient.email)}
+                                                    </p>
+                                                </td>
+                                                <td className="min-w-40 px-4 py-5 text-slate-700">
+                                                    <p className="font-medium text-slate-900">
+                                                        {getAgeOrDateOfBirthLabel(patient)}
+                                                    </p>
+                                                    <p className="mt-1 text-slate-500">
+                                                        {getOptionalText(patient.city)}
+                                                    </p>
+                                                </td>
+                                                <td className="min-w-60 px-4 py-5 text-slate-700">
+                                                    <p className="font-medium text-slate-900">
+                                                        This clinic: {getVisitSummary(patient)}
+                                                    </p>
+                                                    <p className="mt-1 text-slate-500">
+                                                        Last visit at this clinic:{' '}
+                                                        {patient.lastVisitAt
+                                                            ? formatDate(patient.lastVisitAt)
+                                                            : 'Not added'}
+                                                    </p>
+                                                </td>
+                                                <td className="min-w-36 px-4 py-5">
+                                                    <div className="space-y-2">
+                                                        <StatusBadge kind="active" status={isActive} />
+                                                        {!patient.isActive ? (
+                                                            <p className="text-xs text-slate-500">
+                                                                Patient profile inactive
+                                                            </p>
+                                                        ) : patient.clinicLinkIsActive === false ? (
+                                                            <p className="text-xs text-slate-500">
+                                                                Clinic link inactive
+                                                            </p>
+                                                        ) : null}
+                                                    </div>
+                                                </td>
+                                                <td className="min-w-56 px-4 py-5">
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() =>
+                                                                setExpandedPatientId((currentId) =>
+                                                                    currentId === patient.id
+                                                                        ? null
+                                                                        : patient.id
+                                                                )
+                                                            }
+                                                            aria-expanded={isExpanded}
+                                                            aria-label={`${
+                                                                isExpanded ? 'Hide' : 'View'
+                                                            } details for ${patient.fullName}`}
+                                                        >
+                                                            {isExpanded ? 'Hide details' : 'Details'}
+                                                        </Button>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => setEditingPatient(patient)}
+                                                            aria-label={`Edit ${patient.fullName}`}
+                                                        >
+                                                            Edit
+                                                        </Button>
+                                                        <Button
+                                                            variant={
+                                                                patient.isActive
+                                                                    ? 'danger'
+                                                                    : 'secondary'
+                                                            }
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                setStatusAction({
+                                                                    patient,
+                                                                    nextIsActive:
+                                                                        !patient.isActive,
+                                                                });
+                                                                setStatusActionError(null);
+                                                            }}
+                                                            aria-label={`${
+                                                                patient.isActive
+                                                                    ? 'Deactivate'
+                                                                    : 'Reactivate'
+                                                            } ${patient.fullName}`}
+                                                        >
+                                                            {patient.isActive
+                                                                ? 'Deactivate'
+                                                                : 'Reactivate'}
+                                                        </Button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {isExpanded ? (
+                                                <tr className="bg-slate-50/70">
+                                                    <td colSpan={6} className="px-4 py-4">
+                                                        <dl className="grid gap-4 text-sm md:grid-cols-3">
+                                                            <div>
+                                                                <dt className="font-medium text-slate-500">
+                                                                    Address
+                                                                </dt>
+                                                                <dd className="mt-1 text-slate-900">
+                                                                    {getOptionalText(
+                                                                        patient.address
+                                                                    )}
+                                                                </dd>
+                                                            </div>
+                                                            <div>
+                                                                <dt className="font-medium text-slate-500">
+                                                                    Emergency contact
+                                                                </dt>
+                                                                <dd className="mt-1 text-slate-900">
+                                                                    {getOptionalText(
+                                                                        patient.emergencyContactName
+                                                                    )}
+                                                                    {' / '}
+                                                                    {getOptionalText(
+                                                                        patient.emergencyContactPhone
+                                                                    )}
+                                                                </dd>
+                                                            </div>
+                                                            <div>
+                                                                <dt className="font-medium text-slate-500">
+                                                                    Distance from this clinic
+                                                                </dt>
+                                                                <dd className="mt-1 text-slate-900">
+                                                                    {patient.distanceFromClinicKm ??
+                                                                        'Not added'}
+                                                                </dd>
+                                                            </div>
+                                                            <div className="md:col-span-3">
+                                                                <dt className="font-medium text-slate-500">
+                                                                    Notes for this clinic
+                                                                </dt>
+                                                                <dd className="mt-1 text-slate-900">
+                                                                    {getOptionalText(patient.notes)}
+                                                                </dd>
+                                                            </div>
+                                                        </dl>
+                                                    </td>
+                                                </tr>
+                                            ) : null}
+                                        </Fragment>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
                 </div>
             ) : null}
+            <ConfirmationDialog
+                open={Boolean(statusAction)}
+                title={
+                    statusAction?.nextIsActive
+                        ? 'Reactivate patient record?'
+                        : 'Deactivate patient record?'
+                }
+                description={
+                    statusAction?.nextIsActive
+                        ? `Reactivate ${statusAction.patient.fullName} for supported clinic workflows.`
+                        : `Deactivate ${statusAction?.patient.fullName ?? 'this patient'} without deleting the record, queue entries, or appointment history.`
+                }
+                confirmLabel={
+                    statusAction?.nextIsActive ? 'Reactivate patient' : 'Deactivate patient'
+                }
+                cancelLabel="Keep current status"
+                confirmVariant={statusAction?.nextIsActive ? 'primary' : 'danger'}
+                isConfirming={isStatusUpdating}
+                confirmLoadingText={
+                    statusAction?.nextIsActive
+                        ? 'Reactivating patient...'
+                        : 'Deactivating patient...'
+                }
+                error={statusActionError}
+                onConfirm={handleStatusActionConfirm}
+                onCancel={() => {
+                    setStatusAction(null);
+                    setStatusActionError(null);
+                }}
+            />
         </section>
     );
 }
