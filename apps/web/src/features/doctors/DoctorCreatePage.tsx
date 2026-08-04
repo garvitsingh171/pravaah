@@ -2,7 +2,13 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useActiveClinic } from '../../app/activeClinicContext';
 import { ErrorMessage, useToast } from '../../components/feedback';
-import { isApiClientError } from '../../lib';
+import { ConfirmationDialog } from '../../components/ui';
+import {
+    getBackendFieldErrors,
+    getBackendValidationDetails,
+    isApiClientError,
+    type BackendValidationDetail,
+} from '../../lib';
 import type { Gender } from '../../types';
 import DoctorForm, { type DoctorFormFieldErrors, type DoctorFormValues } from './DoctorForm';
 import { createDoctor, type CreateDoctorRequest } from './doctorApi';
@@ -27,11 +33,6 @@ const validationFieldMap: Partial<Record<string, keyof DoctorFormValues>> = {
     'body.email': 'email',
     'body.gender': 'gender',
     'body.experienceYears': 'experienceYears',
-};
-
-type BackendValidationDetail = {
-    field: string;
-    message: string;
 };
 
 const hasEmailShape = (email: string): boolean => {
@@ -86,42 +87,8 @@ const toCreateDoctorRequest = (values: DoctorFormValues): CreateDoctorRequest =>
     };
 };
 
-const getBackendValidationDetails = (details: unknown): BackendValidationDetail[] => {
-    if (!Array.isArray(details)) {
-        return [];
-    }
-
-    return details.reduce<BackendValidationDetail[]>((validationDetails, detail) => {
-        if (
-            typeof detail !== 'object' ||
-            detail === null ||
-            !('field' in detail) ||
-            !('message' in detail) ||
-            typeof detail.field !== 'string' ||
-            typeof detail.message !== 'string'
-        ) {
-            return validationDetails;
-        }
-
-        validationDetails.push({
-            field: detail.field,
-            message: detail.message,
-        });
-
-        return validationDetails;
-    }, []);
-};
-
-const getBackendFieldErrors = (details: unknown): DoctorFormFieldErrors => {
-    return getBackendValidationDetails(details).reduce<DoctorFormFieldErrors>((errors, detail) => {
-        const field = validationFieldMap[detail.field];
-
-        if (field) {
-            errors[field] = detail.message;
-        }
-
-        return errors;
-    }, {});
+const hasMeaningfulDoctorValues = (values: DoctorFormValues): boolean => {
+    return Object.values(values).some((value) => value.trim().length > 0);
 };
 
 function DoctorCreatePage() {
@@ -134,6 +101,7 @@ function DoctorCreatePage() {
     const [formErrorCode, setFormErrorCode] = useState<string | undefined>();
     const [formErrorDetails, setFormErrorDetails] = useState<BackendValidationDetail[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showDiscardDialog, setShowDiscardDialog] = useState(false);
 
     const handleChange = (field: keyof DoctorFormValues, value: string) => {
         setValues((currentValues) => ({
@@ -150,6 +118,11 @@ function DoctorCreatePage() {
     };
 
     const handleCancel = () => {
+        if (hasMeaningfulDoctorValues(values)) {
+            setShowDiscardDialog(true);
+            return;
+        }
+
         navigate('/doctors');
     };
 
@@ -177,7 +150,10 @@ function DoctorCreatePage() {
             });
         } catch (error) {
             if (isApiClientError(error)) {
-                const backendFieldErrors = getBackendFieldErrors(error.details);
+                const backendFieldErrors = getBackendFieldErrors<keyof DoctorFormValues>(
+                    error.details,
+                    validationFieldMap
+                );
 
                 setFieldErrors(backendFieldErrors);
                 setFormError(error.message);
@@ -240,6 +216,15 @@ function DoctorCreatePage() {
                     onCancel={handleCancel}
                 />
             </div>
+            <ConfirmationDialog
+                open={showDiscardDialog}
+                title="Discard doctor changes?"
+                description="The doctor record has entered details that have not been saved."
+                confirmLabel="Discard changes"
+                cancelLabel="Continue editing"
+                onConfirm={() => navigate('/doctors')}
+                onCancel={() => setShowDiscardDialog(false)}
+            />
         </section>
     );
 }

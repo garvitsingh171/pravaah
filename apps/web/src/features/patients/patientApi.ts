@@ -66,6 +66,7 @@ export type PatientListResponseData = {
 
 export type PatientListFilters = {
     search?: string;
+    isActive?: boolean;
 };
 
 const getPatientCollectionPath = (clinicId: string): string => {
@@ -96,6 +97,8 @@ export const listPatients = async (
         {
             query: {
                 search: filters.search,
+                isActive:
+                    filters.isActive === undefined ? undefined : String(filters.isActive),
             },
             signal,
         }

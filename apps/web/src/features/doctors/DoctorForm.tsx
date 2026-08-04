@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react';
 import { FieldError } from '../../components/feedback';
-import { Button, fieldControlClassName } from '../../components/ui';
+import { Button, FormSection, fieldControlClassName } from '../../components/ui';
 import { Gender } from '../../types';
 
 export type DoctorFormValues = {
@@ -20,7 +20,9 @@ type DoctorFormProps = {
     values: DoctorFormValues;
     fieldErrors: DoctorFormFieldErrors;
     submitLabel: string;
+    submitLoadingText?: string;
     isSubmitting: boolean;
+    saveHint?: string;
     onChange: (field: keyof DoctorFormValues, value: string) => void;
     onSubmit: () => void;
     onCancel: () => void;
@@ -42,7 +44,9 @@ function DoctorForm({
     values,
     fieldErrors,
     submitLabel,
+    submitLoadingText = 'Saving doctor...',
     isSubmitting,
+    saveHint,
     onChange,
     onSubmit,
     onCancel,
@@ -54,7 +58,10 @@ function DoctorForm({
 
     return (
         <form className="space-y-6" noValidate onSubmit={handleSubmit}>
-            <div className="grid gap-5 md:grid-cols-2">
+            <FormSection
+                title="Identity"
+                description="These fields identify the doctor record used by clinic staff."
+            >
                 <label className="block text-sm font-medium text-slate-700 md:col-span-2">
                     Full name <RequiredMark />
                     <input
@@ -102,7 +109,12 @@ function DoctorForm({
                     />
                     <FieldError message={fieldErrors.registrationNumber} />
                 </label>
+            </FormSection>
 
+            <FormSection
+                title="Contact and Profile"
+                description="Optional details can be added now or completed later."
+            >
                 <label className="block text-sm font-medium text-slate-700">
                     Phone
                     <input
@@ -155,21 +167,24 @@ function DoctorForm({
                     />
                     <FieldError message={fieldErrors.experienceYears} />
                 </label>
-            </div>
+            </FormSection>
 
-            <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
-                <Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
-                    Cancel
-                </Button>
+            <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                {saveHint ? <p className="text-sm text-slate-500">{saveHint}</p> : <span />}
+                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                    <Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
+                        Cancel
+                    </Button>
 
-                <Button
-                    type="submit"
-                    disabled={isSubmitting}
-                    isLoading={isSubmitting}
-                    loadingText="Saving doctor..."
-                >
-                    {submitLabel}
-                </Button>
+                    <Button
+                        type="submit"
+                        disabled={isSubmitting}
+                        isLoading={isSubmitting}
+                        loadingText={submitLoadingText}
+                    >
+                        {submitLabel}
+                    </Button>
+                </div>
             </div>
         </form>
     );

@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { cx } from './classNames';
 
@@ -31,24 +32,28 @@ const sizeClassNames: Record<ButtonSize, string> = {
     lg: 'min-h-11 px-5 py-2.5 text-base',
 };
 
-function Button({
-    children,
-    className,
-    disabled,
-    isLoading = false,
-    loadingText,
-    leadingIcon,
-    trailingIcon,
-    size = 'md',
-    type = 'button',
-    variant = 'primary',
-    ...buttonProps
-}: ButtonProps) {
+const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+    {
+        children,
+        className,
+        disabled,
+        isLoading = false,
+        loadingText,
+        leadingIcon,
+        trailingIcon,
+        size = 'md',
+        type = 'button',
+        variant = 'primary',
+        ...buttonProps
+    },
+    ref
+) {
     const isDisabled = disabled || isLoading;
 
     return (
         <button
             {...buttonProps}
+            ref={ref}
             type={type}
             disabled={isDisabled}
             className={cx(
@@ -70,6 +75,6 @@ function Button({
             {!isLoading ? trailingIcon : null}
         </button>
     );
-}
+});
 
 export default Button;

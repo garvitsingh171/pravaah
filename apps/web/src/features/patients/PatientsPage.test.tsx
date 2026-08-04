@@ -64,6 +64,14 @@ const patientWithNullableValues: PatientSummary = {
     lastVisitAt: null,
 };
 
+const patientWithInactiveClinicLink: PatientSummary = {
+    ...patient,
+    id: '20000000-0000-4000-8000-000000000003',
+    patientClinicId: '21000000-0000-4000-8000-000000000003',
+    clinicLinkIsActive: false,
+    fullName: 'Nisha Link',
+};
+
 const renderPatientsPage = () => {
     return renderWithProviders(<PatientsPage />, {
         activeClinic: adminActiveClinic,
@@ -99,6 +107,48 @@ describe('PatientsPage edit workflow', () => {
         await user.click(screen.getByRole('button', { name: /^cancel$/i }));
 
         expect(screen.queryByRole('heading', { name: /edit kabir sen/i })).not.toBeInTheDocument();
+    });
+
+    it('filters patient availability using both profile and clinic-link status', async () => {
+        const user = userEvent.setup();
+        mockListPatients.mockResolvedValue({
+            patients: [patient, patientWithInactiveClinicLink],
+        });
+
+        renderPatientsPage();
+
+        expect(await screen.findByText('Riya Malhotra')).toBeVisible();
+        expect(screen.getByText('Nisha Link')).toBeVisible();
+
+        await user.selectOptions(screen.getByLabelText(/^status$/i), 'inactive');
+
+        await waitFor(() => {
+            expect(screen.getByText('Nisha Link')).toBeVisible();
+        });
+        expect(screen.queryByText('Riya Malhotra')).not.toBeInTheDocument();
+        expect(mockListPatients).toHaveBeenLastCalledWith(
+            adminActiveClinic.clinicId,
+            {
+                search: undefined,
+                isActive: undefined,
+            },
+            expect.any(AbortSignal)
+        );
+
+        await user.selectOptions(screen.getByLabelText(/^status$/i), 'active');
+
+        await waitFor(() => {
+            expect(screen.getByText('Riya Malhotra')).toBeVisible();
+        });
+        expect(screen.queryByText('Nisha Link')).not.toBeInTheDocument();
+        expect(mockListPatients).toHaveBeenLastCalledWith(
+            adminActiveClinic.clinicId,
+            {
+                search: undefined,
+                isActive: true,
+            },
+            expect.any(AbortSignal)
+        );
     });
 
     it('sends null for cleared nullable fields and excludes authority and history fields', async () => {
@@ -218,7 +268,7 @@ describe('PatientsPage edit workflow', () => {
         expect(screen.getByLabelText(/^city$/i)).toHaveValue('Mysuru');
     });
 
-    it('blocks repeated submissions while saving and supports deactivation', async () => {
+    it('confirms deactivation and blocks repeated status submissions while saving', async () => {
         const user = userEvent.setup();
         let resolveUpdate: (value: unknown) => void = () => {};
         const updatePromise = new Promise((resolve) => {
@@ -241,18 +291,21 @@ describe('PatientsPage edit workflow', () => {
 
         renderPatientsPage();
 
-        await user.click(await screen.findByRole('button', { name: /edit riya malhotra/i }));
-        await user.click(screen.getByRole('checkbox', { name: /active patient record/i }));
+        await user.click(
+            await screen.findByRole('button', { name: /deactivate riya malhotra/i })
+        );
 
-        const saveButton = screen.getByRole('button', { name: /save patient/i });
-        await user.click(saveButton);
-        await user.click(saveButton);
+        expect(screen.getByRole('dialog', { name: /deactivate patient record/i })).toBeVisible();
+
+        const confirmButton = screen.getByRole('button', { name: /^deactivate patient$/i });
+        await user.click(confirmButton);
+        await user.click(confirmButton);
 
         expect(mockUpdatePatient).toHaveBeenCalledTimes(1);
         expect(mockUpdatePatient).toHaveBeenCalledWith(adminActiveClinic.clinicId, patient.id, {
             isActive: false,
         });
-        expect(screen.getByRole('button', { name: /saving patient/i })).toBeDisabled();
+        expect(screen.getByRole('button', { name: /deactivating patient/i })).toBeDisabled();
 
         resolveUpdate({
             patient: {

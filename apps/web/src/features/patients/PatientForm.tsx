@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react';
 import { FieldError } from '../../components/feedback';
-import { Button, fieldControlClassName } from '../../components/ui';
+import { Button, FormSection, fieldControlClassName } from '../../components/ui';
 import { Gender } from '../../types';
 
 export type PatientFormValues = {
@@ -24,7 +24,9 @@ type PatientFormProps = {
     values: PatientFormValues;
     fieldErrors: PatientFormFieldErrors;
     submitLabel: string;
+    submitLoadingText?: string;
     isSubmitting: boolean;
+    saveHint?: string;
     onChange: (field: keyof PatientFormValues, value: string) => void;
     onSubmit: () => void;
     onCancel: () => void;
@@ -46,7 +48,9 @@ function PatientForm({
     values,
     fieldErrors,
     submitLabel,
+    submitLoadingText = 'Saving patient...',
     isSubmitting,
+    saveHint,
     onChange,
     onSubmit,
     onCancel,
@@ -58,7 +62,10 @@ function PatientForm({
 
     return (
         <form className="space-y-6" noValidate onSubmit={handleSubmit}>
-            <div className="grid gap-5 md:grid-cols-2">
+            <FormSection
+                title="Identity"
+                description="These fields identify the patient record used for booking and queue workflows."
+            >
                 <label className="block text-sm font-medium text-slate-700 md:col-span-2">
                     Full name <RequiredMark />
                     <input
@@ -114,7 +121,9 @@ function PatientForm({
                     </select>
                     <FieldError message={fieldErrors.gender} />
                 </label>
+            </FormSection>
 
+            <FormSection title="Demographics" description="Age or date of birth is optional.">
                 <label className="block text-sm font-medium text-slate-700">
                     Date of birth
                     <input
@@ -138,7 +147,12 @@ function PatientForm({
                     />
                     <FieldError message={fieldErrors.age} />
                 </label>
+            </FormSection>
 
+            <FormSection
+                title="Clinic Details"
+                description="Notes and distance are scoped to this clinic only."
+            >
                 <label className="block text-sm font-medium text-slate-700">
                     City
                     <input
@@ -161,7 +175,9 @@ function PatientForm({
                     />
                     <FieldError message={fieldErrors.distanceFromClinicKm} />
                 </label>
+            </FormSection>
 
+            <FormSection title="Emergency Contact">
                 <label className="block text-sm font-medium text-slate-700">
                     Emergency contact name
                     <input
@@ -184,7 +200,9 @@ function PatientForm({
                     />
                     <FieldError message={fieldErrors.emergencyContactPhone} />
                 </label>
+            </FormSection>
 
+            <FormSection title="Address and Notes">
                 <label className="block text-sm font-medium text-slate-700 md:col-span-2">
                     Address
                     <textarea
@@ -208,21 +226,24 @@ function PatientForm({
                     />
                     <FieldError message={fieldErrors.notes} />
                 </label>
-            </div>
+            </FormSection>
 
-            <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
-                <Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
-                    Cancel
-                </Button>
+            <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                {saveHint ? <p className="text-sm text-slate-500">{saveHint}</p> : <span />}
+                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                    <Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
+                        Cancel
+                    </Button>
 
-                <Button
-                    type="submit"
-                    disabled={isSubmitting}
-                    isLoading={isSubmitting}
-                    loadingText="Saving patient..."
-                >
-                    {submitLabel}
-                </Button>
+                    <Button
+                        type="submit"
+                        disabled={isSubmitting}
+                        isLoading={isSubmitting}
+                        loadingText={submitLoadingText}
+                    >
+                        {submitLabel}
+                    </Button>
+                </div>
             </div>
         </form>
     );
