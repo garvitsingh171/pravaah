@@ -316,6 +316,26 @@ function RequiredMark() {
     return <span className="text-[var(--color-status-danger-text)]">*</span>;
 }
 
+function FormSection({
+    title,
+    description,
+    children,
+}: {
+    title: string;
+    description: string;
+    children: ReactNode;
+}) {
+    return (
+        <section className="space-y-4 border-b border-slate-200 pb-6 last:border-b-0 last:pb-0">
+            <div>
+                <h2 className="text-base font-semibold text-slate-950">{title}</h2>
+                <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p>
+            </div>
+            <div className="grid gap-5 md:grid-cols-2">{children}</div>
+        </section>
+    );
+}
+
 function FormField({
     field,
     label,
@@ -327,6 +347,7 @@ function FormField({
     inputMode,
     type = 'text',
     placeholder,
+    helperText,
     onChange,
 }: {
     field: keyof ClinicOnboardingFormValues;
@@ -339,6 +360,7 @@ function FormField({
     inputMode?: 'email' | 'numeric' | 'decimal' | 'tel';
     type?: string;
     placeholder?: string;
+    helperText?: string;
     onChange: (field: keyof ClinicOnboardingFormValues, value: string) => void;
 }) {
     return (
@@ -357,6 +379,9 @@ function FormField({
                 aria-describedby={getFieldErrorDescriptionId(field, fieldErrors)}
                 required={required}
             />
+            {helperText ? (
+                <span className="mt-1 block text-xs text-slate-500">{helperText}</span>
+            ) : null}
             <FieldError id={getFieldErrorId(field)} message={fieldErrors[field]} />
         </label>
     );
@@ -435,7 +460,10 @@ function ClinicOnboardingForm({
 
     return (
         <form className="space-y-6" noValidate onSubmit={handleSubmit}>
-            <div className="grid gap-5 md:grid-cols-2">
+            <FormSection
+                title="Clinic Identity"
+                description="Name the workspace and choose the unique slug used to identify this clinic in Pravaah."
+            >
                 <label className="block text-sm font-medium text-slate-700 md:col-span-2">
                     Clinic name <RequiredMark />
                     <input
@@ -465,9 +493,18 @@ function ClinicOnboardingForm({
                         aria-describedby={getFieldErrorDescriptionId('slug', fieldErrors)}
                         required
                     />
+                    <span className="mt-1 block text-xs text-slate-500">
+                        Use lowercase letters, numbers, and hyphens. The backend enforces
+                        uniqueness.
+                    </span>
                     <FieldError id={getFieldErrorId('slug')} message={fieldErrors.slug} />
                 </label>
+            </FormSection>
 
+            <FormSection
+                title="Contact Information"
+                description="Add front-desk contact details that staff can recognize later in clinic settings."
+            >
                 <FormField
                     field="phone"
                     label="Clinic phone"
@@ -490,7 +527,12 @@ function ClinicOnboardingForm({
                     placeholder="frontdesk@example.com"
                     onChange={onChange}
                 />
+            </FormSection>
 
+            <FormSection
+                title="Address"
+                description="Keep the location simple and editable. These fields do not grant clinic access."
+            >
                 <label className="block text-sm font-medium text-slate-700 md:col-span-2">
                     Address line 1
                     <textarea
@@ -566,7 +608,12 @@ function ClinicOnboardingForm({
                     autoComplete="postal-code"
                     onChange={onChange}
                 />
+            </FormSection>
 
+            <FormSection
+                title="Regional Settings"
+                description="These settings drive appointment time display and daily reporting for the clinic."
+            >
                 <FormField
                     field="timezone"
                     label="Timezone"
@@ -574,6 +621,7 @@ function ClinicOnboardingForm({
                     fieldErrors={fieldErrors}
                     disabled={isSubmitting}
                     placeholder="Asia/Kolkata"
+                    helperText="Use an IANA timezone such as Asia/Kolkata."
                     onChange={onChange}
                 />
 
@@ -605,6 +653,7 @@ function ClinicOnboardingForm({
                     disabled={isSubmitting}
                     inputMode="numeric"
                     type="number"
+                    helperText="How long a normal appointment slot lasts."
                     onChange={onChange}
                 />
 
@@ -616,9 +665,10 @@ function ClinicOnboardingForm({
                     disabled={isSubmitting}
                     inputMode="numeric"
                     type="number"
+                    helperText="Additional time kept between appointments."
                     onChange={onChange}
                 />
-            </div>
+            </FormSection>
 
             <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm leading-6 text-slate-500">

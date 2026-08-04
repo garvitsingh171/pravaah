@@ -756,24 +756,27 @@ function QueuePage() {
                                     const isUpdating = updatingQueueEntryId === queueEntry.id;
                                     const isMoving = reorderingQueueEntryId === queueEntry.id;
                                     const isWaiting = queueEntry.status === QueueStatus.WAITING;
+                                    const isFinalStatus = isFinalQueueStatus(queueEntry.status);
                                     const activeQueueIndex =
                                         activeQueueIndexById.get(queueEntry.id) ?? -1;
-                                    const canMoveUp =
-                                        activeQueueIndex > 0 &&
-                                        activeQueueEntryIds.length > 1 &&
-                                        !isReordering &&
-                                        !updatingQueueEntryId;
-                                    const canMoveDown =
+                                    const hasMoreThanOneActiveEntry =
+                                        activeQueueEntryIds.length > 1;
+                                    const canShowMoveUp =
+                                        activeQueueIndex > 0 && hasMoreThanOneActiveEntry;
+                                    const canShowMoveDown =
                                         activeQueueIndex >= 0 &&
                                         activeQueueIndex < activeQueueEntryIds.length - 1 &&
-                                        !isReordering &&
-                                        !updatingQueueEntryId;
+                                        hasMoreThanOneActiveEntry;
+                                    const queueActionBusy =
+                                        isReordering || Boolean(updatingQueueEntryId);
 
                                     return (
                                         <tr
                                             key={queueEntry.id}
                                             className={`align-top transition hover:bg-slate-50/70 ${
-                                                isWaiting ? 'bg-[var(--color-status-warning-bg)]' : ''
+                                                isWaiting
+                                                    ? 'bg-[var(--color-status-warning-bg)]'
+                                                    : ''
                                             }`}
                                         >
                                             <td className="min-w-28 px-4 py-5">
@@ -840,30 +843,53 @@ function QueuePage() {
                                                 <RiskBadge queueEntry={queueEntry} />
                                             </td>
                                             <td className="min-w-44 px-4 py-5">
-                                                <div className="mb-3 flex flex-col gap-2">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            void handleQueueMove(queueEntry, -1)
-                                                        }
-                                                        disabled={!canMoveUp}
-                                                        aria-label={`Move ${queueEntry.patient.fullName} up`}
-                                                    >
-                                                        {isMoving ? 'Moving...' : 'Move up'}
-                                                    </Button>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            void handleQueueMove(queueEntry, 1)
-                                                        }
-                                                        disabled={!canMoveDown}
-                                                        aria-label={`Move ${queueEntry.patient.fullName} down`}
-                                                    >
-                                                        {isMoving ? 'Moving...' : 'Move down'}
-                                                    </Button>
-                                                </div>
+                                                {isFinalStatus ? (
+                                                    <p className="mb-3 text-sm text-slate-500">
+                                                        Queue order locked for final status.
+                                                    </p>
+                                                ) : (
+                                                    <div className="mb-3 flex flex-col gap-2">
+                                                        {canShowMoveUp ? (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() =>
+                                                                    void handleQueueMove(
+                                                                        queueEntry,
+                                                                        -1
+                                                                    )
+                                                                }
+                                                                disabled={queueActionBusy}
+                                                                aria-label={`Move ${queueEntry.patient.fullName} up`}
+                                                            >
+                                                                {isMoving ? 'Moving...' : 'Move up'}
+                                                            </Button>
+                                                        ) : null}
+                                                        {canShowMoveDown ? (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() =>
+                                                                    void handleQueueMove(
+                                                                        queueEntry,
+                                                                        1
+                                                                    )
+                                                                }
+                                                                disabled={queueActionBusy}
+                                                                aria-label={`Move ${queueEntry.patient.fullName} down`}
+                                                            >
+                                                                {isMoving
+                                                                    ? 'Moving...'
+                                                                    : 'Move down'}
+                                                            </Button>
+                                                        ) : null}
+                                                        {!canShowMoveUp && !canShowMoveDown ? (
+                                                            <p className="text-sm text-slate-500">
+                                                                Only active queue entry.
+                                                            </p>
+                                                        ) : null}
+                                                    </div>
+                                                )}
                                                 {statusActions.length > 0 ? (
                                                     <select
                                                         className={`${fieldControlClassName} w-40`}
