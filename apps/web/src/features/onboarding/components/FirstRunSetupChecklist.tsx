@@ -10,6 +10,7 @@ type SetupChecklistItem = {
     completed: boolean;
     actionLabel: string;
     actionPath: string;
+    blockedReason?: string;
 };
 
 const totalChecklistSteps = 4;
@@ -29,7 +30,7 @@ const buildSetupChecklistItems = (setup: SetupStatusSummary): SetupChecklistItem
         description: 'Create a doctor record so appointments can be booked against a provider.',
         completed: setup.hasDoctor,
         actionLabel: 'Add doctor',
-        actionPath: appRoutePaths.doctors,
+        actionPath: appRoutePaths.newDoctor,
     },
     {
         id: 'patient',
@@ -37,7 +38,7 @@ const buildSetupChecklistItems = (setup: SetupStatusSummary): SetupChecklistItem
         description: 'Create a patient record for the first clinic visit.',
         completed: setup.hasPatient,
         actionLabel: 'Add patient',
-        actionPath: appRoutePaths.patients,
+        actionPath: appRoutePaths.newPatient,
     },
     {
         id: 'appointment',
@@ -46,6 +47,10 @@ const buildSetupChecklistItems = (setup: SetupStatusSummary): SetupChecklistItem
         completed: setup.hasAppointment,
         actionLabel: 'Book appointment',
         actionPath: appRoutePaths.appointments,
+        blockedReason:
+            setup.hasDoctor && setup.hasPatient
+                ? undefined
+                : 'Add at least one active doctor and patient before booking.',
     },
 ];
 
@@ -161,7 +166,11 @@ function FirstRunSetupChecklist({ setup }: { setup: SetupStatusSummary }) {
                             <p className="mt-1 text-sm text-slate-600">{item.description}</p>
                         </div>
 
-                        {item.completed ? null : (
+                        {item.completed ? null : item.blockedReason ? (
+                            <div className="max-w-xs text-sm font-medium text-slate-500">
+                                {item.blockedReason}
+                            </div>
+                        ) : (
                             <Link
                                 to={item.actionPath}
                                 className="inline-flex items-center justify-center rounded-md bg-action px-4 py-2 text-sm font-semibold text-white transition hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"

@@ -10,6 +10,7 @@ import {
     StatusBadge,
     fieldControlClassName,
     getAppointmentStatusLabel,
+    getQueueStatusLabel,
 } from '../../components/ui';
 import { isApiClientError } from '../../lib';
 import { AppointmentStatus, BookingSource } from '../../types';
@@ -88,6 +89,16 @@ type SuccessState = {
 type StatusAction = {
     status: AppointmentStatus;
     label: string;
+};
+
+type AppointmentListInsights = {
+    total: number;
+    active: number;
+    final: number;
+    highRisk: number;
+    mediumRisk: number;
+    lowRisk: number;
+    unavailableRisk: number;
 };
 
 const emptyFormValues: AppointmentBookingFormValues = {
@@ -184,6 +195,16 @@ const statusActionsByCurrentStatus: Record<AppointmentStatus, StatusAction[]> = 
     COMPLETED: [],
     CANCELLED: [],
     NO_SHOW: [],
+};
+
+const finalAppointmentStatuses: AppointmentStatus[] = [
+    AppointmentStatus.COMPLETED,
+    AppointmentStatus.CANCELLED,
+    AppointmentStatus.NO_SHOW,
+];
+
+const isFinalAppointmentStatus = (status: AppointmentStatus): boolean => {
+    return finalAppointmentStatuses.includes(status);
 };
 
 const isActiveDoctor = (doctor: DoctorSummary): boolean => {
@@ -392,6 +413,17 @@ const getOptionalText = (value: string | null | undefined): string => {
     return value?.trim() || 'Not added';
 };
 
+const getBookingSourceLabel = (source: BookingSource): string => {
+    const labels: Record<BookingSource, string> = {
+        RECEPTION: 'Reception',
+        PHONE: 'Phone',
+        WEB: 'Web',
+        WALK_IN: 'Walk-in',
+    };
+
+    return labels[source];
+};
+
 const getPredictionReasonMessages = (reasons: unknown[] | null | undefined): string[] => {
     if (!Array.isArray(reasons)) {
         return [];
@@ -524,6 +556,45 @@ const getAppointmentListFilters = (
     };
 };
 
+const buildAppointmentListInsights = (
+    appointments: AppointmentListItem[]
+): AppointmentListInsights => {
+    return appointments.reduce<AppointmentListInsights>(
+        (insights, appointment) => {
+            const riskLevel = appointment.noShowPrediction?.riskLevel;
+
+            insights.total += 1;
+
+            if (isFinalAppointmentStatus(appointment.status)) {
+                insights.final += 1;
+            } else {
+                insights.active += 1;
+            }
+
+            if (riskLevel === 'HIGH') {
+                insights.highRisk += 1;
+            } else if (riskLevel === 'MEDIUM') {
+                insights.mediumRisk += 1;
+            } else if (riskLevel === 'LOW') {
+                insights.lowRisk += 1;
+            } else {
+                insights.unavailableRisk += 1;
+            }
+
+            return insights;
+        },
+        {
+            total: 0,
+            active: 0,
+            final: 0,
+            highRisk: 0,
+            mediumRisk: 0,
+            lowRisk: 0,
+            unavailableRisk: 0,
+        }
+    );
+};
+
 function RiskBadge({
     appointment,
     isExpanded,
@@ -544,7 +615,7 @@ function RiskBadge({
                     className="mt-2 block text-xs font-semibold text-brand-foreground underline decoration-brand-soft underline-offset-2 hover:text-brand-hover"
                     onClick={onToggle}
                 >
-                    {isExpanded ? 'Hide details' : 'View details'}
+                    {isExpanded ? 'Hide details' : 'View risk and details'}
                 </button>
             </div>
         );
@@ -563,7 +634,7 @@ function RiskBadge({
                 className="mt-2 text-xs font-semibold text-brand-foreground underline decoration-brand-soft underline-offset-2 hover:text-brand-hover"
                 onClick={onToggle}
             >
-                {isExpanded ? 'Hide details' : 'View details'}
+                {isExpanded ? 'Hide details' : 'View risk and details'}
             </button>
         </div>
     );
@@ -661,6 +732,119 @@ function PredictionDetailPanel({ appointment }: { appointment: AppointmentListIt
                         ))}
                     </ul>
                 </div>
+            </div>
+        </div>
+    );
+}
+
+function AppointmentDetailPanel({ appointment }: { appointment: AppointmentListItem }) {
+    const queueEntry = appointment.queueEntry;
+    const patientContact = [appointment.patient.phone, appointment.patient.email]
+        .filter((value): value is string => Boolean(value?.trim()))
+        .join(' / ');
+
+    return (
+        <div className="space-y-4">
+            <div className="rounded-lg border border-slate-200 bg-white p-5">
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-brand-foreground">
+                            Appointment details
+                        </p>
+                        <h3 className="mt-1 text-base font-semibold text-slate-900">
+                            {appointment.patient.fullName} with {appointment.doctor.fullName}
+                        </h3>
+                        <p className="mt-2 text-sm text-slate-600">
+                            {formatAppointmentDateTime(appointment.scheduledAt)} for{' '}
+                            {formatDuration(appointment.durationMinutes)}
+                        </p>
+                    </div>
+
+                    <StatusBadge kind="appointment" status={appointment.status} />
+                </div>
+
+                <dl className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Patient contact
+                        </dt>
+                        <dd className="mt-1 break-words text-sm font-semibold text-slate-900">
+                            {patientContact || 'Not added'}
+                        </dd>
+                    </div>
+                    <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Doctor
+                        </dt>
+                        <dd className="mt-1 text-sm font-semibold text-slate-900">
+                            {getOptionalText(appointment.doctor.specialization)}
+                        </dd>
+                    </div>
+                    <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Booking source
+                        </dt>
+                        <dd className="mt-1 text-sm font-semibold text-slate-900">
+                            {getBookingSourceLabel(appointment.bookingSource)}
+                        </dd>
+                    </div>
+                    <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Queue
+                        </dt>
+                        <dd className="mt-1 text-sm font-semibold text-slate-900">
+                            {queueEntry
+                                ? `#${queueEntry.position} - ${getQueueStatusLabel(
+                                      queueEntry.status
+                                  )}`
+                                : 'Not in queue'}
+                        </dd>
+                    </div>
+                </dl>
+
+                <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                    <div>
+                        <h4 className="text-sm font-semibold text-slate-900">Reason</h4>
+                        <p className="mt-2 text-sm leading-6 text-slate-600">
+                            {getOptionalText(appointment.reason)}
+                        </p>
+                    </div>
+                    <div>
+                        <h4 className="text-sm font-semibold text-slate-900">Staff notes</h4>
+                        <p className="mt-2 text-sm leading-6 text-slate-600">
+                            {getOptionalText(appointment.notes)}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <PredictionDetailPanel appointment={appointment} />
+        </div>
+    );
+}
+
+function AppointmentListInsightsStrip({ insights }: { insights: AppointmentListInsights }) {
+    const items = [
+        { label: 'Matching appointments', value: insights.total },
+        { label: 'Active workflow', value: insights.active },
+        { label: 'Final status', value: insights.final },
+        { label: 'High risk', value: insights.highRisk },
+        { label: 'Medium risk', value: insights.mediumRisk },
+        { label: 'Low risk', value: insights.lowRisk },
+        { label: 'Risk unavailable', value: insights.unavailableRisk },
+    ];
+
+    return (
+        <div className="rounded-lg border border-slate-200 bg-white p-4 md:p-5">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+                {items.map((item) => (
+                    <div key={item.label}>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            {item.label}
+                        </p>
+                        <p className="mt-1 text-lg font-bold text-slate-900">{item.value}</p>
+                    </div>
+                ))}
             </div>
         </div>
     );
@@ -1028,6 +1212,10 @@ function AppointmentsPage() {
     );
     const hasAppointments =
         appointmentListState.status === 'success' && appointmentListState.appointments.length > 0;
+    const appointmentInsights =
+        appointmentListState.status === 'success'
+            ? buildAppointmentListInsights(appointmentListState.appointments)
+            : null;
 
     return (
         <section className="space-y-6">
@@ -1164,6 +1352,10 @@ function AppointmentsPage() {
                     title="No appointments match these filters."
                     message="Try a different date, doctor, patient, or status to find matching appointments."
                 />
+            ) : null}
+
+            {appointmentInsights && appointmentInsights.total > 0 ? (
+                <AppointmentListInsightsStrip insights={appointmentInsights} />
             ) : null}
 
             {hasAppointments ? (
@@ -1308,7 +1500,7 @@ function AppointmentsPage() {
                                                         colSpan={7}
                                                         className="bg-slate-50 px-4 py-4"
                                                     >
-                                                        <PredictionDetailPanel
+                                                        <AppointmentDetailPanel
                                                             appointment={appointment}
                                                         />
                                                     </td>

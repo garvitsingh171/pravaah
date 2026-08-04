@@ -21,16 +21,16 @@ describe('FirstRunSetupChecklist', () => {
         );
         expect(screen.getByRole('link', { name: /add doctor/i })).toHaveAttribute(
             'href',
-            '/doctors'
+            '/doctors/new'
         );
         expect(screen.getByRole('link', { name: /add patient/i })).toHaveAttribute(
             'href',
-            '/patients'
+            '/patients/new'
         );
-        expect(screen.getByRole('link', { name: /book appointment/i })).toHaveAttribute(
-            'href',
-            '/appointments'
-        );
+        expect(screen.queryByRole('link', { name: /book appointment/i })).not.toBeInTheDocument();
+        expect(
+            screen.getByText(/add at least one active doctor and patient before booking/i)
+        ).toBeInTheDocument();
     });
 
     it('shows partial completion with actions only for incomplete items', () => {
@@ -44,12 +44,12 @@ describe('FirstRunSetupChecklist', () => {
         expect(screen.queryByRole('link', { name: /add doctor/i })).not.toBeInTheDocument();
         expect(screen.getByRole('link', { name: /add patient/i })).toHaveAttribute(
             'href',
-            '/patients'
+            '/patients/new'
         );
-        expect(screen.getByRole('link', { name: /book appointment/i })).toHaveAttribute(
-            'href',
-            '/appointments'
-        );
+        expect(screen.queryByRole('link', { name: /book appointment/i })).not.toBeInTheDocument();
+        expect(
+            screen.getByText(/add at least one active doctor and patient before booking/i)
+        ).toBeInTheDocument();
     });
 
     it('shows full completion and dismisses only for the component lifetime', async () => {

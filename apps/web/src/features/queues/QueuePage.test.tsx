@@ -129,10 +129,14 @@ describe('QueuePage manual reorder controls', () => {
 
         expect(await screen.findByText('Position 1')).toBeVisible();
         expect(screen.getByText('Position 2')).toBeVisible();
-        expect(screen.getByRole('button', { name: /move riya malhotra up/i })).toBeDisabled();
+        expect(
+            screen.queryByRole('button', { name: /move riya malhotra up/i })
+        ).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: /move riya malhotra down/i })).toBeEnabled();
         expect(screen.getByRole('button', { name: /move kabir sen up/i })).toBeEnabled();
-        expect(screen.getByRole('button', { name: /move kabir sen down/i })).toBeDisabled();
+        expect(
+            screen.queryByRole('button', { name: /move kabir sen down/i })
+        ).not.toBeInTheDocument();
 
         mockListTodayQueue.mockResolvedValue({
             queueEntries: [firstEntry],
@@ -140,10 +144,13 @@ describe('QueuePage manual reorder controls', () => {
 
         await userEvent.click(screen.getByRole('button', { name: /refresh queue/i }));
 
+        expect(await screen.findByText(/only active queue entry/i)).toBeVisible();
         expect(
-            await screen.findByRole('button', { name: /move riya malhotra up/i })
-        ).toBeDisabled();
-        expect(screen.getByRole('button', { name: /move riya malhotra down/i })).toBeDisabled();
+            screen.queryByRole('button', { name: /move riya malhotra up/i })
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: /move riya malhotra down/i })
+        ).not.toBeInTheDocument();
     });
 
     it('sends the selected date and unique reordered queue-entry ids after a deliberate move', async () => {
