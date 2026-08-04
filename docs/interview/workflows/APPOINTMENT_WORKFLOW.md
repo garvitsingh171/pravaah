@@ -1,5 +1,7 @@
 # Appointment Workflow
 
+Authoritative current references: [Product Requirements](../../PRODUCT_REQUIREMENTS.md), [High-Level Design](../../HIGH_LEVEL_DESIGN.md), and [Interview Guide](../../INTERVIEW_GUIDE.md).
+
 ## Purpose
 
 Create an appointment and keep queue and no-show context in sync.
@@ -19,7 +21,7 @@ Admin/Staff selects doctor and patient
 ## Important Rules
 
 - Doctor and patient must be linked to the same clinic.
-- The same doctor cannot have overlapping active appointment slots.
+- The same doctor cannot have two active appointments at the exact same scheduled start time. Duration-overlap validation is not currently implemented.
 - No-show risk is rule-based and advisory.
 - Queue and appointment status updates synchronize where appropriate.
 

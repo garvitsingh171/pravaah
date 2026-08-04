@@ -9,6 +9,8 @@
 | Evidence rule  | Documentation explains evidence but is not implementation evidence by itself.                                                                  |
 | Readiness rule | Explanation and simulation statuses are initialized conservatively; no concept is marked `Interview ready` without recorded preparation proof. |
 
+Current product status and architecture authority live in [Product Requirements](../PRODUCT_REQUIREMENTS.md) and [High-Level Design](../HIGH_LEVEL_DESIGN.md). The status values below are Project Score preparation labels, not the product release taxonomy.
+
 ## Mathematical Validation
 
 | Check                             | Expected | Tracker value | Result |

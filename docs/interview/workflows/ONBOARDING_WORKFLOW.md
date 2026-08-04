@@ -1,5 +1,7 @@
 # Onboarding Workflow
 
+Authoritative current references: [Product Requirements](../../PRODUCT_REQUIREMENTS.md), [High-Level Design](../../HIGH_LEVEL_DESIGN.md), and [Interview Guide](../../INTERVIEW_GUIDE.md).
+
 ## Purpose
 
 Let a new external visitor become the first Admin of a new clinic without owner database intervention.

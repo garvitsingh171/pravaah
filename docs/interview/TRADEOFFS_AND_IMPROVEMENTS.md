@@ -1,5 +1,7 @@
 # Tradeoffs And Improvements
 
+Authoritative current references: [Interview Guide](../INTERVIEW_GUIDE.md), [Product Requirements](../PRODUCT_REQUIREMENTS.md), and [High-Level Design](../HIGH_LEVEL_DESIGN.md).
+
 ## Good Tradeoffs
 
 - `User.clinicId` keeps MVP authorization simple.

@@ -1,5 +1,7 @@
 # Database And Transactions
 
+Authoritative current references: [High-Level Design](../HIGH_LEVEL_DESIGN.md), [Product Requirements](../PRODUCT_REQUIREMENTS.md), and [Interview Guide](../INTERVIEW_GUIDE.md). This file summarizes the schema and transaction story for interviews.
+
 ## Main Models
 
 - `Clinic`

@@ -192,14 +192,17 @@ Explain what will change, whether the action is reversible, and whether related 
 
 ## Release-Claim Language
 
-| Claim                        | Meaning                                               |
-| ---------------------------- | ----------------------------------------------------- |
-| Implemented and deployed     | Available in the production product                   |
-| Implemented but not deployed | Present in code but not verified in production        |
-| In development               | Work has started but is incomplete                    |
-| Planned                      | Approved future work with no completed implementation |
-| Intentionally deferred       | Valid work excluded from the current release          |
-| Needs verification           | Evidence is insufficient                              |
+Use the exact status taxonomy from [Product Requirements](../PRODUCT_REQUIREMENTS.md).
+
+| Claim                            | Meaning                                                                |
+| -------------------------------- | ---------------------------------------------------------------------- |
+| Implemented and deployed         | Repository and deployment evidence prove the capability is live.       |
+| Implemented but not yet released | Present in code, but release or deployment verification is pending.    |
+| Under development                | Implementation is incomplete or tied to an unfinished issue or branch. |
+| Planned                          | Approved future work with no completed implementation.                 |
+| Explicitly out of scope          | Valid work excluded from the current product boundary.                 |
+| Deprecated or historical         | Historical context, not current product behavior.                      |
+| Owner verification required      | Evidence is insufficient in the repository.                            |
 
 Do not use `live`, `released`, or `production-ready` without evidence. Documentation can explain evidence, but it is not implementation evidence by itself.
 

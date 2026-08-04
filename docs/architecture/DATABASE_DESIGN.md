@@ -1,5 +1,7 @@
 # Database Design
 
+This database summary is derived from `apps/server/prisma/schema.prisma` and should stay aligned with [High-Level Design](../HIGH_LEVEL_DESIGN.md). The HLD explains how the schema supports product workflows; this file remains the database-focused reference.
+
 ## Source Of Truth
 
 The current schema source of truth is:

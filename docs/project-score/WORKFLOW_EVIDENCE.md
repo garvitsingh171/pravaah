@@ -8,6 +8,8 @@
 | Purpose        | Map real Pravaah workflows to implementation files and official Project Score concepts.                                           |
 | Evidence basis | Source inspection only. Tests, localhost runtime, production smoke, and screenshots were not run during this documentation issue. |
 
+Current product status and architecture authority live in [Product Requirements](../PRODUCT_REQUIREMENTS.md) and [High-Level Design](../HIGH_LEVEL_DESIGN.md). Evidence labels in this file are Project Score preparation labels, not release-status taxonomy.
+
 ## Evidence Status Values
 
 | Status                      | Meaning                                                               |

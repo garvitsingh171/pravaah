@@ -9,6 +9,8 @@
 | Evidence rule  | A concept is not demonstrated merely because a Markdown file describes it.         |
 | Readiness rule | Do not mark `Interview ready` without verified explanation or simulation evidence. |
 
+Current product status and architecture authority live in [Product Requirements](../PRODUCT_REQUIREMENTS.md) and [High-Level Design](../HIGH_LEVEL_DESIGN.md). Project Score labels in this folder are viva-preparation labels, not product release statuses.
+
 ## Purpose
 
 This folder prepares Pravaah for Project Score assessment by mapping official concepts to real repository evidence, workflow traces, simulation readiness, and interview question categories.

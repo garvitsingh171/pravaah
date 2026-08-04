@@ -1,5 +1,7 @@
 # Setup
 
+Read [Product Requirements](../PRODUCT_REQUIREMENTS.md) and [High-Level Design](../HIGH_LEVEL_DESIGN.md) before using setup results as product or architecture evidence. This guide documents local setup only; it does not prove production deployment.
+
 ## Required Tools
 
 | Tool                                  | Purpose                                         |

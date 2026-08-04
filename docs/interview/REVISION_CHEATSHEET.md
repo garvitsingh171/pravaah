@@ -1,5 +1,7 @@
 # Revision Cheatsheet
 
+Authoritative current references: [Interview Guide](../INTERVIEW_GUIDE.md), [Product Requirements](../PRODUCT_REQUIREMENTS.md), and [High-Level Design](../HIGH_LEVEL_DESIGN.md).
+
 ## Project
 
 Pravaah is clinic-side flow management for Admin and Staff users.
