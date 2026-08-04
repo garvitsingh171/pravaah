@@ -1,6 +1,6 @@
 # Pravaah v0.2 Scope
 
-Current product status taxonomy and owner-verification rules are defined in [Product Requirements](../PRODUCT_REQUIREMENTS.md). This scope document defines the v0.2 release-candidate boundary; it is not proof that any live deployment URL or production smoke test has been verified.
+Current product status taxonomy and owner-verification rules are defined in [Product Requirements](../PRD.md). This scope document defines the v0.2 release-candidate boundary; it is not proof that any live deployment URL or production smoke test has been verified.
 
 ## Release Summary
 

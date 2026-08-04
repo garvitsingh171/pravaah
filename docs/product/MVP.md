@@ -4,7 +4,7 @@
 
 Pravaah MVP is completed and frozen as `v0.1.0`.
 
-Current product requirements are now maintained in [Product Requirements](../PRODUCT_REQUIREMENTS.md). This MVP document is a historical baseline and should not be used as the complete current product definition.
+Current product requirements are now maintained in [Product Requirements](../PRD.md). This MVP document is a historical baseline and should not be used as the complete current product definition.
 
 Active development has moved to the `v0.2.0` release candidate:
 

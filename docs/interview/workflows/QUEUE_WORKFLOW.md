@@ -1,6 +1,6 @@
 # Queue Workflow
 
-Authoritative current references: [Product Requirements](../../PRODUCT_REQUIREMENTS.md), [High-Level Design](../../HIGH_LEVEL_DESIGN.md), and [Interview Guide](../../INTERVIEW_GUIDE.md).
+Authoritative current references: [Product Requirements](../../PRD.md), [High-Level Design](../../HLD.md), and [Interview Guide](../../INTERVIEW_GUIDE.md).
 
 ## Purpose
 

@@ -14,7 +14,7 @@ Release status:
 - `v0.2.0` is a release candidate.
 - Active v0.2 scope source of truth: [V0_2_SCOPE.md](../scope/V0_2_SCOPE.md).
 
-Current documentation authority starts with [Product Requirements](../PRODUCT_REQUIREMENTS.md) for product scope and [High-Level Design](../HIGH_LEVEL_DESIGN.md) for technical design. Update them in the same PR when behavior, architecture, API, schema, role policy, deployment expectations, or capability status changes.
+Current documentation authority starts with [Product Requirements](../PRD.md) for product scope and [High-Level Design](../HLD.md) for technical design. Update them in the same PR when behavior, architecture, API, schema, role policy, deployment expectations, or capability status changes.
 
 ## Issue Selection
 
@@ -131,8 +131,8 @@ Never leave future ideas written as implemented behavior.
 
 Source-of-truth documentation:
 
-- Current product requirements: [PRODUCT_REQUIREMENTS.md](../PRODUCT_REQUIREMENTS.md)
-- Current high-level design: [HIGH_LEVEL_DESIGN.md](../HIGH_LEVEL_DESIGN.md)
+- Current product requirements: [PRD.md](../PRD.md)
+- Current high-level design: [HLD.md](../HLD.md)
 - Frozen MVP boundary: [MVP.md](../product/MVP.md)
 - Active v0.2 scope: [V0_2_SCOPE.md](../scope/V0_2_SCOPE.md)
 - v0.2 release notes: [V0_2_0_RELEASE_NOTES.md](../releases/V0_2_0_RELEASE_NOTES.md)
@@ -140,7 +140,7 @@ Source-of-truth documentation:
 - Architecture: [ARCHITECTURE.md](../architecture/ARCHITECTURE.md)
 - Roadmap: [ROADMAP.md](../scope/ROADMAP.md)
 
-Use the status taxonomy from [Product Requirements](../PRODUCT_REQUIREMENTS.md): Implemented and deployed, Implemented but not yet released, Under development, Planned, Explicitly out of scope, Deprecated or historical, and Owner verification required.
+Use the status taxonomy from [Product Requirements](../PRD.md): Implemented and deployed, Implemented but not yet released, Under development, Planned, Explicitly out of scope, Deprecated or historical, and Owner verification required.
 
 Release-related documentation must stay aligned. Future feature PRs must not silently modify the v0.2 scope; scope changes need an explicit reviewed product decision.
 

@@ -1,6 +1,6 @@
 # Testing
 
-Testing expectations and release gates should stay aligned with [Product Requirements](../PRODUCT_REQUIREMENTS.md) and [High-Level Design](../HIGH_LEVEL_DESIGN.md). This guide documents available checks; it does not prove they passed unless a specific run is recorded.
+Testing expectations and release gates should stay aligned with [Product Requirements](../PRD.md) and [High-Level Design](../HLD.md). This guide documents available checks; it does not prove they passed unless a specific run is recorded.
 
 ## Current Test Tooling
 

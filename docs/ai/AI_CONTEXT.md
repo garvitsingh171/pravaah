@@ -4,8 +4,8 @@ This document is for future AI coding assistants working on Project Pravaah.
 
 Read these first:
 
-1. [Product Requirements](../PRODUCT_REQUIREMENTS.md)
-2. [High-Level Design](../HIGH_LEVEL_DESIGN.md)
+1. [Product Requirements](../PRD.md)
+2. [High-Level Design](../HLD.md)
 3. [Documentation Index](../README.md)
 
 Use the PRD for product scope and capability status. Use the HLD for architecture, route catalogs, data model, transactions, concurrency, deployment boundaries, and traceability.
@@ -33,8 +33,8 @@ Do not suggest replacing the stack unless the user explicitly asks for a stack d
 - Documentation has been prepared for v0.2, but final tests, builds, deployments, and screenshots must still be verified before calling it released.
 - Active scope source: `docs/scope/V0_2_SCOPE.md`.
 - Candidate release notes: `docs/releases/V0_2_0_RELEASE_NOTES.md`.
-- Current PRD: `docs/PRODUCT_REQUIREMENTS.md`.
-- Current HLD: `docs/HIGH_LEVEL_DESIGN.md`.
+- Current PRD: `docs/PRD.md`.
+- Current HLD: `docs/HLD.md`.
 
 Use this exact status taxonomy when documenting capabilities: Implemented and deployed, Implemented but not yet released, Under development, Planned, Explicitly out of scope, Deprecated or historical, Owner verification required.
 

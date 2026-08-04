@@ -2,12 +2,12 @@
 
 ## Document Control
 
-| Field               | Value                                                                                                     |
-| ------------------- | --------------------------------------------------------------------------------------------------------- |
-| Purpose             | Authoritative interview and screen-share guide for explaining Pravaah accurately.                         |
-| Verification status | Verified against repository implementation on 2026-08-04.                                                 |
-| Product scope       | Current repository state for root package version `0.2.0`; release/deployment verification pending.       |
-| Authority           | Read [Product Requirements](PRODUCT_REQUIREMENTS.md) and [High-Level Design](HIGH_LEVEL_DESIGN.md) first. |
+| Field               | Value                                                                                               |
+| ------------------- | --------------------------------------------------------------------------------------------------- |
+| Purpose             | Authoritative interview and screen-share guide for explaining Pravaah accurately.                   |
+| Verification status | Verified against repository implementation on 2026-08-04.                                           |
+| Product scope       | Current repository state for root package version `0.2.0`; release/deployment verification pending. |
+| Authority           | Read [Product Requirements](PRD.md) and [High-Level Design](HLD.md) first.                          |
 
 Use this guide to explain the real repository. Do not invent personal contribution claims; use "Owner input required" when repository evidence cannot prove who did what.
 

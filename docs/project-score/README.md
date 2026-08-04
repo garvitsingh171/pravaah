@@ -9,7 +9,7 @@
 | Evidence rule  | A concept is not demonstrated merely because a Markdown file describes it.         |
 | Readiness rule | Do not mark `Interview ready` without verified explanation or simulation evidence. |
 
-Current product status and architecture authority live in [Product Requirements](../PRODUCT_REQUIREMENTS.md) and [High-Level Design](../HIGH_LEVEL_DESIGN.md). Project Score labels in this folder are viva-preparation labels, not product release statuses.
+Current product status and architecture authority live in [Product Requirements](../PRD.md) and [High-Level Design](../HLD.md). Project Score labels in this folder are viva-preparation labels, not product release statuses.
 
 ## Purpose
 
@@ -105,11 +105,11 @@ Interview and Simulation Preparation
 
 Current repository equivalents:
 
-| Required source | Current Pravaah source                                                                                                                                                        | Status                                       |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| PRD             | Product docs such as [MVP](../product/MVP.md), [Workflows](../product/WORKFLOWS.md), release charter, and route audit.                                                        | Formal `docs/product/PRD.md` not found.      |
-| HLD             | [Architecture](../architecture/ARCHITECTURE.md), [Frontend Structure](../architecture/FRONTEND_STRUCTURE.md), [Backend Structure](../architecture/BACKEND_STRUCTURE.md).      | Formal `docs/architecture/HLD.md` not found. |
-| LLD             | [API Structure](../architecture/API_STRUCTURE.md), [API Reference](../architecture/API_REFERENCE.md), [Database Design](../architecture/DATABASE_DESIGN.md), feature modules. | Formal `docs/architecture/LLD.md` not found. |
+| Required source | Current Pravaah source                                                                                                                                                                                        | Status                                       |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| PRD             | [Product Requirements](../PRD.md), plus product docs such as [MVP](../product/MVP.md), [Workflows](../product/WORKFLOWS.md), release charter, and route audit.                                                | Formal current PRD exists at `docs/PRD.md`.  |
+| HLD             | [High-Level Design](../HLD.md), plus [Architecture](../architecture/ARCHITECTURE.md), [Frontend Structure](../architecture/FRONTEND_STRUCTURE.md), [Backend Structure](../architecture/BACKEND_STRUCTURE.md). | Formal current HLD exists at `docs/HLD.md`.  |
+| LLD             | [API Structure](../architecture/API_STRUCTURE.md), [API Reference](../architecture/API_REFERENCE.md), [Database Design](../architecture/DATABASE_DESIGN.md), feature modules.                                 | Formal `docs/architecture/LLD.md` not found. |
 
 Missing formal PRD/HLD/LLD files should be recorded honestly. Do not rename existing docs or claim missing files exist.
 

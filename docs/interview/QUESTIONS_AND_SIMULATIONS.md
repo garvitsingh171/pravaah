@@ -1,6 +1,6 @@
 # Questions And Simulations
 
-Authoritative current references: [Interview Guide](../INTERVIEW_GUIDE.md), [Product Requirements](../PRODUCT_REQUIREMENTS.md), and [High-Level Design](../HIGH_LEVEL_DESIGN.md). Use "Owner input required" for personal or deployment claims the repository cannot prove.
+Authoritative current references: [Interview Guide](../INTERVIEW_GUIDE.md), [Product Requirements](../PRD.md), and [High-Level Design](../HLD.md). Use "Owner input required" for personal or deployment claims the repository cannot prove.
 
 ## Likely Questions
 

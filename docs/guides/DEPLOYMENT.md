@@ -1,6 +1,6 @@
 # Deployment
 
-Deployment status must be read with [Product Requirements](../PRODUCT_REQUIREMENTS.md) and [High-Level Design](../HIGH_LEVEL_DESIGN.md). Repository configuration can prove deployment shape; only owner-supplied URLs, deployed SHAs, and smoke checks can prove live deployment.
+Deployment status must be read with [Product Requirements](../PRD.md) and [High-Level Design](../HLD.md). Repository configuration can prove deployment shape; only owner-supplied URLs, deployed SHAs, and smoke checks can prove live deployment.
 
 ## Current Status
 

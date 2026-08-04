@@ -1,6 +1,6 @@
 # Authorization And Security
 
-Authoritative current references: [High-Level Design](../HIGH_LEVEL_DESIGN.md), [Product Requirements](../PRODUCT_REQUIREMENTS.md), and [Interview Guide](../INTERVIEW_GUIDE.md). Do not treat Clerk identity as Pravaah authorization.
+Authoritative current references: [High-Level Design](../HLD.md), [Product Requirements](../PRD.md), and [Interview Guide](../INTERVIEW_GUIDE.md). Do not treat Clerk identity as Pravaah authorization.
 
 ## Core Answer
 

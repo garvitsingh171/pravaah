@@ -14,7 +14,7 @@
 
 Related documents:
 
-- [Product Requirements](PRODUCT_REQUIREMENTS.md)
+- [Product Requirements](PRD.md)
 - [Architecture Overview](architecture/ARCHITECTURE.md)
 - [Backend Structure](architecture/BACKEND_STRUCTURE.md)
 - [Frontend Structure](architecture/FRONTEND_STRUCTURE.md)

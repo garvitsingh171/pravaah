@@ -1,6 +1,6 @@
 # Project Overview
 
-Authoritative current references: [Product Requirements](../PRODUCT_REQUIREMENTS.md), [High-Level Design](../HIGH_LEVEL_DESIGN.md), and [Interview Guide](../INTERVIEW_GUIDE.md). Use those files first for status taxonomy, deployment boundaries, and traceability.
+Authoritative current references: [Product Requirements](../PRD.md), [High-Level Design](../HLD.md), and [Interview Guide](../INTERVIEW_GUIDE.md). Use those files first for status taxonomy, deployment boundaries, and traceability.
 
 Pravaah is a clinic-side flow management project for small and medium clinics. It focuses on Admin and Staff workflows: clinic onboarding, doctor records, patient records, appointments, today's queue, dashboard activity, and starter no-show risk scoring.
 

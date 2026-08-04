@@ -192,7 +192,7 @@ Explain what will change, whether the action is reversible, and whether related 
 
 ## Release-Claim Language
 
-Use the exact status taxonomy from [Product Requirements](../PRODUCT_REQUIREMENTS.md).
+Use the exact status taxonomy from [Product Requirements](../PRD.md).
 
 | Claim                            | Meaning                                                                |
 | -------------------------------- | ---------------------------------------------------------------------- |
