@@ -42,6 +42,13 @@ function ConfirmationDialog({
     const dialogRef = useRef<HTMLDivElement>(null);
     const cancelButtonRef = useRef<HTMLButtonElement>(null);
     const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
+    const isConfirmingRef = useRef(isConfirming);
+    const onCancelRef = useRef(onCancel);
+
+    useEffect(() => {
+        isConfirmingRef.current = isConfirming;
+        onCancelRef.current = onCancel;
+    }, [isConfirming, onCancel]);
 
     useEffect(() => {
         if (!open) {
@@ -53,9 +60,9 @@ function ConfirmationDialog({
         cancelButtonRef.current?.focus();
 
         const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape' && !isConfirming) {
+            if (event.key === 'Escape' && !isConfirmingRef.current) {
                 event.preventDefault();
-                onCancel();
+                onCancelRef.current();
                 return;
             }
 
@@ -69,13 +76,17 @@ function ConfirmationDialog({
 
             if (focusableElements.length === 0) {
                 event.preventDefault();
+                dialogRef.current?.focus();
                 return;
             }
 
             const firstElement = focusableElements[0];
             const lastElement = focusableElements[focusableElements.length - 1];
 
-            if (event.shiftKey && document.activeElement === firstElement) {
+            if (!dialogRef.current?.contains(document.activeElement)) {
+                event.preventDefault();
+                (event.shiftKey ? lastElement : firstElement).focus();
+            } else if (event.shiftKey && document.activeElement === firstElement) {
                 event.preventDefault();
                 lastElement.focus();
             } else if (!event.shiftKey && document.activeElement === lastElement) {
@@ -90,7 +101,7 @@ function ConfirmationDialog({
             document.removeEventListener('keydown', handleKeyDown);
             previouslyFocusedElementRef.current?.focus();
         };
-    }, [isConfirming, onCancel, open]);
+    }, [open]);
 
     if (!open) {
         return null;
@@ -104,6 +115,7 @@ function ConfirmationDialog({
                 aria-modal="true"
                 aria-labelledby={titleId}
                 aria-describedby={descriptionId}
+                tabIndex={-1}
                 className="max-h-full w-full max-w-md overflow-y-auto rounded-lg border border-app-border bg-white p-6 shadow-xl"
             >
                 <div className="space-y-3">

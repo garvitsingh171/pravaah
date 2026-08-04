@@ -181,9 +181,18 @@ const getPatientListFilters = (
 
     return {
         search: search || undefined,
-        isActive:
-            statusFilter === 'all' ? undefined : statusFilter === 'active',
+        isActive: statusFilter === 'active' ? true : undefined,
     };
+};
+
+const patientMatchesStatus = (patient: PatientSummary, statusFilter: StatusFilter): boolean => {
+    if (statusFilter === 'all') {
+        return true;
+    }
+
+    const isActive = isPatientActiveInClinic(patient);
+
+    return statusFilter === 'active' ? isActive : !isActive;
 };
 
 const hasEmailShape = (email: string): boolean => {
@@ -849,8 +858,16 @@ function PatientsPage() {
         }
     }, [location.pathname, locationState?.statusMessage, navigate, showSuccessToast]);
 
-    const hasPatients =
-        patientListState.status === 'success' && patientListState.patients.length > 0;
+    const displayedPatients = useMemo(() => {
+        if (patientListState.status !== 'success') {
+            return [];
+        }
+
+        return patientListState.patients.filter((patient) =>
+            patientMatchesStatus(patient, statusFilter)
+        );
+    }, [patientListState, statusFilter]);
+    const hasPatients = patientListState.status === 'success' && displayedPatients.length > 0;
     const hasSearch = searchTerm.trim().length > 0;
     const hasFilters = hasSearch || statusFilter !== 'all';
 
@@ -935,7 +952,7 @@ function PatientsPage() {
                 />
             ) : null}
 
-            {patientListState.status === 'success' && patientListState.patients.length === 0 ? (
+            {patientListState.status === 'success' && displayedPatients.length === 0 ? (
                 <EmptyState
                     title={
                         hasFilters
@@ -975,7 +992,7 @@ function PatientsPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-200">
-                                {patientListState.patients.map((patient) => {
+                                {displayedPatients.map((patient) => {
                                     const isActive = isPatientActiveInClinic(patient);
                                     const isExpanded = expandedPatientId === patient.id;
 
