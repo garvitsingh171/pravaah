@@ -133,6 +133,7 @@ For interview preparation:
 | [Code Organization](engineering/CODE_ORGANIZATION.md)                   | Folder, test, import, fixture, and ownership rules.                                        |
 | [Codebase Consistency Audit](engineering/CODEBASE_CONSISTENCY_AUDIT.md) | Current structural audit, fixes, exceptions, and follow-ups.                               |
 | [v0.3 Route Release Audit](audits/V0.3_ROUTE_RELEASE_AUDIT.md)          | Route-by-route product, UI, API, and release-readiness audit.                              |
+| [Frontend Responsive And Performance Audit](audits/FRONTEND_RESPONSIVE_PERFORMANCE_AUDIT.md) | Issue #228 route inventory, mobile/responsive checks, asset inventory, and owner performance procedure. |
 | [AI Context](ai/AI_CONTEXT.md)                                          | Guardrails for future AI coding assistants.                                                |
 | [v0.2 Assets](assets/v0.2/README.md)                                    | Demo asset and screenshot manifest.                                                        |
 

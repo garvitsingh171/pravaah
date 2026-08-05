@@ -146,7 +146,7 @@ function PublicHeader() {
                     </div>
                 </div>
 
-                <nav className="flex gap-2 overflow-x-auto pb-1" aria-label="Public navigation">
+                <nav className="flex flex-wrap gap-2 pb-1" aria-label="Public navigation">
                     {publicNavigationItems.map((item) => (
                         <a
                             key={item.href}

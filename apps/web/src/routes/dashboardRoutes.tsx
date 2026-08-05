@@ -1,14 +1,14 @@
-import type { ReactNode } from 'react';
-import AppointmentsPage from '../features/appointments/AppointmentsPage';
-import ClinicSettingsPage from '../features/clinics/ClinicSettingsPage';
-import DashboardOverviewPage from '../features/dashboard/DashboardOverviewPage';
-import DoctorCreatePage from '../features/doctors/DoctorCreatePage';
-import DoctorsPage from '../features/doctors/DoctorsPage';
-import PatientCreatePage from '../features/patients/PatientCreatePage';
-import PatientsPage from '../features/patients/PatientsPage';
-import QueuePage from '../features/queues/QueuePage';
+import { lazy, type ReactNode } from 'react';
 import { UserRole, type UserRole as UserRoleType } from '../types';
-import NotFoundPage from './NotFoundPage';
+
+const DashboardOverviewPage = lazy(() => import('../features/dashboard/DashboardOverviewPage'));
+const DoctorsPage = lazy(() => import('../features/doctors/DoctorsPage'));
+const DoctorCreatePage = lazy(() => import('../features/doctors/DoctorCreatePage'));
+const PatientsPage = lazy(() => import('../features/patients/PatientsPage'));
+const PatientCreatePage = lazy(() => import('../features/patients/PatientCreatePage'));
+const AppointmentsPage = lazy(() => import('../features/appointments/AppointmentsPage'));
+const QueuePage = lazy(() => import('../features/queues/QueuePage'));
+const ClinicSettingsPage = lazy(() => import('../features/clinics/ClinicSettingsPage'));
 
 export const appRoutePaths = {
     dashboard: '/dashboard',
@@ -114,7 +114,7 @@ const notFoundRoute: AppRoute = {
     path: '*',
     title: 'Page Not Found',
     navigationIcon: 'dashboard',
-    element: <NotFoundPage />,
+    element: null,
     showInNavigation: false,
 };
 

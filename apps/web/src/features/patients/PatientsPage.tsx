@@ -979,7 +979,11 @@ function PatientsPage() {
 
             {hasPatients ? (
                 <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-                    <div className="overflow-x-auto">
+                    <div
+                        className="overflow-x-auto"
+                        tabIndex={0}
+                        aria-label="Patients table, horizontally scrollable on small screens"
+                    >
                         <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
                             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                                 <tr>

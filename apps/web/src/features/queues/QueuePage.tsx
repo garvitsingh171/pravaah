@@ -787,7 +787,11 @@ function QueuePage() {
                             affect the selected doctor&apos;s active queue for {todayDate}.
                         </p>
                     </div>
-                    <div className="overflow-x-auto">
+                    <div
+                        className="overflow-x-auto"
+                        tabIndex={0}
+                        aria-label="Active queue table, horizontally scrollable on small screens"
+                    >
                         <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
                             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                                 <tr>

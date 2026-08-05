@@ -57,6 +57,8 @@ function ConfirmationDialog({
 
         previouslyFocusedElementRef.current =
             document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
         cancelButtonRef.current?.focus();
 
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -98,6 +100,7 @@ function ConfirmationDialog({
         document.addEventListener('keydown', handleKeyDown);
 
         return () => {
+            document.body.style.overflow = previousOverflow;
             document.removeEventListener('keydown', handleKeyDown);
             previouslyFocusedElementRef.current?.focus();
         };
