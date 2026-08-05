@@ -1,5 +1,7 @@
 # Frontend Structure
 
+Detailed frontend bootstrapping, routes, providers, API boundaries, and component responsibilities are maintained in the [frontend LLD section](../LLD.md#frontend-routing-state-and-interface-architecture).
+
 ## Package And Scripts
 
 Frontend package:

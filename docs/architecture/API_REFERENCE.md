@@ -1,6 +1,6 @@
 # API Reference
 
-This reference is based on the current route files in `apps/server/src/modules/**`.
+This reference is based on the current route files in `apps/server/src/modules/**`. For route ownership, validation boundaries, transactions, and persistence details, read the [backend/database LLD section](../LLD.md#backend-database-and-workflow-implementation).
 
 Base URL in local development:
 

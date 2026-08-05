@@ -1,6 +1,6 @@
 # User Roles
 
-Current product authority: [Product Requirements](../PRD.md). Technical authorization authority: [High-Level Design](../HLD.md) and backend auth/access services. This file is the role-policy summary and must not claim patient or doctor authentication.
+Current product authority: [Product Requirements](../PRD.md). Technical authorization authority: [High-Level Design](../HLD.md), the [backend/database LLD section](../LLD.md#backend-database-and-workflow-implementation), and backend auth/access services. This file is the role-policy summary and must not claim patient or doctor authentication.
 
 ## Current Role Model
 

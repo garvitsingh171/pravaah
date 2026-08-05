@@ -1,6 +1,6 @@
 # Database Design
 
-This database summary is derived from `apps/server/prisma/schema.prisma` and should stay aligned with [High-Level Design](../HLD.md). The HLD explains how the schema supports product workflows; this file remains the database-focused reference.
+This database summary is derived from `apps/server/prisma/schema.prisma` and should stay aligned with [High-Level Design](../HLD.md) and [backend/database LLD section](../LLD.md#backend-database-and-workflow-implementation). The HLD explains system structure, the LLD explains implementation details, and this file remains the database-focused reference.
 
 ## Source Of Truth
 

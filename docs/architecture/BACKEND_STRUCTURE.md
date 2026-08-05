@@ -1,5 +1,7 @@
 # Backend Structure
 
+Detailed backend request flow, modules, transactions, and database relationships are maintained in the [backend/database LLD section](../LLD.md#backend-database-and-workflow-implementation).
+
 ## Package And Scripts
 
 Backend package:

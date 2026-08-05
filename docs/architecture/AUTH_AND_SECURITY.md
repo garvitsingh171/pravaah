@@ -1,5 +1,7 @@
 # Auth And Security
 
+For low-level auth request flow, onboarding exceptions, route guards, and backend access middleware, read the [frontend LLD section](../LLD.md#frontend-routing-state-and-interface-architecture) and [backend/database LLD section](../LLD.md#backend-database-and-workflow-implementation).
+
 ## Current Auth Stack
 
 | Layer                    | Implementation                                          |

@@ -7,7 +7,7 @@
 | Purpose             | Authoritative interview and screen-share guide for explaining Pravaah accurately.                   |
 | Verification status | Verified against repository implementation on 2026-08-04.                                           |
 | Product scope       | Current repository state for root package version `0.2.0`; release/deployment verification pending. |
-| Authority           | Read [Product Requirements](PRD.md) and [High-Level Design](HLD.md) first.                          |
+| Authority           | Read [Product Requirements](../PRD.md) and [High-Level Design](../HLD.md) first.                    |
 
 Use this guide to explain the real repository. Do not invent personal contribution claims; use "Owner input required" when repository evidence cannot prove who did what.
 
@@ -320,7 +320,7 @@ It automatically cancels or deprioritizes patients.
 - No audit log or production monitoring integration.
 - No browser E2E suite.
 - Appointment transitions are broad except final-state protection.
-- Queue reorder has a doctor-scope gap.
+- Queue reorder is doctor-scoped in the current source; owner runtime verification is still pending.
 - Patient availability filtering must account for inactive clinic links.
 - Appointment duration-overlap and clinic-hours rules are not enforced by backend business logic.
 
@@ -359,10 +359,10 @@ Only use fictional data.
 | Question                                       | Answer                                                                                                                                    |
 | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | What was technically difficult?                | Separating Clerk identity from internal authorization, especially onboarding before an internal user exists.                              |
-| What would you improve?                        | Add strict transition tables, doctor-scoped queue reorder, audit logs, monitoring, pagination, and eventually multi-clinic membership.    |
+| What would you improve?                        | Add strict transition tables, audit logs, monitoring, pagination, and eventually multi-clinic membership.                                  |
 | How do you prevent unauthorized clinic access? | Backend compares authenticated `User.clinicId` with route/resource clinic and checks role/status.                                         |
 | Why use transactions?                          | To keep related writes such as clinic/admin, doctor/link, patient/link, appointment/queue/prediction, and status sync atomic.             |
-| What if queue requests happen simultaneously?  | Position assignment uses an advisory lock; reorder uses a transaction, but doctor-scoped reorder validation is still a gap.               |
+| What if queue requests happen simultaneously?  | Position assignment and reorder use clinic/doctor/day scoping with transaction protection; owner runtime verification is still pending.   |
 | How is appointment conflict prevented?         | Active exact doctor/time conflicts are checked under an advisory lock and backed by a partial unique index.                               |
 | Is no-show risk machine learning?              | No. It is deterministic rule-based scoring with reasons and suggested actions.                                                            |
 | Why separate Doctor and Patient from clinic?   | Join tables support clinic-specific links/history and future multi-clinic growth.                                                         |
@@ -397,13 +397,13 @@ Do not claim:
 
 The existing interview pack remains useful for deeper preparation:
 
-- [Interview Pack Index](interview/README.md)
-- [Project Overview](interview/PROJECT_OVERVIEW.md)
-- [Architecture And Decisions](interview/ARCHITECTURE_AND_DECISIONS.md)
-- [Authorization And Security](interview/AUTHORIZATION_AND_SECURITY.md)
-- [Database And Transactions](interview/DATABASE_AND_TRANSACTIONS.md)
-- [Testing And Deployment](interview/TESTING_AND_DEPLOYMENT.md)
-- [Tradeoffs And Improvements](interview/TRADEOFFS_AND_IMPROVEMENTS.md)
-- [Questions And Simulations](interview/QUESTIONS_AND_SIMULATIONS.md)
-- [Screen Share Guide](interview/SCREEN_SHARE_GUIDE.md)
-- [Revision Cheatsheet](interview/REVISION_CHEATSHEET.md)
+- [Interview Pack Index](README.md)
+- [Project Overview](PROJECT_OVERVIEW.md)
+- [Architecture And Decisions](ARCHITECTURE_AND_DECISIONS.md)
+- [Authorization And Security](AUTHORIZATION_AND_SECURITY.md)
+- [Database And Transactions](DATABASE_AND_TRANSACTIONS.md)
+- [Testing And Deployment](TESTING_AND_DEPLOYMENT.md)
+- [Tradeoffs And Improvements](TRADEOFFS_AND_IMPROVEMENTS.md)
+- [Questions And Simulations](QUESTIONS_AND_SIMULATIONS.md)
+- [Screen Share Guide](SCREEN_SHARE_GUIDE.md)
+- [Revision Cheatsheet](REVISION_CHEATSHEET.md)

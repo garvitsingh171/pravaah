@@ -1,6 +1,6 @@
 # Testing And Deployment
 
-Authoritative current references: [High-Level Design](../HLD.md), [Product Requirements](../PRD.md), and [Interview Guide](../INTERVIEW_GUIDE.md). Deployment behavior remains owner verification required unless live evidence is supplied.
+Authoritative current references: [High-Level Design](../HLD.md), [Product Requirements](../PRD.md), and [Interview Guide](INTERVIEW_GUIDE.md). Deployment behavior remains owner verification required unless live evidence is supplied.
 
 ## Test Strategy
 

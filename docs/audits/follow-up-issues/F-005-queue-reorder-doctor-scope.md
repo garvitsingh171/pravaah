@@ -1,5 +1,7 @@
 # [Bug] Preserve doctor-scoped queue positions during reorder
 
+> Superseded by current source: queue reorder now validates one-doctor membership and persists positions under a clinic/doctor/clinic-local-day lock. Keep this draft as historical audit evidence only; see the [backend/database LLD section](../../LLD.md#backend-database-and-workflow-implementation) and [Documentation Discrepancy Register](../DOCUMENTATION_DISCREPANCY_REGISTER.md) for current status and owner verification notes.
+
 **Suggested label:** `Bug`
 
 ## Overview

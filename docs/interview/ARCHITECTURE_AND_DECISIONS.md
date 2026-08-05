@@ -1,6 +1,6 @@
 # Architecture And Decisions
 
-Authoritative current references: [High-Level Design](../HLD.md), [Product Requirements](../PRD.md), and [Interview Guide](../INTERVIEW_GUIDE.md). This file is a concise interview supplement.
+Authoritative current references: [High-Level Design](../HLD.md), [Product Requirements](../PRD.md), and [Interview Guide](INTERVIEW_GUIDE.md). This file is a concise interview supplement.
 
 ## Architecture Summary
 
