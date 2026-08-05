@@ -6,9 +6,11 @@ import {
     FilterBar,
     PageHeader,
     RiskBadge as RiskLevelBadge,
+    RiskExplanation,
     StatusBadge,
     fieldControlClassName,
     getQueueStatusLabel,
+    getAppointmentStatusLabel,
 } from '../../components/ui';
 import { isApiClientError } from '../../lib';
 import { QueueStatus } from '../../types';
@@ -183,26 +185,6 @@ const getOptionalText = (value: string | number | null | undefined): string => {
     return String(value).trim() || 'Not added';
 };
 
-const getPredictionReasonMessages = (reasons: unknown[]): string[] => {
-    return reasons.reduce<string[]>((messages, reason) => {
-        if (
-            typeof reason === 'object' &&
-            reason !== null &&
-            'message' in reason &&
-            typeof reason.message === 'string'
-        ) {
-            messages.push(reason.message);
-            return messages;
-        }
-
-        if (typeof reason === 'string') {
-            messages.push(reason);
-        }
-
-        return messages;
-    }, []);
-};
-
 const getSuggestedActions = (actions: unknown): string[] => {
     if (!Array.isArray(actions)) {
         return [];
@@ -231,6 +213,17 @@ const getUniqueQueueDoctors = (queueEntries: QueueListItem[]) => {
 
 const getActiveQueueEntries = (queueEntries: QueueListItem[]): QueueListItem[] => {
     return queueEntries.filter((queueEntry) => !isFinalQueueStatus(queueEntry.status));
+};
+
+const getFinalQueueEntries = (queueEntries: QueueListItem[]): QueueListItem[] => {
+    return queueEntries.filter((queueEntry) => isFinalQueueStatus(queueEntry.status));
+};
+
+const getQueueEntriesForDoctorScope = (
+    queueEntries: QueueListItem[],
+    doctorId: string
+): QueueListItem[] => {
+    return queueEntries.filter((queueEntry) => queueEntry.doctor.id === doctorId);
 };
 
 const getQueueEntryIds = (queueEntries: QueueListItem[]): string[] => {
@@ -272,6 +265,7 @@ const mergeQueueEntriesWithReorderedActiveEntries = (
 
     return [...reorderedActiveEntries, ...inactiveEntries].sort(
         (firstEntry, secondEntry) =>
+            firstEntry.doctor.fullName.localeCompare(secondEntry.doctor.fullName) ||
             firstEntry.position - secondEntry.position ||
             firstEntry.appointment.scheduledAt.localeCompare(secondEntry.appointment.scheduledAt)
     );
@@ -284,20 +278,21 @@ function RiskBadge({ queueEntry }: { queueEntry: QueueListItem }) {
         return <span className="text-slate-500">Not available</span>;
     }
 
-    const reasonMessages = getPredictionReasonMessages(prediction.reasons);
     const suggestedActions = getSuggestedActions(prediction.suggestedActions);
 
     return (
-        <div>
+        <div className="space-y-3">
             <RiskLevelBadge riskLevel={prediction.riskLevel} />
-            {reasonMessages[0] ? (
-                <p className="mt-2 max-w-xs text-xs text-slate-500">{reasonMessages[0]}</p>
-            ) : null}
             {suggestedActions[0] ? (
-                <p className="mt-2 max-w-xs text-xs font-medium text-slate-600">
+                <p className="max-w-xs text-xs font-medium text-slate-600">
                     Suggestion: {suggestedActions[0]}
                 </p>
             ) : null}
+            <RiskExplanation
+                prediction={prediction}
+                subjectName={queueEntry.patient.fullName}
+                compact={false}
+            />
         </div>
     );
 }
@@ -318,7 +313,8 @@ function QueueTimeline({ queueEntry }: { queueEntry: QueueListItem }) {
 }
 
 function QueuePage() {
-    const { clinicId } = useActiveClinic();
+    const activeClinic = useActiveClinic();
+    const { clinicId } = activeClinic;
     const { showErrorToast, showSuccessToast } = useToast();
     const todayDate = getTodayDateInputValue();
     const [selectedDoctorId, setSelectedDoctorId] = useState('');
@@ -453,7 +449,10 @@ function QueuePage() {
         }
 
         const confirmedQueueEntries = queueListState.queueEntries;
-        const activeQueueEntries = getActiveQueueEntries(confirmedQueueEntries);
+        const activeQueueEntries = getQueueEntriesForDoctorScope(
+            getActiveQueueEntries(confirmedQueueEntries),
+            queueEntry.doctor.id
+        );
         const activeQueueEntryIds = getQueueEntryIds(activeQueueEntries);
         const nextQueueEntryIds = moveQueueEntryId(activeQueueEntryIds, queueEntry.id, offset);
 
@@ -535,21 +534,53 @@ function QueuePage() {
     const hasFilteredQueueEntries =
         queueListState.status === 'success' && displayedQueueEntries.length > 0;
     const hasQueueFilters = Boolean(selectedDoctorId || selectedStatus);
-    const activeQueueEntries = useMemo(
+    const activeQueueEntries = useMemo(() => getActiveQueueEntries(displayedQueueEntries), [
+        displayedQueueEntries,
+    ]);
+    const finalQueueEntries = useMemo(() => getFinalQueueEntries(displayedQueueEntries), [
+        displayedQueueEntries,
+    ]);
+    const allActiveQueueEntries = useMemo(
         () => getActiveQueueEntries(queueListState.queueEntries),
         [queueListState.queueEntries]
     );
-    const activeQueueEntryIds = useMemo(
-        () => getQueueEntryIds(activeQueueEntries),
-        [activeQueueEntries]
-    );
-    const activeQueueIndexById = useMemo(() => {
-        return activeQueueEntryIds.reduce<Map<string, number>>((indexes, queueEntryId, index) => {
-            indexes.set(queueEntryId, index);
+    const activeQueueIndexesByDoctor = useMemo(() => {
+        return allActiveQueueEntries.reduce<Map<string, Map<string, number>>>(
+            (indexesByDoctor, queueEntry) => {
+                const doctorId = queueEntry.doctor.id;
+                const doctorQueueEntries = getQueueEntriesForDoctorScope(
+                    allActiveQueueEntries,
+                    doctorId
+                );
+                const doctorIndexes = new Map<string, number>();
 
-            return indexes;
-        }, new Map<string, number>());
-    }, [activeQueueEntryIds]);
+                doctorQueueEntries.forEach((doctorQueueEntry, index) => {
+                    doctorIndexes.set(doctorQueueEntry.id, index);
+                });
+                indexesByDoctor.set(doctorId, doctorIndexes);
+
+                return indexesByDoctor;
+            },
+            new Map<string, Map<string, number>>()
+        );
+    }, [allActiveQueueEntries]);
+    const queueCounts = useMemo(() => {
+        return queueListState.queueEntries.reduce<Record<QueueStatusType, number>>(
+            (counts, queueEntry) => {
+                counts[queueEntry.status] += 1;
+
+                return counts;
+            },
+            {
+                WAITING: 0,
+                ARRIVED: 0,
+                CALLED: 0,
+                COMPLETED: 0,
+                CANCELLED: 0,
+                NO_SHOW: 0,
+            }
+        );
+    }, [queueListState.queueEntries]);
     const isReordering = Boolean(reorderingQueueEntryId);
 
     return (
@@ -574,36 +605,49 @@ function QueuePage() {
                 <div className="grid gap-4 md:grid-cols-4">
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                            Queue date
+                            Clinic and date
                         </p>
                         <p className="mt-1 text-sm font-semibold text-slate-900">{todayDate}</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-900">
+                            {activeClinic.clinic?.name ?? 'Active clinic'}
+                        </p>
                     </div>
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                             Active entries
                         </p>
                         <p className="mt-1 text-sm font-semibold text-slate-900">
-                            {
-                                queueListState.queueEntries.filter(
-                                    (entry) => !isFinalQueueStatus(entry.status)
-                                ).length
-                            }
+                            {allActiveQueueEntries.length}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                            Waiting {queueCounts.WAITING} / Arrived {queueCounts.ARRIVED} / Called{' '}
+                            {queueCounts.CALLED}
                         </p>
                     </div>
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                            Matching entries
+                            Final entries
                         </p>
                         <p className="mt-1 text-sm font-semibold text-slate-900">
-                            {displayedQueueEntries.length}
+                            {queueCounts.COMPLETED + queueCounts.CANCELLED + queueCounts.NO_SHOW}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                            Completed {queueCounts.COMPLETED} / Cancelled {queueCounts.CANCELLED} /
+                            No-show {queueCounts.NO_SHOW}
                         </p>
                     </div>
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                            Manual control
+                            Current filter
                         </p>
                         <p className="mt-1 text-sm font-semibold text-slate-900">
-                            Staff updates only
+                            {selectedDoctorId
+                                ? queueDoctors.find((doctor) => doctor.id === selectedDoctorId)
+                                      ?.fullName
+                                : 'All doctors'}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                            Queue order is manual and doctor-scoped.
                         </p>
                     </div>
                 </div>
@@ -734,8 +778,15 @@ function QueuePage() {
                 />
             ) : null}
 
-            {hasFilteredQueueEntries ? (
+            {hasFilteredQueueEntries && activeQueueEntries.length > 0 ? (
                 <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+                    <div className="border-b border-slate-200 px-4 py-4">
+                        <h2 className="text-base font-semibold text-slate-900">Active queue</h2>
+                        <p className="mt-1 text-sm text-slate-500">
+                            Active entries are shown in their server order. Move controls only
+                            affect the selected doctor&apos;s active queue for {todayDate}.
+                        </p>
+                    </div>
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
                             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
@@ -751,21 +802,29 @@ function QueuePage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-200">
-                                {displayedQueueEntries.map((queueEntry) => {
+                                {activeQueueEntries.map((queueEntry) => {
                                     const statusActions = getQueueStatusActions(queueEntry.status);
                                     const isUpdating = updatingQueueEntryId === queueEntry.id;
                                     const isMoving = reorderingQueueEntryId === queueEntry.id;
                                     const isWaiting = queueEntry.status === QueueStatus.WAITING;
                                     const isFinalStatus = isFinalQueueStatus(queueEntry.status);
                                     const activeQueueIndex =
-                                        activeQueueIndexById.get(queueEntry.id) ?? -1;
+                                        activeQueueIndexesByDoctor
+                                            .get(queueEntry.doctor.id)
+                                            ?.get(queueEntry.id) ?? -1;
+                                    const doctorActiveQueueEntryIds = getQueueEntryIds(
+                                        getQueueEntriesForDoctorScope(
+                                            allActiveQueueEntries,
+                                            queueEntry.doctor.id
+                                        )
+                                    );
                                     const hasMoreThanOneActiveEntry =
-                                        activeQueueEntryIds.length > 1;
+                                        doctorActiveQueueEntryIds.length > 1;
                                     const canShowMoveUp =
                                         activeQueueIndex > 0 && hasMoreThanOneActiveEntry;
                                     const canShowMoveDown =
                                         activeQueueIndex >= 0 &&
-                                        activeQueueIndex < activeQueueEntryIds.length - 1 &&
+                                        activeQueueIndex < doctorActiveQueueEntryIds.length - 1 &&
                                         hasMoreThanOneActiveEntry;
                                     const queueActionBusy =
                                         isReordering || Boolean(updatingQueueEntryId);
@@ -933,6 +992,55 @@ function QueuePage() {
                                 })}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            ) : null}
+
+            {hasFilteredQueueEntries && finalQueueEntries.length > 0 ? (
+                <div className="rounded-lg border border-slate-200 bg-white">
+                    <div className="border-b border-slate-200 px-4 py-4">
+                        <h2 className="text-base font-semibold text-slate-900">
+                            Final queue entries
+                        </h2>
+                        <p className="mt-1 text-sm text-slate-500">
+                            Completed, cancelled, and no-show entries remain visible for review.
+                            They are not included in active position changes.
+                        </p>
+                    </div>
+                    <div className="divide-y divide-slate-200">
+                        {finalQueueEntries.map((queueEntry) => (
+                            <article
+                                key={queueEntry.id}
+                                className="grid gap-4 px-4 py-4 md:grid-cols-[1fr_1fr_1fr_auto]"
+                            >
+                                <div>
+                                    <p className="font-semibold text-slate-900">
+                                        {queueEntry.patient.fullName}
+                                    </p>
+                                    <p className="mt-1 text-sm text-slate-500">
+                                        Historical position {queueEntry.position}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-sm font-semibold text-slate-900">
+                                        {queueEntry.doctor.fullName}
+                                    </p>
+                                    <p className="mt-1 text-sm text-slate-500">
+                                        {formatDateTime(queueEntry.appointment.scheduledAt)}
+                                    </p>
+                                </div>
+                                <div className="space-y-2">
+                                    <StatusBadge kind="queue" status={queueEntry.status} />
+                                    <p className="text-sm text-slate-500">
+                                        Appointment:{' '}
+                                        {getAppointmentStatusLabel(queueEntry.appointment.status)}
+                                    </p>
+                                </div>
+                                <p className="text-sm font-medium text-slate-500">
+                                    Reorder unavailable
+                                </p>
+                            </article>
+                        ))}
                     </div>
                 </div>
             ) : null}

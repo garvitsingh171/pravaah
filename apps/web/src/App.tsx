@@ -7,6 +7,7 @@ import ClinicOnboardingPage from './features/onboarding/ClinicOnboardingPage';
 import PublicLandingPage from './features/public/PublicLandingPage';
 import { dashboardRoutes } from './routes/dashboardRoutes';
 import NotFoundPage from './routes/NotFoundPage';
+import RouteMetadata from './routes/RouteMetadata';
 
 export function AppRoutes() {
     return (
@@ -75,6 +76,7 @@ export function AppRoutes() {
 function App() {
     return (
         <BrowserRouter>
+            <RouteMetadata />
             <AppRoutes />
         </BrowserRouter>
     );

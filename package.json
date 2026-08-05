@@ -2,7 +2,7 @@
     "name": "pravaah",
     "version": "0.2.0",
     "private": true,
-    "description": "Pravaah is an AI-assisted clinic flow management system that helps small clinics manage appointments, reduce no-shows, and optimize daily patient queues.",
+    "description": "Pravaah is a clinic flow management system for appointments, daily queues, and explainable rule-based no-show assistance.",
     "workspaces": [
         "apps/web",
         "apps/server",
@@ -29,7 +29,6 @@
     "keywords": [
         "clinic",
         "flow management",
-        "AI",
         "appointments",
         "no-shows",
         "patient queues",

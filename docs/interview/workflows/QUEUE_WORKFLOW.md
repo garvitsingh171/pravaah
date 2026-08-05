@@ -21,9 +21,13 @@ Appointment created
 ## Important Rules
 
 - Final queue entries should not be reordered.
-- Reorder requests currently must include every active clinic/date entry exactly once. Doctor-scoped reorder validation is a known follow-up.
+- Queue position scope is clinic, doctor, and clinic-local appointment date.
+- Reorder requests must include every active entry for one doctor's queue on the selected clinic-local date exactly once.
+- Reorder validation rejects mixed clinics, mixed doctors, final entries, missing active entries, unknown entries, and duplicate IDs.
+- Reorder persistence runs in one transaction and uses the same clinic/doctor/date advisory-lock key as booking-time queue position assignment.
 - Queue access is clinic-scoped.
 - Appointment status and queue status synchronize for shared states.
+- No-show risk is displayed as operational context only. It never automatically reorders the queue, cancels an appointment, or deprioritizes a patient.
 
 ## Demo Check
 
