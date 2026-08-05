@@ -45,14 +45,42 @@ const queueEntryDetailsInclude = {
     },
 } satisfies Prisma.QueueEntryInclude;
 
-const getClinicDateRange = async (date: string, clinicTimezone: string) => {
-    const [dateRange] = await prisma.$queryRaw<Array<{ start: Date; end: Date }>>`
+type PrismaQueryable = typeof prisma | Prisma.TransactionClient;
+
+const getClinicDateRange = async (
+    client: PrismaQueryable,
+    date: string,
+    clinicTimezone: string
+) => {
+    const [dateRange] = await client.$queryRaw<Array<{ start: Date; end: Date }>>`
         SELECT
             (${date}::date::timestamp AT TIME ZONE ${clinicTimezone}) AS "start",
             ((${date}::date + 1)::timestamp AT TIME ZONE ${clinicTimezone}) AS "end"
     `;
 
     return dateRange;
+};
+
+const acquireQueueScopeLock = (
+    tx: Prisma.TransactionClient,
+    clinicId: string,
+    doctorId: string,
+    clinicLocalDate: string
+) => {
+    return tx.$queryRaw`
+        SELECT pg_advisory_xact_lock(
+            hashtextextended(
+                concat(
+                    ${clinicId},
+                    ':',
+                    ${doctorId},
+                    ':',
+                    ${clinicLocalDate}
+                ),
+                0
+            )
+        )
+    `;
 };
 
 const finalQueueStatuses: QueueStatus[] = [
@@ -69,7 +97,7 @@ const finalAppointmentStatuses: AppointmentStatus[] = [
 
 export const queueRepository = {
     async findQueueByClinicDate(clinicId: string, date: string, clinicTimezone: string) {
-        const dateRange = await getClinicDateRange(date, clinicTimezone);
+        const dateRange = await getClinicDateRange(prisma, date, clinicTimezone);
 
         if (!dateRange) {
             return [];
@@ -78,6 +106,48 @@ export const queueRepository = {
         return prisma.queueEntry.findMany({
             where: {
                 clinicId,
+                appointment: {
+                    scheduledAt: {
+                        gte: dateRange.start,
+                        lt: dateRange.end,
+                    },
+                },
+            },
+            include: queueEntryDetailsInclude,
+            orderBy: [
+                {
+                    doctorId: 'asc',
+                },
+                {
+                    position: 'asc',
+                },
+                {
+                    appointment: {
+                        scheduledAt: 'asc',
+                    },
+                },
+            ],
+        });
+    },
+
+    async findActiveQueueByClinicDate(
+        clinicId: string,
+        date: string,
+        clinicTimezone: string,
+        activeStatuses: QueueStatus[]
+    ) {
+        const dateRange = await getClinicDateRange(prisma, date, clinicTimezone);
+
+        if (!dateRange) {
+            return [];
+        }
+
+        return prisma.queueEntry.findMany({
+            where: {
+                clinicId,
+                status: {
+                    in: activeStatuses,
+                },
                 appointment: {
                     scheduledAt: {
                         gte: dateRange.start,
@@ -99,13 +169,14 @@ export const queueRepository = {
         });
     },
 
-    async findActiveQueueByClinicDate(
+    async findActiveQueueByClinicDoctorDate(
         clinicId: string,
+        doctorId: string,
         date: string,
         clinicTimezone: string,
         activeStatuses: QueueStatus[]
     ) {
-        const dateRange = await getClinicDateRange(date, clinicTimezone);
+        const dateRange = await getClinicDateRange(prisma, date, clinicTimezone);
 
         if (!dateRange) {
             return [];
@@ -114,6 +185,7 @@ export const queueRepository = {
         return prisma.queueEntry.findMany({
             where: {
                 clinicId,
+                doctorId,
                 status: {
                     in: activeStatuses,
                 },
@@ -252,15 +324,69 @@ export const queueRepository = {
 
     async reorderQueueEntries(
         clinicId: string,
+        doctorId: string,
+        date: string,
+        clinicTimezone: string,
         queueEntryIds: string[],
         activeStatuses: QueueStatus[]
     ) {
         return prisma.$transaction(async (tx) => {
+            await acquireQueueScopeLock(tx, clinicId, doctorId, date);
+
+            const dateRange = await getClinicDateRange(tx, date, clinicTimezone);
+
+            if (!dateRange) {
+                throw new Error('QUEUE_REORDER_CONFLICT');
+            }
+
+            const activeQueueEntries = await tx.queueEntry.findMany({
+                where: {
+                    clinicId,
+                    doctorId,
+                    status: {
+                        in: activeStatuses,
+                    },
+                    appointment: {
+                        scheduledAt: {
+                            gte: dateRange.start,
+                            lt: dateRange.end,
+                        },
+                    },
+                },
+                select: {
+                    id: true,
+                },
+                orderBy: [
+                    {
+                        position: 'asc',
+                    },
+                    {
+                        appointment: {
+                            scheduledAt: 'asc',
+                        },
+                    },
+                ],
+            });
+
+            const activeQueueEntryIds = new Set(
+                activeQueueEntries.map((queueEntry) => queueEntry.id)
+            );
+            const requestedQueueEntryIds = new Set(queueEntryIds);
+
+            if (
+                activeQueueEntries.length !== queueEntryIds.length ||
+                activeQueueEntries.some((queueEntry) => !requestedQueueEntryIds.has(queueEntry.id)) ||
+                queueEntryIds.some((queueEntryId) => !activeQueueEntryIds.has(queueEntryId))
+            ) {
+                throw new Error('QUEUE_REORDER_CONFLICT');
+            }
+
             for (const [index, queueEntryId] of queueEntryIds.entries()) {
                 const updatedQueueEntry = await tx.queueEntry.updateMany({
                     where: {
                         id: queueEntryId,
                         clinicId,
+                        doctorId,
                         status: {
                             in: activeStatuses,
                         },
@@ -280,6 +406,7 @@ export const queueRepository = {
                     where: {
                         id: queueEntryId,
                         clinicId,
+                        doctorId,
                         status: {
                             in: activeStatuses,
                         },
@@ -300,6 +427,7 @@ export const queueRepository = {
                         in: queueEntryIds,
                     },
                     clinicId,
+                    doctorId,
                     status: {
                         in: activeStatuses,
                     },

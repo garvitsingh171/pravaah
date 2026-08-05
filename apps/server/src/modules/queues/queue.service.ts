@@ -144,6 +144,14 @@ export const queueService = {
     ) {
         const clinic = await accessService.verifyClinicAccess(user, clinicId);
 
+        if (new Set(queueEntryIds).size !== queueEntryIds.length) {
+            throw new AppError(
+                400,
+                'QUEUE_REORDER_DUPLICATE_ENTRY',
+                'Reorder request cannot contain duplicate queue entries'
+            );
+        }
+
         const requestedQueueEntries = await queueRepository.findQueueEntriesByIds(queueEntryIds);
 
         if (requestedQueueEntries.length !== queueEntryIds.length) {
@@ -178,8 +186,22 @@ export const queueService = {
             );
         }
 
-        const activeQueueEntries = await queueRepository.findActiveQueueByClinicDate(
+        const requestedDoctorIds = new Set(
+            requestedQueueEntries.map((queueEntry) => queueEntry.doctorId)
+        );
+        const requestedDoctorId = Array.from(requestedDoctorIds)[0];
+
+        if (!requestedDoctorId || requestedDoctorIds.size !== 1) {
+            throw new AppError(
+                400,
+                'QUEUE_SCOPE_MISMATCH',
+                'Reorder request must stay within one doctor queue'
+            );
+        }
+
+        const activeQueueEntries = await queueRepository.findActiveQueueByClinicDoctorDate(
             clinicId,
+            requestedDoctorId,
             date,
             clinic.timezone,
             activeQueueStatuses
@@ -189,7 +211,7 @@ export const queueService = {
             throw new AppError(
                 400,
                 'QUEUE_REORDER_INCOMPLETE',
-                'Reorder request must include all active queue entries for the selected date'
+                'Reorder request must include all active queue entries for the selected doctor and date'
             );
         }
 
@@ -203,13 +225,16 @@ export const queueService = {
             throw new AppError(
                 400,
                 'QUEUE_REORDER_INVALID_ENTRIES',
-                'Reorder request contains queue entries outside the active queue for this date'
+                'Reorder request contains queue entries outside the active queue for this doctor and date'
             );
         }
 
         try {
             const queueEntries = await queueRepository.reorderQueueEntries(
                 clinicId,
+                requestedDoctorId,
+                date,
+                clinic.timezone,
                 queueEntryIds,
                 activeQueueStatuses
             );

@@ -82,6 +82,7 @@ For interview preparation:
 | [Auth And Security](architecture/AUTH_AND_SECURITY.md)   | Clerk identity, internal authorization, onboarding state, and security boundaries.       |
 | [API Structure](architecture/API_STRUCTURE.md)           | API conventions, validation, controllers, services, and repository rules.                |
 | [API Reference](architecture/API_REFERENCE.md)           | Endpoint reference based on route files.                                                 |
+| [Route SEO Inventory](architecture/ROUTE_SEO_INVENTORY.md) | Route indexing decisions, metadata ownership, sitemap scope, and SPA SEO limitation.   |
 
 ### Guides
 

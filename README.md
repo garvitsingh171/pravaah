@@ -1,6 +1,6 @@
 # Pravaah
 
-Pravaah is an AI-assisted clinic flow management app for small and medium clinics. It helps clinic-side Admin and Staff users manage clinic setup, doctors, patients, appointments, today's queue, dashboard activity, and starter no-show risk scoring.
+Pravaah is a clinic flow management app for small and medium clinics. It helps clinic-side Admin and Staff users manage clinic setup, doctors, patients, appointments, today's queue, dashboard activity, and explainable rule-based no-show assistance.
 
 The no-show feature is rule-based and explainable. It is not trained machine learning.
 

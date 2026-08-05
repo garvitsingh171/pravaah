@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://pravaah.garvitsingh171.com/sitemap.xml
