@@ -1,13 +1,50 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { lazy, Suspense, useEffect, useRef, type ReactNode } from 'react';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import ProtectedAppShell from './app/ProtectedAppShell';
+import { LoadingState } from './components/feedback';
 import PublicErrorBoundary from './components/public/PublicErrorBoundary';
-import LoginPage from './features/auth/LoginPage';
-import SignUpPage from './features/auth/SignUpPage';
-import ClinicOnboardingPage from './features/onboarding/ClinicOnboardingPage';
-import PublicLandingPage from './features/public/PublicLandingPage';
 import { dashboardRoutes } from './routes/dashboardRoutes';
-import NotFoundPage from './routes/NotFoundPage';
 import RouteMetadata from './routes/RouteMetadata';
+
+const PublicLandingPage = lazy(() => import('./features/public/PublicLandingPage'));
+const LoginPage = lazy(() => import('./features/auth/LoginPage'));
+const SignUpPage = lazy(() => import('./features/auth/SignUpPage'));
+const ClinicOnboardingPage = lazy(() => import('./features/onboarding/ClinicOnboardingPage'));
+const NotFoundPage = lazy(() => import('./routes/NotFoundPage'));
+
+function RouteLoadingFallback({ message = 'Loading page...' }: { message?: string }) {
+    return (
+        <div className="min-h-screen bg-app-background px-4 py-6 text-app-text">
+            <div className="mx-auto w-full max-w-5xl">
+                <LoadingState message={message} />
+            </div>
+        </div>
+    );
+}
+
+function PublicRouteBoundary({ children }: { children: ReactNode }) {
+    return (
+        <PublicErrorBoundary>
+            <Suspense fallback={<RouteLoadingFallback />}>{children}</Suspense>
+        </PublicErrorBoundary>
+    );
+}
+
+function RouteScrollRestoration() {
+    const location = useLocation();
+    const previousPathnameRef = useRef(location.pathname);
+
+    useEffect(() => {
+        if (previousPathnameRef.current === location.pathname) {
+            return;
+        }
+
+        previousPathnameRef.current = location.pathname;
+        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    }, [location.pathname]);
+
+    return null;
+}
 
 export function AppRoutes() {
     return (
@@ -15,25 +52,25 @@ export function AppRoutes() {
             <Route
                 path="/"
                 element={
-                    <PublicErrorBoundary>
+                    <PublicRouteBoundary>
                         <PublicLandingPage />
-                    </PublicErrorBoundary>
+                    </PublicRouteBoundary>
                 }
             />
             <Route
                 path="/login/*"
                 element={
-                    <PublicErrorBoundary>
+                    <PublicRouteBoundary>
                         <LoginPage />
-                    </PublicErrorBoundary>
+                    </PublicRouteBoundary>
                 }
             />
             <Route
                 path="/sign-up/*"
                 element={
-                    <PublicErrorBoundary>
+                    <PublicRouteBoundary>
                         <SignUpPage />
-                    </PublicErrorBoundary>
+                    </PublicRouteBoundary>
                 }
             />
             <Route
@@ -47,9 +84,9 @@ export function AppRoutes() {
             <Route
                 path="/onboarding/clinic"
                 element={
-                    <PublicErrorBoundary>
+                    <PublicRouteBoundary>
                         <ClinicOnboardingPage />
-                    </PublicErrorBoundary>
+                    </PublicRouteBoundary>
                 }
             />
             <Route element={<ProtectedAppShell />}>
@@ -64,9 +101,9 @@ export function AppRoutes() {
             <Route
                 path="*"
                 element={
-                    <PublicErrorBoundary>
+                    <PublicRouteBoundary>
                         <NotFoundPage />
-                    </PublicErrorBoundary>
+                    </PublicRouteBoundary>
                 }
             />
         </Routes>
@@ -77,6 +114,7 @@ function App() {
     return (
         <BrowserRouter>
             <RouteMetadata />
+            <RouteScrollRestoration />
             <AppRoutes />
         </BrowserRouter>
     );

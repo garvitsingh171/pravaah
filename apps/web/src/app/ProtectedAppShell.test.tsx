@@ -173,6 +173,39 @@ describe('ProtectedAppShell', () => {
         expect(screen.getByRole('link', { name: /clinic settings/i })).toBeInTheDocument();
     });
 
+    it('opens and closes the mobile workspace navigation with keyboard focus restored', async () => {
+        const user = userEvent.setup();
+        setClerkSignedIn();
+        mockGetOnboardingStatus.mockResolvedValue(completedAdminOnboarding);
+
+        renderShell('/dashboard');
+
+        expect(
+            await screen.findByRole('heading', { name: /protected dashboard/i })
+        ).toBeInTheDocument();
+
+        const openButton = screen.getByRole('button', { name: /open clinic navigation/i });
+        await user.click(openButton);
+
+        expect(
+            screen.getByRole('dialog', {
+                name: /clinic workspace navigation menu/i,
+            })
+        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /close clinic navigation/i })).toHaveFocus();
+
+        await user.keyboard('{Escape}');
+
+        await waitFor(() => {
+            expect(
+                screen.queryByRole('dialog', {
+                    name: /clinic workspace navigation menu/i,
+                })
+            ).not.toBeInTheDocument();
+        });
+        await waitFor(() => expect(openButton).toHaveFocus());
+    });
+
     it('allows a completed active Staff user but does not expose Admin navigation', async () => {
         setClerkSignedIn();
         mockActiveClinicRole.value = UserRole.STAFF;

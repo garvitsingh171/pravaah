@@ -16,7 +16,7 @@ vi.mock('./features/onboarding/onboardingApi', async (importOriginal) => {
 });
 
 describe('App routes', () => {
-    it('renders the public landing page for signed-out visitors without requesting onboarding status', () => {
+    it('renders the public landing page for signed-out visitors without requesting onboarding status', async () => {
         setClerkSignedOut();
 
         renderWithProviders(<AppRoutes />, {
@@ -24,7 +24,7 @@ describe('App routes', () => {
         });
 
         expect(
-            screen.getByRole('heading', {
+            await screen.findByRole('heading', {
                 name: /pravaah helps clinics manage appointments, queues, and explainable no-show risk/i,
             })
         ).toBeInTheDocument();

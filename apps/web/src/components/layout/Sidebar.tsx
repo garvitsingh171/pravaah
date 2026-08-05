@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { PravaahLogo } from '../brand';
 import type { AppRoute } from '../../routes/dashboardRoutes';
 
@@ -44,6 +45,15 @@ const navigationIconPaths: Record<NavigationIconName, string[]> = {
     ],
 };
 
+const focusableSelector = [
+    'a[href]',
+    'button:not([disabled])',
+    'textarea:not([disabled])',
+    'input:not([disabled])',
+    'select:not([disabled])',
+    '[tabindex]:not([tabindex="-1"])',
+].join(',');
+
 type SidebarProps = {
     navigationItems: AppRoute[];
     clinicName: string;
@@ -69,9 +79,239 @@ function NavigationIcon({ name }: { name: NavigationIconName }) {
     );
 }
 
+function WorkspaceNavigation({
+    navigationItems,
+    onNavigate,
+}: {
+    navigationItems: AppRoute[];
+    onNavigate?: () => void;
+}) {
+    return (
+        <nav className="flex flex-col gap-2" aria-label="Clinic workspace navigation">
+            {navigationItems.map((item) => {
+                const label = item.navigationLabel ?? item.title;
+
+                return (
+                    <NavLink
+                        key={item.path}
+                        to={item.path}
+                        end={item.path === '/dashboard'}
+                        onClick={onNavigate}
+                        className={({ isActive }) =>
+                            `group flex min-w-0 items-center gap-3 rounded-lg border px-3 py-3 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 ${
+                                isActive
+                                    ? 'border-teal-200 bg-teal-50 text-slate-950 shadow-sm'
+                                    : 'border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-950'
+                            }`
+                        }
+                    >
+                        {({ isActive }) => (
+                            <>
+                                <span
+                                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${
+                                        isActive
+                                            ? 'bg-white text-teal-700 ring-1 ring-teal-200'
+                                            : 'bg-slate-100 text-slate-500 group-hover:text-slate-800'
+                                    }`}
+                                >
+                                    <NavigationIcon name={item.navigationIcon} />
+                                </span>
+                                <span className="min-w-0">
+                                    <span className="block truncate">{label}</span>
+                                    <span
+                                        className={`mt-0.5 block truncate text-xs font-medium ${
+                                            isActive ? 'text-teal-800' : 'text-slate-500'
+                                        }`}
+                                    >
+                                        {item.navigationDescription}
+                                    </span>
+                                </span>
+                            </>
+                        )}
+                    </NavLink>
+                );
+            })}
+        </nav>
+    );
+}
+
+function MobileWorkspaceNavigation({ navigationItems, clinicName, clinicMeta }: SidebarProps) {
+    const location = useLocation();
+    const [isOpen, setIsOpen] = useState(false);
+    const triggerButtonRef = useRef<HTMLButtonElement>(null);
+    const closeButtonRef = useRef<HTMLButtonElement>(null);
+    const drawerRef = useRef<HTMLElement>(null);
+    const locationKeyRef = useRef(location.key);
+
+    const closeMenu = useCallback((restoreFocus = true) => {
+        setIsOpen(false);
+
+        if (restoreFocus) {
+            window.setTimeout(() => triggerButtonRef.current?.focus(), 0);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!isOpen) {
+            locationKeyRef.current = location.key;
+            return;
+        }
+
+        if (locationKeyRef.current !== location.key) {
+            locationKeyRef.current = location.key;
+            closeMenu(false);
+        }
+    }, [closeMenu, isOpen, location.key]);
+
+    useEffect(() => {
+        if (!isOpen) {
+            return undefined;
+        }
+
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        closeButtonRef.current?.focus();
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeMenu();
+                return;
+            }
+
+            if (event.key !== 'Tab') {
+                return;
+            }
+
+            const focusableElements = Array.from(
+                drawerRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ?? []
+            ).filter((element) => !element.hasAttribute('disabled'));
+
+            if (focusableElements.length === 0) {
+                event.preventDefault();
+                drawerRef.current?.focus();
+                return;
+            }
+
+            const firstElement = focusableElements[0];
+            const lastElement = focusableElements[focusableElements.length - 1];
+
+            if (!drawerRef.current?.contains(document.activeElement)) {
+                event.preventDefault();
+                (event.shiftKey ? lastElement : firstElement).focus();
+            } else if (event.shiftKey && document.activeElement === firstElement) {
+                event.preventDefault();
+                lastElement.focus();
+            } else if (!event.shiftKey && document.activeElement === lastElement) {
+                event.preventDefault();
+                firstElement.focus();
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [closeMenu, isOpen]);
+
+    return (
+        <div className="border-b border-slate-200 bg-white md:hidden">
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
+                <PravaahLogo layout="horizontal" surface="light" size="sm" />
+                <button
+                    ref={triggerButtonRef}
+                    type="button"
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
+                    aria-label="Open clinic navigation"
+                    aria-expanded={isOpen}
+                    aria-controls="mobile-workspace-navigation"
+                    onClick={() => setIsOpen(true)}
+                >
+                    <svg
+                        className="h-5 w-5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                    >
+                        <path d="M4 6h16" />
+                        <path d="M4 12h16" />
+                        <path d="M4 18h16" />
+                    </svg>
+                    Menu
+                </button>
+            </div>
+
+            {isOpen ? (
+                <div className="fixed inset-0 z-50 md:hidden" role="presentation">
+                    <button
+                        type="button"
+                        className="absolute inset-0 bg-slate-950/40"
+                        aria-label="Dismiss clinic navigation overlay"
+                        onClick={() => closeMenu()}
+                    />
+                    <aside
+                        ref={drawerRef}
+                        id="mobile-workspace-navigation"
+                        role="dialog"
+                        aria-modal="true"
+                        className="absolute inset-y-0 left-0 flex w-[min(22rem,calc(100vw-2rem))] flex-col overflow-y-auto border-r border-slate-200 bg-white shadow-xl"
+                        aria-label="Clinic workspace navigation menu"
+                        tabIndex={-1}
+                    >
+                        <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-4">
+                            <div className="min-w-0">
+                                <PravaahLogo layout="horizontal" surface="light" size="sm" />
+                                <p className="mt-3 break-words text-sm font-semibold leading-5 text-slate-950">
+                                    {clinicName}
+                                </p>
+                                <p className="mt-1 break-words text-xs leading-5 text-slate-500">
+                                    {clinicMeta}
+                                </p>
+                            </div>
+                            <button
+                                ref={closeButtonRef}
+                                type="button"
+                                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
+                                aria-label="Close clinic navigation"
+                                onClick={() => closeMenu()}
+                            >
+                                <svg
+                                    className="h-5 w-5"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.8"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    aria-hidden="true"
+                                >
+                                    <path d="M18 6 6 18" />
+                                    <path d="m6 6 12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div className="flex-1 px-3 py-4">
+                            <WorkspaceNavigation
+                                navigationItems={navigationItems}
+                                onNavigate={() => closeMenu(false)}
+                            />
+                        </div>
+                    </aside>
+                </div>
+            ) : null}
+        </div>
+    );
+}
+
 function Sidebar({ navigationItems, clinicName, clinicMeta }: SidebarProps) {
     return (
-        <aside className="border-b border-slate-200 bg-white md:flex md:min-h-screen md:w-72 md:shrink-0 md:flex-col md:border-b-0 md:border-r">
+        <aside className="hidden border-r border-slate-200 bg-white md:flex md:min-h-screen md:w-72 md:shrink-0 md:flex-col">
             <div className="px-4 py-4 md:px-5 md:py-6">
                 <PravaahLogo layout="horizontal" surface="light" size="md" />
                 <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-teal-700">
@@ -88,53 +328,9 @@ function Sidebar({ navigationItems, clinicName, clinicMeta }: SidebarProps) {
                 </div>
             </div>
 
-            <nav
-                className="flex gap-2 overflow-x-auto px-4 pb-4 md:flex-1 md:flex-col md:overflow-visible md:px-3"
-                aria-label="Clinic workspace navigation"
-            >
-                {navigationItems.map((item) => {
-                    const label = item.navigationLabel ?? item.title;
-
-                    return (
-                        <NavLink
-                            key={item.path}
-                            to={item.path}
-                            end={item.path === '/dashboard'}
-                            className={({ isActive }) =>
-                                `group flex min-w-[10rem] items-center gap-3 rounded-lg border px-3 py-3 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 md:min-w-0 md:w-full ${
-                                    isActive
-                                        ? 'border-teal-200 bg-teal-50 text-slate-950 shadow-sm'
-                                        : 'border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-950'
-                                }`
-                            }
-                        >
-                            {({ isActive }) => (
-                                <>
-                                    <span
-                                        className={`flex h-9 w-9 items-center justify-center rounded-md ${
-                                            isActive
-                                                ? 'bg-white text-teal-700 ring-1 ring-teal-200'
-                                                : 'bg-slate-100 text-slate-500 group-hover:text-slate-800'
-                                        }`}
-                                    >
-                                        <NavigationIcon name={item.navigationIcon} />
-                                    </span>
-                                    <span className="min-w-0">
-                                        <span className="block truncate">{label}</span>
-                                        <span
-                                            className={`mt-0.5 hidden truncate text-xs font-medium md:block ${
-                                                isActive ? 'text-teal-800' : 'text-slate-500'
-                                            }`}
-                                        >
-                                            {item.navigationDescription}
-                                        </span>
-                                    </span>
-                                </>
-                            )}
-                        </NavLink>
-                    );
-                })}
-            </nav>
+            <div className="flex-1 px-3 pb-4">
+                <WorkspaceNavigation navigationItems={navigationItems} />
+            </div>
 
             <div className="hidden border-t border-slate-200 px-5 py-4 text-xs leading-5 text-slate-500 md:block">
                 Appointment booking, risk review, and queue decisions stay with Admin and Staff.
@@ -143,4 +339,5 @@ function Sidebar({ navigationItems, clinicName, clinicMeta }: SidebarProps) {
     );
 }
 
+export { MobileWorkspaceNavigation };
 export default Sidebar;

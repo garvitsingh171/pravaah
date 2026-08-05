@@ -51,6 +51,12 @@ If `VITE_CLERK_PUBLISHABLE_KEY` is missing, the frontend throws at startup.
 
 Source: `apps/web/src/App.tsx` and `apps/web/src/routes/dashboardRoutes.tsx`.
 
+Public, auth, onboarding, protected workspace, and fallback page components are
+loaded with `React.lazy`. Public routes render inside `PublicErrorBoundary` plus a
+route-level `Suspense` fallback. Protected workspace child routes render inside the
+authenticated app shell with a shell-level `Suspense` fallback so the sidebar, mobile
+drawer, topbar, and active clinic context stay stable while page chunks load.
+
 Routes:
 
 | Path                 | Page                                                          |
@@ -81,8 +87,8 @@ The public landing, auth, and onboarding routes are outside `ProtectedAppShell`.
 
 | File                            | Responsibility                                                     |
 | ------------------------------- | ------------------------------------------------------------------ |
-| `app/AppLayout.tsx`             | Page shell with Sidebar, Topbar, and nested route outlet.          |
-| `components/layout/Sidebar.tsx` | Navigation links from route config.                                |
+| `app/AppLayout.tsx`             | Page shell with skip link, desktop/mobile navigation, Topbar, and nested route outlet. |
+| `components/layout/Sidebar.tsx` | Desktop sidebar and mobile drawer navigation links from route config. |
 | `components/layout/Topbar.tsx`  | Current page title, role context label, and Clerk sign-out button. |
 
 ## Feature Folders
