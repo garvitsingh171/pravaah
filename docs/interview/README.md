@@ -2,7 +2,7 @@
 
 Use this pack to explain Pravaah clearly without overstating the project.
 
-Start with the authoritative [Interview Guide](../INTERVIEW_GUIDE.md), then use this folder for deeper topic-specific practice.
+Start with the authoritative [Interview Guide](INTERVIEW_GUIDE.md), then use this folder for deeper topic-specific practice.
 
 ## Reading Path
 

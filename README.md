@@ -19,7 +19,7 @@ Authoritative current docs:
 - [Product Requirements](docs/PRD.md)
 - [High-Level Design](docs/HLD.md)
 - [Low-Level Design](docs/LLD.md)
-- [Interview Guide](docs/INTERVIEW_GUIDE.md)
+- [Interview Guide](docs/interview/INTERVIEW_GUIDE.md)
 
 ## Current Capabilities
 
@@ -168,7 +168,7 @@ Key docs:
 - [Architecture](docs/architecture/ARCHITECTURE.md)
 - [API Reference](docs/architecture/API_REFERENCE.md)
 - [Auth And Security](docs/architecture/AUTH_AND_SECURITY.md)
-- [Interview Guide](docs/INTERVIEW_GUIDE.md)
+- [Interview Guide](docs/interview/INTERVIEW_GUIDE.md)
 - [Interview Pack](docs/interview/README.md)
 - [AI Context](docs/ai/AI_CONTEXT.md)
 - [Documentation Discrepancy Register](docs/audits/DOCUMENTATION_DISCREPANCY_REGISTER.md)

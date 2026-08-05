@@ -7,7 +7,7 @@
 | Purpose             | Authoritative interview and screen-share guide for explaining Pravaah accurately.                   |
 | Verification status | Verified against repository implementation on 2026-08-04.                                           |
 | Product scope       | Current repository state for root package version `0.2.0`; release/deployment verification pending. |
-| Authority           | Read [Product Requirements](PRD.md) and [High-Level Design](HLD.md) first.                          |
+| Authority           | Read [Product Requirements](../PRD.md) and [High-Level Design](../HLD.md) first.                    |
 
 Use this guide to explain the real repository. Do not invent personal contribution claims; use "Owner input required" when repository evidence cannot prove who did what.
 
@@ -397,13 +397,13 @@ Do not claim:
 
 The existing interview pack remains useful for deeper preparation:
 
-- [Interview Pack Index](interview/README.md)
-- [Project Overview](interview/PROJECT_OVERVIEW.md)
-- [Architecture And Decisions](interview/ARCHITECTURE_AND_DECISIONS.md)
-- [Authorization And Security](interview/AUTHORIZATION_AND_SECURITY.md)
-- [Database And Transactions](interview/DATABASE_AND_TRANSACTIONS.md)
-- [Testing And Deployment](interview/TESTING_AND_DEPLOYMENT.md)
-- [Tradeoffs And Improvements](interview/TRADEOFFS_AND_IMPROVEMENTS.md)
-- [Questions And Simulations](interview/QUESTIONS_AND_SIMULATIONS.md)
-- [Screen Share Guide](interview/SCREEN_SHARE_GUIDE.md)
-- [Revision Cheatsheet](interview/REVISION_CHEATSHEET.md)
+- [Interview Pack Index](README.md)
+- [Project Overview](PROJECT_OVERVIEW.md)
+- [Architecture And Decisions](ARCHITECTURE_AND_DECISIONS.md)
+- [Authorization And Security](AUTHORIZATION_AND_SECURITY.md)
+- [Database And Transactions](DATABASE_AND_TRANSACTIONS.md)
+- [Testing And Deployment](TESTING_AND_DEPLOYMENT.md)
+- [Tradeoffs And Improvements](TRADEOFFS_AND_IMPROVEMENTS.md)
+- [Questions And Simulations](QUESTIONS_AND_SIMULATIONS.md)
+- [Screen Share Guide](SCREEN_SHARE_GUIDE.md)
+- [Revision Cheatsheet](REVISION_CHEATSHEET.md)

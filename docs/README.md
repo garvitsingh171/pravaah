@@ -7,7 +7,7 @@ Start here for current truth:
 1. [Product Requirements](PRD.md)
 2. [High-Level Design](HLD.md)
 3. [Low-Level Design](LLD.md)
-4. [Interview Guide](INTERVIEW_GUIDE.md)
+4. [Interview Guide](interview/INTERVIEW_GUIDE.md)
 
 ## Release State
 
@@ -39,7 +39,7 @@ For contributors:
 
 For interview preparation:
 
-1. [Interview Guide](INTERVIEW_GUIDE.md)
+1. [Interview Guide](interview/INTERVIEW_GUIDE.md)
 2. [Interview Pack](interview/README.md)
 3. [Project Overview](interview/PROJECT_OVERVIEW.md)
 4. [Architecture And Decisions](interview/ARCHITECTURE_AND_DECISIONS.md)
@@ -136,7 +136,7 @@ For interview preparation:
 
 | Doc                                                                     | Purpose                                                                                    |
 | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| [Interview Guide](INTERVIEW_GUIDE.md)                                   | Authoritative interview explanation, demo script, file map, and truthful claim guardrails. |
+| [Interview Guide](interview/INTERVIEW_GUIDE.md)                         | Authoritative interview explanation, demo script, file map, and truthful claim guardrails. |
 | [Interview Pack](interview/README.md)                                   | Navigation for interview prep docs.                                                        |
 | [Code Organization](engineering/CODE_ORGANIZATION.md)                   | Folder, test, import, fixture, and ownership rules.                                        |
 | [Codebase Consistency Audit](engineering/CODEBASE_CONSISTENCY_AUDIT.md) | Current structural audit, fixes, exceptions, and follow-ups.                               |

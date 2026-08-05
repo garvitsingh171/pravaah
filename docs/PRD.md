@@ -28,7 +28,7 @@ Related source-of-truth documents:
 - [Setup](guides/SETUP.md)
 - [Deployment](guides/DEPLOYMENT.md)
 - [AI Context](ai/AI_CONTEXT.md)
-- [Interview Guide](INTERVIEW_GUIDE.md)
+- [Interview Guide](interview/INTERVIEW_GUIDE.md)
 
 Status taxonomy used in this document:
 
