@@ -2,7 +2,7 @@ import type { PropsWithChildren } from 'react';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes, useLocation } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ActiveClinicReactContext } from './activeClinicContext';
 import ProtectedAppShell from './ProtectedAppShell';
 import { ApiClientError } from '../lib';
@@ -19,6 +19,7 @@ import { setClerkLoading, setClerkSignedIn, setClerkSignedOut } from '../test/mo
 
 const mockGetOnboardingStatus = vi.hoisted(() => vi.fn());
 const mockActiveClinicRole = vi.hoisted(() => ({ value: 'ADMIN' as UserRole }));
+const desktopNavigationMediaQuery = '(min-width: 768px)';
 
 const protectedRouteHeadings: Record<string, RegExp> = {
     '/dashboard': /protected dashboard/i,
@@ -96,10 +97,48 @@ function renderShell(route = '/dashboard?tab=today#risk') {
     );
 }
 
+function stubDesktopBreakpoint({ matches = false } = {}) {
+    let changeListener: EventListener | null = null;
+    const mediaQueryList = {
+        matches,
+        media: desktopNavigationMediaQuery,
+        onchange: null,
+        addEventListener: vi.fn((eventName: string, listener: EventListener) => {
+            if (eventName === 'change') {
+                changeListener = listener;
+            }
+        }),
+        removeEventListener: vi.fn((eventName: string, listener: EventListener) => {
+            if (eventName === 'change' && changeListener === listener) {
+                changeListener = null;
+            }
+        }),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+    } as unknown as MediaQueryList;
+
+    vi.stubGlobal('matchMedia', vi.fn(() => mediaQueryList));
+
+    return {
+        triggerDesktopBreakpoint: () => {
+            changeListener?.({
+                matches: true,
+                media: desktopNavigationMediaQuery,
+            } as MediaQueryListEvent);
+        },
+    };
+}
+
 describe('ProtectedAppShell', () => {
     beforeEach(() => {
         mockGetOnboardingStatus.mockReset();
         mockActiveClinicRole.value = UserRole.ADMIN;
+    });
+
+    afterEach(() => {
+        document.body.style.overflow = '';
+        vi.unstubAllGlobals();
     });
 
     it('shows the current loading state while Clerk is loading', () => {
@@ -204,6 +243,39 @@ describe('ProtectedAppShell', () => {
             ).not.toBeInTheDocument();
         });
         await waitFor(() => expect(openButton).toHaveFocus());
+    });
+
+    it('closes the mobile workspace navigation when the desktop breakpoint matches', async () => {
+        const { triggerDesktopBreakpoint } = stubDesktopBreakpoint();
+        const user = userEvent.setup();
+        setClerkSignedIn();
+        mockGetOnboardingStatus.mockResolvedValue(completedAdminOnboarding);
+
+        renderShell('/dashboard');
+
+        expect(
+            await screen.findByRole('heading', { name: /protected dashboard/i })
+        ).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: /open clinic navigation/i }));
+
+        expect(
+            screen.getByRole('dialog', {
+                name: /clinic workspace navigation menu/i,
+            })
+        ).toBeInTheDocument();
+        expect(document.body.style.overflow).toBe('hidden');
+
+        triggerDesktopBreakpoint();
+
+        await waitFor(() => {
+            expect(
+                screen.queryByRole('dialog', {
+                    name: /clinic workspace navigation menu/i,
+                })
+            ).not.toBeInTheDocument();
+        });
+        await waitFor(() => expect(document.body.style.overflow).toBe(''));
     });
 
     it('allows a completed active Staff user but does not expose Admin navigation', async () => {

@@ -54,6 +54,8 @@ const focusableSelector = [
     '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
+const desktopNavigationMediaQuery = '(min-width: 768px)';
+
 type SidebarProps = {
     navigationItems: AppRoute[];
     clinicName: string;
@@ -162,6 +164,30 @@ function MobileWorkspaceNavigation({ navigationItems, clinicName, clinicMeta }: 
             closeMenu(false);
         }
     }, [closeMenu, isOpen, location.key]);
+
+    useEffect(() => {
+        if (!isOpen || typeof window.matchMedia !== 'function') {
+            return undefined;
+        }
+
+        const mediaQueryList = window.matchMedia(desktopNavigationMediaQuery);
+        const handleBreakpointChange = (event: MediaQueryListEvent) => {
+            if (event.matches) {
+                closeMenu(false);
+            }
+        };
+
+        if (mediaQueryList.matches) {
+            closeMenu(false);
+            return undefined;
+        }
+
+        mediaQueryList.addEventListener('change', handleBreakpointChange);
+
+        return () => {
+            mediaQueryList.removeEventListener('change', handleBreakpointChange);
+        };
+    }, [closeMenu, isOpen]);
 
     useEffect(() => {
         if (!isOpen) {
