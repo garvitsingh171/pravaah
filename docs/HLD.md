@@ -5,8 +5,8 @@
 | Field                | Value                                                                                                               |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | Architecture version | 1.0                                                                                                                 |
-| Verification status  | Verified against repository implementation on 2026-08-04.                                                           |
-| Last verified date   | 2026-08-04                                                                                                          |
+| Verification status  | Verified against repository implementation on 2026-08-05.                                                           |
+| Last verified date   | 2026-08-05                                                                                                          |
 | Repository scope     | Current repository state for root package version `0.2.0`; `v0.2.0` release verification remains pending.           |
 | Intended audience    | Engineers, reviewers, maintainers, interviewers, and AI coding assistants.                                          |
 | Maintainer           | Owner verification required for production deployment and personal-contribution claims.                             |
@@ -15,6 +15,9 @@
 Related documents:
 
 - [Product Requirements](PRD.md)
+- [Low-Level Design](LLD.md)
+- [Frontend LLD section](LLD.md#frontend-routing-state-and-interface-architecture)
+- [Backend/database LLD section](LLD.md#backend-database-and-workflow-implementation)
 - [Architecture Overview](architecture/ARCHITECTURE.md)
 - [Backend Structure](architecture/BACKEND_STRUCTURE.md)
 - [Frontend Structure](architecture/FRONTEND_STRUCTURE.md)
@@ -445,7 +448,7 @@ Foreign-key behavior includes cascade for doctor/patient clinic links and restri
 | PATCH  | `/api/appointments/:appointmentId/status`                 | Admin/Staff    | Appointment clinic | status body                       | appointment                          | final/sync/access                | appointment controller/service/repository | Implemented but not yet released |
 | GET    | `/api/clinics/:clinicId/queue`                            | Admin/Staff    | Route clinic/date  | date query                        | queue entries                        | access/validation                | queue controller/service/repository       | Implemented but not yet released |
 | PATCH  | `/api/clinics/:clinicId/queue/:queueEntryId/status`       | Admin/Staff    | Route clinic/entry | status body                       | queue entry                          | final/sync/access                | queue controller/service/repository       | Implemented but not yet released |
-| PATCH  | `/api/clinics/:clinicId/queue/reorder`                    | Admin/Staff    | Route clinic/date  | date, queueEntryIds               | queue entries                        | incomplete/final/conflict        | queue controller/service/repository       | Under development                |
+| PATCH  | `/api/clinics/:clinicId/queue/reorder`                    | Admin/Staff    | Route clinic/doctor/date | date, queueEntryIds          | queue entries                        | duplicate/mixed doctor/incomplete/final/conflict | queue controller/service/repository       | Implemented but not yet released |
 | GET    | `/api/clinics/:clinicId/dashboard/summary`                | Admin/Staff    | Route clinic/date  | date query                        | summary                              | access/date                      | dashboard controller/service/repository   | Implemented but not yet released |
 | GET    | `/api/clinics/:clinicId/dashboard/high-risk-appointments` | Admin/Staff    | Route clinic/date  | date query                        | high-risk appointments               | access/date                      | dashboard controller/service/repository   | Implemented but not yet released |
 | GET    | `/api/clinics/:clinicId/dashboard/today-activity`         | Admin/Staff    | Route clinic/today | none                              | activity items                       | access                           | dashboard controller/service/repository   | Implemented but not yet released |
@@ -619,7 +622,7 @@ flowchart TD
 | Appointment booking | `Appointment`, `QueueEntry`, `NoShowPrediction`     | Booking creates operational queue/risk context.   | All related writes.               | Rollback; conflicts mapped.               | `appointment.repository.ts` | Exact-slot conflict only.                           |
 | Appointment status  | `Appointment`, `QueueEntry` where mapped            | Keep statuses consistent.                         | Appointment and queue status.     | Conflict or rollback.                     | `appointment.repository.ts` | No PatientClinic counter update.                    |
 | Queue status        | `QueueEntry`, `Appointment`                         | Keep queue and appointment synchronized.          | Queue and appointment status.     | Conflict or rollback.                     | `queue.repository.ts`       | Broad transition rules.                             |
-| Queue reorder       | `QueueEntry.position` rows                          | Avoid duplicate positions during reorder.         | Temporary and final positions.    | Rollback.                                 | `queue.repository.ts`       | Validation not doctor-scoped.                       |
+| Queue reorder       | `QueueEntry.position` rows                          | Avoid duplicate positions during reorder.         | Temporary and final positions for one doctor/date scope. | Rollback.                 | `queue.repository.ts`       | Owner verification pending after doctor-scoped fix. |
 | Dashboard backfill  | `NoShowPrediction` rows                             | Fill missing prediction records before summaries. | Bulk create with skip duplicates. | Dashboard error path.                     | `dashboard.service.ts`      | Backfill inputs are more limited than booking path. |
 
 ## Concurrency Design
@@ -840,6 +843,6 @@ Future work should stay separate from current implementation:
 | PR-PAT-003      | Known limitations                           | `PatientsPage`         | `patients`           | `Patient`, `PatientClinic`                      | patient list                  | patient page tests | Under development                |
 | PR-APT-001      | Appointment sequence and transaction design | `AppointmentsPage`     | `appointments`       | `Appointment`, `QueueEntry`, `NoShowPrediction` | appointment routes            | appointment tests  | Implemented but not yet released |
 | PR-APT-005      | State models and limitations                | appointment feature    | `appointments`       | `Appointment`, `QueueEntry`                     | status endpoint               | status tests       | Planned                          |
-| PR-QUEUE-003    | Queue reorder sequence/concurrency          | `QueuePage`            | `queues`             | `QueueEntry`                                    | queue reorder                 | queue tests        | Under development                |
+| PR-QUEUE-003    | Queue reorder sequence/concurrency          | `QueuePage`            | `queues`             | `QueueEntry`                                    | queue reorder                 | queue tests        | Implemented but not yet released |
 | PR-RISK-001     | No-show risk architecture                   | risk badges/panels     | `predictions`        | `NoShowPrediction`                              | included responses            | prediction tests   | Implemented but not yet released |
 | PR-PUBLIC-001   | Frontend architecture                       | public/auth routes     | auth onboarding APIs | N/A                                             | public routes                 | app route tests    | Implemented but not yet released |

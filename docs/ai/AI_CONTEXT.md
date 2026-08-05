@@ -6,9 +6,12 @@ Read these first:
 
 1. [Product Requirements](../PRD.md)
 2. [High-Level Design](../HLD.md)
-3. [Documentation Index](../README.md)
+3. [Low-Level Design](../LLD.md)
+4. [Frontend LLD section](../LLD.md#frontend-routing-state-and-interface-architecture)
+5. [Backend/database LLD section](../LLD.md#backend-database-and-workflow-implementation)
+6. [Documentation Index](../README.md)
 
-Use the PRD for product scope and capability status. Use the HLD for architecture, route catalogs, data model, transactions, concurrency, deployment boundaries, and traceability.
+Use the PRD for product scope and capability status. Use the HLD for architecture, route catalogs, data model, transactions, concurrency, deployment boundaries, and traceability. Use the LLD for exact implementation details before changing code or detailed docs.
 
 ## Current Stack
 
@@ -35,6 +38,7 @@ Do not suggest replacing the stack unless the user explicitly asks for a stack d
 - Candidate release notes: `docs/releases/V0_2_0_RELEASE_NOTES.md`.
 - Current PRD: `docs/PRD.md`.
 - Current HLD: `docs/HLD.md`.
+- Current LLD index: `docs/LLD.md`.
 
 Use this exact status taxonomy when documenting capabilities: Implemented and deployed, Implemented but not yet released, Under development, Planned, Explicitly out of scope, Deprecated or historical, Owner verification required.
 
@@ -109,6 +113,7 @@ Transaction-sensitive flows:
 - appointment plus queue entry plus prediction creation
 - appointment/queue status synchronization
 - queue reordering
+- doctor-scoped queue reorder validation and advisory-lock scope
 
 Onboarding rules:
 

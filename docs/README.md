@@ -6,7 +6,8 @@ Start here for current truth:
 
 1. [Product Requirements](PRD.md)
 2. [High-Level Design](HLD.md)
-3. [Interview Guide](INTERVIEW_GUIDE.md)
+3. [Low-Level Design](LLD.md)
+4. [Interview Guide](INTERVIEW_GUIDE.md)
 
 ## Release State
 
@@ -24,14 +25,17 @@ For contributors:
 1. [Root README](../README.md)
 2. [Product Requirements](PRD.md)
 3. [High-Level Design](HLD.md)
-4. [v0.2 Scope](scope/V0_2_SCOPE.md)
-5. [Setup](guides/SETUP.md)
-6. [Architecture](architecture/ARCHITECTURE.md)
-7. [Backend Structure](architecture/BACKEND_STRUCTURE.md)
-8. [Frontend Structure](architecture/FRONTEND_STRUCTURE.md)
-9. [API Reference](architecture/API_REFERENCE.md)
-10. [Testing](guides/TESTING.md)
-11. [Contributing](guides/CONTRIBUTING.md)
+4. [Low-Level Design](LLD.md)
+5. [Frontend LLD section](LLD.md#frontend-routing-state-and-interface-architecture)
+6. [Backend/database LLD section](LLD.md#backend-database-and-workflow-implementation)
+7. [v0.2 Scope](scope/V0_2_SCOPE.md)
+8. [Setup](guides/SETUP.md)
+9. [Architecture](architecture/ARCHITECTURE.md)
+10. [Backend Structure](architecture/BACKEND_STRUCTURE.md)
+11. [Frontend Structure](architecture/FRONTEND_STRUCTURE.md)
+12. [API Reference](architecture/API_REFERENCE.md)
+13. [Testing](guides/TESTING.md)
+14. [Contributing](guides/CONTRIBUTING.md)
 
 For interview preparation:
 
@@ -52,6 +56,7 @@ For interview preparation:
 | What was in the frozen MVP?             | [Product MVP](product/MVP.md), then [v0.1 Freeze](releases/V0_1_0_MVP_FREEZE.md).                        |
 | What is current product scope/status?   | [Product Requirements](PRD.md), then [v0.2 Scope](scope/V0_2_SCOPE.md), then current code.               |
 | How is the system shaped?               | [High-Level Design](HLD.md), then [Architecture](architecture/ARCHITECTURE.md).                          |
+| How is the implementation put together? | [Low-Level Design](LLD.md), then [frontend LLD section](LLD.md#frontend-routing-state-and-interface-architecture) and [backend/database LLD section](LLD.md#backend-database-and-workflow-implementation). |
 | What tables/enums/relations exist?      | `apps/server/prisma/schema.prisma`, summarized in [Database Design](architecture/DATABASE_DESIGN.md).    |
 | What endpoints exist?                   | `apps/server/src/modules/**/**.routes.ts`, summarized in [API Reference](architecture/API_REFERENCE.md). |
 | What auth rules are enforced?           | `apps/server/src/modules/auth`, summarized in [Auth And Security](architecture/AUTH_AND_SECURITY.md).    |
@@ -65,6 +70,7 @@ For interview preparation:
 | Doc                                 | Purpose                                                                            |
 | ----------------------------------- | ---------------------------------------------------------------------------------- |
 | [Product Requirements](PRD.md)      | Current product requirements, capability status, business rules, and traceability. |
+| [Low-Level Design](LLD.md)          | Current LLD index, implementation baseline, reading order, and status labels.     |
 | [MVP](product/MVP.md)               | Frozen v0.1 MVP product boundary and historical limitations.                       |
 | [User Roles](product/USER_ROLES.md) | Admin, Staff, onboarding state, patient records, doctor records, and permissions.  |
 | [Workflows](product/WORKFLOWS.md)   | Full product flows across frontend, API, backend, and database.                    |
@@ -75,6 +81,8 @@ For interview preparation:
 | Doc                                                      | Purpose                                                                                  |
 | -------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | [High-Level Design](HLD.md)                              | Current system design, workflows, transactions, deployment boundaries, and traceability. |
+| [Frontend LLD section](LLD.md#frontend-routing-state-and-interface-architecture)           | Frontend startup, routes, providers, state, UI, SEO, responsive, and performance implementation details. |
+| [Backend/database LLD section](LLD.md#backend-database-and-workflow-implementation)           | Backend, API, database, transactions, concurrency, and workflow implementation details. |
 | [Architecture](architecture/ARCHITECTURE.md)             | System-level architecture and layer responsibilities.                                    |
 | [Frontend Structure](architecture/FRONTEND_STRUCTURE.md) | Frontend routes, providers, feature layout, API helpers, and test layout.                |
 | [Backend Structure](architecture/BACKEND_STRUCTURE.md)   | Backend modules, middleware, transactions, tests, and build structure.                   |
@@ -134,6 +142,7 @@ For interview preparation:
 | [Codebase Consistency Audit](engineering/CODEBASE_CONSISTENCY_AUDIT.md) | Current structural audit, fixes, exceptions, and follow-ups.                               |
 | [v0.3 Route Release Audit](audits/V0.3_ROUTE_RELEASE_AUDIT.md)          | Route-by-route product, UI, API, and release-readiness audit.                              |
 | [Frontend Responsive And Performance Audit](audits/FRONTEND_RESPONSIVE_PERFORMANCE_AUDIT.md) | Issue #228 route inventory, mobile/responsive checks, asset inventory, and owner performance procedure. |
+| [Documentation Discrepancy Register](audits/DOCUMENTATION_DISCREPANCY_REGISTER.md) | Current code-document mismatches, superseded findings, and follow-up documentation risks. |
 | [AI Context](ai/AI_CONTEXT.md)                                          | Guardrails for future AI coding assistants.                                                |
 | [v0.2 Assets](assets/v0.2/README.md)                                    | Demo asset and screenshot manifest.                                                        |
 

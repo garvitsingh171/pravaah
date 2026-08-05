@@ -18,6 +18,7 @@ Authoritative current docs:
 
 - [Product Requirements](docs/PRD.md)
 - [High-Level Design](docs/HLD.md)
+- [Low-Level Design](docs/LLD.md)
 - [Interview Guide](docs/INTERVIEW_GUIDE.md)
 
 ## Current Capabilities
@@ -153,6 +154,9 @@ Key docs:
 
 - [Product Requirements](docs/PRD.md)
 - [High-Level Design](docs/HLD.md)
+- [Low-Level Design](docs/LLD.md)
+- [Frontend LLD section](docs/LLD.md#frontend-routing-state-and-interface-architecture)
+- [Backend/database LLD section](docs/LLD.md#backend-database-and-workflow-implementation)
 - [Product MVP Boundary](docs/product/MVP.md)
 - [v0.2 Scope](docs/scope/V0_2_SCOPE.md)
 - [v0.2 Release Notes](docs/releases/V0_2_0_RELEASE_NOTES.md)
@@ -167,6 +171,7 @@ Key docs:
 - [Interview Guide](docs/INTERVIEW_GUIDE.md)
 - [Interview Pack](docs/interview/README.md)
 - [AI Context](docs/ai/AI_CONTEXT.md)
+- [Documentation Discrepancy Register](docs/audits/DOCUMENTATION_DISCREPANCY_REGISTER.md)
 
 ## Verified From Source Inspection
 

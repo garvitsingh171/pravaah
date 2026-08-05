@@ -15,7 +15,7 @@ Current product status and architecture authority live in [Product Requirements]
 
 This folder prepares Pravaah for Project Score assessment by mapping official concepts to real repository evidence, workflow traces, simulation readiness, and interview question categories.
 
-It does not replace product documentation. It points to PRD/HLD/LLD-equivalent architecture/product docs, implementation files, tests, deployment config, and release audits.
+It does not replace product documentation. It points to PRD/HLD/LLD architecture/product docs, implementation files, tests, deployment config, and release audits.
 
 ## Official Project Score Rules
 
@@ -109,7 +109,7 @@ Current repository equivalents:
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
 | PRD             | [Product Requirements](../PRD.md), plus product docs such as [MVP](../product/MVP.md), [Workflows](../product/WORKFLOWS.md), release charter, and route audit.                                                | Formal current PRD exists at `docs/PRD.md`.  |
 | HLD             | [High-Level Design](../HLD.md), plus [Architecture](../architecture/ARCHITECTURE.md), [Frontend Structure](../architecture/FRONTEND_STRUCTURE.md), [Backend Structure](../architecture/BACKEND_STRUCTURE.md). | Formal current HLD exists at `docs/HLD.md`.  |
-| LLD             | [API Structure](../architecture/API_STRUCTURE.md), [API Reference](../architecture/API_REFERENCE.md), [Database Design](../architecture/DATABASE_DESIGN.md), feature modules.                                 | Formal `docs/architecture/LLD.md` not found. |
+| LLD             | [Low-Level Design](../LLD.md), [Frontend LLD section](../LLD.md#frontend-routing-state-and-interface-architecture), [Backend/database LLD section](../LLD.md#backend-database-and-workflow-implementation), plus [API Reference](../architecture/API_REFERENCE.md).              | Formal current LLD exists at `docs/LLD.md`.  |
 
 Missing formal PRD/HLD/LLD files should be recorded honestly. Do not rename existing docs or claim missing files exist.
 

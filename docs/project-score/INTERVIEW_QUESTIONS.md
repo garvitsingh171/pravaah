@@ -266,7 +266,7 @@ Representative questions:
 - Why should arrival not create a duplicate queue entry?
 - How does queue status synchronize with appointment status?
 - How does queue reordering remain consistent?
-- What are the current queue gaps recorded in F-005 and F-006?
+- Which queue finding was superseded by doctor-scoped reorder, and which lifecycle gap remains open?
 
 ## No-Show Assistance
 

@@ -14,7 +14,7 @@ Release status:
 - `v0.2.0` is a release candidate.
 - Active v0.2 scope source of truth: [V0_2_SCOPE.md](../scope/V0_2_SCOPE.md).
 
-Current documentation authority starts with [Product Requirements](../PRD.md) for product scope and [High-Level Design](../HLD.md) for technical design. Update them in the same PR when behavior, architecture, API, schema, role policy, deployment expectations, or capability status changes.
+Current documentation authority starts with [Product Requirements](../PRD.md) for product scope, [High-Level Design](../HLD.md) for system design, and [Low-Level Design](../LLD.md) for implementation detail. Update them in the same PR when behavior, architecture, API, schema, role policy, deployment expectations, or capability status changes.
 
 ## Issue Selection
 
@@ -133,6 +133,7 @@ Source-of-truth documentation:
 
 - Current product requirements: [PRD.md](../PRD.md)
 - Current high-level design: [HLD.md](../HLD.md)
+- Current low-level design: [LLD.md](../LLD.md)
 - Frozen MVP boundary: [MVP.md](../product/MVP.md)
 - Active v0.2 scope: [V0_2_SCOPE.md](../scope/V0_2_SCOPE.md)
 - v0.2 release notes: [V0_2_0_RELEASE_NOTES.md](../releases/V0_2_0_RELEASE_NOTES.md)
@@ -150,6 +151,7 @@ AI tools may help, but they must follow the repo:
 
 - scan current code before editing
 - use `docs/ai/AI_CONTEXT.md`
+- read PRD, HLD, and LLD before changing architecture-sensitive behavior
 - keep the stack unchanged unless the task explicitly changes it
 - distinguish implemented, partial, and future work
 - avoid advanced AI claims for rule-based scoring

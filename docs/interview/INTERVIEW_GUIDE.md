@@ -320,7 +320,7 @@ It automatically cancels or deprioritizes patients.
 - No audit log or production monitoring integration.
 - No browser E2E suite.
 - Appointment transitions are broad except final-state protection.
-- Queue reorder has a doctor-scope gap.
+- Queue reorder is doctor-scoped in the current source; owner runtime verification is still pending.
 - Patient availability filtering must account for inactive clinic links.
 - Appointment duration-overlap and clinic-hours rules are not enforced by backend business logic.
 
@@ -359,10 +359,10 @@ Only use fictional data.
 | Question                                       | Answer                                                                                                                                    |
 | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | What was technically difficult?                | Separating Clerk identity from internal authorization, especially onboarding before an internal user exists.                              |
-| What would you improve?                        | Add strict transition tables, doctor-scoped queue reorder, audit logs, monitoring, pagination, and eventually multi-clinic membership.    |
+| What would you improve?                        | Add strict transition tables, audit logs, monitoring, pagination, and eventually multi-clinic membership.                                  |
 | How do you prevent unauthorized clinic access? | Backend compares authenticated `User.clinicId` with route/resource clinic and checks role/status.                                         |
 | Why use transactions?                          | To keep related writes such as clinic/admin, doctor/link, patient/link, appointment/queue/prediction, and status sync atomic.             |
-| What if queue requests happen simultaneously?  | Position assignment uses an advisory lock; reorder uses a transaction, but doctor-scoped reorder validation is still a gap.               |
+| What if queue requests happen simultaneously?  | Position assignment and reorder use clinic/doctor/day scoping with transaction protection; owner runtime verification is still pending.   |
 | How is appointment conflict prevented?         | Active exact doctor/time conflicts are checked under an advisory lock and backed by a partial unique index.                               |
 | Is no-show risk machine learning?              | No. It is deterministic rule-based scoring with reasons and suggested actions.                                                            |
 | Why separate Doctor and Patient from clinic?   | Join tables support clinic-specific links/history and future multi-clinic growth.                                                         |

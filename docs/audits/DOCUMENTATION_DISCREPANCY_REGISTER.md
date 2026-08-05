@@ -1,0 +1,21 @@
+# Documentation Discrepancy Register
+
+Last reviewed: 2026-08-05
+
+This register records implementation-versus-documentation discrepancies found during
+the issue #229 LLD and documentation-consistency pass. It is not a substitute for
+fixing stale active docs; items here are for historical context, follow-up tracking,
+or cases where code intent and current behavior should both remain visible.
+
+| Topic | Existing Documentation | Current Implementation | Classification | Documentation Action | Follow-up Needed |
+| --- | --- | --- | --- | --- | --- |
+| Queue reorder doctor scope | Older PRD/HLD/audit/project-score/interview text said reorder validation was not doctor-scoped. | `queue.service.ts` now requires all reordered entries to belong to one doctor and `queue.repository.ts` locks by clinic, doctor, and date. | Deprecated or superseded | Current PRD/HLD/LLD/navigation docs updated to describe doctor-scoped reorder. Historical audit remains as older finding. | Run owner tests and manual multi-doctor same-day reorder verification. |
+| Appointment lifecycle strictness | Product docs describe an intended sequence. | Backend blocks changes away from final statuses but otherwise accepts broad non-final status changes. | In development | Current docs distinguish final-state protection from planned strict transition graph. | Implement strict transition graph in a focused future issue. |
+| Queue lifecycle strictness | Product docs describe an intended sequence. | Backend blocks updates after final queue statuses but otherwise accepts broad non-final queue transitions. | In development | Current docs distinguish final-state protection from planned strict transition graph. | Implement strict queue transition graph in a focused future issue. |
+| Patient active filter | Some docs imply active filters fully reflect clinic-link availability. | `patient.repository.ts` filters `Patient.isActive`; `PatientClinic.isActive` exists and is returned, but the query filter is not link-aware. | In development | PRD/HLD/LLD record the link-aware active filter gap. | Add link-aware filtering or adjust product requirement. |
+| Backend lint | Release docs list lint commands. | `apps/server/package.json` has `lint` as `echo "server lint not configured yet"`. | Unknown or unverified | Docs state backend lint is placeholder and must not count as backend lint evidence. | Configure backend lint or revise release gates. |
+| Deployment status | Docs mention Vercel/Render/Neon deployment shape. | Repo contains frontend `vercel.json` and deployment docs but no verified production URLs, deployed SHAs, screenshots, or provider logs. | Unknown or unverified | Docs keep deployment as owner verification required. | Owner must record release/deployment evidence. |
+| Browser E2E coverage | Some release checklists require manual browser workflow checks. | No browser E2E framework or scripts exist in package files. | Planned | Testing docs and LLD say E2E is deferred and manual verification is current gate. | Add E2E only through a future scoped test issue. |
+| NoShowPrediction model version | UI/API responses expose `modelVersion = starter-rule-v1`. | Prisma model stores score, risk level, and reasons JSON, but not a model-version column. | Intentional simplification | LLD and database docs record that model version is response-level, not persisted. | Add persisted version only if product needs auditability. |
+| Standalone clinic creation | A protected `POST /api/clinics` route exists. | `clinic.controller.ts` returns `STANDALONE_CLINIC_CREATION_DISABLED`; onboarding is the supported bootstrap path. | Deprecated or superseded | Current docs describe the route as disabled. | Remove or repurpose only with an explicit product decision. |
+
