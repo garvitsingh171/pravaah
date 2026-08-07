@@ -80,7 +80,7 @@ Backend evidence:
 
 - Operational routes include `/:clinicId` except appointment status update.
 - `requireClinicAccess` checks internal `User.clinicId` against route `clinicId`.
-- `accessRepository.findClinicById` rejects inactive clinics.
+- `accessRepository.findClinicById` retrieves clinic status data; `accessService.verifyClinicAccess` rejects inactive clinics with `CLINIC_INACTIVE`.
 - Appointment status update first loads `Appointment.clinicId` and then verifies clinic access.
 - Doctor and patient update services verify `DoctorClinic` or `PatientClinic` link before update.
 - Queue update checks loaded `QueueEntry.clinicId` equals route clinic ID.
