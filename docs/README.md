@@ -7,7 +7,8 @@ Start here for current truth:
 1. [Product Requirements](PRD.md)
 2. [High-Level Design](HLD.md)
 3. [Low-Level Design](LLD.md)
-4. [Interview Guide](interview/INTERVIEW_GUIDE.md)
+4. [Workflow Atlas](workflows/README.md)
+5. [Interview Guide](interview/INTERVIEW_GUIDE.md)
 
 ## Release State
 
@@ -28,14 +29,15 @@ For contributors:
 4. [Low-Level Design](LLD.md)
 5. [Frontend LLD section](LLD.md#frontend-routing-state-and-interface-architecture)
 6. [Backend/database LLD section](LLD.md#backend-database-and-workflow-implementation)
-7. [v0.2 Scope](scope/V0_2_SCOPE.md)
-8. [Setup](guides/SETUP.md)
-9. [Architecture](architecture/ARCHITECTURE.md)
-10. [Backend Structure](architecture/BACKEND_STRUCTURE.md)
-11. [Frontend Structure](architecture/FRONTEND_STRUCTURE.md)
-12. [API Reference](architecture/API_REFERENCE.md)
-13. [Testing](guides/TESTING.md)
-14. [Contributing](guides/CONTRIBUTING.md)
+7. [Workflow Atlas](workflows/README.md)
+8. [v0.2 Scope](scope/V0_2_SCOPE.md)
+9. [Setup](guides/SETUP.md)
+10. [Architecture](architecture/ARCHITECTURE.md)
+11. [Backend Structure](architecture/BACKEND_STRUCTURE.md)
+12. [Frontend Structure](architecture/FRONTEND_STRUCTURE.md)
+13. [API Reference](architecture/API_REFERENCE.md)
+14. [Testing](guides/TESTING.md)
+15. [Contributing](guides/CONTRIBUTING.md)
 
 For interview preparation:
 
@@ -51,46 +53,48 @@ For interview preparation:
 
 ## Source-Of-Truth Hierarchy
 
-| Question                                | Primary source                                                                                           |
-| --------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| What was in the frozen MVP?             | [Product MVP](product/MVP.md), then [v0.1 Freeze](releases/V0_1_0_MVP_FREEZE.md).                        |
-| What is current product scope/status?   | [Product Requirements](PRD.md), then [v0.2 Scope](scope/V0_2_SCOPE.md), then current code.               |
-| How is the system shaped?               | [High-Level Design](HLD.md), then [Architecture](architecture/ARCHITECTURE.md).                          |
-| How is the implementation put together? | [Low-Level Design](LLD.md), then [frontend LLD section](LLD.md#frontend-routing-state-and-interface-architecture) and [backend/database LLD section](LLD.md#backend-database-and-workflow-implementation). |
-| What tables/enums/relations exist?      | `apps/server/prisma/schema.prisma`, summarized in [Database Design](architecture/DATABASE_DESIGN.md).    |
-| What endpoints exist?                   | `apps/server/src/modules/**/**.routes.ts`, summarized in [API Reference](architecture/API_REFERENCE.md). |
-| What auth rules are enforced?           | `apps/server/src/modules/auth`, summarized in [Auth And Security](architecture/AUTH_AND_SECURITY.md).    |
-| How does the frontend work?             | `apps/web/src`, summarized in [Frontend Structure](architecture/FRONTEND_STRUCTURE.md).                  |
-| How should future AI assistants behave? | [AI Context](ai/AI_CONTEXT.md).                                                                          |
+| Question                                            | Primary source                                                                                                                                                                                             |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What was in the frozen MVP?                         | [Product MVP](product/MVP.md), then [v0.1 Freeze](releases/V0_1_0_MVP_FREEZE.md).                                                                                                                          |
+| What is current product scope/status?               | [Product Requirements](PRD.md), then [v0.2 Scope](scope/V0_2_SCOPE.md), then current code.                                                                                                                 |
+| How is the system shaped?                           | [High-Level Design](HLD.md), then [Architecture](architecture/ARCHITECTURE.md).                                                                                                                            |
+| How is the implementation put together?             | [Low-Level Design](LLD.md), then [frontend LLD section](LLD.md#frontend-routing-state-and-interface-architecture) and [backend/database LLD section](LLD.md#backend-database-and-workflow-implementation). |
+| How does a product action trace through exact code? | [Workflow Atlas](workflows/README.md), then the relevant workflow file and [Implementation Audit](workflows/implementation-audit.md).                                                                      |
+| What tables/enums/relations exist?                  | `apps/server/prisma/schema.prisma`, summarized in [Database Design](architecture/DATABASE_DESIGN.md).                                                                                                      |
+| What endpoints exist?                               | `apps/server/src/modules/**/**.routes.ts`, summarized in [API Reference](architecture/API_REFERENCE.md).                                                                                                   |
+| What auth rules are enforced?                       | `apps/server/src/modules/auth`, summarized in [Auth And Security](architecture/AUTH_AND_SECURITY.md).                                                                                                      |
+| How does the frontend work?                         | `apps/web/src`, summarized in [Frontend Structure](architecture/FRONTEND_STRUCTURE.md).                                                                                                                    |
+| How should future AI assistants behave?             | [AI Context](ai/AI_CONTEXT.md).                                                                                                                                                                            |
 
 ## Documentation Index
 
 ### Product
 
-| Doc                                 | Purpose                                                                            |
-| ----------------------------------- | ---------------------------------------------------------------------------------- |
-| [Product Requirements](PRD.md)      | Current product requirements, capability status, business rules, and traceability. |
-| [Low-Level Design](LLD.md)          | Current LLD index, implementation baseline, reading order, and status labels.     |
-| [MVP](product/MVP.md)               | Frozen v0.1 MVP product boundary and historical limitations.                       |
-| [User Roles](product/USER_ROLES.md) | Admin, Staff, onboarding state, patient records, doctor records, and permissions.  |
-| [Workflows](product/WORKFLOWS.md)   | Full product flows across frontend, API, backend, and database.                    |
-| [Decisions](product/DECISIONS.md)   | Important product and technical decisions.                                         |
+| Doc                                   | Purpose                                                                                                     |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| [Product Requirements](PRD.md)        | Current product requirements, capability status, business rules, and traceability.                          |
+| [Low-Level Design](LLD.md)            | Current LLD index, implementation baseline, reading order, and status labels.                               |
+| [Workflow Atlas](workflows/README.md) | Exact implementation traces from product action to frontend, API, backend, Prisma, database, and UI result. |
+| [MVP](product/MVP.md)                 | Frozen v0.1 MVP product boundary and historical limitations.                                                |
+| [User Roles](product/USER_ROLES.md)   | Admin, Staff, onboarding state, patient records, doctor records, and permissions.                           |
+| [Workflows](product/WORKFLOWS.md)     | Full product flows across frontend, API, backend, and database.                                             |
+| [Decisions](product/DECISIONS.md)     | Important product and technical decisions.                                                                  |
 
 ### Architecture
 
-| Doc                                                      | Purpose                                                                                  |
-| -------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| [High-Level Design](HLD.md)                              | Current system design, workflows, transactions, deployment boundaries, and traceability. |
-| [Frontend LLD section](LLD.md#frontend-routing-state-and-interface-architecture)           | Frontend startup, routes, providers, state, UI, SEO, responsive, and performance implementation details. |
-| [Backend/database LLD section](LLD.md#backend-database-and-workflow-implementation)           | Backend, API, database, transactions, concurrency, and workflow implementation details. |
-| [Architecture](architecture/ARCHITECTURE.md)             | System-level architecture and layer responsibilities.                                    |
-| [Frontend Structure](architecture/FRONTEND_STRUCTURE.md) | Frontend routes, providers, feature layout, API helpers, and test layout.                |
-| [Backend Structure](architecture/BACKEND_STRUCTURE.md)   | Backend modules, middleware, transactions, tests, and build structure.                   |
-| [Database Design](architecture/DATABASE_DESIGN.md)       | Prisma models, relations, constraints, and transactional flows.                          |
-| [Auth And Security](architecture/AUTH_AND_SECURITY.md)   | Clerk identity, internal authorization, onboarding state, and security boundaries.       |
-| [API Structure](architecture/API_STRUCTURE.md)           | API conventions, validation, controllers, services, and repository rules.                |
-| [API Reference](architecture/API_REFERENCE.md)           | Endpoint reference based on route files.                                                 |
-| [Route SEO Inventory](architecture/ROUTE_SEO_INVENTORY.md) | Route indexing decisions, metadata ownership, sitemap scope, and SPA SEO limitation.   |
+| Doc                                                                                 | Purpose                                                                                                  |
+| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| [High-Level Design](HLD.md)                                                         | Current system design, workflows, transactions, deployment boundaries, and traceability.                 |
+| [Frontend LLD section](LLD.md#frontend-routing-state-and-interface-architecture)    | Frontend startup, routes, providers, state, UI, SEO, responsive, and performance implementation details. |
+| [Backend/database LLD section](LLD.md#backend-database-and-workflow-implementation) | Backend, API, database, transactions, concurrency, and workflow implementation details.                  |
+| [Architecture](architecture/ARCHITECTURE.md)                                        | System-level architecture and layer responsibilities.                                                    |
+| [Frontend Structure](architecture/FRONTEND_STRUCTURE.md)                            | Frontend routes, providers, feature layout, API helpers, and test layout.                                |
+| [Backend Structure](architecture/BACKEND_STRUCTURE.md)                              | Backend modules, middleware, transactions, tests, and build structure.                                   |
+| [Database Design](architecture/DATABASE_DESIGN.md)                                  | Prisma models, relations, constraints, and transactional flows.                                          |
+| [Auth And Security](architecture/AUTH_AND_SECURITY.md)                              | Clerk identity, internal authorization, onboarding state, and security boundaries.                       |
+| [API Structure](architecture/API_STRUCTURE.md)                                      | API conventions, validation, controllers, services, and repository rules.                                |
+| [API Reference](architecture/API_REFERENCE.md)                                      | Endpoint reference based on route files.                                                                 |
+| [Route SEO Inventory](architecture/ROUTE_SEO_INVENTORY.md)                          | Route indexing decisions, metadata ownership, sitemap scope, and SPA SEO limitation.                     |
 
 ### Guides
 
@@ -134,17 +138,17 @@ For interview preparation:
 
 ### Interview, Engineering, AI, Assets
 
-| Doc                                                                     | Purpose                                                                                    |
-| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| [Interview Guide](interview/INTERVIEW_GUIDE.md)                         | Authoritative interview explanation, demo script, file map, and truthful claim guardrails. |
-| [Interview Pack](interview/README.md)                                   | Navigation for interview prep docs.                                                        |
-| [Code Organization](engineering/CODE_ORGANIZATION.md)                   | Folder, test, import, fixture, and ownership rules.                                        |
-| [Codebase Consistency Audit](engineering/CODEBASE_CONSISTENCY_AUDIT.md) | Current structural audit, fixes, exceptions, and follow-ups.                               |
-| [v0.3 Route Release Audit](audits/V0.3_ROUTE_RELEASE_AUDIT.md)          | Route-by-route product, UI, API, and release-readiness audit.                              |
+| Doc                                                                                          | Purpose                                                                                                 |
+| -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| [Interview Guide](interview/INTERVIEW_GUIDE.md)                                              | Authoritative interview explanation, demo script, file map, and truthful claim guardrails.              |
+| [Interview Pack](interview/README.md)                                                        | Navigation for interview prep docs.                                                                     |
+| [Code Organization](engineering/CODE_ORGANIZATION.md)                                        | Folder, test, import, fixture, and ownership rules.                                                     |
+| [Codebase Consistency Audit](engineering/CODEBASE_CONSISTENCY_AUDIT.md)                      | Current structural audit, fixes, exceptions, and follow-ups.                                            |
+| [v0.3 Route Release Audit](audits/V0.3_ROUTE_RELEASE_AUDIT.md)                               | Route-by-route product, UI, API, and release-readiness audit.                                           |
 | [Frontend Responsive And Performance Audit](audits/FRONTEND_RESPONSIVE_PERFORMANCE_AUDIT.md) | Issue #228 route inventory, mobile/responsive checks, asset inventory, and owner performance procedure. |
-| [Documentation Discrepancy Register](audits/DOCUMENTATION_DISCREPANCY_REGISTER.md) | Current code-document mismatches, superseded findings, and follow-up documentation risks. |
-| [AI Context](ai/AI_CONTEXT.md)                                          | Guardrails for future AI coding assistants.                                                |
-| [v0.2 Assets](assets/v0.2/README.md)                                    | Demo asset and screenshot manifest.                                                        |
+| [Documentation Discrepancy Register](audits/DOCUMENTATION_DISCREPANCY_REGISTER.md)           | Current code-document mismatches, superseded findings, and follow-up documentation risks.               |
+| [AI Context](ai/AI_CONTEXT.md)                                                               | Guardrails for future AI coding assistants.                                                             |
+| [v0.2 Assets](assets/v0.2/README.md)                                                         | Demo asset and screenshot manifest.                                                                     |
 
 ## What Not To Let Drift
 

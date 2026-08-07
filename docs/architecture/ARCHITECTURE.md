@@ -1,6 +1,6 @@
 # Pravaah Architecture
 
-This is the concise architecture entry point. The authoritative current technical design is [High-Level Design](../HLD.md), the implementation-level design starts at [Low-Level Design](../LLD.md), and the authoritative product scope is [Product Requirements](../PRD.md). If this summary and the HLD/LLD disagree, update this file from the HLD, LLD, and current code.
+This is the concise architecture entry point. The authoritative current technical design is [High-Level Design](../HLD.md), the implementation-level design starts at [Low-Level Design](../LLD.md), exact product-action traces live in the [Workflow Atlas](../workflows/README.md), and the authoritative product scope is [Product Requirements](../PRD.md). If this summary and the HLD/LLD/atlas disagree, update this file from the HLD, LLD, atlas, and current code.
 
 ## Product Identity
 

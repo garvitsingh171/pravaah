@@ -1,6 +1,6 @@
 # API Structure
 
-Current API conventions are summarized here. For end-to-end architecture, route catalog, transaction design, and traceability, use [High-Level Design](../HLD.md). For implementation-level API details, use [backend/database LLD section](../LLD.md#backend-database-and-workflow-implementation). For product requirements and capability status, use [Product Requirements](../PRD.md).
+Current API conventions are summarized here. For end-to-end architecture, route catalog, transaction design, and traceability, use [High-Level Design](../HLD.md). For implementation-level API details, use [backend/database LLD section](../LLD.md#backend-database-and-workflow-implementation). For exact request traces from frontend action through middleware, validation, controller, service, repository, Prisma, and UI result, use the [Workflow Atlas](../workflows/README.md). For product requirements and capability status, use [Product Requirements](../PRD.md).
 
 ## API Design Conventions
 

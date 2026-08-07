@@ -1,8 +1,8 @@
 # Workflows
 
-Current product authority: [Product Requirements](../PRD.md). Current system-design authority: [High-Level Design](../HLD.md) and [Low-Level Design](../LLD.md). This workflow file should stay source-verified and should not describe planned behavior as current.
+Current product authority: [Product Requirements](../PRD.md). Current system-design authority: [High-Level Design](../HLD.md) and [Low-Level Design](../LLD.md). Detailed code-trace authority: [Workflow Atlas](../workflows/README.md).
 
-This document traces the implemented full product flows across frontend, API, backend, and database.
+This document summarizes implemented product flows. For exact component, handler, API client, middleware, validation, controller, service, repository, Prisma, transaction, concurrency, response, and UI-state evidence, use the workflow atlas.
 
 ## Sign In And Load App
 
