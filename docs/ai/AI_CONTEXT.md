@@ -7,11 +7,13 @@ Read these first:
 1. [Product Requirements](../PRD.md)
 2. [High-Level Design](../HLD.md)
 3. [Low-Level Design](../LLD.md)
-4. [Frontend LLD section](../LLD.md#frontend-routing-state-and-interface-architecture)
-5. [Backend/database LLD section](../LLD.md#backend-database-and-workflow-implementation)
-6. [Documentation Index](../README.md)
+4. [Workflow Atlas](../workflows/README.md)
+5. [Workflow Implementation Audit](../workflows/implementation-audit.md)
+6. [Frontend LLD section](../LLD.md#frontend-routing-state-and-interface-architecture)
+7. [Backend/database LLD section](../LLD.md#backend-database-and-workflow-implementation)
+8. [Documentation Index](../README.md)
 
-Use the PRD for product scope and capability status. Use the HLD for architecture, route catalogs, data model, transactions, concurrency, deployment boundaries, and traceability. Use the LLD for exact implementation details before changing code or detailed docs.
+Use the PRD for product scope and capability status. Use the HLD for architecture, route catalogs, data model, transactions, concurrency, deployment boundaries, and traceability. Use the LLD for implementation architecture. Use the Workflow Atlas when a task asks what exactly happens after a user action or when documentation needs exact route, component, handler, middleware, validation, service, repository, Prisma, transaction, concurrency, response, and UI-state evidence.
 
 ## Current Stack
 

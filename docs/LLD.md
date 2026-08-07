@@ -2,15 +2,15 @@
 
 ## Document Control
 
-| Field | Value |
-| --- | --- |
-| Product | Pravaah |
-| Purpose | Single-file implementation-level design for frontend, backend, database, and workflows. |
-| Audience | Project owner, contributors, reviewers, interviewers, maintainers, and AI coding assistants. |
-| Last reviewed | 2026-08-05 |
-| Implementation baseline | Repository source inspected in root package version `0.2.0`. |
-| Current document status | Implemented documentation; owner verification still required for commands, deployed URLs, screenshots, and release evidence. |
-| Branch or commit reference | Not recorded by Codex because this docs-only issue disallows Git operations. |
+| Field                      | Value                                                                                                                        |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Product                    | Pravaah                                                                                                                      |
+| Purpose                    | Single-file implementation-level design for frontend, backend, database, and workflows.                                      |
+| Audience                   | Project owner, contributors, reviewers, interviewers, maintainers, and AI coding assistants.                                 |
+| Last reviewed              | 2026-08-07                                                                                                                   |
+| Implementation baseline    | Repository source inspected in root package version `0.2.0`.                                                                 |
+| Current document status    | Implemented documentation; owner verification still required for commands, deployed URLs, screenshots, and release evidence. |
+| Branch or commit reference | Not recorded by Codex because this docs-only issue disallows Git operations.                                                 |
 
 This LLD explains the current implementation. It does not propose a replacement
 architecture and does not prove production deployment. Former Part I and Part II
@@ -25,6 +25,8 @@ files have been folded into this single document.
 
 - [Product Requirements](PRD.md)
 - [High-Level Design](HLD.md)
+- [Workflow Atlas](workflows/README.md)
+- [Workflow Implementation Audit](workflows/implementation-audit.md)
 - [Architecture Overview](architecture/ARCHITECTURE.md)
 - [Database Design](architecture/DATABASE_DESIGN.md)
 - [User Roles](product/USER_ROLES.md)
@@ -47,20 +49,21 @@ flowchart TD
 ```
 
 Use the PRD for what Pravaah is supposed to do, the HLD for major system
-structure, and this LLD for exact implementation behavior.
+structure, this LLD for implementation architecture, and the [Workflow Atlas](workflows/README.md)
+for product-action traces with exact frontend, API, backend, Prisma, database, and UI evidence.
 
 ## Status Labels
 
 Use these labels when documenting capability state:
 
-| Status | Meaning |
-| --- | --- |
-| Implemented and deployed | Code, supporting layers, and production or release evidence prove the capability is available. |
-| Implemented but not yet released | Code exists, but tests/builds/deployment/release evidence are still pending. |
-| In development | Work exists, but acceptance criteria are incomplete or a known implementation gap remains. |
-| Planned | Requirements or roadmap mention the capability, but no complete implementation exists. |
-| Deprecated or superseded | Older behavior or documentation remains for history and has been replaced by newer source truth. |
-| Unknown or unverified | Evidence is incomplete and the documentation must not guess. |
+| Status                           | Meaning                                                                                          |
+| -------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Implemented and deployed         | Code, supporting layers, and production or release evidence prove the capability is available.   |
+| Implemented but not yet released | Code exists, but tests/builds/deployment/release evidence are still pending.                     |
+| In development                   | Work exists, but acceptance criteria are incomplete or a known implementation gap remains.       |
+| Planned                          | Requirements or roadmap mention the capability, but no complete implementation exists.           |
+| Deprecated or superseded         | Older behavior or documentation remains for history and has been replaced by newer source truth. |
+| Unknown or unverified            | Evidence is incomplete and the documentation must not guess.                                     |
 
 Repository code can prove implementation. Deployment evidence, release notes with
 verified commands, deployed commit SHAs, and owner-provided production checks prove
@@ -104,21 +107,21 @@ not describe backend internals except where needed to explain frontend request f
 
 ### Frontend Stack
 
-| Technology | Version / source | Responsibility |
-| --- | --- | --- |
-| React | `^19.2.6` in `apps/web/package.json` | Component rendering and local UI state. |
-| TypeScript | `~6.0.2` in web package | Static typing for UI, routes, API helpers, and tests. |
-| Vite | `^8.0.12` | Frontend dev server and static production build. |
-| React Router DOM | `^7.18.0` | Browser routes, nested protected routes, redirects, and NavLink state. |
-| Clerk React | `^6.11.0` | Browser authentication UI and session token access. |
-| Tailwind CSS | `^3.4.19` | Utility styling, breakpoints, responsive layout, focus styles. |
-| Form library | None installed | Forms use React component state and local helpers. |
-| Validation library | No frontend validation package | Frontend uses local validation; backend Zod remains authoritative. |
-| Icon library | None installed | Current icons are inline SVG paths and the custom `PravaahLogo`. |
-| Date utility | None installed | Native `Date`, `Intl`, and string helpers are used. |
-| Data fetching | None installed | Feature API helpers call `apiClient`; pages manage loading/refetch state. |
-| Tests | Vitest `^4.1.9`, RTL, jsdom | Unit/component tests with Clerk and API mocks. |
-| Deployment | Vercel static SPA config | `apps/web/vercel.json` rewrites non-API routes to `index.html`. |
+| Technology         | Version / source                     | Responsibility                                                            |
+| ------------------ | ------------------------------------ | ------------------------------------------------------------------------- |
+| React              | `^19.2.6` in `apps/web/package.json` | Component rendering and local UI state.                                   |
+| TypeScript         | `~6.0.2` in web package              | Static typing for UI, routes, API helpers, and tests.                     |
+| Vite               | `^8.0.12`                            | Frontend dev server and static production build.                          |
+| React Router DOM   | `^7.18.0`                            | Browser routes, nested protected routes, redirects, and NavLink state.    |
+| Clerk React        | `^6.11.0`                            | Browser authentication UI and session token access.                       |
+| Tailwind CSS       | `^3.4.19`                            | Utility styling, breakpoints, responsive layout, focus styles.            |
+| Form library       | None installed                       | Forms use React component state and local helpers.                        |
+| Validation library | No frontend validation package       | Frontend uses local validation; backend Zod remains authoritative.        |
+| Icon library       | None installed                       | Current icons are inline SVG paths and the custom `PravaahLogo`.          |
+| Date utility       | None installed                       | Native `Date`, `Intl`, and string helpers are used.                       |
+| Data fetching      | None installed                       | Feature API helpers call `apiClient`; pages manage loading/refetch state. |
+| Tests              | Vitest `^4.1.9`, RTL, jsdom          | Unit/component tests with Clerk and API mocks.                            |
+| Deployment         | Vercel static SPA config             | `apps/web/vercel.json` rewrites non-API routes to `index.html`.           |
 
 ### Responsibility Boundary
 
@@ -176,13 +179,13 @@ flowchart TD
     Layout --> Outlet[Lazy protected page Outlet]
 ```
 
-| Provider / owner | Path | Owns | Loading/error behavior | Persistence |
-| --- | --- | --- | --- | --- |
-| `ClerkProvider` | `apps/web/src/main.tsx` | Clerk session, sign-in/sign-up routes, sign-out destination. | Clerk SDK owns auth loading. | Clerk-managed session storage. |
-| `ApiAuthProvider` | `apps/web/src/app/ApiAuthProvider.tsx` | Global token provider for `apiClient`. | No UI state; unregisters on unmount. | None. |
-| `ToastProvider` | `apps/web/src/components/feedback/ToastProvider.tsx` | Toast list and show/dismiss helpers. | Mobile bottom, desktop top-right. | In-memory only. |
-| `ProtectedAppShell` | `apps/web/src/app/ProtectedAppShell.tsx` | Clerk loaded/signed-in checks and onboarding status. | Full-page loading, redirects, recovery, retryable error. | In-memory; aborts request on unmount. |
-| `ActiveClinicProvider` | `apps/web/src/app/ActiveClinicProvider.tsx` | Active clinic context and current internal user summary. | Loading, missing-clinic, API error states. | Reads localStorage/env fallback only when no authenticated profile exists. |
+| Provider / owner       | Path                                                 | Owns                                                         | Loading/error behavior                                   | Persistence                                                                |
+| ---------------------- | ---------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `ClerkProvider`        | `apps/web/src/main.tsx`                              | Clerk session, sign-in/sign-up routes, sign-out destination. | Clerk SDK owns auth loading.                             | Clerk-managed session storage.                                             |
+| `ApiAuthProvider`      | `apps/web/src/app/ApiAuthProvider.tsx`               | Global token provider for `apiClient`.                       | No UI state; unregisters on unmount.                     | None.                                                                      |
+| `ToastProvider`        | `apps/web/src/components/feedback/ToastProvider.tsx` | Toast list and show/dismiss helpers.                         | Mobile bottom, desktop top-right.                        | In-memory only.                                                            |
+| `ProtectedAppShell`    | `apps/web/src/app/ProtectedAppShell.tsx`             | Clerk loaded/signed-in checks and onboarding status.         | Full-page loading, redirects, recovery, retryable error. | In-memory; aborts request on unmount.                                      |
+| `ActiveClinicProvider` | `apps/web/src/app/ActiveClinicProvider.tsx`          | Active clinic context and current internal user summary.     | Loading, missing-clinic, API error states.               | Reads localStorage/env fallback only when no authenticated profile exists. |
 
 ### Directory Architecture
 
@@ -205,22 +208,22 @@ not import feature business logic. `packages/*` has no current shared frontend c
 
 ### Route Inventory
 
-| Route | Classification | Access | Layout | Main component | Purpose | Redirect behavior | Indexing |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| `/` | Public informational | Any visitor | Public page | `PublicLandingPage` | Product explanation and CTAs. | Signed-in CTAs lead to onboarding/dashboard paths. | `index,follow`; sitemap entry. |
-| `/login/*` | Authentication | Public/auth | `AuthPageLayout` | `LoginPage` | Clerk sign-in. | Clerk fallback redirect `/dashboard`; sign-out success toast. | `noindex,nofollow`. |
-| `/sign-up/*` | Authentication | Public/auth | `AuthPageLayout` | `SignUpPage` | Clerk sign-up. | Clerk fallback redirect `/onboarding/clinic`. | `noindex,nofollow`. |
-| `/onboarding` | Onboarding redirect | Clerk-intended | Public boundary | `Navigate` | Normalizes onboarding entry. | Redirects to `/onboarding/clinic`. | `noindex,nofollow`. |
-| `/onboarding/clinic` | Public authenticated onboarding | Clerk identity; internal user may be missing | Standalone onboarding layout | `ClinicOnboardingPage` | Create clinic and first Admin. | Completed users continue to app; unprovisioned users see form. | `noindex,nofollow`. |
-| `/dashboard` | Protected application | Admin/Staff | `AppLayout` | `DashboardOverviewPage` | Summary, high-risk appointments, activity, setup. | Signed-out to login; unprovisioned to onboarding; recovery state otherwise. | `noindex,nofollow`. |
-| `/doctors` | Protected application | Admin/Staff | `AppLayout` | `DoctorsPage` | List/search/edit doctors. | Guarded by shell. | `noindex,nofollow`. |
-| `/doctors/new` | Protected application | Admin/Staff | `AppLayout` | `DoctorCreatePage` | Create doctor. | Guarded by shell. | `noindex,nofollow`. |
-| `/patients` | Protected application | Admin/Staff | `AppLayout` | `PatientsPage` | List/search/edit patients. | Guarded by shell. | `noindex,nofollow`. |
-| `/patients/new` | Protected application | Admin/Staff | `AppLayout` | `PatientCreatePage` | Create patient. | Guarded by shell. | `noindex,nofollow`. |
-| `/appointments` | Protected application | Admin/Staff | `AppLayout` | `AppointmentsPage` | Book/filter/status appointments and show risk. | Guarded by shell. | `noindex,nofollow`. |
-| `/queue` | Protected application | Admin/Staff | `AppLayout` | `QueuePage` | Today's queue, status updates, doctor-scoped manual reorder. | Guarded by shell. | `noindex,nofollow`. |
-| `/clinic-settings` | Admin-only protected app | Admin backend authority; Staff nav hidden | `AppLayout` | `ClinicSettingsPage` | Edit supported clinic settings. | Frontend hides Staff nav; backend Admin check is authoritative. | `noindex,nofollow`. |
-| `*` | Public not found | Any visitor | Public boundary | `NotFoundPage` | Public-safe fallback. | Links back to home or dashboard depending auth. | `noindex,nofollow`. |
+| Route                | Classification                  | Access                                       | Layout                       | Main component          | Purpose                                                      | Redirect behavior                                                           | Indexing                       |
+| -------------------- | ------------------------------- | -------------------------------------------- | ---------------------------- | ----------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------- | ------------------------------ |
+| `/`                  | Public informational            | Any visitor                                  | Public page                  | `PublicLandingPage`     | Product explanation and CTAs.                                | Signed-in CTAs lead to onboarding/dashboard paths.                          | `index,follow`; sitemap entry. |
+| `/login/*`           | Authentication                  | Public/auth                                  | `AuthPageLayout`             | `LoginPage`             | Clerk sign-in.                                               | Clerk fallback redirect `/dashboard`; sign-out success toast.               | `noindex,nofollow`.            |
+| `/sign-up/*`         | Authentication                  | Public/auth                                  | `AuthPageLayout`             | `SignUpPage`            | Clerk sign-up.                                               | Clerk fallback redirect `/onboarding/clinic`.                               | `noindex,nofollow`.            |
+| `/onboarding`        | Onboarding redirect             | Clerk-intended                               | Public boundary              | `Navigate`              | Normalizes onboarding entry.                                 | Redirects to `/onboarding/clinic`.                                          | `noindex,nofollow`.            |
+| `/onboarding/clinic` | Public authenticated onboarding | Clerk identity; internal user may be missing | Standalone onboarding layout | `ClinicOnboardingPage`  | Create clinic and first Admin.                               | Completed users continue to app; unprovisioned users see form.              | `noindex,nofollow`.            |
+| `/dashboard`         | Protected application           | Admin/Staff                                  | `AppLayout`                  | `DashboardOverviewPage` | Summary, high-risk appointments, activity, setup.            | Signed-out to login; unprovisioned to onboarding; recovery state otherwise. | `noindex,nofollow`.            |
+| `/doctors`           | Protected application           | Admin/Staff                                  | `AppLayout`                  | `DoctorsPage`           | List/search/edit doctors.                                    | Guarded by shell.                                                           | `noindex,nofollow`.            |
+| `/doctors/new`       | Protected application           | Admin/Staff                                  | `AppLayout`                  | `DoctorCreatePage`      | Create doctor.                                               | Guarded by shell.                                                           | `noindex,nofollow`.            |
+| `/patients`          | Protected application           | Admin/Staff                                  | `AppLayout`                  | `PatientsPage`          | List/search/edit patients.                                   | Guarded by shell.                                                           | `noindex,nofollow`.            |
+| `/patients/new`      | Protected application           | Admin/Staff                                  | `AppLayout`                  | `PatientCreatePage`     | Create patient.                                              | Guarded by shell.                                                           | `noindex,nofollow`.            |
+| `/appointments`      | Protected application           | Admin/Staff                                  | `AppLayout`                  | `AppointmentsPage`      | Book/filter/status appointments and show risk.               | Guarded by shell.                                                           | `noindex,nofollow`.            |
+| `/queue`             | Protected application           | Admin/Staff                                  | `AppLayout`                  | `QueuePage`             | Today's queue, status updates, doctor-scoped manual reorder. | Guarded by shell.                                                           | `noindex,nofollow`.            |
+| `/clinic-settings`   | Admin-only protected app        | Admin backend authority; Staff nav hidden    | `AppLayout`                  | `ClinicSettingsPage`    | Edit supported clinic settings.                              | Frontend hides Staff nav; backend Admin check is authoritative.             | `noindex,nofollow`.            |
+| `*`                  | Public not found                | Any visitor                                  | Public boundary              | `NotFoundPage`          | Public-safe fallback.                                        | Links back to home or dashboard depending auth.                             | `noindex,nofollow`.            |
 
 No dynamic record-detail routes, callback routes, dedicated unauthorized route,
 patient portal, doctor portal, or standalone prediction route are implemented.
@@ -264,13 +267,13 @@ flowchart TD
 
 ### Layout Architecture
 
-| Layout | Path | Responsibilities |
-| --- | --- | --- |
-| Public landing layout | `features/public/PublicLandingPage.tsx` | Public header, product sections, CTAs, footer, responsive wrapping nav. |
-| Auth layout | `features/auth/components/AuthPageLayout.tsx` | Clerk auth frame with app context and return handling. |
-| Onboarding layout | `features/onboarding/ClinicOnboardingPage.tsx` | Standalone onboarding form, status, sample-data decision, redirect. |
-| Protected app shell | `app/AppLayout.tsx` | Skip link, mobile drawer, desktop sidebar, topbar, `main#main-content`, lazy Outlet. |
-| Recovery/error layouts | `ProtectedAppShell`, `ActiveClinicProvider`, `PublicErrorBoundary` | Full-page safe states for access, missing clinic, and public render errors. |
+| Layout                 | Path                                                               | Responsibilities                                                                     |
+| ---------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| Public landing layout  | `features/public/PublicLandingPage.tsx`                            | Public header, product sections, CTAs, footer, responsive wrapping nav.              |
+| Auth layout            | `features/auth/components/AuthPageLayout.tsx`                      | Clerk auth frame with app context and return handling.                               |
+| Onboarding layout      | `features/onboarding/ClinicOnboardingPage.tsx`                     | Standalone onboarding form, status, sample-data decision, redirect.                  |
+| Protected app shell    | `app/AppLayout.tsx`                                                | Skip link, mobile drawer, desktop sidebar, topbar, `main#main-content`, lazy Outlet. |
+| Recovery/error layouts | `ProtectedAppShell`, `ActiveClinicProvider`, `PublicErrorBoundary` | Full-page safe states for access, missing clinic, and public render errors.          |
 
 Protected navigation is sourced from `dashboardRoutes.tsx`. The mobile drawer in
 `Sidebar.tsx` closes on Escape, backdrop, route navigation, and when
@@ -278,16 +281,16 @@ Protected navigation is sourced from `dashboardRoutes.tsx`. The mobile drawer in
 
 ### State Architecture
 
-| State category | Owner | Storage | Updates | Reset |
-| --- | --- | --- | --- | --- |
-| Clerk authentication | Clerk SDK | Clerk-managed | Clerk components/session | Sign out/session expiry. |
-| API auth token provider | `ApiAuthProvider` | Module variable in `apiClient.ts` | `useLayoutEffect` from Clerk `getToken` | Provider unmount. |
-| Onboarding route state | `ProtectedAppShell`, `ClinicOnboardingPage` | React state | API calls with abort where used | Route unmount/retry. |
-| Active clinic | `ActiveClinicProvider`, `clinicContext.ts` | React context; optional localStorage/env fallback | `GET /api/auth/me` | Provider unmount; invalid localStorage cleared. |
-| Server state | Feature pages | React state | Feature API helpers and refetches | Route unmount/manual retry. |
-| Form state | Feature form components | React state | Input handlers and local validation | Submit success/cancel/unmount. |
-| URL state | React Router and search params | Browser URL | `navigate`, links, query params | Navigation. |
-| UI state | Components/pages | React state | Expand/collapse, drawers, dialogs, filters | Route unmount or close actions. |
+| State category          | Owner                                       | Storage                                           | Updates                                    | Reset                                           |
+| ----------------------- | ------------------------------------------- | ------------------------------------------------- | ------------------------------------------ | ----------------------------------------------- |
+| Clerk authentication    | Clerk SDK                                   | Clerk-managed                                     | Clerk components/session                   | Sign out/session expiry.                        |
+| API auth token provider | `ApiAuthProvider`                           | Module variable in `apiClient.ts`                 | `useLayoutEffect` from Clerk `getToken`    | Provider unmount.                               |
+| Onboarding route state  | `ProtectedAppShell`, `ClinicOnboardingPage` | React state                                       | API calls with abort where used            | Route unmount/retry.                            |
+| Active clinic           | `ActiveClinicProvider`, `clinicContext.ts`  | React context; optional localStorage/env fallback | `GET /api/auth/me`                         | Provider unmount; invalid localStorage cleared. |
+| Server state            | Feature pages                               | React state                                       | Feature API helpers and refetches          | Route unmount/manual retry.                     |
+| Form state              | Feature form components                     | React state                                       | Input handlers and local validation        | Submit success/cancel/unmount.                  |
+| URL state               | React Router and search params              | Browser URL                                       | `navigate`, links, query params            | Navigation.                                     |
+| UI state                | Components/pages                            | React state                                       | Expand/collapse, drawers, dialogs, filters | Route unmount or close actions.                 |
 
 No global Redux/Zustand/React Query store exists. There is no request deduplication,
 background refresh engine, or normalized client cache.
@@ -319,14 +322,14 @@ maps aborts/network failures, and rejects malformed success envelopes.
 
 Forms are implemented with local React state. Important forms:
 
-| Form | Component | Validation and behavior |
-| --- | --- | --- |
-| Clinic onboarding | `ClinicOnboardingPage` | Local field checks, strict backend body, duplicate/conflict handling, retry and optional sample data. |
-| Clinic settings | `ClinicSettingsPage` | Loads defaults, Admin-only API, patch supported fields, validation errors and save state. |
-| Doctor create/edit | `DoctorCreatePage`, `DoctorForm`, `DoctorsPage` | Local required fields, backend validation, disabled submit, success redirect/toast. |
-| Patient create/edit | `PatientCreatePage`, `PatientForm`, `PatientsPage` | Patient profile plus clinic notes/distance; backend remains authority. |
-| Appointment booking | `AppointmentBookingForm`, `AppointmentsPage` | Doctor/patient options, date/time conversion, conflict display, risk response display. |
-| Queue actions | `QueuePage` | Native buttons, pending state per status/reorder, server reconciliation. |
+| Form                | Component                                          | Validation and behavior                                                                               |
+| ------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Clinic onboarding   | `ClinicOnboardingPage`                             | Local field checks, strict backend body, duplicate/conflict handling, retry and optional sample data. |
+| Clinic settings     | `ClinicSettingsPage`                               | Loads defaults, Admin-only API, patch supported fields, validation errors and save state.             |
+| Doctor create/edit  | `DoctorCreatePage`, `DoctorForm`, `DoctorsPage`    | Local required fields, backend validation, disabled submit, success redirect/toast.                   |
+| Patient create/edit | `PatientCreatePage`, `PatientForm`, `PatientsPage` | Patient profile plus clinic notes/distance; backend remains authority.                                |
+| Appointment booking | `AppointmentBookingForm`, `AppointmentsPage`       | Doctor/patient options, date/time conversion, conflict display, risk response display.                |
+| Queue actions       | `QueuePage`                                        | Native buttons, pending state per status/reorder, server reconciliation.                              |
 
 Validation errors appear as field errors when mapped, form summaries or inline
 `ErrorMessage` when request-level, toasts for mutation feedback, and full-page
@@ -335,17 +338,17 @@ public boundary where present; protected route chunks use shell Suspense fallbac
 
 ### Shared Components
 
-| Component | Path | Purpose |
-| --- | --- | --- |
-| `Button` | `components/ui/Button.tsx` | Variants, loading state, native disabled behavior. |
-| `FormField`, `FieldError`, `FormSection` | `components/ui`, `components/feedback` | Labels, errors, grouped form layout. |
-| `ConfirmationDialog` | `components/ui/ConfirmationDialog.tsx` | Modal confirmation, Escape, Tab loop, scroll lock, focus restore. |
-| `ToastProvider` | `components/feedback/ToastProvider.tsx` | Success/error notifications. |
-| `LoadingState`, `EmptyState`, `ErrorMessage` | `components/feedback` | Standard async UI states. |
-| `PageHeader`, `FilterBar`, `Card` | `components/ui` | Page structure and filter/action layout. |
-| `StatusBadge`, `RiskBadge`, `RiskExplanation` | `components/ui` | Text-first status and risk presentation. |
-| `Sidebar`, `Topbar` | `components/layout` | Desktop navigation, mobile drawer, page title, role context, sign out. |
-| `PravaahLogo` | `components/brand/PravaahLogo.tsx` | Inline brand mark/wordmark; avoids importing large public PNGs. |
+| Component                                     | Path                                    | Purpose                                                                |
+| --------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------- |
+| `Button`                                      | `components/ui/Button.tsx`              | Variants, loading state, native disabled behavior.                     |
+| `FormField`, `FieldError`, `FormSection`      | `components/ui`, `components/feedback`  | Labels, errors, grouped form layout.                                   |
+| `ConfirmationDialog`                          | `components/ui/ConfirmationDialog.tsx`  | Modal confirmation, Escape, Tab loop, scroll lock, focus restore.      |
+| `ToastProvider`                               | `components/feedback/ToastProvider.tsx` | Success/error notifications.                                           |
+| `LoadingState`, `EmptyState`, `ErrorMessage`  | `components/feedback`                   | Standard async UI states.                                              |
+| `PageHeader`, `FilterBar`, `Card`             | `components/ui`                         | Page structure and filter/action layout.                               |
+| `StatusBadge`, `RiskBadge`, `RiskExplanation` | `components/ui`                         | Text-first status and risk presentation.                               |
+| `Sidebar`, `Topbar`                           | `components/layout`                     | Desktop navigation, mobile drawer, page title, role context, sign out. |
+| `PravaahLogo`                                 | `components/brand/PravaahLogo.tsx`      | Inline brand mark/wordmark; avoids importing large public PNGs.        |
 
 ### Feature Interfaces
 
@@ -416,12 +419,12 @@ static build on Vercel with SPA rewrites in `apps/web/vercel.json`.
 
 Environment variables:
 
-| Variable | Use |
-| --- | --- |
-| `VITE_API_BASE_URL` | Backend `/api` base URL; required by `apiClient`. |
-| `VITE_CLERK_PUBLISHABLE_KEY` | Clerk browser key; required at startup. |
-| `VITE_DEFAULT_CLINIC_ID` | Optional legacy demo fallback when no authenticated clinic profile exists. |
-| `VITE_SITE_URL` | Public metadata origin. |
+| Variable                     | Use                                                                        |
+| ---------------------------- | -------------------------------------------------------------------------- |
+| `VITE_API_BASE_URL`          | Backend `/api` base URL; required by `apiClient`.                          |
+| `VITE_CLERK_PUBLISHABLE_KEY` | Clerk browser key; required at startup.                                    |
+| `VITE_DEFAULT_CLINIC_ID`     | Optional legacy demo fallback when no authenticated clinic profile exists. |
+| `VITE_SITE_URL`              | Public metadata origin.                                                    |
 
 ### Frontend Limitations
 
@@ -446,19 +449,19 @@ and [Database Design](architecture/DATABASE_DESIGN.md).
 
 ### Backend Stack
 
-| Technology | Version / source | Responsibility |
-| --- | --- | --- |
-| Node runtime | External runtime; package uses ESM | Runs compiled Express server. |
-| Express | `^5.2.1` | HTTP API app, middleware, routers. |
-| TypeScript | `^6.0.3` | Backend static typing. |
-| Clerk Express | `^2.1.31` | Request auth integration and `getAuth(req)`. |
-| Zod | `^4.4.3` | Runtime request validation. |
-| Prisma | `^7.8.0` | Schema, migrations, generated client. |
-| PostgreSQL adapter | `@prisma/adapter-pg ^7.8.0`, `pg ^8.21.0` | PostgreSQL connection through `DATABASE_URL`. |
-| Database | PostgreSQL; Neon documented as hosted option | Relational persistence and constraints. |
-| Tests | Vitest `^4.1.9` | Backend unit/controller/service tests. |
-| Build output | `dist` | `tsc -p tsconfig.build.json` after Prisma generate. |
-| Deployment target | Node host such as Render | Documented; production URL evidence is owner-verified. |
+| Technology         | Version / source                             | Responsibility                                         |
+| ------------------ | -------------------------------------------- | ------------------------------------------------------ |
+| Node runtime       | External runtime; package uses ESM           | Runs compiled Express server.                          |
+| Express            | `^5.2.1`                                     | HTTP API app, middleware, routers.                     |
+| TypeScript         | `^6.0.3`                                     | Backend static typing.                                 |
+| Clerk Express      | `^2.1.31`                                    | Request auth integration and `getAuth(req)`.           |
+| Zod                | `^4.4.3`                                     | Runtime request validation.                            |
+| Prisma             | `^7.8.0`                                     | Schema, migrations, generated client.                  |
+| PostgreSQL adapter | `@prisma/adapter-pg ^7.8.0`, `pg ^8.21.0`    | PostgreSQL connection through `DATABASE_URL`.          |
+| Database           | PostgreSQL; Neon documented as hosted option | Relational persistence and constraints.                |
+| Tests              | Vitest `^4.1.9`                              | Backend unit/controller/service tests.                 |
+| Build output       | `dist`                                       | `tsc -p tsconfig.build.json` after Prisma generate.    |
+| Deployment target  | Node host such as Render                     | Documented; production URL evidence is owner-verified. |
 
 ### Responsibility Boundary
 
@@ -496,34 +499,34 @@ flowchart TD
 
 Middleware order from `app.ts`:
 
-| Order | Middleware / route | Notes |
-| --- | --- | --- |
-| 1 | `clerkMiddleware()` | Makes Clerk auth data available to later auth middleware. |
-| 2 | `cors({ origin })` | Allows no-origin requests and configured `CLIENT_URL` / `LOCAL_CLIENT_URL`. |
-| 3 | `express.json()` | Parses JSON and feeds malformed body errors to `errorHandler`. |
-| 4 | `/api/health` | Public health route. |
-| 5 | `/api/auth` | Onboarding-aware and current-user routes. |
-| 6 | `/api/clinics` | Clinics, doctors, patients, clinic appointments, queue, dashboard routers. |
-| 7 | `/api` | Appointment status router. |
-| 8 | `errorHandler` | Handles `AppError`, malformed JSON, selected Prisma/auth/unexpected errors. |
-| 9 | `GET /` | Public API welcome route registered after error middleware. |
+| Order | Middleware / route  | Notes                                                                       |
+| ----- | ------------------- | --------------------------------------------------------------------------- |
+| 1     | `clerkMiddleware()` | Makes Clerk auth data available to later auth middleware.                   |
+| 2     | `cors({ origin })`  | Allows no-origin requests and configured `CLIENT_URL` / `LOCAL_CLIENT_URL`. |
+| 3     | `express.json()`    | Parses JSON and feeds malformed body errors to `errorHandler`.              |
+| 4     | `/api/health`       | Public health route.                                                        |
+| 5     | `/api/auth`         | Onboarding-aware and current-user routes.                                   |
+| 6     | `/api/clinics`      | Clinics, doctors, patients, clinic appointments, queue, dashboard routers.  |
+| 7     | `/api`              | Appointment status router.                                                  |
+| 8     | `errorHandler`      | Handles `AppError`, malformed JSON, selected Prisma/auth/unexpected errors. |
+| 9     | `GET /`             | Public API welcome route registered after error middleware.                 |
 
 There is no explicit not-found middleware in the inspected source.
 
 ### Feature Modules
 
-| Module | Routes | Controller | Service | Repository | Validation | Tests |
-| --- | --- | --- | --- | --- | --- | --- |
-| Health | `health.routes.ts` | `health.controller.ts` | None | None | None | None found. |
-| Auth | `auth.routes.ts` | `auth.controller.ts` | `auth.service.ts`, `access.service.ts`, `clerkIdentity.service.ts` | `auth.repository.ts`, `access.repository.ts` | `auth.validation.ts` | auth/access/controller/middleware/repository/routes/service/validation tests. |
-| Clinics | `clinic.routes.ts` | `clinic.controller.ts` | `clinic.service.ts` | `clinic.repository.ts` | `clinic.validation.ts` | controller/repository/service/validation tests. |
-| Doctors | `doctor.routes.ts` | `doctor.controller.ts` | `doctor.service.ts` | `doctor.repository.ts` | `doctor.validation.ts` | validation tests. |
-| Patients | `patient.routes.ts` | `patient.controller.ts` | `patient.service.ts` | `patient.repository.ts` | `patient.validation.ts` | No backend patient tests found in source list. |
-| Appointments | `appointment.routes.ts` | `appointment.controller.ts` | `appointment.service.ts` | `appointment.repository.ts` | `appointment.validation.ts` | controller/service/validation tests. |
-| Queues | `queue.routes.ts` | `queue.controller.ts` | `queue.service.ts` | `queue.repository.ts` | `queue.validation.ts` | service tests. |
-| Dashboard | `dashboard.routes.ts` | `dashboard.controller.ts` | `dashboard.service.ts` | `dashboard.repository.ts` | `dashboard.validation.ts` | controller/repository/service/validation tests. |
-| Predictions | No standalone router | None | `prediction.service.ts` | Stored by appointment/dashboard repositories | Types only | service tests. |
-| Staff management | Not implemented | Not implemented | Not implemented | Not implemented | Not implemented | Not applicable. |
+| Module           | Routes                  | Controller                  | Service                                                            | Repository                                   | Validation                  | Tests                                                                         |
+| ---------------- | ----------------------- | --------------------------- | ------------------------------------------------------------------ | -------------------------------------------- | --------------------------- | ----------------------------------------------------------------------------- |
+| Health           | `health.routes.ts`      | `health.controller.ts`      | None                                                               | None                                         | None                        | None found.                                                                   |
+| Auth             | `auth.routes.ts`        | `auth.controller.ts`        | `auth.service.ts`, `access.service.ts`, `clerkIdentity.service.ts` | `auth.repository.ts`, `access.repository.ts` | `auth.validation.ts`        | auth/access/controller/middleware/repository/routes/service/validation tests. |
+| Clinics          | `clinic.routes.ts`      | `clinic.controller.ts`      | `clinic.service.ts`                                                | `clinic.repository.ts`                       | `clinic.validation.ts`      | controller/repository/service/validation tests.                               |
+| Doctors          | `doctor.routes.ts`      | `doctor.controller.ts`      | `doctor.service.ts`                                                | `doctor.repository.ts`                       | `doctor.validation.ts`      | validation tests.                                                             |
+| Patients         | `patient.routes.ts`     | `patient.controller.ts`     | `patient.service.ts`                                               | `patient.repository.ts`                      | `patient.validation.ts`     | No backend patient tests found in source list.                                |
+| Appointments     | `appointment.routes.ts` | `appointment.controller.ts` | `appointment.service.ts`                                           | `appointment.repository.ts`                  | `appointment.validation.ts` | controller/service/validation tests.                                          |
+| Queues           | `queue.routes.ts`       | `queue.controller.ts`       | `queue.service.ts`                                                 | `queue.repository.ts`                        | `queue.validation.ts`       | service tests.                                                                |
+| Dashboard        | `dashboard.routes.ts`   | `dashboard.controller.ts`   | `dashboard.service.ts`                                             | `dashboard.repository.ts`                    | `dashboard.validation.ts`   | controller/repository/service/validation tests.                               |
+| Predictions      | No standalone router    | None                        | `prediction.service.ts`                                            | Stored by appointment/dashboard repositories | Types only                  | service tests.                                                                |
+| Staff management | Not implemented         | Not implemented             | Not implemented                                                    | Not implemented                              | Not implemented             | Not applicable.                                                               |
 
 ### Request Pipeline
 
@@ -555,32 +558,32 @@ Prisma queries, includes/projections, raw SQL, and transaction bodies.
 
 ### Complete API Inventory
 
-| Method | Path | Access | Validation | Controller | Service | Transaction | Response | Main errors |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| GET | `/api/health` | Public | None | `getHealthCheck` | None | No | health data | None. |
-| GET | `/api/auth/onboarding-status` | Clerk identity | None | `getOnboardingStatusController` | `authService.getOnboardingStatus` | No | onboarding/user/clinic/setup | `AUTHENTICATION_REQUIRED`, `INVALID_AUTH_TOKEN`. |
-| POST | `/api/auth/onboarding/clinic` | Clerk identity | `onboardingClinicSchema` | `createClinicOnboardingController` | `authService.createClinicOnboarding` | Yes | onboarding/user/clinic/setup | slug, identity, provisioning conflicts. |
-| GET | `/api/auth/me` | Active internal user | None | `getCurrentUserController` | `authService.getCurrentUserProfile` | No | current user/clinic | internal user, inactive user. |
-| POST | `/api/clinics` | Admin | None | `createClinicController` | Disabled | No | disabled error | `STANDALONE_CLINIC_CREATION_DISABLED`. |
-| GET | `/api/clinics/:clinicId` | Admin | `clinicIdParamsSchema` | `getClinicSettingsController` | `clinicService.getClinicSettings` | No | clinic settings | access/admin/not found. |
-| PATCH | `/api/clinics/:clinicId` | Admin | params + `updateClinicSchema` | `updateClinicController` | `clinicService.updateClinic` | No | clinic settings | access/admin/validation. |
-| POST | `/api/clinics/:clinicId/sample-data` | Admin | params + sample body | `provisionSampleDataController` | `clinicService.provisionSampleData` | Yes | sample summary | admin/access/timezone/already provisioned. |
-| GET | `/api/clinics/:clinicId/doctors` | Admin/Staff | params | `listDoctorsByClinicController` | `doctorService.listDoctorsByClinic` | No | doctors | access/not found. |
-| POST | `/api/clinics/:clinicId/doctors` | Admin/Staff | params + `createDoctorSchema` | `createDoctorController` | `doctorService.createDoctor` | Yes | doctor | access/validation. |
-| PATCH | `/api/clinics/:clinicId/doctors/:doctorId` | Admin/Staff | params + `updateDoctorSchema` | `updateDoctorController` | `doctorService.updateDoctor` | No | doctor | not found/link/access. |
-| GET | `/api/clinics/:clinicId/patients` | Admin/Staff | params + query | `listPatientsByClinicController` | `patientService.listPatientsByClinic` | No | patient links | access/validation. |
-| POST | `/api/clinics/:clinicId/patients` | Admin/Staff | params + `createPatientSchema` | `createPatientController` | `patientService.createPatient` | Yes | patient | access/validation. |
-| PATCH | `/api/clinics/:clinicId/patients/:patientId` | Admin/Staff | params + `updatePatientSchema` | `updatePatientController` | `patientService.updatePatient` | Yes | patient | not found/link/access. |
-| GET | `/api/clinics/:clinicId/appointments` | Admin/Staff | params + query | `listAppointmentsController` | `appointmentService.listAppointments` | No | appointments | link/date/access. |
-| POST | `/api/clinics/:clinicId/appointments` | Admin/Staff | params + `createAppointmentSchema` | `createAppointmentController` | `appointmentService.createAppointment` | Yes | appointment, queue entry, prediction | slot conflict/link/validation. |
-| PATCH | `/api/appointments/:appointmentId/status` | Admin/Staff | params + status body | `updateAppointmentStatusController` | `appointmentService.updateAppointmentStatus` | Yes | appointment | final/sync/not found/access. |
-| GET | `/api/clinics/:clinicId/queue` | Admin/Staff | params + query | `listQueueByClinicDateController` | `queueService.listQueueByClinicDate` | No | queue entries | access/date validation. |
-| PATCH | `/api/clinics/:clinicId/queue/:queueEntryId/status` | Admin/Staff | params + status body | `updateQueueStatusController` | `queueService.updateQueueStatus` | Yes | queue entry | final/sync/not found/access. |
-| PATCH | `/api/clinics/:clinicId/queue/reorder` | Admin/Staff | params + reorder body | `reorderQueueController` | `queueService.reorderQueue` | Yes | ordered queue entries | duplicate/incomplete/mixed doctor/final/conflict. |
-| GET | `/api/clinics/:clinicId/dashboard/summary` | Admin/Staff | params + query | `getDashboardSummaryController` | `dashboardService.getDashboardSummary` | Backfill writes possible | dashboard summary | access/date. |
-| GET | `/api/clinics/:clinicId/dashboard/high-risk-appointments` | Admin/Staff | params + query | `getHighRiskAppointmentsController` | `dashboardService.getHighRiskAppointments` | Backfill writes possible | high-risk list | access/date. |
-| GET | `/api/clinics/:clinicId/dashboard/today-activity` | Admin/Staff | params | `getTodayActivityController` | `dashboardService.getTodayActivity` | No | activity items | access/date range. |
-| GET | `/` | Public | None | inline app route | None | No | welcome JSON | None. |
+| Method | Path                                                      | Access               | Validation                         | Controller                          | Service                                      | Transaction              | Response                             | Main errors                                       |
+| ------ | --------------------------------------------------------- | -------------------- | ---------------------------------- | ----------------------------------- | -------------------------------------------- | ------------------------ | ------------------------------------ | ------------------------------------------------- |
+| GET    | `/api/health`                                             | Public               | None                               | `getHealthCheck`                    | None                                         | No                       | health data                          | None.                                             |
+| GET    | `/api/auth/onboarding-status`                             | Clerk identity       | None                               | `getOnboardingStatusController`     | `authService.getOnboardingStatus`            | No                       | onboarding/user/clinic/setup         | `AUTHENTICATION_REQUIRED`, `INVALID_AUTH_TOKEN`.  |
+| POST   | `/api/auth/onboarding/clinic`                             | Clerk identity       | `onboardingClinicSchema`           | `createClinicOnboardingController`  | `authService.createClinicOnboarding`         | Yes                      | onboarding/user/clinic/setup         | slug, identity, provisioning conflicts.           |
+| GET    | `/api/auth/me`                                            | Active internal user | None                               | `getCurrentUserController`          | `authService.getCurrentUserProfile`          | No                       | current user/clinic                  | internal user, inactive user.                     |
+| POST   | `/api/clinics`                                            | Admin                | None                               | `createClinicController`            | Disabled                                     | No                       | disabled error                       | `STANDALONE_CLINIC_CREATION_DISABLED`.            |
+| GET    | `/api/clinics/:clinicId`                                  | Admin                | `clinicIdParamsSchema`             | `getClinicSettingsController`       | `clinicService.getClinicSettings`            | No                       | clinic settings                      | access/admin/not found.                           |
+| PATCH  | `/api/clinics/:clinicId`                                  | Admin                | params + `updateClinicSchema`      | `updateClinicController`            | `clinicService.updateClinic`                 | No                       | clinic settings                      | access/admin/validation.                          |
+| POST   | `/api/clinics/:clinicId/sample-data`                      | Admin                | params + sample body               | `provisionSampleDataController`     | `clinicService.provisionSampleData`          | Yes                      | sample summary                       | admin/access/timezone/already provisioned.        |
+| GET    | `/api/clinics/:clinicId/doctors`                          | Admin/Staff          | params                             | `listDoctorsByClinicController`     | `doctorService.listDoctorsByClinic`          | No                       | doctors                              | access/not found.                                 |
+| POST   | `/api/clinics/:clinicId/doctors`                          | Admin/Staff          | params + `createDoctorSchema`      | `createDoctorController`            | `doctorService.createDoctor`                 | Yes                      | doctor                               | access/validation.                                |
+| PATCH  | `/api/clinics/:clinicId/doctors/:doctorId`                | Admin/Staff          | params + `updateDoctorSchema`      | `updateDoctorController`            | `doctorService.updateDoctor`                 | No                       | doctor                               | not found/link/access.                            |
+| GET    | `/api/clinics/:clinicId/patients`                         | Admin/Staff          | params + query                     | `listPatientsByClinicController`    | `patientService.listPatientsByClinic`        | No                       | patient links                        | access/validation.                                |
+| POST   | `/api/clinics/:clinicId/patients`                         | Admin/Staff          | params + `createPatientSchema`     | `createPatientController`           | `patientService.createPatient`               | Yes                      | patient                              | access/validation.                                |
+| PATCH  | `/api/clinics/:clinicId/patients/:patientId`              | Admin/Staff          | params + `updatePatientSchema`     | `updatePatientController`           | `patientService.updatePatient`               | Yes                      | patient                              | not found/link/access.                            |
+| GET    | `/api/clinics/:clinicId/appointments`                     | Admin/Staff          | params + query                     | `listAppointmentsController`        | `appointmentService.listAppointments`        | No                       | appointments                         | link/date/access.                                 |
+| POST   | `/api/clinics/:clinicId/appointments`                     | Admin/Staff          | params + `createAppointmentSchema` | `createAppointmentController`       | `appointmentService.createAppointment`       | Yes                      | appointment, queue entry, prediction | slot conflict/link/validation.                    |
+| PATCH  | `/api/appointments/:appointmentId/status`                 | Admin/Staff          | params + status body               | `updateAppointmentStatusController` | `appointmentService.updateAppointmentStatus` | Yes                      | appointment                          | final/sync/not found/access.                      |
+| GET    | `/api/clinics/:clinicId/queue`                            | Admin/Staff          | params + query                     | `listQueueByClinicDateController`   | `queueService.listQueueByClinicDate`         | No                       | queue entries                        | access/date validation.                           |
+| PATCH  | `/api/clinics/:clinicId/queue/:queueEntryId/status`       | Admin/Staff          | params + status body               | `updateQueueStatusController`       | `queueService.updateQueueStatus`             | Yes                      | queue entry                          | final/sync/not found/access.                      |
+| PATCH  | `/api/clinics/:clinicId/queue/reorder`                    | Admin/Staff          | params + reorder body              | `reorderQueueController`            | `queueService.reorderQueue`                  | Yes                      | ordered queue entries                | duplicate/incomplete/mixed doctor/final/conflict. |
+| GET    | `/api/clinics/:clinicId/dashboard/summary`                | Admin/Staff          | params + query                     | `getDashboardSummaryController`     | `dashboardService.getDashboardSummary`       | Backfill writes possible | dashboard summary                    | access/date.                                      |
+| GET    | `/api/clinics/:clinicId/dashboard/high-risk-appointments` | Admin/Staff          | params + query                     | `getHighRiskAppointmentsController` | `dashboardService.getHighRiskAppointments`   | Backfill writes possible | high-risk list                       | access/date.                                      |
+| GET    | `/api/clinics/:clinicId/dashboard/today-activity`         | Admin/Staff          | params                             | `getTodayActivityController`        | `dashboardService.getTodayActivity`          | No                       | activity items                       | access/date range.                                |
+| GET    | `/`                                                       | Public               | None                               | inline app route                    | None                                         | No                       | welcome JSON                         | None.                                             |
 
 No standalone prediction, staff-management, patient-auth, doctor-auth, notification,
 billing, prescription, inventory, or OpenAPI endpoint is implemented.
@@ -606,19 +609,19 @@ flowchart TD
 
 Permission matrix:
 
-| Capability | Admin | Staff | Clerk-only onboarding identity |
-| --- | --- | --- | --- |
-| Onboarding status | Yes | Yes | Yes |
-| Clinic onboarding create | Completed replay only | No normal use | Yes, creates first Admin |
-| Current user profile | Yes | Yes | No |
-| Clinic settings | Yes | No | No |
-| Sample data | Yes | No | No |
-| Doctor management | Yes | Yes | No |
-| Patient management | Yes | Yes | No |
-| Appointment management | Yes | Yes | No |
-| Queue actions and reorder | Yes | Yes | No |
-| Risk viewing through appointment/queue/dashboard | Yes | Yes | No |
-| Setup/dashboard status | Yes | Yes where routed | No operational access |
+| Capability                                       | Admin                 | Staff            | Clerk-only onboarding identity |
+| ------------------------------------------------ | --------------------- | ---------------- | ------------------------------ |
+| Onboarding status                                | Yes                   | Yes              | Yes                            |
+| Clinic onboarding create                         | Completed replay only | No normal use    | Yes, creates first Admin       |
+| Current user profile                             | Yes                   | Yes              | No                             |
+| Clinic settings                                  | Yes                   | No               | No                             |
+| Sample data                                      | Yes                   | No               | No                             |
+| Doctor management                                | Yes                   | Yes              | No                             |
+| Patient management                               | Yes                   | Yes              | No                             |
+| Appointment management                           | Yes                   | Yes              | No                             |
+| Queue actions and reorder                        | Yes                   | Yes              | No                             |
+| Risk viewing through appointment/queue/dashboard | Yes                   | Yes              | No                             |
+| Setup/dashboard status                           | Yes                   | Yes where routed | No operational access          |
 
 ### Public Authenticated Onboarding
 
@@ -687,16 +690,16 @@ hours or reject past appointment times as business rules.
 
 #### Appointment Lifecycle
 
-| Status | Meaning | Final? | Queue sync when set through appointment endpoint |
-| --- | --- | --- | --- |
-| `SCHEDULED` | Booked appointment. | No | None. |
-| `CONFIRMED` | Staff-confirmed appointment. | No | None. |
-| `ARRIVED` | Patient arrived. | No | `QueueStatus.ARRIVED`. |
-| `IN_QUEUE` | Patient waiting. | No | `QueueStatus.WAITING`. |
-| `CALLED` | Patient called. | No | `QueueStatus.CALLED`, sets `calledAt` if empty. |
-| `COMPLETED` | Visit completed. | Yes | `QueueStatus.COMPLETED`, sets `completedAt` if empty. |
-| `CANCELLED` | Appointment cancelled. | Yes | `QueueStatus.CANCELLED`. |
-| `NO_SHOW` | Patient did not attend. | Yes | `QueueStatus.NO_SHOW`. |
+| Status      | Meaning                      | Final? | Queue sync when set through appointment endpoint      |
+| ----------- | ---------------------------- | ------ | ----------------------------------------------------- |
+| `SCHEDULED` | Booked appointment.          | No     | None.                                                 |
+| `CONFIRMED` | Staff-confirmed appointment. | No     | None.                                                 |
+| `ARRIVED`   | Patient arrived.             | No     | `QueueStatus.ARRIVED`.                                |
+| `IN_QUEUE`  | Patient waiting.             | No     | `QueueStatus.WAITING`.                                |
+| `CALLED`    | Patient called.              | No     | `QueueStatus.CALLED`, sets `calledAt` if empty.       |
+| `COMPLETED` | Visit completed.             | Yes    | `QueueStatus.COMPLETED`, sets `completedAt` if empty. |
+| `CANCELLED` | Appointment cancelled.       | Yes    | `QueueStatus.CANCELLED`.                              |
+| `NO_SHOW`   | Patient did not attend.      | Yes    | `QueueStatus.NO_SHOW`.                                |
 
 Current code blocks changing a final appointment to a different status. It does not
 yet enforce a strict non-final transition graph.
@@ -738,16 +741,16 @@ human-controlled by Admin or Staff actions.
 
 #### Queue And Appointment Synchronization
 
-| Operation | Starting state | Appointment update | Queue update | Timestamp | Transaction | Patient history impact |
-| --- | --- | --- | --- | --- | --- | --- |
-| Book appointment | valid clinic/doctor/patient | `SCHEDULED` appointment created | `WAITING` queue entry created | `queuedAt` default | Yes | No automatic counter increment. |
-| Mark arrived | non-final | `ARRIVED` | `ARRIVED` | none | Yes | No counter update. |
-| Add/wait in queue | non-final | `IN_QUEUE` | `WAITING` | none | Yes | No counter update. |
-| Call patient | non-final | `CALLED` | `CALLED` | `calledAt` if empty | Yes | No counter update. |
-| Complete | non-final | `COMPLETED` | `COMPLETED` | `completedAt` if empty | Yes | No current counter update. |
-| Cancel | non-final | `CANCELLED` | `CANCELLED` | updatedAt | Yes | No counter update. |
-| No-show | non-final | `NO_SHOW` | `NO_SHOW` | updatedAt | Yes | No current counter update. |
-| Reorder | active queue entries | none | positions only | updatedAt | Yes | No counter update. |
+| Operation         | Starting state              | Appointment update              | Queue update                  | Timestamp              | Transaction | Patient history impact          |
+| ----------------- | --------------------------- | ------------------------------- | ----------------------------- | ---------------------- | ----------- | ------------------------------- |
+| Book appointment  | valid clinic/doctor/patient | `SCHEDULED` appointment created | `WAITING` queue entry created | `queuedAt` default     | Yes         | No automatic counter increment. |
+| Mark arrived      | non-final                   | `ARRIVED`                       | `ARRIVED`                     | none                   | Yes         | No counter update.              |
+| Add/wait in queue | non-final                   | `IN_QUEUE`                      | `WAITING`                     | none                   | Yes         | No counter update.              |
+| Call patient      | non-final                   | `CALLED`                        | `CALLED`                      | `calledAt` if empty    | Yes         | No counter update.              |
+| Complete          | non-final                   | `COMPLETED`                     | `COMPLETED`                   | `completedAt` if empty | Yes         | No current counter update.      |
+| Cancel            | non-final                   | `CANCELLED`                     | `CANCELLED`                   | updatedAt              | Yes         | No counter update.              |
+| No-show           | non-final                   | `NO_SHOW`                       | `NO_SHOW`                     | updatedAt              | Yes         | No current counter update.      |
+| Reorder           | active queue entries        | none                            | positions only                | updatedAt              | Yes         | No counter update.              |
 
 ### Explainable No-Show Assistance
 
@@ -845,17 +848,17 @@ erDiagram
     Patient ||--o{ NoShowPrediction : has
 ```
 
-| Model | Purpose | Key constraints/indexes | Deactivation/deletion |
-| --- | --- | --- | --- |
-| `Clinic` | Tenant/settings boundary. | unique slug; indexes `isActive`, `city`. | `isActive`; operational relations restrict/cascade by relation. |
-| `User` | Internal Clerk-mapped user. | unique `clerkUserId`, unique email; indexes clinic, role, status. | `UserStatus`; clinic deletion sets null. |
-| `Doctor` | Doctor record. | indexes active and specialization. | `isActive`; appointments restrict deletion. |
-| `DoctorClinic` | Doctor-clinic join. | unique `(doctorId, clinicId)`; indexes doctor/clinic/active. | `isActive`; cascades from doctor/clinic. |
-| `Patient` | Patient record. | indexes phone/fullName/active. | `isActive`; appointments restrict deletion. |
-| `PatientClinic` | Clinic-specific patient history. | unique `(patientId, clinicId)`; indexes clinic/patient/active. | `isActive`; cascades from patient/clinic. |
-| `Appointment` | Scheduled visit. | indexes clinic/date, clinic/doctor/date, clinic/patient/date, clinic/status; migration partial unique active doctor slot. | final statuses preserve history; restrict deletion. |
-| `QueueEntry` | Queue state/position. | unique appointment; indexes clinic/status, clinic/doctor/position, clinic/queuedAt. | final statuses preserve history; restrict deletion. |
-| `NoShowPrediction` | Stored deterministic risk. | unique appointment; indexes clinic/patient. | restrict deletion. |
+| Model              | Purpose                          | Key constraints/indexes                                                                                                   | Deactivation/deletion                                           |
+| ------------------ | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `Clinic`           | Tenant/settings boundary.        | unique slug; indexes `isActive`, `city`.                                                                                  | `isActive`; operational relations restrict/cascade by relation. |
+| `User`             | Internal Clerk-mapped user.      | unique `clerkUserId`, unique email; indexes clinic, role, status.                                                         | `UserStatus`; clinic deletion sets null.                        |
+| `Doctor`           | Doctor record.                   | indexes active and specialization.                                                                                        | `isActive`; appointments restrict deletion.                     |
+| `DoctorClinic`     | Doctor-clinic join.              | unique `(doctorId, clinicId)`; indexes doctor/clinic/active.                                                              | `isActive`; cascades from doctor/clinic.                        |
+| `Patient`          | Patient record.                  | indexes phone/fullName/active.                                                                                            | `isActive`; appointments restrict deletion.                     |
+| `PatientClinic`    | Clinic-specific patient history. | unique `(patientId, clinicId)`; indexes clinic/patient/active.                                                            | `isActive`; cascades from patient/clinic.                       |
+| `Appointment`      | Scheduled visit.                 | indexes clinic/date, clinic/doctor/date, clinic/patient/date, clinic/status; migration partial unique active doctor slot. | final statuses preserve history; restrict deletion.             |
+| `QueueEntry`       | Queue state/position.            | unique appointment; indexes clinic/status, clinic/doctor/position, clinic/queuedAt.                                       | final statuses preserve history; restrict deletion.             |
+| `NoShowPrediction` | Stored deterministic risk.       | unique appointment; indexes clinic/patient.                                                                               | restrict deletion.                                              |
 
 Enums: `UserRole`, `UserStatus`, `Gender`, `AppointmentStatus`, `QueueStatus`,
 `RiskLevel`, and `BookingSource`.
@@ -866,17 +869,17 @@ a Prisma `@@unique` because it is partial SQL.
 
 ### Transaction And Concurrency Inventory
 
-| Workflow | Atomic writes | Lock/protection | Remaining limitation |
-| --- | --- | --- | --- |
-| Clinic onboarding | `Clinic`, first Admin `User` | Unique constraints and transaction. | Production replay not externally verified. |
-| Sample data | demo doctors/patients/appointments/queue/predictions | Repository transaction and fake data definitions. | Demo-only. |
-| Doctor create | `Doctor`, `DoctorClinic` | Transaction. | Link update fields not exposed. |
-| Patient create/update | `Patient`, `PatientClinic` | Transaction. | Link-aware active filtering incomplete. |
-| Appointment booking | `Appointment`, `QueueEntry`, `NoShowPrediction` | Advisory locks for exact slot and queue position; partial unique index. | No duration-overlap or clinic-hours rule. |
-| Appointment status | `Appointment`, mapped `QueueEntry` | Transaction and final-state guard. | Broad non-final transitions. |
-| Queue status | `QueueEntry`, mapped `Appointment` | Transaction and final-state guard. | Broad non-final transitions. |
-| Queue reorder | `QueueEntry.position` rows | Advisory lock by clinic/doctor/date, complete active-set validation, temporary positions. | Needs owner test/manual evidence after fix. |
-| Dashboard prediction backfill | `NoShowPrediction` rows | Unique appointment constraint and duplicate skipping. | Backfill inputs are less rich than booking inputs. |
+| Workflow                      | Atomic writes                                        | Lock/protection                                                                           | Remaining limitation                               |
+| ----------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| Clinic onboarding             | `Clinic`, first Admin `User`                         | Unique constraints and transaction.                                                       | Production replay not externally verified.         |
+| Sample data                   | demo doctors/patients/appointments/queue/predictions | Repository transaction and fake data definitions.                                         | Demo-only.                                         |
+| Doctor create                 | `Doctor`, `DoctorClinic`                             | Transaction.                                                                              | Link update fields not exposed.                    |
+| Patient create/update         | `Patient`, `PatientClinic`                           | Transaction.                                                                              | Link-aware active filtering incomplete.            |
+| Appointment booking           | `Appointment`, `QueueEntry`, `NoShowPrediction`      | Advisory locks for exact slot and queue position; partial unique index.                   | No duration-overlap or clinic-hours rule.          |
+| Appointment status            | `Appointment`, mapped `QueueEntry`                   | Transaction and final-state guard.                                                        | Broad non-final transitions.                       |
+| Queue status                  | `QueueEntry`, mapped `Appointment`                   | Transaction and final-state guard.                                                        | Broad non-final transitions.                       |
+| Queue reorder                 | `QueueEntry.position` rows                           | Advisory lock by clinic/doctor/date, complete active-set validation, temporary positions. | Needs owner test/manual evidence after fix.        |
+| Dashboard prediction backfill | `NoShowPrediction` rows                              | Unique appointment constraint and duplicate skipping.                                     | Backfill inputs are less rich than booking inputs. |
 
 ### Privacy And Data Boundaries
 
@@ -891,14 +894,14 @@ environment variables and must not be committed.
 
 Backend env vars from `.env.example` and `env.ts`:
 
-| Variable | Use |
-| --- | --- |
-| `NODE_ENV` | Development/production behavior. |
-| `PORT` | Express listen port; defaults to 5000 if unset. |
-| `CLIENT_URL` | Primary allowed browser origin. |
-| `LOCAL_CLIENT_URL` | Local allowed browser origin. |
-| `DATABASE_URL` | PostgreSQL connection string for Prisma. |
-| `CLERK_SECRET_KEY` | Clerk backend secret. |
+| Variable               | Use                                                      |
+| ---------------------- | -------------------------------------------------------- |
+| `NODE_ENV`             | Development/production behavior.                         |
+| `PORT`                 | Express listen port; defaults to 5000 if unset.          |
+| `CLIENT_URL`           | Primary allowed browser origin.                          |
+| `LOCAL_CLIENT_URL`     | Local allowed browser origin.                            |
+| `DATABASE_URL`         | PostgreSQL connection string for Prisma.                 |
+| `CLERK_SECRET_KEY`     | Clerk backend secret.                                    |
 | `CLERK_WEBHOOK_SECRET` | Example var only; no current webhook source usage found. |
 
 Render-style backend deployment is documented with build, pre-deploy migrate, and

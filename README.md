@@ -19,6 +19,7 @@ Authoritative current docs:
 - [Product Requirements](docs/PRD.md)
 - [High-Level Design](docs/HLD.md)
 - [Low-Level Design](docs/LLD.md)
+- [Workflow Atlas](docs/workflows/README.md)
 - [Interview Guide](docs/interview/INTERVIEW_GUIDE.md)
 
 ## Current Capabilities
@@ -61,6 +62,7 @@ pravaah/
 │   ├── web/              # React/Vite frontend
 │   └── server/           # Express API, Prisma schema, migrations, seed
 ├── docs/
+│   ├── workflows/        # Implementation-grounded workflow atlas and exact code traces
 │   ├── product/          # Product scope, roles, workflows, decisions
 │   ├── architecture/     # System, API, database, auth, frontend/backend structure
 │   ├── guides/           # Setup, deployment, testing, troubleshooting, demo, contributing
@@ -155,6 +157,8 @@ Key docs:
 - [Product Requirements](docs/PRD.md)
 - [High-Level Design](docs/HLD.md)
 - [Low-Level Design](docs/LLD.md)
+- [Workflow Atlas](docs/workflows/README.md)
+- [Workflow Implementation Audit](docs/workflows/implementation-audit.md)
 - [Frontend LLD section](docs/LLD.md#frontend-routing-state-and-interface-architecture)
 - [Backend/database LLD section](docs/LLD.md#backend-database-and-workflow-implementation)
 - [Product MVP Boundary](docs/product/MVP.md)
@@ -175,7 +179,7 @@ Key docs:
 
 ## Verified From Source Inspection
 
-The current source tree contains the implementation paths for public routing, sign-up, onboarding status, transactional clinic/Admin provisioning, orphan prevention, onboarding UI, sample data, onboarding-aware routing, clinic settings, first-run checklist, doctor edit, patient edit, queue reorder, and Render-safe backend build output. The authoritative source-verified product and architecture summaries live in [Product Requirements](docs/PRD.md) and [High-Level Design](docs/HLD.md).
+The current source tree contains the implementation paths for public routing, sign-up, onboarding status, transactional clinic/Admin provisioning, orphan prevention, onboarding UI, sample data, onboarding-aware routing, clinic settings, first-run checklist, doctor edit, patient edit, appointment booking/status sync, queue status/reorder, dashboard backfill, and Render-safe backend build output. The detailed implementation-grounded traces live in the [Workflow Atlas](docs/workflows/README.md), with product and architecture summaries in [Product Requirements](docs/PRD.md) and [High-Level Design](docs/HLD.md).
 
 This Codex session did not run test suites, builds, deployments, migrations, or browser screenshot capture. Those remain owner release gates.
 
