@@ -5,6 +5,7 @@ Trace:
 ```text
 /appointments
   -> AppointmentBookingForm.handleSubmit
+  -> AppointmentsPage.handleSubmit
   -> appointmentApi.createAppointment
   -> POST /api/clinics/:clinicId/appointments
   -> authenticateRequest

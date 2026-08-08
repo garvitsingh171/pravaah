@@ -119,9 +119,9 @@ Common mistake: Do not say MongoDB is worse generally; say Postgres matches this
 
 Simple answer: The frontend submits a booking request; the backend authenticates, validates, authorizes clinic access, checks doctor/patient links, checks slot conflict, then creates appointment, queue entry, and risk prediction in a transaction.
 
-Deep answer: `AppointmentBookingForm` calls `createAppointment`. The route `POST /api/clinics/:clinicId/appointments` runs `authenticateRequest`, `validateRequest`, `requireClinicAccess`, and `requireClinicStaffRole`. The service validates ownership, counts patient history, acquires an advisory slot lock, checks active appointment conflict, calculates next queue position, writes appointment, queue entry, and no-show prediction inside `runInTransaction`.
+Deep answer: `AppointmentBookingForm` owns the HTML form submit event, prevents the browser default, and calls its `onSubmit` prop. `AppointmentsPage.handleSubmit` is the async owner: it validates form values, calls `appointmentApi.createAppointment`, handles success/error UI state, and refreshes the appointment list. The route `POST /api/clinics/:clinicId/appointments` runs `authenticateRequest`, `validateRequest`, `requireClinicAccess`, and `requireClinicStaffRole`. The service validates ownership, counts patient history, acquires an advisory slot lock, checks active appointment conflict, calculates next queue position, writes appointment, queue entry, and no-show prediction inside `runInTransaction`.
 
-Evidence: `AppointmentBookingForm.tsx -> handleSubmit`, `appointmentApi.ts -> createAppointment`, `appointment.routes.ts`, `appointment.service.ts -> createAppointment`, `appointment.repository.ts`, `queue.repository.ts`, `prediction.service.ts`.
+Evidence: `AppointmentBookingForm.tsx -> handleSubmit`, `AppointmentsPage.tsx -> handleSubmit`, `appointmentApi.ts -> createAppointment`, `appointment.routes.ts`, `appointment.service.ts -> createAppointment`, `appointment.repository.ts`, `queue.repository.ts`, `prediction.service.ts`.
 
 Likely follow-up: What happens if prediction creation fails?
 
@@ -233,7 +233,7 @@ Simple answer: Appointment slot protection and queue position/reorder operations
 
 Deep answer: Repository code calls `pg_advisory_xact_lock` to serialize specific clinic/doctor/date/slot scopes. This reduces concurrent conflict risk for exact slot booking and queue ordering but still needs tests and constraints around the specific workflow.
 
-Evidence: `appointment.repository.ts -> acquireAppointmentSlotLock`, `queue.repository.ts -> acquireQueuePositionLock` and reorder lock queries.
+Evidence: `appointment.repository.ts -> acquireAppointmentSlotLock`, `queue.repository.ts -> findHighestQueuePosition` for inline queue-position locking, and `queue.repository.ts -> acquireQueueScopeLock` for reorder locking.
 
 Likely follow-up: Why advisory locks instead of only unique constraints?
 
