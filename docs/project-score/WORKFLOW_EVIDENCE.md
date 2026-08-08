@@ -5,7 +5,8 @@
 | Issue          | #211                                                                                                                              |
 | Status         | Documentation foundation                                                                                                          |
 | Last reviewed  | 2026-08-02                                                                                                                        |
-| Purpose        | Map real Pravaah workflows to implementation files and official Project Score concepts.                                           |
+| Purpose        | Map real Pravaah workflows to implementation files and repository-available Project Score concept IDs.                           |
+| Official source provenance | `NEEDS_REVIEW`: no separate committed official rubric/source file was found during the Issue #234 pass.            |
 | Evidence basis | Source inspection only. Tests, localhost runtime, production smoke, and screenshots were not run during this documentation issue. |
 
 Current product status and architecture authority live in [Product Requirements](../PRD.md) and [High-Level Design](../HLD.md). Evidence labels in this file are Project Score preparation labels, not release-status taxonomy.

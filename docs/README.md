@@ -129,12 +129,21 @@ For interview preparation:
 
 | Doc                                                           | Purpose                                                               |
 | ------------------------------------------------------------- | --------------------------------------------------------------------- |
-| [Project Score Index](project-score/README.md)                | Project Score rules, preparation strategy, evidence rules, and order. |
-| [Concept Tracker](project-score/CONCEPT_TRACKER.md)           | Exact 63-concept tracker mapped to Pravaah implementation evidence.   |
-| [Workflow Evidence](project-score/WORKFLOW_EVIDENCE.md)       | Product workflow traces mapped to code and Project Score concepts.    |
-| [Simulation Checklist](project-score/SIMULATION_CHECKLIST.md) | Practical readiness tracker for demos, debugging, and explanations.   |
-| [Question Architecture](project-score/INTERVIEW_QUESTIONS.md) | Representative viva question categories and prompts.                  |
-| [Concept Evidence Template](project-score/concepts/README.md) | Template and rules for future detailed concept evidence files.        |
+| [Project Score Index](project-score/README.md)                         | Issue #234 preparation pack, evidence rules, status vocabulary, and navigation.                         |
+| [Evidence Index](project-score/evidence-index.md)                      | Central repository evidence map and official-rubric provenance note.                                    |
+| [Mandatory Concept Evidence](project-score/mandatory-concept-evidence.md) | Mandatory concept evidence, answers, follow-ups, limitations, and improvements.                         |
+| [Mandatory Gap Register](project-score/mandatory-gap-register.md)      | Mandatory gaps separated by knowledge, implementation, documentation, demo, testing, and release risk.   |
+| [Optional Concept Evidence](project-score/optional-concept-evidence.md) | Conservative optional shortlist and do-not-claim areas.                                                 |
+| [Optional Scoring Strategy](project-score/optional-scoring-strategy.md) | Internal preparation prioritization only; not an official scoring formula.                              |
+| [Preparation Priority Board](project-score/preparation-priority-board.md) | Priority 0-5 action board for study, demo, implementation, and release evidence.                         |
+| [Viva Question Bank](project-score/viva-question-bank.md)              | Foundation through deep technical questions with repository-backed answers.                             |
+| [Workflow Interview Packs](project-score/workflow-interview-packs.md)  | Workflow-specific interview prompts for auth, onboarding, appointments, queue, risk, database, deployment. |
+| [Screen-Share Runbooks](project-score/screen-share/appointment.md)     | Appointment, queue, auth, and database/ER demonstration runbooks.                                        |
+| [Simulations](project-score/simulations/code-writing.md)               | Code-writing, debugging, TypeScript recovery, and demo fallback practice.                                |
+| [Revision Sheets](project-score/revision/project-one-page.md)          | One-page and last-hour preparation material.                                                            |
+| [AI Assistance Revision](project-score/revision/ai-assistance.md)      | Honest AI-assisted development answers and claim boundaries.                                             |
+| [Legacy Concept Tracker](project-score/CONCEPT_TRACKER.md)             | Existing 63-concept tracker retained as repository-available mapping pending official rubric review.     |
+| [Legacy Workflow Evidence](project-score/WORKFLOW_EVIDENCE.md)         | Earlier product workflow-to-concept evidence map.                                                       |
 
 ### Interview, Engineering, AI, Assets
 

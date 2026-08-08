@@ -1,0 +1,51 @@
+# Evidence Index
+
+This index records the evidence inspected for Issue #234. It is a navigation aid, not a replacement for code.
+
+## Repository Sources Inspected
+
+| Source | Evidence use |
+| --- | --- |
+| `README.md`, `docs/README.md` | Project overview, docs navigation, release cautions. |
+| `package.json`, `apps/web/package.json`, `apps/server/package.json` | Monorepo, scripts, stack, test commands, deployment commands. |
+| `docs/PRD.md`, `docs/HLD.md`, `docs/LLD.md` | Product status, architecture, implementation baseline, known limitations. |
+| `docs/workflows/README.md` and workflow files | Primary workflow traceability source. |
+| `docs/architecture/*` | API, database, auth, frontend/backend structure. |
+| `docs/product/*` | MVP, roles, product workflow boundaries, decisions. |
+| `docs/guides/*` | Setup, testing, deployment, demo, troubleshooting. |
+| `docs/releases/*`, `docs/scope/*`, `docs/audits/*` | Release status, roadmap, discrepancy and route-audit gaps. |
+| `docs/interview/*` | Existing interview context and prior prep material. |
+| `docs/ai/AI_CONTEXT.md` | AI-assisted development guardrails. |
+| `.github/ISSUE_TEMPLATE/*`, `.github/pull_request_template.md` | Issue/PR workflow evidence. |
+| `apps/web/src` | React routes, components, API client, route guards, UI states, tests. |
+| `apps/server/src` | Express app, middleware, modules, validation, services, repositories, tests. |
+| `apps/server/prisma/schema.prisma`, `apps/server/prisma/migrations/*` | Database models, constraints, indexes, migrations. |
+
+## Official Rubric Search Result
+
+The only Project Score requirement source found in the repository is the existing Project Score folder, especially [Concept Tracker](CONCEPT_TRACKER.md). No separate committed official rubric/PDF/criteria file was found. Therefore:
+
+- Preserve existing concept IDs and mandatory/optional labels as repository-available mapping.
+- Mark official provenance as `NEEDS_REVIEW`.
+- Do not invent official weights beyond values already recorded in existing docs.
+- Do not claim unsupported mandatory categories can be cleared through Pravaah.
+
+## High-Value Evidence Chains
+
+| Chain | Workflow links | Exact evidence |
+| --- | --- | --- |
+| Auth identity to authorization | [Authentication Atlas](../workflows/authentication-and-user-resolution.md) | `apps/server/src/modules/auth/auth.middleware.ts -> authenticateRequest`, `authenticateClerkIdentity`, `requireClinicAccess`, `requireAdminRole`; `apps/server/src/modules/auth/access.service.ts -> verifyClinicAccess`, `requireAdmin`; `apps/web/src/app/ApiAuthProvider.tsx`; `apps/web/src/app/ProtectedAppShell.tsx`; `apps/web/src/app/ActiveClinicProvider.tsx`. |
+| Appointment creation | [Appointment Atlas](../workflows/appointment-management.md) | `apps/web/src/features/appointments/AppointmentBookingForm.tsx -> handleSubmit`; `apps/web/src/features/appointments/appointmentApi.ts -> createAppointment`; `apps/server/src/modules/appointments/appointment.routes.ts`; `appointment.validation.ts`; `appointment.controller.ts -> createAppointmentController`; `appointment.service.ts -> createAppointment`; `appointment.repository.ts -> runInTransaction`, `acquireAppointmentSlotLock`, `createAppointment`, `createNoShowPrediction`; `queue.repository.ts -> createQueueEntry`; `prediction.service.ts -> predictNoShowRisk`. |
+| Queue status and reorder | [Queue Atlas](../workflows/queue-management.md) | `apps/web/src/features/queues/QueuePage.tsx -> handleStatusUpdate`, `handleQueueMove`; `apps/web/src/features/queues/queueApi.ts`; `apps/server/src/modules/queues/queue.routes.ts`; `queue.validation.ts`; `queue.service.ts -> updateQueueStatus`, `reorderQueue`; `queue.repository.ts -> updateQueueEntryStatus`, `reorderQueueEntries`, advisory locks. |
+| Database design | [Database Design](../architecture/DATABASE_DESIGN.md) | `apps/server/prisma/schema.prisma -> Clinic`, `User`, `Doctor`, `DoctorClinic`, `Patient`, `PatientClinic`, `Appointment`, `QueueEntry`, `NoShowPrediction`; migrations under `apps/server/prisma/migrations`. |
+| Deterministic no-show assistance | [No-Show Atlas](../workflows/no-show-risk-assistance.md) | `apps/server/src/modules/predictions/prediction.service.ts -> predictNoShowRisk`, `getSuggestedNoShowActions`, `toNoShowPredictionResponse`; `NoShowPrediction` Prisma model; frontend risk display in appointments, queue, dashboard. |
+| Testing | [Testing Guide](../guides/TESTING.md) | `apps/server/src/modules/**/__tests__`, `apps/web/src/**/*.test.tsx`, `apps/web/src/lib/apiClient.test.ts`. Current passing output was not recorded in this pass. |
+| Deployment config | [Deployment Guide](../guides/DEPLOYMENT.md) | `apps/web/vercel.json`, `apps/server/src/server.ts`, `apps/server/package.json -> build/start/prisma:migrate:deploy`, env examples. Live URLs/deployed SHAs absent. |
+
+## Evidence Integrity Notes
+
+- Repository code proves implementation, not production deployment.
+- Test files prove test coverage exists, not that the current run passed.
+- Documentation explains intent, but `STRONG_EVIDENCE` requires implementation paths.
+- Frontend route guards are UX. Backend middleware and services are security evidence.
+- Advisory locks and transactions are present for specific workflows, but they do not prove all race conditions are impossible.

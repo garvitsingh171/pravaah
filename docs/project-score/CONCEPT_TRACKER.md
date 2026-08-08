@@ -5,7 +5,8 @@
 | Issue          | #211                                                                                                                                           |
 | Status         | Documentation foundation                                                                                                                       |
 | Last reviewed  | 2026-08-02                                                                                                                                     |
-| Scope          | Exact official 63-concept tracker mapped to Pravaah repository evidence.                                                                       |
+| Scope          | Repository-available 63-concept tracker mapped to Pravaah repository evidence; independent official rubric source still needs owner review.    |
+| Official source provenance | `NEEDS_REVIEW`: no separate committed official rubric/source file was found during the Issue #234 pass.                         |
 | Evidence rule  | Documentation explains evidence but is not implementation evidence by itself.                                                                  |
 | Readiness rule | Explanation and simulation statuses are initialized conservatively; no concept is marked `Interview ready` without recorded preparation proof. |
 
@@ -21,7 +22,7 @@ Current product status and architecture authority live in [Product Requirements]
 | Minimum total threshold           |      6.0 |           6.0 | Pass   |
 | Minimum additional optional score |      1.4 |           1.4 | Pass   |
 
-No official values were changed. If future official documentation appears inconsistent, record the inconsistency for manual review rather than silently changing this tracker.
+No existing values were changed in this legacy tracker. Because the repository does not contain a separate official rubric/source file, treat official provenance as `NEEDS_REVIEW` until the owner verifies the original assessment material. If future official documentation appears inconsistent, record the inconsistency for manual review rather than silently changing this tracker.
 
 ## Status Values
 
