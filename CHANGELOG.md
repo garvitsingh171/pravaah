@@ -10,6 +10,7 @@ The project uses `v0.1.0` as the frozen MVP baseline and `v0.2.0` as the current
 
 - Reorganized documentation into product, architecture, guides, scope, releases, interview, engineering, AI, and asset sections.
 - Prepared v0.2 publication docs, demo checklist, release notes, and screenshot manifest.
+- Added reviewer package, canonical status dashboard, technical evidence map, product case-study formats, reviewer diagrams, release identity, and release checklist for Issue #235.
 
 ## v0.2.0 - Release Candidate
 

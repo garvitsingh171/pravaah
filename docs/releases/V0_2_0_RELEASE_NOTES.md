@@ -4,6 +4,8 @@ Release name: Public Demo and Self-Service Clinic Onboarding.
 
 Release state: release candidate. Documentation is prepared, but final release verification is pending.
 
+Canonical reviewer status: [Project Status Dashboard](../reviewer/project-status.md).
+
 ## Summary
 
 v0.2 turns Pravaah from an owner-provisioned MVP demo into a self-service product demonstration. A visitor can reach a public page, sign up with Clerk, enter an onboarding state without operational access, create a clinic, become that clinic's first Admin, optionally add fictional sample data, and continue into the existing clinic workflow.
@@ -28,6 +30,11 @@ The source tree contains the expected v0.2 implementation paths. This Codex docu
 - Manual queue reorder controls.
 - Backend and frontend tests for critical v0.2 flows, with browser-based end-to-end testing intentionally deferred to a future release.
 - Reorganized documentation, demo guide, interview pack, and asset manifest.
+- Reviewer package with five-minute, fifteen-minute, and deep technical review paths.
+- Canonical project status dashboard separating implementation state from deployment state.
+- Technical evidence map linking product areas to exact frontend, backend, database, workflow, and test evidence.
+- Full product case study, short portfolio case study, resume-ready summary, one-paragraph summary, and interview narrative.
+- Release identity document, release checklist, reviewer demo guide, safe sample-data guide, screenshot audit, and reviewer diagrams.
 
 ## Preserved From v0.1
 
@@ -100,11 +107,11 @@ Manual browser checks:
 - update and reorder queue
 - confirm dashboard updates
 
-Do not publish final release notes with placeholder URLs. Replace only after the owner has verified the real deployed URLs.
+Do not publish final release notes with placeholder URLs. Record verified URLs and deployed commit SHAs in [Release Identity](RELEASE_IDENTITY.md) only after the owner has verified the real deployed targets.
 
 ## Demo Assets
 
-Screenshot capture is tracked in [v0.2 Assets](../assets/v0.2/README.md). No screenshot files are committed yet.
+Screenshot capture is tracked in [v0.2 Assets](../assets/v0.2/README.md) and [Screenshot And Asset Audit](../reviewer/screenshots.md). No screenshot files are committed yet.
 
 ## Known Limitations
 

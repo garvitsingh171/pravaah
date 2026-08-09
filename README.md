@@ -14,6 +14,15 @@ The no-show feature is rule-based and explainable. It is not trained machine lea
 
 Do not treat `v0.2.0` as fully released until the owner runs the verification checklist in [v0.2 Release Notes](docs/releases/V0_2_0_RELEASE_NOTES.md).
 
+Reviewer-facing truth starts here:
+
+- [Reviewer Package](docs/reviewer/README.md)
+- [Canonical Project Status Dashboard](docs/reviewer/project-status.md)
+- [Technical Evidence Map](docs/reviewer/technical-evidence-map.md)
+- [Product Case Study](docs/case-study/README.md)
+- [Release Identity](docs/releases/RELEASE_IDENTITY.md)
+- [Release Checklist](docs/releases/RELEASE_CHECKLIST.md)
+
 Authoritative current docs:
 
 - [Product Requirements](docs/PRD.md)
@@ -21,6 +30,8 @@ Authoritative current docs:
 - [Low-Level Design](docs/LLD.md)
 - [Workflow Atlas](docs/workflows/README.md)
 - [Interview Guide](docs/interview/INTERVIEW_GUIDE.md)
+
+Status rule: implementation and deployment/release state are separate. Use the [Project Status Dashboard](docs/reviewer/project-status.md) as the canonical status source.
 
 ## Current Capabilities
 
@@ -154,6 +165,14 @@ Start with [docs/README.md](docs/README.md).
 
 Key docs:
 
+- [Reviewer Package](docs/reviewer/README.md)
+- [Project Status Dashboard](docs/reviewer/project-status.md)
+- [Reviewer Review Paths](docs/reviewer/review-paths.md)
+- [Technical Evidence Map](docs/reviewer/technical-evidence-map.md)
+- [Full Product Case Study](docs/case-study/README.md)
+- [Short Portfolio Case Study](docs/case-study/portfolio.md)
+- [Resume Summary](docs/case-study/resume-summary.md)
+- [Interview Narrative](docs/case-study/interview-narrative.md)
 - [Product Requirements](docs/PRD.md)
 - [High-Level Design](docs/HLD.md)
 - [Low-Level Design](docs/LLD.md)
@@ -164,7 +183,14 @@ Key docs:
 - [Product MVP Boundary](docs/product/MVP.md)
 - [v0.2 Scope](docs/scope/V0_2_SCOPE.md)
 - [v0.2 Release Notes](docs/releases/V0_2_0_RELEASE_NOTES.md)
+- [Release Identity](docs/releases/RELEASE_IDENTITY.md)
+- [Release Checklist](docs/releases/RELEASE_CHECKLIST.md)
 - [Demo Guide](docs/guides/DEMO_GUIDE.md)
+- [Reviewer Demo Guide](docs/reviewer/demo-guide.md)
+- [Known Limitations](docs/reviewer/known-limitations.md)
+- [Safe Sample Data Guide](docs/reviewer/sample-data-guide.md)
+- [Screenshot And Asset Audit](docs/reviewer/screenshots.md)
+- [Reviewer Diagrams](docs/diagrams/REVIEWER_DIAGRAMS.md)
 - [Setup](docs/guides/SETUP.md)
 - [Testing](docs/guides/TESTING.md)
 - [Deployment](docs/guides/DEPLOYMENT.md)
@@ -192,6 +218,8 @@ This Codex session did not run test suites, builds, deployments, migrations, or 
 - No full multi-clinic SaaS membership model; current authorization uses one active `User.clinicId`.
 - No committed real screenshots yet; screenshot slots are documented in [v0.2 Assets](docs/assets/v0.2/README.md).
 - No verified public frontend/backend deployment URLs are recorded in the repository.
+
+See [Known Limitations](docs/reviewer/known-limitations.md) for the fuller reviewer-facing limitation register.
 
 ## Demo Flow
 
