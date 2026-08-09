@@ -4,11 +4,14 @@ This folder is the source-of-truth documentation set for Project Pravaah. The do
 
 Start here for current truth:
 
-1. [Product Requirements](PRD.md)
-2. [High-Level Design](HLD.md)
-3. [Low-Level Design](LLD.md)
-4. [Workflow Atlas](workflows/README.md)
-5. [Interview Guide](interview/INTERVIEW_GUIDE.md)
+1. [Reviewer Package](reviewer/README.md)
+2. [Project Status Dashboard](reviewer/project-status.md)
+3. [Product Requirements](PRD.md)
+4. [High-Level Design](HLD.md)
+5. [Low-Level Design](LLD.md)
+6. [Workflow Atlas](workflows/README.md)
+7. [Project Score Pack](project-score/README.md)
+8. [Interview Guide](interview/INTERVIEW_GUIDE.md)
 
 ## Release State
 
@@ -19,25 +22,29 @@ Start here for current truth:
 
 When docs and code conflict, treat code as the immediate implementation truth and update docs in the same PR.
 
+Implementation status and deployment/release status must stay separate. The canonical reviewer-facing status table is [Project Status Dashboard](reviewer/project-status.md).
+
 ## Recommended Reading Order
 
 For contributors:
 
 1. [Root README](../README.md)
-2. [Product Requirements](PRD.md)
-3. [High-Level Design](HLD.md)
-4. [Low-Level Design](LLD.md)
-5. [Frontend LLD section](LLD.md#frontend-routing-state-and-interface-architecture)
-6. [Backend/database LLD section](LLD.md#backend-database-and-workflow-implementation)
-7. [Workflow Atlas](workflows/README.md)
-8. [v0.2 Scope](scope/V0_2_SCOPE.md)
-9. [Setup](guides/SETUP.md)
-10. [Architecture](architecture/ARCHITECTURE.md)
-11. [Backend Structure](architecture/BACKEND_STRUCTURE.md)
-12. [Frontend Structure](architecture/FRONTEND_STRUCTURE.md)
-13. [API Reference](architecture/API_REFERENCE.md)
-14. [Testing](guides/TESTING.md)
-15. [Contributing](guides/CONTRIBUTING.md)
+2. [Reviewer Package](reviewer/README.md)
+3. [Project Status Dashboard](reviewer/project-status.md)
+4. [Product Requirements](PRD.md)
+5. [High-Level Design](HLD.md)
+6. [Low-Level Design](LLD.md)
+7. [Frontend LLD section](LLD.md#frontend-routing-state-and-interface-architecture)
+8. [Backend/database LLD section](LLD.md#backend-database-and-workflow-implementation)
+9. [Workflow Atlas](workflows/README.md)
+10. [v0.2 Scope](scope/V0_2_SCOPE.md)
+11. [Setup](guides/SETUP.md)
+12. [Architecture](architecture/ARCHITECTURE.md)
+13. [Backend Structure](architecture/BACKEND_STRUCTURE.md)
+14. [Frontend Structure](architecture/FRONTEND_STRUCTURE.md)
+15. [API Reference](architecture/API_REFERENCE.md)
+16. [Testing](guides/TESTING.md)
+17. [Contributing](guides/CONTRIBUTING.md)
 
 For interview preparation:
 
@@ -56,7 +63,7 @@ For interview preparation:
 | Question                                            | Primary source                                                                                                                                                                                             |
 | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | What was in the frozen MVP?                         | [Product MVP](product/MVP.md), then [v0.1 Freeze](releases/V0_1_0_MVP_FREEZE.md).                                                                                                                          |
-| What is current product scope/status?               | [Product Requirements](PRD.md), then [v0.2 Scope](scope/V0_2_SCOPE.md), then current code.                                                                                                                 |
+| What is current product scope/status?               | [Project Status Dashboard](reviewer/project-status.md), then [Product Requirements](PRD.md), [v0.2 Scope](scope/V0_2_SCOPE.md), then current code.                                                         |
 | How is the system shaped?                           | [High-Level Design](HLD.md), then [Architecture](architecture/ARCHITECTURE.md).                                                                                                                            |
 | How is the implementation put together?             | [Low-Level Design](LLD.md), then [frontend LLD section](LLD.md#frontend-routing-state-and-interface-architecture) and [backend/database LLD section](LLD.md#backend-database-and-workflow-implementation). |
 | How does a product action trace through exact code? | [Workflow Atlas](workflows/README.md), then the relevant workflow file and [Implementation Audit](workflows/implementation-audit.md).                                                                      |
@@ -65,6 +72,24 @@ For interview preparation:
 | What auth rules are enforced?                       | `apps/server/src/modules/auth`, summarized in [Auth And Security](architecture/AUTH_AND_SECURITY.md).                                                                                                      |
 | How does the frontend work?                         | `apps/web/src`, summarized in [Frontend Structure](architecture/FRONTEND_STRUCTURE.md).                                                                                                                    |
 | How should future AI assistants behave?             | [AI Context](ai/AI_CONTEXT.md).                                                                                                                                                                            |
+
+## Reviewer Package And Case Study
+
+| Doc                                                          | Purpose                                                                                     |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| [Reviewer Package](reviewer/README.md)                       | Main evaluator entry point with product summary, status, evidence links, and demo guidance. |
+| [Review Paths](reviewer/review-paths.md)                     | Five-minute, fifteen-minute, and deep technical review paths.                               |
+| [Project Status Dashboard](reviewer/project-status.md)       | Canonical implementation/deployment status table.                                           |
+| [Technical Evidence Map](reviewer/technical-evidence-map.md) | Exact frontend/backend/database/test paths for reviewers.                                   |
+| [Reviewer Demo Guide](reviewer/demo-guide.md)                | Step-by-step demo with speaking points, evidence, and fallbacks.                            |
+| [Known Limitations](reviewer/known-limitations.md)           | Verified product, technical, testing, deployment, AI, and UX limitations.                   |
+| [Safe Sample Data Guide](reviewer/sample-data-guide.md)      | Fictional data rules and seed guidance.                                                     |
+| [Screenshot And Asset Audit](reviewer/screenshots.md)        | Current asset classification and screenshot capture policy.                                 |
+| [Product Case Study](case-study/README.md)                   | Full technical case study.                                                                  |
+| [Portfolio Case Study](case-study/portfolio.md)              | Compact standalone portfolio version.                                                       |
+| [Resume Summary](case-study/resume-summary.md)               | Factual resume-ready summary and bullets.                                                   |
+| [Interview Narrative](case-study/interview-narrative.md)     | Spoken-style project narrative.                                                             |
+| [Reviewer Diagrams](diagrams/REVIEWER_DIAGRAMS.md)           | System, lifecycle, ER, deployment, and documentation diagrams.                              |
 
 ## Documentation Index
 
@@ -116,6 +141,8 @@ For interview preparation:
 | [Scope And Transition Plan](scope/PRAVAAH_V0_2_SCOPE_AND_TRANSITION.md) | Historical planning record for v0.2.                            |
 | [v0.1 Freeze](releases/V0_1_0_MVP_FREEZE.md)                            | Historical release snapshot.                                    |
 | [v0.2 Release Notes](releases/V0_2_0_RELEASE_NOTES.md)                  | Candidate release notes and owner verification gates.           |
+| [Release Identity](releases/RELEASE_IDENTITY.md)                        | Verified version, release, deployment, and URL evidence state.  |
+| [Release Checklist](releases/RELEASE_CHECKLIST.md)                      | Code, database, auth, deployment, workflow, and docs gates.     |
 | [Pravaah v0.3 Release Charter](releases/V0.3_RELEASE_CHARTER.md)        | Planned v0.3 release boundary, definition of done, and gates.   |
 
 ### Design And Content
@@ -127,23 +154,23 @@ For interview preparation:
 
 ### Project Score
 
-| Doc                                                           | Purpose                                                               |
-| ------------------------------------------------------------- | --------------------------------------------------------------------- |
-| [Project Score Index](project-score/README.md)                         | Issue #234 preparation pack, evidence rules, status vocabulary, and navigation.                         |
-| [Evidence Index](project-score/evidence-index.md)                      | Central repository evidence map and official-rubric provenance note.                                    |
-| [Mandatory Concept Evidence](project-score/mandatory-concept-evidence.md) | Mandatory concept evidence, answers, follow-ups, limitations, and improvements.                         |
-| [Mandatory Gap Register](project-score/mandatory-gap-register.md)      | Mandatory gaps separated by knowledge, implementation, documentation, demo, testing, and release risk.   |
-| [Optional Concept Evidence](project-score/optional-concept-evidence.md) | Conservative optional shortlist and do-not-claim areas.                                                 |
-| [Optional Scoring Strategy](project-score/optional-scoring-strategy.md) | Internal preparation prioritization only; not an official scoring formula.                              |
-| [Preparation Priority Board](project-score/preparation-priority-board.md) | Priority 0-5 action board for study, demo, implementation, and release evidence.                         |
-| [Viva Question Bank](project-score/viva-question-bank.md)              | Foundation through deep technical questions with repository-backed answers.                             |
-| [Workflow Interview Packs](project-score/workflow-interview-packs.md)  | Workflow-specific interview prompts for auth, onboarding, appointments, queue, risk, database, deployment. |
-| [Screen-Share Runbooks](project-score/screen-share/appointment.md)     | Appointment, queue, auth, and database/ER demonstration runbooks.                                        |
-| [Simulations](project-score/simulations/code-writing.md)               | Code-writing, debugging, TypeScript recovery, and demo fallback practice.                                |
-| [Revision Sheets](project-score/revision/project-one-page.md)          | One-page and last-hour preparation material.                                                            |
-| [AI Assistance Revision](project-score/revision/ai-assistance.md)      | Honest AI-assisted development answers and claim boundaries.                                             |
-| [Legacy Concept Tracker](project-score/CONCEPT_TRACKER.md)             | Existing 63-concept tracker retained as repository-available mapping pending official rubric review.     |
-| [Legacy Workflow Evidence](project-score/WORKFLOW_EVIDENCE.md)         | Earlier product workflow-to-concept evidence map.                                                       |
+| Doc                                                                       | Purpose                                                                                                    |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| [Project Score Index](project-score/README.md)                            | Issue #234 preparation pack, evidence rules, status vocabulary, and navigation.                            |
+| [Evidence Index](project-score/evidence-index.md)                         | Central repository evidence map and official-rubric provenance note.                                       |
+| [Mandatory Concept Evidence](project-score/mandatory-concept-evidence.md) | Mandatory concept evidence, answers, follow-ups, limitations, and improvements.                            |
+| [Mandatory Gap Register](project-score/mandatory-gap-register.md)         | Mandatory gaps separated by knowledge, implementation, documentation, demo, testing, and release risk.     |
+| [Optional Concept Evidence](project-score/optional-concept-evidence.md)   | Conservative optional shortlist and do-not-claim areas.                                                    |
+| [Optional Scoring Strategy](project-score/optional-scoring-strategy.md)   | Internal preparation prioritization only; not an official scoring formula.                                 |
+| [Preparation Priority Board](project-score/preparation-priority-board.md) | Priority 0-5 action board for study, demo, implementation, and release evidence.                           |
+| [Viva Question Bank](project-score/viva-question-bank.md)                 | Foundation through deep technical questions with repository-backed answers.                                |
+| [Workflow Interview Packs](project-score/workflow-interview-packs.md)     | Workflow-specific interview prompts for auth, onboarding, appointments, queue, risk, database, deployment. |
+| [Screen-Share Runbooks](project-score/screen-share/appointment.md)        | Appointment, queue, auth, and database/ER demonstration runbooks.                                          |
+| [Simulations](project-score/simulations/code-writing.md)                  | Code-writing, debugging, TypeScript recovery, and demo fallback practice.                                  |
+| [Revision Sheets](project-score/revision/project-one-page.md)             | One-page and last-hour preparation material.                                                               |
+| [AI Assistance Revision](project-score/revision/ai-assistance.md)         | Honest AI-assisted development answers and claim boundaries.                                               |
+| [Legacy Concept Tracker](project-score/CONCEPT_TRACKER.md)                | Existing 63-concept tracker retained as repository-available mapping pending official rubric review.       |
+| [Legacy Workflow Evidence](project-score/WORKFLOW_EVIDENCE.md)            | Earlier product workflow-to-concept evidence map.                                                          |
 
 ### Interview, Engineering, AI, Assets
 
