@@ -19,15 +19,24 @@ Use this checklist before marking `v0.2.0` as released. Commands listed here exi
 
 ## Database
 
-| Check                    | Command or action                                               | Status                             |
-| ------------------------ | --------------------------------------------------------------- | ---------------------------------- |
-| Prisma schema validation | `npx prisma validate --schema apps/server/prisma/schema.prisma` | Required                           |
-| Prisma client generation | `npm run prisma:generate --workspace apps/server`               | Required                           |
-| Migration review         | Inspect [migrations](../../apps/server/prisma/migrations)       | Required                           |
-| Production migrations    | `npm run prisma:migrate:deploy --workspace apps/server`         | Required only in target deploy env |
-| Production safety        | Confirm no destructive reset against production                 | Required                           |
-| Sample data safety       | Confirm demo data is fictional before screenshots               | Required                           |
-| Database connectivity    | Backend boot and `/api/health`                                  | Required                           |
+| Check                    | Command or action                                                                                                    | Status                             |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| Prisma schema validation | `npx prisma validate --schema apps/server/prisma/schema.prisma`                                                      | Required                           |
+| Prisma client generation | `npm run prisma:generate --workspace apps/server`                                                                    | Required                           |
+| Migration review         | Inspect [migrations](../../apps/server/prisma/migrations)                                                            | Required                           |
+| Production migrations    | `npm run prisma:migrate:deploy --workspace apps/server`                                                              | Required only in target deploy env |
+| Production safety        | Confirm no destructive reset against production                                                                      | Required                           |
+| Sample data safety       | Confirm demo data is fictional before screenshots                                                                    | Required                           |
+| API process health       | Backend boot and `/api/health`                                                                                       | Required                           |
+| Database readiness query | Run `SELECT 1;` through Prisma or an equivalent target-environment database client using the deployed `DATABASE_URL` | Required                           |
+
+Example database readiness query from an environment configured with the target `DATABASE_URL`:
+
+```bash
+printf 'SELECT 1;' | npx prisma db execute --schema apps/server/prisma/schema.prisma --stdin
+```
+
+`/api/health` proves the API process can respond; it does not prove Prisma can reach the configured database.
 
 ## Authentication
 

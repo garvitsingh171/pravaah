@@ -18,6 +18,8 @@ The seed creates:
 
 The seed uses `.local` or `.example.test` emails, placeholder phone numbers such as `+91 00000 ...`, and explicit sample-data notes.
 
+Queue reorder demo note: the seed creates active queue entries, but it does not guarantee two active entries for the same doctor/date. To demonstrate reorder in the UI, create a second active appointment for the same doctor and clinic date before the demo, or use the source/tests as fallback evidence.
+
 ## Demo Clinic
 
 | Field       | Example                          |
