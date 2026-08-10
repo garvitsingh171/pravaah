@@ -9,7 +9,7 @@
 | Document version            | 1.0                                                                                                                                                                                    |
 | Verification status         | Verified against repository implementation on 2026-08-07 for Issue #233 workflow atlas navigation and known implementation gaps.                                                       |
 | Last verified date          | 2026-08-07                                                                                                                                                                             |
-| Repository or release scope | Current repository state for root package version `0.2.0`; `v0.2.0` remains a release candidate until owner verification completes.                                                    |
+| Repository or release scope | Current repository state for root package version `0.3.0`; `v0.3.0` remains a release candidate until owner production verification and GO approval complete.                          |
 | Intended audience           | Project owner, contributors, reviewers, interviewers, maintainers, and AI coding assistants.                                                                                           |
 | Maintainer or owner         | Owner verification required for personal ownership, production release, and deployment claims.                                                                                         |
 | Change process              | Update this file in the same PR as product, API, role, workflow, database, or release-scope changes. Code remains implementation evidence until requirements are deliberately updated. |

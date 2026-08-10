@@ -25,7 +25,7 @@ Status labels:
 | `DOCUMENTED_NOT_IMPLEMENTED` | Existing docs imply behavior that code does not implement.                               |
 | `NEEDS_VERIFICATION`         | Code or documentation exists, but runtime/release evidence is not recorded.              |
 
-Current release status: the repository describes `v0.2.0` as a release candidate. Live frontend/backend URLs and owner deployment verification are not recorded, so implemented workflows below are classified as `IMPLEMENTED_NOT_RELEASED` unless specifically noted otherwise.
+Current release status: the repository describes `v0.3.0` as a release candidate pending production verification. Live frontend/backend URLs and owner deployment verification are not recorded, so implemented workflows below are classified as `IMPLEMENTED_NOT_RELEASED` unless specifically noted otherwise.
 
 ## Workflow Summary
 

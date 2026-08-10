@@ -1,24 +1,25 @@
 # Release Identity
 
-This document records the verified release identity for reviewer and release docs.
+This document records release identity evidence for reviewer and release docs.
 
 ## Current Identity
 
 | Field                        | Verified value                                                        |
 | ---------------------------- | --------------------------------------------------------------------- |
-| Root package version         | `0.2.0` in [package.json](../../package.json)                         |
+| Root package version         | `0.3.0` in [package.json](../../package.json)                         |
 | Web workspace version        | `0.1.0` in [apps/web/package.json](../../apps/web/package.json)       |
 | Server workspace version     | `0.1.0` in [apps/server/package.json](../../apps/server/package.json) |
-| Candidate label              | `v0.2.0`                                                              |
-| Candidate name               | Public Demo and Self-Service Clinic Onboarding                        |
-| Release date                 | `NEEDS_VERIFICATION`                                                  |
-| Local Git tag                | None found during this pass                                           |
-| GitHub release URL           | `NEEDS_VERIFICATION`                                                  |
-| Production frontend URL      | `NEEDS_VERIFICATION`                                                  |
-| Production backend URL       | `NEEDS_VERIFICATION`                                                  |
-| Custom domain                | `NEEDS_VERIFICATION`                                                  |
-| Deployed frontend commit SHA | `NEEDS_VERIFICATION`                                                  |
-| Deployed backend commit SHA  | `NEEDS_VERIFICATION`                                                  |
+| Candidate label              | `v0.3.0`                                                              |
+| Candidate name               | Clinic Operations Release Candidate                                   |
+| Release status               | Release Candidate / Production Verification Pending                   |
+| Release date                 | Not yet verified                                                      |
+| Local Git tag                | Not created during this pass                                          |
+| GitHub release URL           | Not yet published                                                     |
+| Production frontend URL      | Pending owner verification                                            |
+| Production backend URL       | Pending owner verification                                            |
+| Custom domain                | Pending owner verification                                            |
+| Deployed frontend commit SHA | Pending owner verification                                            |
+| Deployed backend commit SHA  | Pending owner verification                                            |
 
 ## Deployment Architecture Evidence
 
@@ -30,16 +31,18 @@ This document records the verified release identity for reviewer and release doc
 | Auth     | Clerk packages and env examples                                                                         | Clerk is used for authentication.                                                       |
 | Health   | [health.routes.ts](../../apps/server/src/modules/health/health.routes.ts)                               | Backend health endpoint exists at `/api/health` when deployed.                          |
 
-## Included In `v0.2.0` Candidate
+## Included In `v0.3.0` Candidate
 
-See [v0.2 Release Notes](V0_2_0_RELEASE_NOTES.md) and [Project Status](../reviewer/project-status.md). Included features are implemented in source but should remain `NOT_YET_RELEASED` until release verification is recorded.
+See [v0.3 Release Notes](V0_3_0_RELEASE_NOTES.md), [v0.3 Release Charter](V0.3_RELEASE_CHARTER.md), and [Project Status](../reviewer/project-status.md). Included source-backed features remain pending production verification until owner evidence is recorded.
 
 ## Excluded From Current Release
 
 - patient/doctor login
+- patient portal or doctor portal
+- billing, payments, prescriptions, inventory, or full medical records
 - trained ML no-show prediction
-- messaging/notification automation
-- billing, prescriptions, inventory, full medical records
+- automatic reminders or notification automation
+- automatic cancellation, risk-based prioritization, or automatic queue reordering
 - full multi-clinic membership/context switching
 - browser E2E test suite
 - production monitoring/observability stack
@@ -52,14 +55,24 @@ Use Prisma production migration flow for deployed environments:
 npm run prisma:migrate:deploy --workspace apps/server
 ```
 
-Do not run development reset or destructive migration commands against production data.
+Do not run development reset or destructive migration commands against production data. Production migration execution remains an owner-controlled release action.
 
-## Rollback Awareness
+## Finalization Evidence Needed From Owner
 
-No automated rollback runbook is committed. For release review, record:
+- actual production frontend URL and custom domain
+- actual production backend URL
+- final release commit SHA
+- Vercel deployed SHA
+- Render deployed SHA
+- Prisma migration result
+- backend health result
+- database connectivity result
+- production smoke result
+- Admin authorization result
+- Staff authorization result
+- cross-clinic rejection result
+- known release limitations
+- actual release date
+- GO or NO-GO decision
 
-- deployed commit SHAs
-- database migration applied
-- backup/snapshot strategy
-- rollback owner
-- smoke-check result before and after rollback
+Only after a GO decision should this document be changed from release candidate state to released state.

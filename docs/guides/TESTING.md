@@ -133,14 +133,14 @@ Current automated coverage checks:
 - dashboard activity event building
 - rule-based no-show risk scoring
 
-## What Still Needs Verification For v0.2 Release
+## What Still Needs Verification For v0.3 Release
 
 - Run backend and frontend automated suites in a clean environment.
 - Run frontend and backend production builds.
 - Confirm deployed frontend public routes.
 - Confirm deployed backend health and authenticated API behavior.
 - Complete the manual workflow verification checklist below.
-- Capture real screenshots listed in [v0.2 Assets](../assets/v0.2/README.md).
+- Capture real screenshots using the current asset/screenshot guidance.
 - Confirm no generated build output or reports are unintentionally committed.
 
 ## Known Test Gaps

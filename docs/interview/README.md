@@ -24,7 +24,7 @@ Workflow walkthroughs:
 
 ## Ground Rules
 
-- Say v0.2 is a release candidate until verification is complete.
+- Say v0.3 is a release candidate until production verification and owner GO approval are complete.
 - Say no-show scoring is rule-based.
 - Say patients and doctors are records, not logged-in users.
 - Use fake data only in demos.

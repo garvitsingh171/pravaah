@@ -11,8 +11,9 @@ Auth -> Clinic -> Doctor/Patient -> Appointment -> Queue -> Starter no-show risk
 Release status:
 
 - `v0.1.0` is frozen.
-- `v0.2.0` is a release candidate.
-- Active v0.2 scope source of truth: [V0_2_SCOPE.md](../scope/V0_2_SCOPE.md).
+- `v0.2.0` is historical release-candidate documentation.
+- `v0.3.0` is the active release candidate pending production verification.
+- Active v0.3 release source of truth: [V0.3_RELEASE_CHARTER.md](../releases/V0.3_RELEASE_CHARTER.md).
 
 Current documentation authority starts with [Product Requirements](../PRD.md) for product scope, [High-Level Design](../HLD.md) for system design, and [Low-Level Design](../LLD.md) for implementation detail. Update them in the same PR when behavior, architecture, API, schema, role policy, deployment expectations, or capability status changes.
 
@@ -135,15 +136,16 @@ Source-of-truth documentation:
 - Current high-level design: [HLD.md](../HLD.md)
 - Current low-level design: [LLD.md](../LLD.md)
 - Frozen MVP boundary: [MVP.md](../product/MVP.md)
-- Active v0.2 scope: [V0_2_SCOPE.md](../scope/V0_2_SCOPE.md)
-- v0.2 release notes: [V0_2_0_RELEASE_NOTES.md](../releases/V0_2_0_RELEASE_NOTES.md)
+- Active v0.3 release charter: [V0.3_RELEASE_CHARTER.md](../releases/V0.3_RELEASE_CHARTER.md)
+- v0.3 release notes: [V0_3_0_RELEASE_NOTES.md](../releases/V0_3_0_RELEASE_NOTES.md)
+- Historical v0.2 scope: [V0_2_SCOPE.md](../scope/V0_2_SCOPE.md)
 - v0.1 release freeze record: [V0_1_0_MVP_FREEZE.md](../releases/V0_1_0_MVP_FREEZE.md)
 - Architecture: [ARCHITECTURE.md](../architecture/ARCHITECTURE.md)
 - Roadmap: [ROADMAP.md](../scope/ROADMAP.md)
 
 Use the status taxonomy from [Product Requirements](../PRD.md): Implemented and deployed, Implemented but not yet released, Under development, Planned, Explicitly out of scope, Deprecated or historical, and Owner verification required.
 
-Release-related documentation must stay aligned. Future feature PRs must not silently modify the v0.2 scope; scope changes need an explicit reviewed product decision.
+Release-related documentation must stay aligned. Future feature PRs must not silently modify the v0.3 release boundary; scope changes need an explicit reviewed product decision.
 
 ## AI Assistant Usage Rule
 

@@ -2,19 +2,57 @@
 
 All notable changes to Project Pravaah will be documented in this file.
 
-The project uses `v0.1.0` as the frozen MVP baseline and `v0.2.0` as the current release candidate.
+The project uses `v0.1.0` as the frozen MVP baseline, keeps `v0.2.0` as historical release-candidate documentation, and now prepares `v0.3.0` as the active release candidate pending production verification.
 
 ## Unreleased
 
-### Changed
+### Pending
 
-- Reorganized documentation into product, architecture, guides, scope, releases, interview, engineering, AI, and asset sections.
-- Prepared v0.2 publication docs, demo checklist, release notes, and screenshot manifest.
-- Added reviewer package, canonical status dashboard, technical evidence map, product case-study formats, reviewer diagrams, release identity, and release checklist for Issue #235.
+- Owner production verification, GO/NO-GO decision, Git tag, and GitHub Release publication for `v0.3.0`.
 
-## v0.2.0 - Release Candidate
+## v0.3.0 - Release Candidate / Production Verification Pending
 
-Release state: documentation ready; final release verification pending.
+Release state: repository-local release preparation; final production verification pending.
+
+### Added
+
+- Canonical v0.3 release notes covering the current clinic-side product boundary.
+- v0.3 release identity state with production URLs, deployed SHAs, release date, Git tag, and GitHub Release marked pending owner verification.
+- v0.3 release checklist separating repository-verifiable checks from owner/manual production verification.
+- Release-control language for root product version `0.3.0` while preserving private workspace package versions at `0.1.0`.
+
+### Verified From Source During Release Preparation
+
+- Public landing, Clerk auth routes, onboarding, protected route gating, and SPA fallback configuration are present in source.
+- Clerk identity, internal active `User` resolution, Admin/Staff roles, and backend clinic isolation are implemented.
+- Clinic provisioning creates the clinic and first Admin transactionally from trusted Clerk identity data.
+- Appointment creation validates clinic/doctor/patient ownership, checks exact same-time active doctor conflicts, and creates appointment, queue entry, and no-show prediction in one transaction.
+- Queue status updates and manual reorder are human-controlled and backend-validated.
+- No-show assistance is deterministic, rule-based, explainable, and advisory; it is not trained machine learning.
+- Browser E2E coverage remains intentionally absent.
+
+### Verification Required Before Release
+
+- `npm install`
+- `npx prettier --check README.md "docs/**/*.md"`
+- `npm run lint`
+- `npm run test:web`
+- `npm run test:server`
+- `npm run build:web`
+- `npm run build:server`
+- `npm run check`
+- `npx prisma validate --schema apps/server/prisma/schema.prisma`
+- `npm run prisma:generate --workspace apps/server`
+- production frontend deployment and smoke check
+- production backend deployment, migration, health, and database connectivity checks
+- Clerk production configuration and auth smoke checks
+- Admin, Staff, cross-clinic, onboarding, appointment, queue, and dashboard smoke checks
+- owner GO/NO-GO decision
+- Git tag and GitHub Release publication by owner after GO
+
+## v0.2.0 - Historical Release Candidate
+
+Release state: historical candidate documentation. Superseded as the active candidate by `v0.3.0`; retained for release history.
 
 ### Added
 
@@ -40,17 +78,6 @@ Release state: documentation ready; final release verification pending.
 
 - Split the server production TypeScript build from test-aware compiler settings and clean stale `dist` output before emitting.
 - Updated product, setup, deployment, testing, troubleshooting, and interview documentation for the v0.2 candidate.
-
-### Verification Required Before Release
-
-- `npm run lint`
-- `npm run test:web`
-- `npm run test:server`
-- `npm run build:web`
-- `npm run build:server`
-- deployed frontend smoke check
-- deployed backend health check
-- screenshot capture for the v0.2 asset manifest
 
 ## v0.1.0 - MVP Complete And Frozen
 

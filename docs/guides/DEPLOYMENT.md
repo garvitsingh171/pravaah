@@ -6,7 +6,7 @@ Deployment status must be read with [Product Requirements](../PRD.md) and [High-
 
 The v0.1.0 MVP is recorded as completed and deployed in the release freeze record, but this repository still does not contain live deployment URLs or real production credentials.
 
-`v0.2.0` is a release candidate. Use placeholders in public docs until the actual Vercel URL, Render URL, deployed commit SHAs, screenshot assets, and GitHub release URL are confirmed. See [v0.2 Release Notes](../releases/V0_2_0_RELEASE_NOTES.md).
+`v0.3.0` is a release candidate pending production verification. Use placeholders in public docs until the actual Vercel URL, Render URL, deployed commit SHAs, screenshot assets, and GitHub release URL are confirmed. See [v0.3 Release Notes](../releases/V0_3_0_RELEASE_NOTES.md).
 
 ## Frontend Deployment Options
 

@@ -1,14 +1,14 @@
 # Pravaah Project Score Concept Tracker
 
-| Field          | Value                                                                                                                                          |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Issue          | #211                                                                                                                                           |
-| Status         | Documentation foundation                                                                                                                       |
-| Last reviewed  | 2026-08-02                                                                                                                                     |
-| Scope          | Repository-available 63-concept tracker mapped to Pravaah repository evidence; independent official rubric source still needs owner review.    |
-| Official source provenance | `NEEDS_REVIEW`: no separate committed official rubric/source file was found during the Issue #234 pass.                         |
-| Evidence rule  | Documentation explains evidence but is not implementation evidence by itself.                                                                  |
-| Readiness rule | Explanation and simulation statuses are initialized conservatively; no concept is marked `Interview ready` without recorded preparation proof. |
+| Field                      | Value                                                                                                                                          |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Issue                      | #211                                                                                                                                           |
+| Status                     | Documentation foundation                                                                                                                       |
+| Last reviewed              | 2026-08-02                                                                                                                                     |
+| Scope                      | Repository-available 63-concept tracker mapped to Pravaah repository evidence; independent official rubric source still needs owner review.    |
+| Official source provenance | `NEEDS_REVIEW`: no separate committed official rubric/source file was found during the Issue #234 pass.                                        |
+| Evidence rule              | Documentation explains evidence but is not implementation evidence by itself.                                                                  |
+| Readiness rule             | Explanation and simulation statuses are initialized conservatively; no concept is marked `Interview ready` without recorded preparation proof. |
 
 Current product status and architecture authority live in [Product Requirements](../PRD.md) and [High-Level Design](../HLD.md). The status values below are Project Score preparation labels, not the product release taxonomy.
 

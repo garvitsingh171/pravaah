@@ -233,7 +233,7 @@ and Admin role checks.
 
 ## Deployment Shape
 
-The v0.1.0 MVP is recorded as completed and deployed in the release freeze record, but this repository does not contain live deployment URLs, production credentials, or confirmed deployed commit SHAs. v0.2 is a release candidate until the owner verifies tests, builds, deployed URLs, and screenshots.
+The v0.1.0 MVP is recorded as completed and deployed in the release freeze record, but this repository does not contain live deployment URLs, production credentials, or confirmed deployed commit SHAs. v0.3 is a release candidate until the owner verifies tests, builds, deployed URLs, migrations, smoke checks, and screenshots.
 
 Expected deployment shape:
 

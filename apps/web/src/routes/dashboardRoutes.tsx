@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { lazy, type ReactNode } from 'react';
 import { UserRole, type UserRole as UserRoleType } from '../types';
 
@@ -26,13 +27,7 @@ export type AppRoute = {
     title: string;
     navigationLabel?: string;
     navigationDescription?: string;
-    navigationIcon:
-        | 'dashboard'
-        | 'doctors'
-        | 'patients'
-        | 'appointments'
-        | 'queue'
-        | 'settings';
+    navigationIcon: 'dashboard' | 'doctors' | 'patients' | 'appointments' | 'queue' | 'settings';
     element: ReactNode;
     showInNavigation: boolean;
     allowedRoles?: UserRoleType[];

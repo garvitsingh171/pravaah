@@ -308,9 +308,9 @@ VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
 6. Run the seed so the internal Pravaah `User.clerkUserId` matches the Clerk user.
 7. For self-service onboarding, use the public sign-up route and let the onboarding API create the internal Admin user.
 
-## v0.2 Onboarding Setup Notes
+## Onboarding Setup Notes
 
-v0.2 source contains public sign-up and self-service clinic onboarding. Local onboarding requires the normal Clerk frontend/backend keys and a writable development database.
+Current source contains public sign-up and self-service clinic onboarding. Local onboarding requires the normal Clerk frontend/backend keys and a writable development database.
 
 Expected local route flow:
 

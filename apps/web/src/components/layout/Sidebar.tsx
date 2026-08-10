@@ -6,12 +6,7 @@ import type { AppRoute } from '../../routes/dashboardRoutes';
 type NavigationIconName = AppRoute['navigationIcon'];
 
 const navigationIconPaths: Record<NavigationIconName, string[]> = {
-    dashboard: [
-        'M3 13h8V3H3v10Z',
-        'M13 21h8V11h-8v10Z',
-        'M13 9h8V3h-8v6Z',
-        'M3 21h8v-6H3v6Z',
-    ],
+    dashboard: ['M3 13h8V3H3v10Z', 'M13 21h8V11h-8v10Z', 'M13 9h8V3h-8v6Z', 'M3 21h8v-6H3v6Z'],
     doctors: [
         'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z',
         'M4 21a8 8 0 0 1 16 0',
@@ -31,14 +26,7 @@ const navigationIconPaths: Record<NavigationIconName, string[]> = {
         'M5 5h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z',
         'm9 14 2 2 4-5',
     ],
-    queue: [
-        'M7 7h14',
-        'M7 12h14',
-        'M7 17h14',
-        'M3 7h.01',
-        'M3 12h.01',
-        'M3 17h.01',
-    ],
+    queue: ['M7 7h14', 'M7 12h14', 'M7 17h14', 'M3 7h.01', 'M3 12h.01', 'M3 17h.01'],
     settings: [
         'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z',
         'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.4 1.08V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.08-.4H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .4-1.08V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 16 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.36.12.7.33 1 .6.3.28.48.66.5 1.08V11a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15Z',
@@ -178,8 +166,11 @@ function MobileWorkspaceNavigation({ navigationItems, clinicName, clinicMeta }: 
         };
 
         if (mediaQueryList.matches) {
-            closeMenu(false);
-            return undefined;
+            const closeTimer = window.setTimeout(() => closeMenu(false), 0);
+
+            return () => {
+                window.clearTimeout(closeTimer);
+            };
         }
 
         mediaQueryList.addEventListener('change', handleBreakpointChange);

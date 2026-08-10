@@ -4,14 +4,14 @@ Current product scope and status taxonomy are defined in [Product Requirements](
 
 ## Release Status
 
-| Track               | Status                                                   |
-| ------------------- | -------------------------------------------------------- |
-| Stable release      | `v0.1.0` - MVP complete, deployed, and frozen            |
-| Active release      | `v0.2.0` - release candidate, verification pending       |
-| Active scope source | [V0_2_SCOPE.md](./V0_2_SCOPE.md)                         |
-| v0.1 freeze record  | [V0_1_0_MVP_FREEZE.md](../releases/V0_1_0_MVP_FREEZE.md) |
+| Track               | Status                                                         |
+| ------------------- | -------------------------------------------------------------- |
+| Stable release      | `v0.1.0` - MVP complete, deployed, and frozen                  |
+| Active release      | `v0.3.0` - release candidate, production verification pending  |
+| Active scope source | [V0.3_RELEASE_CHARTER.md](../releases/V0.3_RELEASE_CHARTER.md) |
+| v0.1 freeze record  | [V0_1_0_MVP_FREEZE.md](../releases/V0_1_0_MVP_FREEZE.md)       |
 
-The MVP roadmap is complete. This file now tracks the frozen v0.1 baseline, the v0.2 candidate state, and later post-v0.2 work.
+The MVP roadmap is complete. This file tracks the frozen v0.1 baseline, historical v0.2 candidate work, active v0.3 release preparation, and later post-v0.3 work.
 
 ## Completed Stages
 
@@ -27,7 +27,7 @@ The MVP roadmap is complete. This file now tracks the frozen v0.1 baseline, the 
 | Frontend core screens    | Complete for frozen v0.1 scope  | Dashboard, doctors, patients, appointments, queue, login; known UI gaps remain v0.2 work. |
 | Backend tests            | Partial but meaningful          | Vitest coverage for auth, appointments, queue, prediction, dashboard, validation.         |
 
-## v0.2 Candidate Scope In Dependency Order
+## Historical v0.2 Candidate Scope In Dependency Order
 
 | Order | Issue                                                    | Depends on         |
 | ----- | -------------------------------------------------------- | ------------------ |
@@ -63,7 +63,7 @@ Verification -> backend tests, frontend tests, and manual onboarding workflow ch
 Publication -> docs, demo assets, release notes
 ```
 
-Implementation for these issue areas is present in the source tree. Release publication still depends on the owner running the full verification checklist, confirming deployed URLs, and capturing real demo screenshots.
+Implementation for these issue areas is present in the source tree and carried into the v0.3 release candidate. Release publication still depends on the owner running the full v0.3 verification checklist, confirming deployed URLs and SHAs, approving a GO decision, and capturing real demo screenshots where needed.
 
 ## Known Gaps
 
@@ -77,9 +77,9 @@ Implementation for these issue areas is present in the source tree. Release publ
 - No pagination on list endpoints.
 - Seed data is for local/demo use only.
 
-## Post-v0.2 Roadmap
+## Post-v0.3 Roadmap
 
-Keep these separate from the active v0.2 release unless a reviewed scope change moves them:
+Keep these separate from the active v0.3 release unless a reviewed scope change moves them:
 
 ### Phase 2 - Operational Reliability
 

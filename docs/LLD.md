@@ -8,7 +8,7 @@
 | Purpose                    | Single-file implementation-level design for frontend, backend, database, and workflows.                                      |
 | Audience                   | Project owner, contributors, reviewers, interviewers, maintainers, and AI coding assistants.                                 |
 | Last reviewed              | 2026-08-07                                                                                                                   |
-| Implementation baseline    | Repository source inspected in root package version `0.2.0`.                                                                 |
+| Implementation baseline    | Repository source inspected in root package version `0.3.0`.                                                                 |
 | Current document status    | Implemented documentation; owner verification still required for commands, deployed URLs, screenshots, and release evidence. |
 | Branch or commit reference | Not recorded by Codex because this docs-only issue disallows Git operations.                                                 |
 

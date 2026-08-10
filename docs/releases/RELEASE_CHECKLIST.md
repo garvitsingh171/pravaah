@@ -1,12 +1,14 @@
 # Release Checklist
 
-Use this checklist before marking `v0.2.0` as released. Commands listed here exist in the repository unless marked as manual/recommended.
+Use this checklist before marking `v0.3.0` as released. Keep repository-verifiable checks separate from owner/manual production checks.
 
-## Code Quality
+## Repository-Verifiable Checks
 
-| Check                      | Command or action                                                            | Status                                                   |
+| Check                      | Command or action                                                            | Status expectation                                       |
 | -------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------- |
-| Install dependencies       | `npm install`                                                                | Required                                                 |
+| Install dependencies       | `npm install`                                                                | Required before local validation                         |
+| Product version            | Inspect `package.json` and `package-lock.json`                               | Root version must be `0.3.0`                             |
+| Workspace versions         | Inspect `apps/web/package.json` and `apps/server/package.json`               | Private workspaces remain `0.1.0` unless policy changes  |
 | Markdown formatting        | `npx prettier --check README.md "docs/**/*.md"`                              | Required                                                 |
 | Workspace lint             | `npm run lint`                                                               | Required; backend lint currently prints placeholder text |
 | Frontend tests             | `npm run test:web`                                                           | Required                                                 |
@@ -14,92 +16,81 @@ Use this checklist before marking `v0.2.0` as released. Commands listed here exi
 | Frontend build             | `npm run build:web`                                                          | Required                                                 |
 | Backend build              | `npm run build:server`                                                       | Required                                                 |
 | Full workspace check       | `npm run check`                                                              | Required                                                 |
+| Prisma schema validation   | `npx prisma validate --schema apps/server/prisma/schema.prisma`              | Required                                                 |
+| Prisma client generation   | `npm run prisma:generate --workspace apps/server`                            | Required                                                 |
 | Backend emitted test files | `find apps/server/dist -type f \( -name "*.test.js" -o -name "*.spec.js" \)` | Required after backend build; expected no output         |
+| Migration review           | Inspect [migrations](../../apps/server/prisma/migrations)                    | Required                                                 |
+| Static config review       | Inspect env examples, `apps/web/vercel.json`, build config, and route config | Required                                                 |
+| Documentation consistency  | Review README, docs index, changelog, release identity, and release notes    | Required                                                 |
 | No accidental debug code   | Manual `git diff` review                                                     | Required                                                 |
 
-## Database
+## Owner/Manual Production Verification
 
-| Check                    | Command or action                                                                                                    | Status                             |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| Prisma schema validation | `npx prisma validate --schema apps/server/prisma/schema.prisma`                                                      | Required                           |
-| Prisma client generation | `npm run prisma:generate --workspace apps/server`                                                                    | Required                           |
-| Migration review         | Inspect [migrations](../../apps/server/prisma/migrations)                                                            | Required                           |
-| Production migrations    | `npm run prisma:migrate:deploy --workspace apps/server`                                                              | Required only in target deploy env |
-| Production safety        | Confirm no destructive reset against production                                                                      | Required                           |
-| Sample data safety       | Confirm demo data is fictional before screenshots                                                                    | Required                           |
-| API process health       | Backend boot and `/api/health`                                                                                       | Required                           |
-| Database readiness query | Run `SELECT 1;` through Prisma or an equivalent target-environment database client using the deployed `DATABASE_URL` | Required                           |
+Do not mark these complete from repository state alone.
 
-Example database readiness query from an environment configured with the target `DATABASE_URL`:
+| Area     | Check                                                                                  | Status before owner evidence |
+| -------- | -------------------------------------------------------------------------------------- | ---------------------------- |
+| Clerk    | Production instance selected                                                           | Pending                      |
+| Clerk    | Public sign-up mode matches release intent                                             | Pending                      |
+| Clerk    | Sign-up restrictions or allowlists reviewed                                            | Pending                      |
+| Clerk    | Frontend publishable key configured                                                    | Pending                      |
+| Clerk    | Backend secret key configured only on backend                                          | Pending                      |
+| Clerk    | Production domain and redirects configured                                             | Pending                      |
+| Clerk    | Sign-up, sign-in, sign-out, and onboarding redirect manually verified                  | Pending                      |
+| Vercel   | Production frontend deployment completed                                               | Pending                      |
+| Vercel   | Production frontend URL and custom domain recorded                                     | Pending                      |
+| Vercel   | Deployed commit SHA recorded                                                           | Pending                      |
+| Vercel   | Production `VITE_API_BASE_URL`, `VITE_CLERK_PUBLISHABLE_KEY`, and `VITE_SITE_URL` set  | Pending                      |
+| Vercel   | Successful build and HTTPS verified                                                    | Pending                      |
+| Vercel   | Direct route refresh verified for public, auth, onboarding, and protected paths        | Pending                      |
+| Render   | Production backend deployment completed                                                | Pending                      |
+| Render   | Production backend URL recorded                                                        | Pending                      |
+| Render   | Deployed commit SHA recorded                                                           | Pending                      |
+| Render   | Build result, migration result, start result, and health endpoint recorded             | Pending                      |
+| Render   | `DATABASE_URL`, `CLERK_SECRET_KEY`, `CLIENT_URL`, and CORS origin verified             | Pending                      |
+| Database | `npm run prisma:migrate:deploy --workspace apps/server` run in production environment  | Pending                      |
+| Database | Database connectivity verified                                                         | Pending                      |
+| Database | No production seed/reset/destructive migration performed                               | Pending                      |
+| Product  | Public landing smoke test                                                              | Pending                      |
+| Product  | Fresh sign-up, onboarding, clinic creation, first Admin creation, and setup verified   | Pending                      |
+| Product  | Doctor, patient, appointment, no-show assistance, queue, reorder, and dashboard tested | Pending                      |
+| Security | Anonymous rejection verified                                                           | Pending                      |
+| Security | Admin permissions verified                                                             | Pending                      |
+| Security | Staff permissions and Staff denied Admin-only action verified                          | Pending                      |
+| Security | Cross-clinic rejection and trusted role/clinic identity verified                       | Pending                      |
+| Release  | GO/NO-GO decision recorded                                                             | Pending                      |
+| Release  | Actual release date recorded                                                           | Pending                      |
+| Release  | Source SHA, deployed SHAs, and URLs recorded                                           | Pending                      |
+| Release  | Release docs finalized from candidate to released state                                | Pending                      |
+| Release  | Git tag `v0.3.0` created by owner                                                      | Pending                      |
+| Release  | GitHub Release published by owner                                                      | Pending                      |
+| Release  | Post-release smoke test completed                                                      | Pending                      |
 
-```bash
-printf 'SELECT 1;' | npx prisma db execute --schema apps/server/prisma/schema.prisma --stdin
+## Manual Product Smoke Path
+
+```txt
+public landing
+-> fresh sign-up
+-> onboarding status
+-> clinic creation
+-> first Admin creation
+-> first-run setup
+-> doctor
+-> patient
+-> appointment
+-> no-show assistance
+-> arrival
+-> queue
+-> multiple queue entries
+-> reorder
+-> call
+-> complete
+-> dashboard
+-> sign-out
 ```
 
-`/api/health` proves the API process can respond; it does not prove Prisma can reach the configured database.
+## Production Safety Rules
 
-## Authentication
-
-| Check                                                | Status   |
-| ---------------------------------------------------- | -------- |
-| Clerk publishable key configured only on frontend    | Required |
-| Clerk secret key configured only on backend          | Required |
-| Allowed origins and redirect URLs match frontend URL | Required |
-| Sign-in works for seeded/manual demo user            | Required |
-| Sign-up reaches onboarding state                     | Required |
-| Internal user resolution works after onboarding      | Required |
-| Admin can access clinic settings/sample data         | Required |
-| Staff cannot access Admin-only settings              | Required |
-| Cross-clinic access is rejected                      | Required |
-
-## Deployment
-
-| Check                                                                       | Status                  |
-| --------------------------------------------------------------------------- | ----------------------- |
-| Frontend `VITE_API_BASE_URL` points to backend `/api`                       | Required                |
-| Backend `CLIENT_URL` matches frontend origin                                | Required                |
-| Database `DATABASE_URL` set in backend environment                          | Required                |
-| HTTPS enabled for public URLs                                               | Required                |
-| Backend health endpoint verified                                            | Required                |
-| Frontend public route verified signed out                                   | Required                |
-| Production frontend URL recorded in [Release Identity](RELEASE_IDENTITY.md) | Required before release |
-| Production backend URL recorded in [Release Identity](RELEASE_IDENTITY.md)  | Required before release |
-| Deployed SHAs recorded                                                      | Required before release |
-| Preview/production differences documented                                   | Required                |
-
-## Product Workflow Verification
-
-| Workflow                               | Status                    |
-| -------------------------------------- | ------------------------- |
-| Public landing                         | Manual smoke required     |
-| Sign-in/sign-up                        | Manual smoke required     |
-| Onboarding status                      | Manual/API smoke required |
-| Clinic creation                        | Manual/API smoke required |
-| Optional sample data                   | Manual/API smoke required |
-| First-run checklist                    | Manual smoke required     |
-| Clinic settings                        | Manual smoke required     |
-| Doctor create/edit/list                | Manual smoke required     |
-| Patient create/edit/list               | Manual smoke required     |
-| Appointment booking/list/filter/status | Manual smoke required     |
-| Queue entry creation/status/reorder    | Manual smoke required     |
-| No-show risk display/explanation       | Manual smoke required     |
-| Dashboard summary/high-risk/activity   | Manual smoke required     |
-| Not-found and recovery/fallback states | Manual smoke required     |
-
-## Documentation
-
-| Doc                                                   | Status                                                    |
-| ----------------------------------------------------- | --------------------------------------------------------- |
-| [README](../../README.md)                             | Must link reviewer package/status/case study/release docs |
-| [Docs index](../README.md)                            | Must include reviewer/case-study/release assets           |
-| [PRD](../PRD.md), [HLD](../HLD.md), [LLD](../LLD.md)  | Must not contradict status dashboard                      |
-| [Workflow Atlas](../workflows/README.md)              | Must remain implementation trace source                   |
-| [Project Score Pack](../project-score/README.md)      | Must remain evidence/interview source                     |
-| [Reviewer Package](../reviewer/README.md)             | Required                                                  |
-| [Case Study](../case-study/README.md)                 | Required                                                  |
-| [Known Limitations](../reviewer/known-limitations.md) | Required                                                  |
-| [Screenshot Audit](../reviewer/screenshots.md)        | Required                                                  |
-| [v0.2 Release Notes](V0_2_0_RELEASE_NOTES.md)         | Required                                                  |
-| [Changelog](../../CHANGELOG.md)                       | Required                                                  |
-| Internal links                                        | Must be checked                                           |
-| Secrets/real data                                     | Must be absent                                            |
+- Do not run `prisma migrate reset`, `prisma db push`, development migrations, production seed commands, or destructive database actions against production.
+- Do not expose `DATABASE_URL`, `CLERK_SECRET_KEY`, webhook secrets, or real credentials in committed files or frontend env vars.
+- Do not create the Git tag, publish the GitHub Release, merge a release PR, or close the release issue until owner production verification is complete.

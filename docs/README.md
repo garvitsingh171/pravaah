@@ -15,10 +15,11 @@ Start here for current truth:
 
 ## Release State
 
-| Version  | State                                                                                                                                                           |
-| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `v0.1.0` | Frozen historical MVP baseline.                                                                                                                                 |
-| `v0.2.0` | Release candidate for Public Demo and Self-Service Clinic Onboarding. Documentation is ready; test, build, deployment, and screenshot verification are pending. |
+| Version  | State                                                                                                                                                    |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v0.1.0` | Frozen historical MVP baseline.                                                                                                                          |
+| `v0.2.0` | Historical release-candidate documentation for Public Demo and Self-Service Clinic Onboarding.                                                           |
+| `v0.3.0` | Active release candidate for clinic operations release preparation. Production verification, owner GO approval, Git tag, and GitHub Release are pending. |
 
 When docs and code conflict, treat code as the immediate implementation truth and update docs in the same PR.
 
@@ -37,7 +38,7 @@ For contributors:
 7. [Frontend LLD section](LLD.md#frontend-routing-state-and-interface-architecture)
 8. [Backend/database LLD section](LLD.md#backend-database-and-workflow-implementation)
 9. [Workflow Atlas](workflows/README.md)
-10. [v0.2 Scope](scope/V0_2_SCOPE.md)
+10. [v0.3 Release Notes](releases/V0_3_0_RELEASE_NOTES.md)
 11. [Setup](guides/SETUP.md)
 12. [Architecture](architecture/ARCHITECTURE.md)
 13. [Backend Structure](architecture/BACKEND_STRUCTURE.md)
@@ -63,7 +64,7 @@ For interview preparation:
 | Question                                            | Primary source                                                                                                                                                                                             |
 | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | What was in the frozen MVP?                         | [Product MVP](product/MVP.md), then [v0.1 Freeze](releases/V0_1_0_MVP_FREEZE.md).                                                                                                                          |
-| What is current product scope/status?               | [Project Status Dashboard](reviewer/project-status.md), then [Product Requirements](PRD.md), [v0.2 Scope](scope/V0_2_SCOPE.md), then current code.                                                         |
+| What is current product scope/status?               | [Project Status Dashboard](reviewer/project-status.md), then [v0.3 Release Notes](releases/V0_3_0_RELEASE_NOTES.md), [Product Requirements](PRD.md), then current code.                                    |
 | How is the system shaped?                           | [High-Level Design](HLD.md), then [Architecture](architecture/ARCHITECTURE.md).                                                                                                                            |
 | How is the implementation put together?             | [Low-Level Design](LLD.md), then [frontend LLD section](LLD.md#frontend-routing-state-and-interface-architecture) and [backend/database LLD section](LLD.md#backend-database-and-workflow-implementation). |
 | How does a product action trace through exact code? | [Workflow Atlas](workflows/README.md), then the relevant workflow file and [Implementation Audit](workflows/implementation-audit.md).                                                                      |
@@ -130,7 +131,7 @@ For interview preparation:
 | [Testing](guides/TESTING.md)                 | Test commands, coverage map, release verification, and gaps.               |
 | [Troubleshooting](guides/TROUBLESHOOTING.md) | Common auth, onboarding, database, API, frontend, and deployment failures. |
 | [Contributing](guides/CONTRIBUTING.md)       | Issue, branch, PR, docs, checks, and definition-of-done rules.             |
-| [Demo Guide](guides/DEMO_GUIDE.md)           | Scripted v0.2 walkthrough and capture checklist.                           |
+| [Demo Guide](guides/DEMO_GUIDE.md)           | Scripted walkthrough and capture checklist.                                |
 
 ### Scope And Releases
 
@@ -140,7 +141,8 @@ For interview preparation:
 | [Roadmap](scope/ROADMAP.md)                                             | Frozen baseline, v0.2 candidate state, and post-v0.2 direction. |
 | [Scope And Transition Plan](scope/PRAVAAH_V0_2_SCOPE_AND_TRANSITION.md) | Historical planning record for v0.2.                            |
 | [v0.1 Freeze](releases/V0_1_0_MVP_FREEZE.md)                            | Historical release snapshot.                                    |
-| [v0.2 Release Notes](releases/V0_2_0_RELEASE_NOTES.md)                  | Candidate release notes and owner verification gates.           |
+| [v0.3 Release Notes](releases/V0_3_0_RELEASE_NOTES.md)                  | Active candidate release notes and owner verification gates.    |
+| [v0.2 Release Notes](releases/V0_2_0_RELEASE_NOTES.md)                  | Historical candidate release notes.                             |
 | [Release Identity](releases/RELEASE_IDENTITY.md)                        | Verified version, release, deployment, and URL evidence state.  |
 | [Release Checklist](releases/RELEASE_CHECKLIST.md)                      | Code, database, auth, deployment, workflow, and docs gates.     |
 | [Pravaah v0.3 Release Charter](releases/V0.3_RELEASE_CHARTER.md)        | Planned v0.3 release boundary, definition of done, and gates.   |
@@ -191,6 +193,6 @@ For interview preparation:
 - Do not claim patient login or doctor login exists.
 - Do not claim full multi-clinic SaaS support exists.
 - Do not call starter no-show scoring trained ML.
-- Do not mark `v0.2.0` released until tests, builds, deployment checks, and screenshots are verified.
+- Do not mark `v0.3.0` released until production verification, owner GO approval, Git tag, and GitHub Release publication are complete.
 - Do not add fake screenshots, fake deployment URLs, real patient data, or secrets.
 - Do not copy the same long explanation into every doc; link to the source doc instead.
