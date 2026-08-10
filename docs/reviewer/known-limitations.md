@@ -36,7 +36,7 @@ This document lists verified limitations and claim boundaries for reviewer, inte
 
 ## Deployment Limitations
 
-- No verified production frontend URL, backend URL, custom domain, deployed commit SHA, or GitHub release URL is committed.
+- Production frontend URL, backend URL, custom domain, and deployed commit SHAs are recorded for v0.3.0; GitHub Release URL and actual calendar release date are not provided.
 - `apps/web/vercel.json` proves a Vercel-style SPA rewrite, but not a completed production deployment.
 - Deployment docs describe a Node host such as Render for the backend and PostgreSQL such as Neon for data, but live provider state still requires owner verification.
 - No CI/CD workflow is committed.

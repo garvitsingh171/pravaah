@@ -2,53 +2,46 @@
 
 All notable changes to Project Pravaah will be documented in this file.
 
-The project uses `v0.1.0` as the frozen MVP baseline, keeps `v0.2.0` as historical release-candidate documentation, and now prepares `v0.3.0` as the active release candidate pending production verification.
+The project uses `v0.1.0` as the frozen MVP baseline, keeps `v0.2.0` as historical release-candidate documentation, and records `v0.3.0` as the current released version after owner production verification.
 
 ## Unreleased
 
 ### Pending
 
-- Owner production verification, GO/NO-GO decision, Git tag, and GitHub Release publication for `v0.3.0`.
+- Actual calendar release date still needs owner-provided replacement for the placeholder `YYYY-MM-DD`.
+- Git tag and GitHub Release URL are owner-controlled release actions and are not recorded in this repository yet.
 
-## v0.3.0 - Release Candidate / Production Verification Pending
+## v0.3.0 - Released
 
-Release state: repository-local release preparation; final production verification pending.
+Release state: production verified by owner with GO decision. Actual calendar release date was not provided; do not invent it.
 
 ### Added
 
 - Canonical v0.3 release notes covering the current clinic-side product boundary.
-- v0.3 release identity state with production URLs, deployed SHAs, release date, Git tag, and GitHub Release marked pending owner verification.
-- v0.3 release checklist separating repository-verifiable checks from owner/manual production verification.
+- v0.3 release identity with production frontend/backend URLs and deployed SHAs.
+- v0.3 release checklist with owner-reported production verification evidence.
 - Release-control language for root product version `0.3.0` while preserving private workspace package versions at `0.1.0`.
 
-### Verified From Source During Release Preparation
+### Verified For Production
 
-- Public landing, Clerk auth routes, onboarding, protected route gating, and SPA fallback configuration are present in source.
-- Clerk identity, internal active `User` resolution, Admin/Staff roles, and backend clinic isolation are implemented.
-- Clinic provisioning creates the clinic and first Admin transactionally from trusted Clerk identity data.
-- Appointment creation validates clinic/doctor/patient ownership, checks exact same-time active doctor conflicts, and creates appointment, queue entry, and no-show prediction in one transaction.
-- Queue status updates and manual reorder are human-controlled and backend-validated.
-- No-show assistance is deterministic, rule-based, explainable, and advisory; it is not trained machine learning.
-- Browser E2E coverage remains intentionally absent.
+- Source/main SHA: `6f8864c0e5ff46f15884fc2498cfafa214af4f03`.
+- Frontend production URL: `https://pravaah.garvitsingh171.com`.
+- Backend production URL: `https://pravaah-wmeh.onrender.com/`.
+- Vercel deployed SHA: `6f8864c0e5ff46f15884fc2498cfafa214af4f03`.
+- Render deployed SHA: `6f8864c0e5ff46f15884fc2498cfafa214af4f03`.
+- Prisma migrate deploy, database connectivity, backend health, fresh Clerk signup, onboarding, clinic provisioning, Admin flow, Staff authorization, cross-clinic rejection, doctor, patient, appointment, no-show assistance, queue, manual reorder, dashboard, and production smoke: PASS.
 
-### Verification Required Before Release
+### Known Limitations
 
-- `npm install`
-- `npx prettier --check README.md "docs/**/*.md"`
-- `npm run lint`
-- `npm run test:web`
-- `npm run test:server`
-- `npm run build:web`
-- `npm run build:server`
-- `npm run check`
-- `npx prisma validate --schema apps/server/prisma/schema.prisma`
-- `npm run prisma:generate --workspace apps/server`
-- production frontend deployment and smoke check
-- production backend deployment, migration, health, and database connectivity checks
-- Clerk production configuration and auth smoke checks
-- Admin, Staff, cross-clinic, onboarding, appointment, queue, and dashboard smoke checks
-- owner GO/NO-GO decision
-- Git tag and GitHub Release publication by owner after GO
+- No patient login, doctor login, patient portal, or doctor portal.
+- No billing, payments, prescriptions, inventory, full medical records, or hospital ERP workflow.
+- No trained machine-learning model, accuracy metric, dataset, confidence probability, automatic cancellation, automatic no-show prioritization, or automatic queue reordering.
+- No notification automation through SMS, WhatsApp, email, or voice.
+- Current authorization uses one active `User.clinicId`; there is no mature multi-branch SaaS membership switcher.
+- Appointment lifecycle enforcement blocks changes away from terminal states but does not implement a full transition matrix.
+- Appointment booking does not enforce clinic opening/closing hours, slot-duration alignment, or buffer windows.
+- `PatientClinic` attendance counters are read by no-show rules but are not automatically maintained by lifecycle changes.
+- No browser E2E suite, no CI/CD workflow, and no production monitoring stack are present.
 
 ## v0.2.0 - Historical Release Candidate
 

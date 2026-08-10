@@ -2,15 +2,15 @@
 
 ## Document Control
 
-| Field                      | Value                                                                                                                        |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Product                    | Pravaah                                                                                                                      |
-| Purpose                    | Single-file implementation-level design for frontend, backend, database, and workflows.                                      |
-| Audience                   | Project owner, contributors, reviewers, interviewers, maintainers, and AI coding assistants.                                 |
-| Last reviewed              | 2026-08-07                                                                                                                   |
-| Implementation baseline    | Repository source inspected in root package version `0.3.0`.                                                                 |
-| Current document status    | Implemented documentation; owner verification still required for commands, deployed URLs, screenshots, and release evidence. |
-| Branch or commit reference | Not recorded by Codex because this docs-only issue disallows Git operations.                                                 |
+| Field                      | Value                                                                                                                          |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Product                    | Pravaah                                                                                                                        |
+| Purpose                    | Single-file implementation-level design for frontend, backend, database, and workflows.                                        |
+| Audience                   | Project owner, contributors, reviewers, interviewers, maintainers, and AI coding assistants.                                   |
+| Last reviewed              | 2026-08-07                                                                                                                     |
+| Implementation baseline    | Repository source inspected in root package version `0.3.0`.                                                                   |
+| Current document status    | Implemented documentation; owner production verification is recorded for v0.3.0. Actual calendar release date is not provided. |
+| Branch or commit reference | Not recorded by Codex because this docs-only issue disallows Git operations.                                                   |
 
 This LLD explains the current implementation. It does not propose a replacement
 architecture and does not prove production deployment. Former Part I and Part II

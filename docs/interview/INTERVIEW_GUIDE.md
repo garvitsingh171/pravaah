@@ -2,12 +2,12 @@
 
 ## Document Control
 
-| Field               | Value                                                                                       |
-| ------------------- | ------------------------------------------------------------------------------------------- |
-| Purpose             | Authoritative interview and screen-share guide for explaining Pravaah accurately.           |
-| Verification status | Verified against repository implementation on 2026-08-04.                                   |
-| Product scope       | Current repository state for root package version `0.3.0`; production verification pending. |
-| Authority           | Read [Product Requirements](../PRD.md) and [High-Level Design](../HLD.md) first.            |
+| Field               | Value                                                                                              |
+| ------------------- | -------------------------------------------------------------------------------------------------- |
+| Purpose             | Authoritative interview and screen-share guide for explaining Pravaah accurately.                  |
+| Verification status | Verified against repository implementation on 2026-08-04.                                          |
+| Product scope       | Current repository state for root package version `0.3.0`; owner production verification recorded. |
+| Authority           | Read [Product Requirements](../PRD.md) and [High-Level Design](../HLD.md) first.                   |
 
 Use this guide to explain the real repository. Do not invent personal contribution claims; use "Owner input required" when repository evidence cannot prove who did what.
 
@@ -28,7 +28,7 @@ Pravaah helps small and medium clinics manage the clinic day. Admin and Staff us
 2 minutes:
 
 ```txt
-The product solves the problem where clinics use disconnected notebooks, calls, and messages for appointments and arrivals. Pravaah makes those parts connected: a doctor and patient belong to a clinic through join records, an appointment creates a queue entry and a stored risk score, and dashboard data summarizes the day. The backend is Express with Prisma/PostgreSQL; the frontend is React/Vite; Clerk handles identity, while Pravaah owns authorization through internal User role, status, and clinic access. The current release candidate includes public sign-up and self-service clinic onboarding, but live deployment status requires owner verification.
+The product solves the problem where clinics use disconnected notebooks, calls, and messages for appointments and arrivals. Pravaah makes those parts connected: a doctor and patient belong to a clinic through join records, an appointment creates a queue entry and a stored risk score, and dashboard data summarizes the day. The backend is Express with Prisma/PostgreSQL; the frontend is React/Vite; Clerk handles identity, while Pravaah owns authorization through internal User role, status, and clinic access. The current v0.3 release includes public sign-up and self-service clinic onboarding, with owner-reported production verification recorded in release docs.
 ```
 
 5-minute technical walkthrough:
@@ -311,7 +311,7 @@ It automatically cancels or deprioritizes patients.
 
 ## Known Limitations
 
-- `v0.3.0` is a release candidate; production deployment, smoke checks, and screenshots require owner verification.
+- `v0.3.0` is released after owner production verification and GO decision; actual calendar release date and GitHub Release URL are not provided.
 - No patient login, doctor login, patient portal, or doctor portal.
 - No billing, prescriptions, inventory, full medical records, or hospital ERP.
 - No notifications or reminder automation.

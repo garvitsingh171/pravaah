@@ -6,14 +6,14 @@ The no-show feature is rule-based and explainable. It is not trained machine lea
 
 ## Release Status
 
-| Track             | Status                                                                                                                |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Frozen baseline   | `v0.1.0` MVP complete and preserved as a historical release record                                                    |
-| Historical bridge | `v0.2.0` Public Demo and Self-Service Clinic Onboarding candidate documentation                                       |
-| Current candidate | `v0.3.0` Clinic Operations Release Candidate                                                                          |
-| Publication state | Repository release preparation; production verification, owner GO approval, tag, and GitHub Release are still pending |
+| Track             | Status                                                                                                              |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Frozen baseline   | `v0.1.0` MVP complete and preserved as a historical release record                                                  |
+| Historical bridge | `v0.2.0` Public Demo and Self-Service Clinic Onboarding candidate documentation                                     |
+| Current release   | `v0.3.0` Clinic Operations Release                                                                                  |
+| Publication state | Production verified by owner with GO decision; actual calendar release date and GitHub Release URL are not provided |
 
-Do not treat `v0.3.0` as released until the owner completes production verification and explicitly approves a GO decision. Use [v0.3 Release Notes](docs/releases/V0_3_0_RELEASE_NOTES.md), [Release Identity](docs/releases/RELEASE_IDENTITY.md), and [Release Checklist](docs/releases/RELEASE_CHECKLIST.md) for the current release-control state.
+Release identity and production evidence are recorded in [Release Identity](docs/releases/RELEASE_IDENTITY.md), [v0.3 Release Notes](docs/releases/V0_3_0_RELEASE_NOTES.md), and [Release Checklist](docs/releases/RELEASE_CHECKLIST.md).
 
 Reviewer-facing truth starts here:
 
@@ -209,7 +209,7 @@ Key docs:
 
 The current source tree contains the implementation paths for public routing, sign-up, onboarding status, transactional clinic/Admin provisioning, orphan prevention, onboarding UI, sample data, onboarding-aware routing, clinic settings, first-run checklist, doctor edit, patient edit, appointment booking/status sync, queue status/reorder, dashboard backfill, and Render-safe backend build output. The detailed implementation-grounded traces live in the [Workflow Atlas](docs/workflows/README.md), with product and architecture summaries in [Product Requirements](docs/PRD.md) and [High-Level Design](docs/HLD.md).
 
-This Codex session did not run test suites, builds, deployments, migrations, or browser screenshot capture. Those remain owner release gates.
+Production verification for v0.3.0 was completed by the owner with GO decision. The actual calendar release date and GitHub Release URL are not provided.
 
 ## Known Limitations
 
@@ -219,7 +219,7 @@ This Codex session did not run test suites, builds, deployments, migrations, or 
 - No trained ML model.
 - No full multi-clinic SaaS membership model; current authorization uses one active `User.clinicId`.
 - No committed real screenshots yet; screenshot slots are documented in [v0.2 Assets](docs/assets/v0.2/README.md).
-- No verified public frontend/backend deployment URLs are recorded in the repository.
+- Production frontend and backend URLs for v0.3.0 are recorded in [Release Identity](docs/releases/RELEASE_IDENTITY.md).
 
 See [Known Limitations](docs/reviewer/known-limitations.md) for the fuller reviewer-facing limitation register.
 

@@ -2,17 +2,17 @@
 
 ## Document Control
 
-| Field                       | Value                                                                                                                                                                                  |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Product                     | Pravaah                                                                                                                                                                                |
-| Document purpose            | Authoritative product requirements, product scope, capability status, business rules, and traceability for the current repository implementation.                                      |
-| Document version            | 1.0                                                                                                                                                                                    |
-| Verification status         | Verified against repository implementation on 2026-08-07 for Issue #233 workflow atlas navigation and known implementation gaps.                                                       |
-| Last verified date          | 2026-08-07                                                                                                                                                                             |
-| Repository or release scope | Current repository state for root package version `0.3.0`; `v0.3.0` remains a release candidate until owner production verification and GO approval complete.                          |
-| Intended audience           | Project owner, contributors, reviewers, interviewers, maintainers, and AI coding assistants.                                                                                           |
-| Maintainer or owner         | Owner verification required for personal ownership, production release, and deployment claims.                                                                                         |
-| Change process              | Update this file in the same PR as product, API, role, workflow, database, or release-scope changes. Code remains implementation evidence until requirements are deliberately updated. |
+| Field                       | Value                                                                                                                                                                                          |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Product                     | Pravaah                                                                                                                                                                                        |
+| Document purpose            | Authoritative product requirements, product scope, capability status, business rules, and traceability for the current repository implementation.                                              |
+| Document version            | 1.0                                                                                                                                                                                            |
+| Verification status         | Verified against repository implementation on 2026-08-07 for Issue #233 workflow atlas navigation and known implementation gaps.                                                               |
+| Last verified date          | 2026-08-07                                                                                                                                                                                     |
+| Repository or release scope | Current repository state for root package version `0.3.0`; `v0.3.0` is recorded as released after owner production verification and GO decision. Actual calendar release date is not provided. |
+| Intended audience           | Project owner, contributors, reviewers, interviewers, maintainers, and AI coding assistants.                                                                                                   |
+| Maintainer or owner         | Owner verification required for personal ownership, production release, and deployment claims.                                                                                                 |
+| Change process              | Update this file in the same PR as product, API, role, workflow, database, or release-scope changes. Code remains implementation evidence until requirements are deliberately updated.         |
 
 Related source-of-truth documents:
 
@@ -510,18 +510,18 @@ flowchart TD
 
 ## Risks
 
-| Risk                                                | Current mitigation                                                 | Remaining gap                                                      |
-| --------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------ |
-| User-clinic simplification limits SaaS expansion.   | `User.clinicId` is simple and enforced.                            | Needs `UserClinic` or `ClinicMember`.                              |
-| Appointment conflicts beyond exact same start time. | Advisory lock and partial unique index for exact slot.             | Duration-overlap conflict not implemented.                         |
-| Queue position race.                                | Advisory lock and transaction for assignment.                      | Reorder doctor-scope validation gap.                               |
-| Duplicate onboarding.                               | Unique constraints and idempotent replay.                          | Runtime production verification pending.                           |
-| Counter drift.                                      | Appointment counts used directly in scoring for no-show/completed. | Late-arrival and some PatientClinic counters are not auto-updated. |
-| Risk-score overclaiming.                            | Docs and UI should call it deterministic/advisory.                 | Must avoid marketing drift.                                        |
-| Observability gaps.                                 | Health endpoint and basic logging.                                 | No monitoring, tracing, audit log, or alerts.                      |
-| Documentation drift.                                | PRD/HLD hierarchy.                                                 | Future PRs must update docs.                                       |
-| Timezone errors.                                    | Clinic-local date utilities and SQL ranges.                        | Manual verification and edge-case tests needed.                    |
-| Deployment mismatch.                                | Env examples and deployment docs.                                  | Live URLs and provider config require owner verification.          |
+| Risk                                                | Current mitigation                                                                           | Remaining gap                                                      |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| User-clinic simplification limits SaaS expansion.   | `User.clinicId` is simple and enforced.                                                      | Needs `UserClinic` or `ClinicMember`.                              |
+| Appointment conflicts beyond exact same start time. | Advisory lock and partial unique index for exact slot.                                       | Duration-overlap conflict not implemented.                         |
+| Queue position race.                                | Advisory lock and transaction for assignment.                                                | Reorder doctor-scope validation gap.                               |
+| Duplicate onboarding.                               | Unique constraints and idempotent replay; owner production verification recorded for v0.3.0. | Broader concurrency stress testing remains future work.            |
+| Counter drift.                                      | Appointment counts used directly in scoring for no-show/completed.                           | Late-arrival and some PatientClinic counters are not auto-updated. |
+| Risk-score overclaiming.                            | Docs and UI should call it deterministic/advisory.                                           | Must avoid marketing drift.                                        |
+| Observability gaps.                                 | Health endpoint and basic logging.                                                           | No monitoring, tracing, audit log, or alerts.                      |
+| Documentation drift.                                | PRD/HLD hierarchy.                                                                           | Future PRs must update docs.                                       |
+| Timezone errors.                                    | Clinic-local date utilities and SQL ranges.                                                  | Manual verification and edge-case tests needed.                    |
+| Deployment mismatch.                                | Env examples, deployment docs, and owner-verified v0.3.0 URLs/SHAs.                          | Future provider config changes require owner verification.         |
 
 ## Open Questions
 

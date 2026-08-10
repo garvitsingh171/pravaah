@@ -6,20 +6,20 @@ Pravaah is a clinic-side operations app for small and medium clinics. It is buil
 
 ## Current Status
 
-| Question                     | Answer                                                                                                             |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Current product stage        | `v0.3.0` release candidate / production verification pending.                                                      |
-| Current implementation state | Core clinic-side workflows are implemented in source.                                                              |
-| Current deployment state     | Live production URLs, deployed SHAs, and screenshot evidence are not recorded in this repository.                  |
-| Release identity             | Root `package.json` is `0.3.0`; workspace packages are still `0.1.0`; production release evidence remains pending. |
-| Auth model                   | Clerk authenticates identity; Pravaah backend resolves internal `User`, role, status, and clinic access.           |
-| Risk model                   | Deterministic, explainable no-show risk assistance. It is not trained machine learning.                            |
+| Question                     | Answer                                                                                                              |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Current product stage        | `v0.3.0` released after owner production verification and GO decision.                                              |
+| Current implementation state | Core clinic-side workflows are implemented in source.                                                               |
+| Current deployment state     | Production frontend/backend URLs and deployed SHAs are recorded in release identity.                                |
+| Release identity             | Root `package.json` is `0.3.0`; workspace packages are still `0.1.0`; actual calendar release date is not provided. |
+| Auth model                   | Clerk authenticates identity; Pravaah backend resolves internal `User`, role, status, and clinic access.            |
+| Risk model                   | Deterministic, explainable no-show risk assistance. It is not trained machine learning.                             |
 
 Use [Project Status](project-status.md) as the canonical feature/release dashboard. Other reviewer-facing documents should link to it instead of inventing their own status table.
 
 ## What Is Implemented
 
-Implemented in source, but not release-verified in this repository:
+Implemented in source and owner-verified in production for v0.3.0:
 
 - public landing, sign-in, and sign-up entry points
 - onboarding-aware routing and self-service clinic provisioning
@@ -63,7 +63,7 @@ Start with [Review Paths](review-paths.md), which gives three routes:
 | Database design              | [Database Design](../architecture/DATABASE_DESIGN.md) and [Prisma schema](../../apps/server/prisma/schema.prisma) |
 | API reference                | [API Reference](../architecture/API_REFERENCE.md)                                                                 |
 | Auth/security                | [Auth And Security](../architecture/AUTH_AND_SECURITY.md)                                                         |
-| Release candidate notes      | [v0.3 Release Notes](../releases/V0_3_0_RELEASE_NOTES.md)                                                         |
+| Release notes                | [v0.3 Release Notes](../releases/V0_3_0_RELEASE_NOTES.md)                                                         |
 | Release identity             | [Release Identity](../releases/RELEASE_IDENTITY.md)                                                               |
 | Release checklist            | [Release Checklist](../releases/RELEASE_CHECKLIST.md)                                                             |
 | Case study                   | [Full Case Study](../case-study/README.md)                                                                        |

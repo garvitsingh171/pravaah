@@ -10,4 +10,4 @@ The queue workflow continues that theme. Staff can update queue status and manua
 
 One deliberate trade-off is the no-show feature. It is deterministic and explainable rather than trained ML. That keeps the feature inspectable: reviewers can see the factors, score, reasons, and suggested actions. The limitation is that Pravaah cannot claim prediction accuracy or automatic optimization.
 
-The current state is a `v0.3.0` release candidate pending production verification. The source implements the main reviewer workflows, but production URLs, deployed SHAs, production smoke results, and real screenshots still need owner verification before the project should be described as fully released.
+The current state is `v0.3.0` released after owner production verification and GO decision. Production URLs and deployed SHAs are recorded in release docs; the actual calendar release date and GitHub Release URL are not provided.

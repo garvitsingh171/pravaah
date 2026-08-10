@@ -15,11 +15,11 @@ Start here for current truth:
 
 ## Release State
 
-| Version  | State                                                                                                                                                    |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `v0.1.0` | Frozen historical MVP baseline.                                                                                                                          |
-| `v0.2.0` | Historical release-candidate documentation for Public Demo and Self-Service Clinic Onboarding.                                                           |
-| `v0.3.0` | Active release candidate for clinic operations release preparation. Production verification, owner GO approval, Git tag, and GitHub Release are pending. |
+| Version  | State                                                                                                                               |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `v0.1.0` | Frozen historical MVP baseline.                                                                                                     |
+| `v0.2.0` | Historical release-candidate documentation for Public Demo and Self-Service Clinic Onboarding.                                      |
+| `v0.3.0` | Released after owner production verification and GO decision. Actual calendar release date and GitHub Release URL are not provided. |
 
 When docs and code conflict, treat code as the immediate implementation truth and update docs in the same PR.
 
@@ -135,17 +135,17 @@ For interview preparation:
 
 ### Scope And Releases
 
-| Doc                                                                     | Purpose                                                         |
-| ----------------------------------------------------------------------- | --------------------------------------------------------------- |
-| [v0.2 Scope](scope/V0_2_SCOPE.md)                                       | Release scope, issue map, acceptance criteria, and non-goals.   |
-| [Roadmap](scope/ROADMAP.md)                                             | Frozen baseline, v0.2 candidate state, and post-v0.2 direction. |
-| [Scope And Transition Plan](scope/PRAVAAH_V0_2_SCOPE_AND_TRANSITION.md) | Historical planning record for v0.2.                            |
-| [v0.1 Freeze](releases/V0_1_0_MVP_FREEZE.md)                            | Historical release snapshot.                                    |
-| [v0.3 Release Notes](releases/V0_3_0_RELEASE_NOTES.md)                  | Active candidate release notes and owner verification gates.    |
-| [v0.2 Release Notes](releases/V0_2_0_RELEASE_NOTES.md)                  | Historical candidate release notes.                             |
-| [Release Identity](releases/RELEASE_IDENTITY.md)                        | Verified version, release, deployment, and URL evidence state.  |
-| [Release Checklist](releases/RELEASE_CHECKLIST.md)                      | Code, database, auth, deployment, workflow, and docs gates.     |
-| [Pravaah v0.3 Release Charter](releases/V0.3_RELEASE_CHARTER.md)        | Planned v0.3 release boundary, definition of done, and gates.   |
+| Doc                                                                     | Purpose                                                                                     |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| [v0.2 Scope](scope/V0_2_SCOPE.md)                                       | Release scope, issue map, acceptance criteria, and non-goals.                               |
+| [Roadmap](scope/ROADMAP.md)                                             | Frozen baseline, historical v0.2 candidate state, v0.3 release state, and future direction. |
+| [Scope And Transition Plan](scope/PRAVAAH_V0_2_SCOPE_AND_TRANSITION.md) | Historical planning record for v0.2.                                                        |
+| [v0.1 Freeze](releases/V0_1_0_MVP_FREEZE.md)                            | Historical release snapshot.                                                                |
+| [v0.3 Release Notes](releases/V0_3_0_RELEASE_NOTES.md)                  | Current release notes and production verification evidence.                                 |
+| [v0.2 Release Notes](releases/V0_2_0_RELEASE_NOTES.md)                  | Historical candidate release notes.                                                         |
+| [Release Identity](releases/RELEASE_IDENTITY.md)                        | Verified version, release, deployment, and URL evidence state.                              |
+| [Release Checklist](releases/RELEASE_CHECKLIST.md)                      | Code, database, auth, deployment, workflow, and docs gates.                                 |
+| [Pravaah v0.3 Release Charter](releases/V0.3_RELEASE_CHARTER.md)        | Planned v0.3 release boundary, definition of done, and gates.                               |
 
 ### Design And Content
 
@@ -193,6 +193,6 @@ For interview preparation:
 - Do not claim patient login or doctor login exists.
 - Do not claim full multi-clinic SaaS support exists.
 - Do not call starter no-show scoring trained ML.
-- Do not mark `v0.3.0` released until production verification, owner GO approval, Git tag, and GitHub Release publication are complete.
+- Do not invent missing release metadata. The actual calendar release date and GitHub Release URL are not provided.
 - Do not add fake screenshots, fake deployment URLs, real patient data, or secrets.
 - Do not copy the same long explanation into every doc; link to the source doc instead.

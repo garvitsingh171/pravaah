@@ -7,7 +7,7 @@
 | Architecture version | 1.0                                                                                                                 |
 | Verification status  | Verified against repository implementation on 2026-08-07 for Issue #233 workflow atlas navigation and traceability. |
 | Last verified date   | 2026-08-07                                                                                                          |
-| Repository scope     | Current repository state for root package version `0.3.0`; `v0.3.0` production verification remains pending.        |
+| Repository scope     | Current repository state for root package version `0.3.0`; `v0.3.0` owner production verification is recorded.      |
 | Intended audience    | Engineers, reviewers, maintainers, interviewers, and AI coding assistants.                                          |
 | Maintainer           | Owner verification required for production deployment and personal-contribution claims.                             |
 | Change process       | Update this file when architecture, stack, APIs, schema, auth, transactions, deployment, or major workflows change. |
@@ -618,7 +618,7 @@ flowchart TD
 
 | Trigger             | Records involved                                    | Business reason                                   | Commit together                                          | Failure behavior                          | Path                        | Limitation                                          |
 | ------------------- | --------------------------------------------------- | ------------------------------------------------- | -------------------------------------------------------- | ----------------------------------------- | --------------------------- | --------------------------------------------------- |
-| Clinic onboarding   | `Clinic`, first `User`                              | Prevent orphan clinic and user mismatch.          | Clinic and Admin.                                        | Rollback and mapped conflict.             | `auth.repository.ts`        | Production verification pending.                    |
+| Clinic onboarding   | `Clinic`, first `User`                              | Prevent orphan clinic and user mismatch.          | Clinic and Admin.                                        | Rollback and mapped conflict.             | `auth.repository.ts`        | Owner production verification recorded for v0.3.    |
 | Sample data         | doctors, patients, appointments, queue, predictions | Demo data must be isolated and repeat-safe.       | Full sample set.                                         | Rollback or already-provisioned response. | `clinic.repository.ts`      | Demo-only.                                          |
 | Doctor creation     | `Doctor`, `DoctorClinic`                            | Doctor must be linked to clinic.                  | Both records.                                            | Rollback.                                 | `doctor.repository.ts`      | Link settings update not exposed.                   |
 | Patient creation    | `Patient`, `PatientClinic`                          | Patient history must be clinic-linked.            | Both records.                                            | Rollback.                                 | `patient.repository.ts`     | Counters can drift later.                           |

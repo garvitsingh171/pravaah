@@ -35,10 +35,10 @@ Do not suggest replacing the stack unless the user explicitly asks for a stack d
 
 - `v0.1.0` is the frozen historical MVP release.
 - `v0.2.0` is historical release-candidate documentation for Public Demo and Self-Service Clinic Onboarding.
-- `v0.3.0` is the current release candidate pending production verification.
-- Documentation has been prepared for v0.3, but final tests, builds, deployments, smoke checks, and screenshots must still be verified before calling it released.
+- `v0.3.0` is released after owner production verification and GO decision.
+- Actual calendar release date and GitHub Release URL are not provided; do not invent them.
 - Active release source: `docs/releases/V0.3_RELEASE_CHARTER.md`.
-- Candidate release notes: `docs/releases/V0_3_0_RELEASE_NOTES.md`.
+- Current release notes: `docs/releases/V0_3_0_RELEASE_NOTES.md`.
 - Current PRD: `docs/PRD.md`.
 - Current HLD: `docs/HLD.md`.
 - Current LLD index: `docs/LLD.md`.
@@ -199,7 +199,7 @@ Good:
 
 - "Queue reorder is exposed through manual move controls and must be release-tested."
 - "No-show scoring is rule-based and advisory."
-- "v0.2 documentation is ready; release verification is pending."
+- "v0.3.0 is released after owner production verification and GO decision; actual calendar release date and GitHub Release URL are not provided."
 
 Bad:
 

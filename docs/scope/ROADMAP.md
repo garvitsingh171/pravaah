@@ -4,14 +4,14 @@ Current product scope and status taxonomy are defined in [Product Requirements](
 
 ## Release Status
 
-| Track               | Status                                                         |
-| ------------------- | -------------------------------------------------------------- |
-| Stable release      | `v0.1.0` - MVP complete, deployed, and frozen                  |
-| Active release      | `v0.3.0` - release candidate, production verification pending  |
-| Active scope source | [V0.3_RELEASE_CHARTER.md](../releases/V0.3_RELEASE_CHARTER.md) |
-| v0.1 freeze record  | [V0_1_0_MVP_FREEZE.md](../releases/V0_1_0_MVP_FREEZE.md)       |
+| Track               | Status                                                                  |
+| ------------------- | ----------------------------------------------------------------------- |
+| Stable release      | `v0.1.0` - MVP complete, deployed, and frozen                           |
+| Current release     | `v0.3.0` - released after owner production verification and GO decision |
+| Active scope source | [V0.3_RELEASE_CHARTER.md](../releases/V0.3_RELEASE_CHARTER.md)          |
+| v0.1 freeze record  | [V0_1_0_MVP_FREEZE.md](../releases/V0_1_0_MVP_FREEZE.md)                |
 
-The MVP roadmap is complete. This file tracks the frozen v0.1 baseline, historical v0.2 candidate work, active v0.3 release preparation, and later post-v0.3 work.
+The MVP roadmap is complete. This file tracks the frozen v0.1 baseline, historical v0.2 candidate work, v0.3 release state, and later post-v0.3 work.
 
 ## Completed Stages
 
@@ -63,7 +63,7 @@ Verification -> backend tests, frontend tests, and manual onboarding workflow ch
 Publication -> docs, demo assets, release notes
 ```
 
-Implementation for these issue areas is present in the source tree and carried into the v0.3 release candidate. Release publication still depends on the owner running the full v0.3 verification checklist, confirming deployed URLs and SHAs, approving a GO decision, and capturing real demo screenshots where needed.
+Implementation for these issue areas is present in the source tree and carried into the v0.3 release. Owner production verification, deployed URLs, deployed SHAs, and the GO decision are recorded in [Release Identity](../releases/RELEASE_IDENTITY.md); real demo screenshots remain a separate portfolio asset gap where needed.
 
 ## Known Gaps
 
@@ -79,7 +79,7 @@ Implementation for these issue areas is present in the source tree and carried i
 
 ## Post-v0.3 Roadmap
 
-Keep these separate from the active v0.3 release unless a reviewed scope change moves them:
+Keep these separate from the released v0.3 product unless a reviewed scope change moves them:
 
 ### Phase 2 - Operational Reliability
 

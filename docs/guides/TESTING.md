@@ -133,7 +133,11 @@ Current automated coverage checks:
 - dashboard activity event building
 - rule-based no-show risk scoring
 
-## What Still Needs Verification For v0.3 Release
+## v0.3 Production Verification
+
+Owner-reported production verification for v0.3.0 is recorded in [Release Identity](../releases/RELEASE_IDENTITY.md) and [v0.3 Release Notes](../releases/V0_3_0_RELEASE_NOTES.md). Fresh Clerk signup, onboarding, clinic provisioning, Admin flow, Staff authorization, cross-clinic rejection, doctor, patient, appointment, no-show assistance, queue, manual reorder, dashboard, database connectivity, migrations, backend health, and production smoke were reported as PASS.
+
+## Future Release Verification Checklist
 
 - Run backend and frontend automated suites in a clean environment.
 - Run frontend and backend production builds.

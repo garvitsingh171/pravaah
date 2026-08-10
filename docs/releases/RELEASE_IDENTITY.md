@@ -1,6 +1,6 @@
 # Release Identity
 
-This document records release identity evidence for reviewer and release docs.
+This document records verified release identity for reviewer and release docs.
 
 ## Current Identity
 
@@ -9,31 +9,57 @@ This document records release identity evidence for reviewer and release docs.
 | Root package version         | `0.3.0` in [package.json](../../package.json)                         |
 | Web workspace version        | `0.1.0` in [apps/web/package.json](../../apps/web/package.json)       |
 | Server workspace version     | `0.1.0` in [apps/server/package.json](../../apps/server/package.json) |
-| Candidate label              | `v0.3.0`                                                              |
-| Candidate name               | Clinic Operations Release Candidate                                   |
-| Release status               | Release Candidate / Production Verification Pending                   |
-| Release date                 | Not yet verified                                                      |
-| Local Git tag                | Not created during this pass                                          |
-| GitHub release URL           | Not yet published                                                     |
-| Production frontend URL      | Pending owner verification                                            |
-| Production backend URL       | Pending owner verification                                            |
-| Custom domain                | Pending owner verification                                            |
-| Deployed frontend commit SHA | Pending owner verification                                            |
-| Deployed backend commit SHA  | Pending owner verification                                            |
+| Release label                | `v0.3.0`                                                              |
+| Release name                 | Clinic Operations Release                                             |
+| Release status               | Released                                                              |
+| GO/NO-GO decision            | GO                                                                    |
+| Release date                 | Actual calendar date not provided; owner supplied `YYYY-MM-DD`        |
+| Source/main commit SHA       | `6f8864c0e5ff46f15884fc2498cfafa214af4f03`                            |
+| Local Git tag                | Owner action; not created by Codex                                    |
+| GitHub release URL           | Owner action; not provided                                            |
+| Production frontend URL      | `https://pravaah.garvitsingh171.com`                                  |
+| Production backend URL       | `https://pravaah-wmeh.onrender.com/`                                  |
+| Custom domain                | `https://pravaah.garvitsingh171.com`                                  |
+| Deployed frontend commit SHA | `6f8864c0e5ff46f15884fc2498cfafa214af4f03`                            |
+| Deployed backend commit SHA  | `6f8864c0e5ff46f15884fc2498cfafa214af4f03`                            |
+
+## Production Verification Evidence
+
+Owner-reported production verification for `v0.3.0`:
+
+| Check                       | Result |
+| --------------------------- | ------ |
+| Prisma migrate deploy       | PASS   |
+| Database connectivity       | PASS   |
+| Backend `/api/health`       | PASS   |
+| Fresh external Clerk signup | PASS   |
+| Fresh-user onboarding       | PASS   |
+| Clinic provisioning         | PASS   |
+| Admin flow                  | PASS   |
+| Staff authorization         | PASS   |
+| Cross-clinic rejection      | PASS   |
+| Doctor flow                 | PASS   |
+| Patient flow                | PASS   |
+| Appointment flow            | PASS   |
+| No-show assistance          | PASS   |
+| Queue workflow              | PASS   |
+| Manual reorder              | PASS   |
+| Dashboard                   | PASS   |
+| Production smoke            | PASS   |
 
 ## Deployment Architecture Evidence
 
-| Layer    | Evidence                                                                                                | Current claim                                                                           |
-| -------- | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Frontend | [apps/web/vercel.json](../../apps/web/vercel.json), [Deployment Guide](../guides/DEPLOYMENT.md)         | Vite frontend can be deployed to a static host; Vercel-style SPA rewrite is configured. |
-| Backend  | [apps/server/package.json](../../apps/server/package.json), [Deployment Guide](../guides/DEPLOYMENT.md) | Express backend can be deployed to a Node host such as Render.                          |
-| Database | [schema.prisma](../../apps/server/prisma/schema.prisma), env examples                                   | PostgreSQL required; hosted provider not verified by repository state.                  |
-| Auth     | Clerk packages and env examples                                                                         | Clerk is used for authentication.                                                       |
-| Health   | [health.routes.ts](../../apps/server/src/modules/health/health.routes.ts)                               | Backend health endpoint exists at `/api/health` when deployed.                          |
+| Layer    | Evidence                                                                                                 | Verified release claim                                                          |
+| -------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Frontend | [apps/web/vercel.json](../../apps/web/vercel.json), owner-provided Vercel SHA and production URL         | Vite frontend is production deployed at `https://pravaah.garvitsingh171.com`.   |
+| Backend  | [apps/server/package.json](../../apps/server/package.json), owner-provided Render SHA and production URL | Express backend is production deployed at `https://pravaah-wmeh.onrender.com/`. |
+| Database | [schema.prisma](../../apps/server/prisma/schema.prisma), owner-reported migration/connectivity results   | PostgreSQL/Prisma production migration and connectivity are verified as PASS.   |
+| Auth     | Clerk packages, env examples, owner-reported Clerk signup/onboarding checks                              | Clerk production signup and onboarding flow are verified as PASS.               |
+| Health   | [health.routes.ts](../../apps/server/src/modules/health/health.routes.ts), owner-reported health check   | Backend `/api/health` is verified as PASS in production.                        |
 
-## Included In `v0.3.0` Candidate
+## Included In `v0.3.0`
 
-See [v0.3 Release Notes](V0_3_0_RELEASE_NOTES.md), [v0.3 Release Charter](V0.3_RELEASE_CHARTER.md), and [Project Status](../reviewer/project-status.md). Included source-backed features remain pending production verification until owner evidence is recorded.
+See [v0.3 Release Notes](V0_3_0_RELEASE_NOTES.md), [v0.3 Release Charter](V0.3_RELEASE_CHARTER.md), and [Project Status](../reviewer/project-status.md).
 
 ## Excluded From Current Release
 
@@ -47,32 +73,6 @@ See [v0.3 Release Notes](V0_3_0_RELEASE_NOTES.md), [v0.3 Release Charter](V0.3_R
 - browser E2E test suite
 - production monitoring/observability stack
 
-## Migration Requirements
+## Remaining Release Metadata To Fill
 
-Use Prisma production migration flow for deployed environments:
-
-```bash
-npm run prisma:migrate:deploy --workspace apps/server
-```
-
-Do not run development reset or destructive migration commands against production data. Production migration execution remains an owner-controlled release action.
-
-## Finalization Evidence Needed From Owner
-
-- actual production frontend URL and custom domain
-- actual production backend URL
-- final release commit SHA
-- Vercel deployed SHA
-- Render deployed SHA
-- Prisma migration result
-- backend health result
-- database connectivity result
-- production smoke result
-- Admin authorization result
-- Staff authorization result
-- cross-clinic rejection result
-- known release limitations
-- actual release date
-- GO or NO-GO decision
-
-Only after a GO decision should this document be changed from release candidate state to released state.
+The owner has not provided the actual calendar release date or GitHub Release URL. Do not invent either value.
