@@ -6,13 +6,14 @@ The no-show feature is rule-based and explainable. It is not trained machine lea
 
 ## Release Status
 
-| Track             | Status                                                                                                              |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Frozen baseline   | `v0.1.0` MVP complete and preserved as a historical release record                                                  |
-| Current candidate | `v0.2.0` Public Demo and Self-Service Clinic Onboarding                                                             |
-| Publication state | Documentation prepared; release verification, deployment URL confirmation, and screenshot capture are still pending |
+| Track             | Status                                                                                                                |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Frozen baseline   | `v0.1.0` MVP complete and preserved as a historical release record                                                    |
+| Historical bridge | `v0.2.0` Public Demo and Self-Service Clinic Onboarding candidate documentation                                       |
+| Current candidate | `v0.3.0` Clinic Operations Release Candidate                                                                          |
+| Publication state | Repository release preparation; production verification, owner GO approval, tag, and GitHub Release are still pending |
 
-Do not treat `v0.2.0` as fully released until the owner runs the verification checklist in [v0.2 Release Notes](docs/releases/V0_2_0_RELEASE_NOTES.md).
+Do not treat `v0.3.0` as released until the owner completes production verification and explicitly approves a GO decision. Use [v0.3 Release Notes](docs/releases/V0_3_0_RELEASE_NOTES.md), [Release Identity](docs/releases/RELEASE_IDENTITY.md), and [Release Checklist](docs/releases/RELEASE_CHECKLIST.md) for the current release-control state.
 
 Reviewer-facing truth starts here:
 
@@ -182,6 +183,7 @@ Key docs:
 - [Backend/database LLD section](docs/LLD.md#backend-database-and-workflow-implementation)
 - [Product MVP Boundary](docs/product/MVP.md)
 - [v0.2 Scope](docs/scope/V0_2_SCOPE.md)
+- [v0.3 Release Notes](docs/releases/V0_3_0_RELEASE_NOTES.md)
 - [v0.2 Release Notes](docs/releases/V0_2_0_RELEASE_NOTES.md)
 - [Release Identity](docs/releases/RELEASE_IDENTITY.md)
 - [Release Checklist](docs/releases/RELEASE_CHECKLIST.md)

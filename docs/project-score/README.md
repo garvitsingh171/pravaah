@@ -1,11 +1,11 @@
 # Project Score Preparation Pack
 
-| Field | Value |
-| --- | --- |
-| Issue | #234 |
-| Status | Complete preparation pack, repository-evidence based |
-| Last reviewed | 2026-08-08 |
-| Evidence basis | Repository inspection of docs, frontend, backend, Prisma schema/migrations, tests, deployment config, and workflow atlas |
+| Field                  | Value                                                                                                                                           |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Issue                  | #234                                                                                                                                            |
+| Status                 | Complete preparation pack, repository-evidence based                                                                                            |
+| Last reviewed          | 2026-08-08                                                                                                                                      |
+| Evidence basis         | Repository inspection of docs, frontend, backend, Prisma schema/migrations, tests, deployment config, and workflow atlas                        |
 | Official rubric status | `NEEDS_REVIEW`: the repo contains an existing 63-concept Project Score tracker, but no separate committed official rubric/source file was found |
 
 This folder helps the project owner prove what Pravaah actually demonstrates, choose optional concepts conservatively, prepare viva answers, rehearse screen-share workflows, and recover honestly when a demo or live-coding task fails.
@@ -16,23 +16,23 @@ Pravaah-specific claims must come from repository evidence. The [Workflow Atlas]
 
 Evidence statuses:
 
-| Status | Meaning |
-| --- | --- |
-| `STRONG_EVIDENCE` | Implementation exists, appears in a meaningful workflow, has exact code evidence, and can be explained or demonstrated. |
-| `PARTIAL_EVIDENCE` | Some implementation exists, but coverage, behavior, testing, release proof, or demo reliability is incomplete. |
-| `DOCUMENTATION_ONLY` | The concept is documented, but matching implementation was not verified. |
-| `PLANNED` | The concept is intentionally future work. |
-| `NOT_APPLICABLE` | The concept truly does not fit the current Pravaah product boundary. |
-| `NEEDS_REVIEW` | Official mapping or repository evidence is ambiguous. |
+| Status               | Meaning                                                                                                                 |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `STRONG_EVIDENCE`    | Implementation exists, appears in a meaningful workflow, has exact code evidence, and can be explained or demonstrated. |
+| `PARTIAL_EVIDENCE`   | Some implementation exists, but coverage, behavior, testing, release proof, or demo reliability is incomplete.          |
+| `DOCUMENTATION_ONLY` | The concept is documented, but matching implementation was not verified.                                                |
+| `PLANNED`            | The concept is intentionally future work.                                                                               |
+| `NOT_APPLICABLE`     | The concept truly does not fit the current Pravaah product boundary.                                                    |
+| `NEEDS_REVIEW`       | Official mapping or repository evidence is ambiguous.                                                                   |
 
 Product statuses:
 
-| Status | Meaning |
-| --- | --- |
-| `IMPLEMENTED_AND_DEPLOYED` | Code and deployment evidence are both recorded. |
+| Status                     | Meaning                                               |
+| -------------------------- | ----------------------------------------------------- |
+| `IMPLEMENTED_AND_DEPLOYED` | Code and deployment evidence are both recorded.       |
 | `IMPLEMENTED_NOT_RELEASED` | Code exists, but release/deployment proof is missing. |
-| `IN_DEVELOPMENT` | Implementation exists but known gaps remain. |
-| `PLANNED` | Future scope, not implemented now. |
+| `IN_DEVELOPMENT`           | Implementation exists but known gaps remain.          |
+| `PLANNED`                  | Future scope, not implemented now.                    |
 
 Confidence is tracked separately from evidence. A feature can have `STRONG_EVIDENCE` but `LOW` explanation confidence if the owner has not practised it.
 
@@ -44,25 +44,25 @@ Use those concept IDs as the repository-available Project Score map, but treat o
 
 ## Navigation
 
-| Area | Purpose | Document |
-| --- | --- | --- |
-| Evidence index | Central proof map and audit sources | [Evidence Index](evidence-index.md) |
-| Mandatory concepts | Required concept evidence and answers | [Mandatory Concept Evidence](mandatory-concept-evidence.md) |
-| Mandatory gaps | Mandatory risks and remediation actions | [Mandatory Gap Register](mandatory-gap-register.md) |
-| Optional concepts | Conservative optional inventory | [Optional Concept Evidence](optional-concept-evidence.md) |
-| Optional strategy | Internal prioritization only | [Optional Scoring Strategy](optional-scoring-strategy.md) |
-| Priority board | What to practise or fix first | [Preparation Priority Board](preparation-priority-board.md) |
-| Viva bank | Foundation through deep questions | [Viva Question Bank](viva-question-bank.md) |
-| Workflow packs | Workflow-specific interview answers | [Workflow Interview Packs](workflow-interview-packs.md) |
-| Appointment demo | Appointment screen-share runbook | [Appointment Runbook](screen-share/appointment.md) |
-| Queue demo | Queue screen-share runbook | [Queue Runbook](screen-share/queue.md) |
-| Auth demo | Auth/authorization screen-share runbook | [Auth Runbook](screen-share/authentication-authorization.md) |
-| ER demo | Database and ER explanation | [Database ER Runbook](screen-share/database-er-diagram.md) |
-| Code writing | Live coding exercises | [Code Writing Simulations](simulations/code-writing.md) |
-| Debugging | Failure diagnosis practice | [Debugging Simulations](simulations/debugging.md) |
-| Demo fallbacks | Professional recovery scripts | [Demo Fallbacks](simulations/demo-fallbacks.md) |
-| Revision | Final compressed prep sheets | [Revision Folder](revision/project-one-page.md) |
-| AI assistance | Honest contribution and AI-use answers | [AI Assistance Revision](revision/ai-assistance.md) |
+| Area               | Purpose                                 | Document                                                     |
+| ------------------ | --------------------------------------- | ------------------------------------------------------------ |
+| Evidence index     | Central proof map and audit sources     | [Evidence Index](evidence-index.md)                          |
+| Mandatory concepts | Required concept evidence and answers   | [Mandatory Concept Evidence](mandatory-concept-evidence.md)  |
+| Mandatory gaps     | Mandatory risks and remediation actions | [Mandatory Gap Register](mandatory-gap-register.md)          |
+| Optional concepts  | Conservative optional inventory         | [Optional Concept Evidence](optional-concept-evidence.md)    |
+| Optional strategy  | Internal prioritization only            | [Optional Scoring Strategy](optional-scoring-strategy.md)    |
+| Priority board     | What to practise or fix first           | [Preparation Priority Board](preparation-priority-board.md)  |
+| Viva bank          | Foundation through deep questions       | [Viva Question Bank](viva-question-bank.md)                  |
+| Workflow packs     | Workflow-specific interview answers     | [Workflow Interview Packs](workflow-interview-packs.md)      |
+| Appointment demo   | Appointment screen-share runbook        | [Appointment Runbook](screen-share/appointment.md)           |
+| Queue demo         | Queue screen-share runbook              | [Queue Runbook](screen-share/queue.md)                       |
+| Auth demo          | Auth/authorization screen-share runbook | [Auth Runbook](screen-share/authentication-authorization.md) |
+| ER demo            | Database and ER explanation             | [Database ER Runbook](screen-share/database-er-diagram.md)   |
+| Code writing       | Live coding exercises                   | [Code Writing Simulations](simulations/code-writing.md)      |
+| Debugging          | Failure diagnosis practice              | [Debugging Simulations](simulations/debugging.md)            |
+| Demo fallbacks     | Professional recovery scripts           | [Demo Fallbacks](simulations/demo-fallbacks.md)              |
+| Revision           | Final compressed prep sheets            | [Revision Folder](revision/project-one-page.md)              |
+| AI assistance      | Honest contribution and AI-use answers  | [AI Assistance Revision](revision/ai-assistance.md)          |
 
 ## Source Relationship
 

@@ -2,12 +2,12 @@
 
 ## Document Control
 
-| Field               | Value                                                                                               |
-| ------------------- | --------------------------------------------------------------------------------------------------- |
-| Purpose             | Authoritative interview and screen-share guide for explaining Pravaah accurately.                   |
-| Verification status | Verified against repository implementation on 2026-08-04.                                           |
-| Product scope       | Current repository state for root package version `0.2.0`; release/deployment verification pending. |
-| Authority           | Read [Product Requirements](../PRD.md) and [High-Level Design](../HLD.md) first.                    |
+| Field               | Value                                                                                       |
+| ------------------- | ------------------------------------------------------------------------------------------- |
+| Purpose             | Authoritative interview and screen-share guide for explaining Pravaah accurately.           |
+| Verification status | Verified against repository implementation on 2026-08-04.                                   |
+| Product scope       | Current repository state for root package version `0.3.0`; production verification pending. |
+| Authority           | Read [Product Requirements](../PRD.md) and [High-Level Design](../HLD.md) first.            |
 
 Use this guide to explain the real repository. Do not invent personal contribution claims; use "Owner input required" when repository evidence cannot prove who did what.
 
@@ -311,7 +311,7 @@ It automatically cancels or deprioritizes patients.
 
 ## Known Limitations
 
-- `v0.2.0` is a release candidate; deployment and screenshots require owner verification.
+- `v0.3.0` is a release candidate; production deployment, smoke checks, and screenshots require owner verification.
 - No patient login, doctor login, patient portal, or doctor portal.
 - No billing, prescriptions, inventory, full medical records, or hospital ERP.
 - No notifications or reminder automation.
@@ -359,7 +359,7 @@ Only use fictional data.
 | Question                                       | Answer                                                                                                                                    |
 | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | What was technically difficult?                | Separating Clerk identity from internal authorization, especially onboarding before an internal user exists.                              |
-| What would you improve?                        | Add strict transition tables, audit logs, monitoring, pagination, and eventually multi-clinic membership.                                  |
+| What would you improve?                        | Add strict transition tables, audit logs, monitoring, pagination, and eventually multi-clinic membership.                                 |
 | How do you prevent unauthorized clinic access? | Backend compares authenticated `User.clinicId` with route/resource clinic and checks role/status.                                         |
 | Why use transactions?                          | To keep related writes such as clinic/admin, doctor/link, patient/link, appointment/queue/prediction, and status sync atomic.             |
 | What if queue requests happen simultaneously?  | Position assignment and reorder use clinic/doctor/day scoping with transaction protection; owner runtime verification is still pending.   |

@@ -30,7 +30,7 @@ Rule-based, advisory, stored with reasons and suggested actions. Not trained ML.
 
 ## Current Release Line
 
-`v0.2.0` is a release candidate. Tests, builds, deployment checks, and screenshots must be verified before final release.
+`v0.3.0` is a release candidate. Tests, builds, deployment checks, production smoke results, and screenshots must be verified before final release.
 
 ## Non-Goals
 

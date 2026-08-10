@@ -16,12 +16,13 @@ Minimal JS:
 
 ```js
 function hasSlotConflict(existing, requested) {
-  return existing.some((appointment) =>
-    appointment.clinicId === requested.clinicId &&
-    appointment.doctorId === requested.doctorId &&
-    appointment.scheduledAt.getTime() === requested.scheduledAt.getTime() &&
-    ['SCHEDULED', 'CONFIRMED', 'ARRIVED', 'IN_QUEUE', 'CALLED'].includes(appointment.status)
-  );
+    return existing.some(
+        (appointment) =>
+            appointment.clinicId === requested.clinicId &&
+            appointment.doctorId === requested.doctorId &&
+            appointment.scheduledAt.getTime() === requested.scheduledAt.getTime() &&
+            ['SCHEDULED', 'CONFIRMED', 'ARRIVED', 'IN_QUEUE', 'CALLED'].includes(appointment.status)
+    );
 }
 ```
 

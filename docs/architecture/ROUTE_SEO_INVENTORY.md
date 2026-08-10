@@ -14,22 +14,22 @@ The repository still does not contain production deployment evidence. The owner 
 
 ## Route Classification
 
-| Route | Classification | Indexing | Sitemap | Canonical | Metadata owner | Direct load |
-| --- | --- | --- | --- | --- | --- | --- |
-| `/` | Public informational | `index,follow` | Yes | Yes | `RouteMetadata` and `index.html` fallback | Vercel SPA rewrite |
-| `/login/*` | Authentication | `noindex,nofollow` | No | No | `RouteMetadata` | Vercel SPA rewrite |
-| `/sign-up/*` | Authentication | `noindex,nofollow` | No | No | `RouteMetadata` | Vercel SPA rewrite |
-| `/onboarding` | Public onboarding redirect | `noindex,nofollow` | No | No | `RouteMetadata` | Vercel SPA rewrite |
-| `/onboarding/clinic` | Private onboarding | `noindex,nofollow` | No | No | `RouteMetadata` | Vercel SPA rewrite |
-| `/dashboard` | Protected application | `noindex,nofollow` | No | No | `RouteMetadata` | Vercel SPA rewrite plus Clerk/app guards |
-| `/doctors` | Protected application | `noindex,nofollow` | No | No | `RouteMetadata` | Vercel SPA rewrite plus Clerk/app guards |
-| `/doctors/new` | Protected application | `noindex,nofollow` | No | No | `RouteMetadata` | Vercel SPA rewrite plus Clerk/app guards |
-| `/patients` | Protected application | `noindex,nofollow` | No | No | `RouteMetadata` | Vercel SPA rewrite plus Clerk/app guards |
-| `/patients/new` | Protected application | `noindex,nofollow` | No | No | `RouteMetadata` | Vercel SPA rewrite plus Clerk/app guards |
-| `/appointments` | Protected application | `noindex,nofollow` | No | No | `RouteMetadata` | Vercel SPA rewrite plus Clerk/app guards |
-| `/queue` | Protected application | `noindex,nofollow` | No | No | `RouteMetadata` | Vercel SPA rewrite plus Clerk/app guards |
-| `/clinic-settings` | Protected Admin application | `noindex,nofollow` | No | No | `RouteMetadata` | Vercel SPA rewrite plus Clerk/app/backend role guards |
-| `*` | Not found fallback | `noindex,nofollow` | No | No | `RouteMetadata` | Vercel SPA rewrite |
+| Route                | Classification              | Indexing           | Sitemap | Canonical | Metadata owner                            | Direct load                                           |
+| -------------------- | --------------------------- | ------------------ | ------- | --------- | ----------------------------------------- | ----------------------------------------------------- |
+| `/`                  | Public informational        | `index,follow`     | Yes     | Yes       | `RouteMetadata` and `index.html` fallback | Vercel SPA rewrite                                    |
+| `/login/*`           | Authentication              | `noindex,nofollow` | No      | No        | `RouteMetadata`                           | Vercel SPA rewrite                                    |
+| `/sign-up/*`         | Authentication              | `noindex,nofollow` | No      | No        | `RouteMetadata`                           | Vercel SPA rewrite                                    |
+| `/onboarding`        | Public onboarding redirect  | `noindex,nofollow` | No      | No        | `RouteMetadata`                           | Vercel SPA rewrite                                    |
+| `/onboarding/clinic` | Private onboarding          | `noindex,nofollow` | No      | No        | `RouteMetadata`                           | Vercel SPA rewrite                                    |
+| `/dashboard`         | Protected application       | `noindex,nofollow` | No      | No        | `RouteMetadata`                           | Vercel SPA rewrite plus Clerk/app guards              |
+| `/doctors`           | Protected application       | `noindex,nofollow` | No      | No        | `RouteMetadata`                           | Vercel SPA rewrite plus Clerk/app guards              |
+| `/doctors/new`       | Protected application       | `noindex,nofollow` | No      | No        | `RouteMetadata`                           | Vercel SPA rewrite plus Clerk/app guards              |
+| `/patients`          | Protected application       | `noindex,nofollow` | No      | No        | `RouteMetadata`                           | Vercel SPA rewrite plus Clerk/app guards              |
+| `/patients/new`      | Protected application       | `noindex,nofollow` | No      | No        | `RouteMetadata`                           | Vercel SPA rewrite plus Clerk/app guards              |
+| `/appointments`      | Protected application       | `noindex,nofollow` | No      | No        | `RouteMetadata`                           | Vercel SPA rewrite plus Clerk/app guards              |
+| `/queue`             | Protected application       | `noindex,nofollow` | No      | No        | `RouteMetadata`                           | Vercel SPA rewrite plus Clerk/app guards              |
+| `/clinic-settings`   | Protected Admin application | `noindex,nofollow` | No      | No        | `RouteMetadata`                           | Vercel SPA rewrite plus Clerk/app/backend role guards |
+| `*`                  | Not found fallback          | `noindex,nofollow` | No      | No        | `RouteMetadata`                           | Vercel SPA rewrite                                    |
 
 ## Public SEO Files
 

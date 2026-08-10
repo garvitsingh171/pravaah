@@ -24,7 +24,7 @@ React, TypeScript, Vite, Tailwind CSS, Clerk, Express, Zod, Prisma, PostgreSQL, 
 
 ## Current Status
 
-`v0.2.0` is a release candidate. Main workflows are implemented in source, but verified production URLs, deployed SHAs, and current screenshots are not committed. See [Project Status](../reviewer/project-status.md).
+`v0.3.0` is a release candidate pending production verification. Main workflows are implemented in source, but verified production URLs, deployed SHAs, production smoke results, and current screenshots are not committed. See [Project Status](../reviewer/project-status.md).
 
 ## Challenge
 

@@ -1,6 +1,6 @@
 {
     "name": "pravaah",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "private": true,
     "description": "Pravaah is a clinic flow management system for appointments, daily queues, and explainable rule-based no-show assistance.",
     "workspaces": [

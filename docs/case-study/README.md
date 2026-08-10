@@ -4,7 +4,7 @@
 
 Pravaah means "flow". Pravaah is a clinic flow management app for small and medium clinics where Admin and Staff users manage clinic setup, doctors, patients, appointments, daily queue state, dashboard visibility, and explainable rule-based no-show assistance.
 
-Current status: `v0.2.0` release candidate. The source tree implements the main v0.2 workflows, but this repository does not record verified production URLs, deployed commit SHAs, or real product screenshots. See the canonical [Project Status Dashboard](../reviewer/project-status.md).
+Current status: `v0.3.0` release candidate / production verification pending. The source tree implements the main clinic-side workflows, but this repository does not record verified production URLs, deployed commit SHAs, production smoke results, or real product screenshots. See the canonical [Project Status Dashboard](../reviewer/project-status.md).
 
 Existing interview preparation includes an [AI assistance revision note](../project-score/revision/ai-assistance.md). This case study is written as a product and engineering explanation of the verified repository, not as a claim that every line was authored without AI assistance.
 

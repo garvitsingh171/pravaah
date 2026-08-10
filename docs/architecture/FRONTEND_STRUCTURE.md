@@ -87,11 +87,11 @@ The public landing, auth, and onboarding routes are outside `ProtectedAppShell`.
 
 ## Layout Structure
 
-| File                            | Responsibility                                                     |
-| ------------------------------- | ------------------------------------------------------------------ |
+| File                            | Responsibility                                                                         |
+| ------------------------------- | -------------------------------------------------------------------------------------- |
 | `app/AppLayout.tsx`             | Page shell with skip link, desktop/mobile navigation, Topbar, and nested route outlet. |
-| `components/layout/Sidebar.tsx` | Desktop sidebar and mobile drawer navigation links from route config. |
-| `components/layout/Topbar.tsx`  | Current page title, role context label, and Clerk sign-out button. |
+| `components/layout/Sidebar.tsx` | Desktop sidebar and mobile drawer navigation links from route config.                  |
+| `components/layout/Topbar.tsx`  | Current page title, role context label, and Clerk sign-out button.                     |
 
 ## Feature Folders
 

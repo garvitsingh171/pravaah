@@ -34,10 +34,11 @@ Do not suggest replacing the stack unless the user explicitly asks for a stack d
 ## Release State
 
 - `v0.1.0` is the frozen historical MVP release.
-- `v0.2.0` is the current release candidate for Public Demo and Self-Service Clinic Onboarding.
-- Documentation has been prepared for v0.2, but final tests, builds, deployments, and screenshots must still be verified before calling it released.
-- Active scope source: `docs/scope/V0_2_SCOPE.md`.
-- Candidate release notes: `docs/releases/V0_2_0_RELEASE_NOTES.md`.
+- `v0.2.0` is historical release-candidate documentation for Public Demo and Self-Service Clinic Onboarding.
+- `v0.3.0` is the current release candidate pending production verification.
+- Documentation has been prepared for v0.3, but final tests, builds, deployments, smoke checks, and screenshots must still be verified before calling it released.
+- Active release source: `docs/releases/V0.3_RELEASE_CHARTER.md`.
+- Candidate release notes: `docs/releases/V0_3_0_RELEASE_NOTES.md`.
 - Current PRD: `docs/PRD.md`.
 - Current HLD: `docs/HLD.md`.
 - Current LLD index: `docs/LLD.md`.
@@ -210,4 +211,4 @@ Bad:
 
 ## Final Rule
 
-Let the current codebase and `docs/scope/V0_2_SCOPE.md` lead. Do not invent a better Pravaah in docs or code unless the user explicitly asks for a product change.
+Let the current codebase and `docs/releases/V0.3_RELEASE_CHARTER.md` lead. Use historical v0.2 docs only as history. Do not invent a better Pravaah in docs or code unless the user explicitly asks for a product change.
