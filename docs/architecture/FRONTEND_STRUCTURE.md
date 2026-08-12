@@ -82,16 +82,19 @@ Routes:
 For signed-in users, it resolves `GET /api/auth/onboarding-status` before mounting
 the operational app shell. `NOT_STARTED` redirects to `/onboarding/clinic`,
 `RECOVERY_REQUIRED` shows a safe recovery state, and only `COMPLETED` active Admin
-or Staff users reach `ActiveClinicProvider` and the existing app layout.
+or Staff users reach `ActiveClinicProvider` and the existing app layout. For Admin
+users, the completed onboarding response also seeds the shell-level floating setup
+dock; later route changes can refresh that setup progress from the same backend
+status endpoint.
 The public landing, auth, and onboarding routes are outside `ProtectedAppShell`.
 
 ## Layout Structure
 
 | File                            | Responsibility                                                                         |
 | ------------------------------- | -------------------------------------------------------------------------------------- |
-| `app/AppLayout.tsx`             | Page shell with skip link, desktop/mobile navigation, Topbar, and nested route outlet. |
+| `app/AppLayout.tsx`             | Page shell with skip link, desktop/mobile navigation, Topbar, floating setup dock, route transition wrapper, and nested route outlet. |
 | `components/layout/Sidebar.tsx` | Desktop sidebar and mobile drawer navigation links from route config.                  |
-| `components/layout/Topbar.tsx`  | Current page title, role context label, and Clerk sign-out button.                     |
+| `components/layout/Topbar.tsx`  | Current page context, clinic chip, role chip, account summary, and Clerk sign-out menu. |
 
 ## Feature Folders
 
@@ -121,7 +124,10 @@ src/test/
 
 The frontend test stack is Vitest, jsdom, React Testing Library, `@testing-library/jest-dom`, and `@testing-library/user-event`. Clerk is mocked only in frontend tests to represent loading, signed-out, and signed-in states. Feature API modules are mocked in component and routing tests to keep UI coverage deterministic and network-free.
 
-Current coverage focuses on public routing, protected onboarding-aware routing, first-time clinic onboarding validation and retry states, sample-data decisions, dashboard checklist integration, and the shared API client boundary.
+Current coverage focuses on public routing, protected onboarding-aware routing, shell
+setup dock behavior, first-time clinic onboarding validation and retry states,
+sample-data decisions, dashboard operational data, queue reorder/status behavior,
+and the shared API client boundary.
 
 Current pages:
 
@@ -251,13 +257,13 @@ Implemented states include:
 | Sign Up           | Clerk `SignUp`, then directs signed-in users toward clinic onboarding.                                                                                                                                                        |
 | Clinic Onboarding | Resolves onboarding status, renders first-time clinic form for `NOT_STARTED`, posts clinic bootstrap, offers optional fictional sample data after successful clinic creation, and redirects completed users to the dashboard. |
 | Landing           | Public product overview with sign-in/sign-up CTAs and a signed-in continuation CTA to onboarding.                                                                                                                             |
-| Dashboard         | Fetches summary, high-risk appointments, today activity, and the Admin first-run setup checklist status.                                                                                                                      |
+| Dashboard         | Fetches summary, high-risk appointments, and today activity; setup progress is surfaced by the protected shell dock rather than the dashboard page.                                                                            |
 | Doctors           | Lists doctors, local search, create link, and list-page edit workflow.                                                                                                                                                        |
 | Doctor Create     | Creates doctor through backend API.                                                                                                                                                                                           |
 | Patients          | Lists patients from `PatientClinic` API, backend search, create link, and list-page edit workflow.                                                                                                                            |
 | Patient Create    | Creates patient and clinic link through backend API.                                                                                                                                                                          |
 | Appointments      | Lists/filter appointments, books appointments, updates appointment status, shows prediction details.                                                                                                                          |
-| Queue             | Lists today's queue, filters by doctor/status, updates queue status, reorders active entries manually, shows first risk details.                                                                                              |
+| Queue             | Lists today's queue, filters by doctor/status, shows doctor-scoped active queue lanes, updates queue status, reorders active entries manually, and keeps final entries in a secondary review section.                          |
 | Clinic Settings   | Loads the active clinic settings, displays the slug read-only, and lets Admins update supported profile and operational fields.                                                                                               |
 
 ## How To Add A New Page

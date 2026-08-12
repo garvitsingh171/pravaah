@@ -12,10 +12,17 @@ import {
     completedStaffOnboarding,
     onboardingNotStarted,
     recoveryRequiredOnboarding,
+    setupAllComplete,
+    setupNoneComplete,
     testClinicId,
 } from '../test/fixtures/onboarding';
 import { renderWithProviders } from '../test/renderWithProviders';
-import { setClerkLoading, setClerkSignedIn, setClerkSignedOut } from '../test/mocks/clerk';
+import {
+    getMockClerkSignOut,
+    setClerkLoading,
+    setClerkSignedIn,
+    setClerkSignedOut,
+} from '../test/mocks/clerk';
 
 const mockGetOnboardingStatus = vi.hoisted(() => vi.fn());
 const mockActiveClinicRole = vi.hoisted(() => ({ value: 'ADMIN' as UserRole }));
@@ -210,6 +217,115 @@ describe('ProtectedAppShell', () => {
             await screen.findByRole('heading', { name: /protected dashboard/i })
         ).toBeInTheDocument();
         expect(screen.getByRole('link', { name: /clinic settings/i })).toBeInTheDocument();
+    });
+
+    it('does not render the clinic timezone in protected navigation chrome', async () => {
+        setClerkSignedIn();
+        mockGetOnboardingStatus.mockResolvedValue(completedAdminOnboarding);
+
+        renderShell('/dashboard');
+
+        expect(
+            await screen.findByRole('heading', { name: /protected dashboard/i })
+        ).toBeInTheDocument();
+        expect(screen.queryByText('Asia/Kolkata')).not.toBeInTheDocument();
+    });
+
+    it('routes the protected logo to the dashboard for signed-in users', async () => {
+        const user = userEvent.setup();
+        setClerkSignedIn();
+        mockGetOnboardingStatus.mockResolvedValue(completedAdminOnboarding);
+
+        renderShell('/doctors');
+
+        expect(await screen.findByRole('heading', { name: /^doctors$/i })).toBeInTheDocument();
+
+        await user.click(screen.getAllByRole('link', { name: /pravaah home/i })[0]);
+
+        expect(
+            await screen.findByRole('heading', { name: /protected dashboard/i })
+        ).toBeInTheDocument();
+    });
+
+    it('signs out through Clerk and redirects to the public home route', async () => {
+        const user = userEvent.setup();
+        const signOut = getMockClerkSignOut();
+        setClerkSignedIn();
+        mockGetOnboardingStatus.mockResolvedValue(completedAdminOnboarding);
+
+        renderShell('/dashboard');
+
+        expect(
+            await screen.findByRole('heading', { name: /protected dashboard/i })
+        ).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: /test admin/i }));
+        await user.click(screen.getByRole('menuitem', { name: /^sign out$/i }));
+
+        await waitFor(() => {
+            expect(signOut).toHaveBeenCalledWith({ redirectUrl: '/' });
+        });
+    });
+
+    it('renders backend setup progress in a floating dock and supports expansion', async () => {
+        const user = userEvent.setup();
+        setClerkSignedIn();
+        mockGetOnboardingStatus.mockResolvedValue({
+            ...completedAdminOnboarding,
+            setup: setupNoneComplete,
+        });
+
+        renderShell('/dashboard');
+
+        expect(
+            await screen.findByRole('heading', { name: /protected dashboard/i })
+        ).toBeInTheDocument();
+
+        const expandButton = screen.getByRole('button', { name: /expand setup assistant/i });
+        expect(expandButton).toHaveTextContent('0/4');
+
+        await user.click(expandButton);
+
+        expect(
+            screen.getByRole('region', { name: /clinic setup assistant/i })
+        ).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /complete clinic settings/i })).toHaveAttribute(
+            'href',
+            '/clinic-settings'
+        );
+
+        await user.click(screen.getByRole('button', { name: /collapse setup assistant/i }));
+
+        await waitFor(() => {
+            expect(
+                screen.queryByRole('region', { name: /clinic setup assistant/i })
+            ).not.toBeInTheDocument();
+        });
+    });
+
+    it('allows completed setup to be acknowledged for the current shell session', async () => {
+        const user = userEvent.setup();
+        setClerkSignedIn();
+        mockGetOnboardingStatus.mockResolvedValue({
+            ...completedAdminOnboarding,
+            setup: setupAllComplete,
+        });
+
+        renderShell('/dashboard');
+
+        expect(
+            await screen.findByRole('heading', { name: /protected dashboard/i })
+        ).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: /open completed setup assistant/i }));
+
+        expect(screen.getByText('Minimum setup complete.')).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: /acknowledge/i }));
+
+        expect(
+            screen.queryByRole('button', { name: /open completed setup assistant/i })
+        ).not.toBeInTheDocument();
     });
 
     it('opens and closes the mobile workspace navigation with keyboard focus restored', async () => {

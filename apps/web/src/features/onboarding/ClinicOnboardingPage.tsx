@@ -1,8 +1,8 @@
-import { SignOutButton, useAuth } from '@clerk/react';
+import { useAuth, useClerk } from '@clerk/react';
 import type { FormEvent, ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
-import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { PravaahLogo } from '../../components/brand';
+import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { PravaahLogoLink } from '../../components/brand';
 import { ErrorMessage, FieldError, LoadingState, useToast } from '../../components/feedback';
 import { Badge, fieldControlClassName } from '../../components/ui';
 import { isApiClientError } from '../../lib';
@@ -394,29 +394,36 @@ function OnboardingPageShell({
     children: ReactNode;
     eyebrow?: string;
 }) {
+    const { signOut } = useClerk();
+    const [isSigningOut, setIsSigningOut] = useState(false);
+
+    const handleSignOut = async () => {
+        setIsSigningOut(true);
+        try {
+            await signOut({ redirectUrl: '/' });
+        } finally {
+            setIsSigningOut(false);
+        }
+    };
+
     return (
         <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900">
             <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
                 <header className="flex flex-col gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-center sm:justify-between">
-                    <Link
-                        to="/"
-                        className="flex min-w-0 items-center gap-3 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-action"
-                        aria-label="Pravaah home"
-                    >
-                        <PravaahLogo layout="horizontal" surface="light" size="sm" />
+                    <PravaahLogoLink layout="horizontal" surface="light" size="sm">
                         <span className="hidden text-base font-bold text-slate-950 sm:inline">
                             {eyebrow}
                         </span>
-                    </Link>
+                    </PravaahLogoLink>
 
-                    <SignOutButton>
-                        <button
-                            type="button"
-                            className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-soft hover:bg-brand-subtle hover:text-brand-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action sm:w-auto"
-                        >
-                            Sign out
-                        </button>
-                    </SignOutButton>
+                    <button
+                        type="button"
+                        className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-soft hover:bg-brand-subtle hover:text-brand-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action disabled:cursor-wait disabled:opacity-70 sm:w-auto"
+                        disabled={isSigningOut}
+                        onClick={() => void handleSignOut()}
+                    >
+                        {isSigningOut ? 'Signing out...' : 'Sign out'}
+                    </button>
                 </header>
 
                 <div className="rounded-lg border border-app-border bg-white p-4 shadow-sm">
@@ -1153,16 +1160,6 @@ function ClinicOnboardingPage() {
                             'Ask a project administrator to repair the internal user and clinic assignment.',
                         ]}
                     />
-                    <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                        <SignOutButton>
-                            <button
-                                type="button"
-                                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-soft hover:bg-brand-subtle hover:text-brand-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
-                            >
-                                Sign out
-                            </button>
-                        </SignOutButton>
-                    </div>
                 </div>
             </OnboardingPageShell>
         );

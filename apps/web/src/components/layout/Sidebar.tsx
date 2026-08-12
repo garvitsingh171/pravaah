@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { PravaahLogo } from '../brand';
+import { PravaahLogoLink } from '../brand';
 import type { AppRoute } from '../../routes/dashboardRoutes';
 
 type NavigationIconName = AppRoute['navigationIcon'];
@@ -72,14 +72,17 @@ function NavigationIcon({ name }: { name: NavigationIconName }) {
 function WorkspaceNavigation({
     navigationItems,
     onNavigate,
+    surface = 'light',
 }: {
     navigationItems: AppRoute[];
     onNavigate?: () => void;
+    surface?: 'light' | 'dark';
 }) {
     return (
-        <nav className="flex flex-col gap-2" aria-label="Clinic workspace navigation">
+        <nav className="flex flex-col gap-1.5" aria-label="Clinic workspace navigation">
             {navigationItems.map((item) => {
                 const label = item.navigationLabel ?? item.title;
+                const darkSurface = surface === 'dark';
 
                 return (
                     <NavLink
@@ -87,34 +90,43 @@ function WorkspaceNavigation({
                         to={item.path}
                         end={item.path === '/dashboard'}
                         onClick={onNavigate}
+                        title={item.navigationDescription}
                         className={({ isActive }) =>
-                            `group flex min-w-0 items-center gap-3 rounded-lg border px-3 py-3 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 ${
+                            `group relative flex min-w-0 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition duration-[var(--motion-fast)] ease-[var(--motion-ease)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-500 ${
                                 isActive
-                                    ? 'border-teal-200 bg-teal-50 text-slate-950 shadow-sm'
-                                    : 'border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-950'
+                                    ? darkSurface
+                                        ? 'bg-white/10 text-white'
+                                        : 'bg-slate-950 text-white shadow-sm'
+                                    : darkSurface
+                                      ? 'text-slate-300 hover:bg-white/5 hover:text-white'
+                                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
                             }`
                         }
                     >
                         {({ isActive }) => (
                             <>
                                 <span
-                                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${
+                                    className={`absolute left-1 h-6 w-1 rounded-full transition ${
+                                        isActive ? 'bg-brand' : 'bg-transparent'
+                                    }`}
+                                    aria-hidden="true"
+                                />
+                                <span
+                                    className={`ml-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${
                                         isActive
-                                            ? 'bg-white text-teal-700 ring-1 ring-teal-200'
-                                            : 'bg-slate-100 text-slate-500 group-hover:text-slate-800'
+                                            ? darkSurface
+                                                ? 'bg-brand text-slate-950'
+                                                : 'bg-white/10 text-brand'
+                                            : darkSurface
+                                              ? 'bg-white/5 text-slate-400 group-hover:text-slate-100'
+                                              : 'bg-slate-100 text-slate-500 group-hover:text-slate-800'
                                     }`}
                                 >
                                     <NavigationIcon name={item.navigationIcon} />
                                 </span>
-                                <span className="min-w-0">
-                                    <span className="block truncate">{label}</span>
-                                    <span
-                                        className={`mt-0.5 block truncate text-xs font-medium ${
-                                            isActive ? 'text-teal-800' : 'text-slate-500'
-                                        }`}
-                                    >
-                                        {item.navigationDescription}
-                                    </span>
+                                <span className="min-w-0 truncate">
+                                    {label}
+                                    <span className="sr-only">, {item.navigationDescription}</span>
                                 </span>
                             </>
                         )}
@@ -236,7 +248,7 @@ function MobileWorkspaceNavigation({ navigationItems, clinicName, clinicMeta }: 
     return (
         <div className="border-b border-slate-200 bg-white md:hidden">
             <div className="flex items-center justify-between gap-3 px-4 py-3">
-                <PravaahLogo layout="horizontal" surface="light" size="sm" />
+                <PravaahLogoLink layout="horizontal" surface="light" size="sm" />
                 <button
                     ref={triggerButtonRef}
                     type="button"
@@ -283,7 +295,12 @@ function MobileWorkspaceNavigation({ navigationItems, clinicName, clinicMeta }: 
                     >
                         <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-4">
                             <div className="min-w-0">
-                                <PravaahLogo layout="horizontal" surface="light" size="sm" />
+                                <PravaahLogoLink
+                                    layout="horizontal"
+                                    surface="light"
+                                    size="sm"
+                                    onNavigate={() => closeMenu(false)}
+                                />
                                 <p className="mt-3 break-words text-sm font-semibold leading-5 text-slate-950">
                                     {clinicName}
                                 </p>
@@ -328,29 +345,25 @@ function MobileWorkspaceNavigation({ navigationItems, clinicName, clinicMeta }: 
 
 function Sidebar({ navigationItems, clinicName, clinicMeta }: SidebarProps) {
     return (
-        <aside className="hidden border-r border-slate-200 bg-white md:flex md:min-h-screen md:w-72 md:shrink-0 md:flex-col">
+        <aside className="hidden bg-slate-950 text-white md:flex md:min-h-screen md:w-64 md:shrink-0 md:flex-col">
             <div className="px-4 py-4 md:px-5 md:py-6">
-                <PravaahLogo layout="horizontal" surface="light" size="md" />
-                <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-teal-700">
-                    Clinic Workspace
+                <PravaahLogoLink layout="horizontal" surface="dark" size="md" />
+                <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-brand">
+                    Workspace
                 </p>
 
-                <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <p className="break-words text-sm font-semibold leading-5 text-slate-950">
+                <div className="mt-4 rounded-lg bg-white/5 p-3 ring-1 ring-white/10">
+                    <p className="break-words text-sm font-semibold leading-5 text-white">
                         {clinicName}
                     </p>
-                    <p className="mt-1 break-words text-xs leading-5 text-slate-500">
+                    <p className="mt-1 break-words text-xs leading-5 text-slate-400">
                         {clinicMeta}
                     </p>
                 </div>
             </div>
 
             <div className="flex-1 px-3 pb-4">
-                <WorkspaceNavigation navigationItems={navigationItems} />
-            </div>
-
-            <div className="hidden border-t border-slate-200 px-5 py-4 text-xs leading-5 text-slate-500 md:block">
-                Appointment booking, risk review, and queue decisions stay with Admin and Staff.
+                <WorkspaceNavigation navigationItems={navigationItems} surface="dark" />
             </div>
         </aside>
     );

@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
-import { Link } from 'react-router-dom';
-import { PravaahLogo } from '../../../components/brand';
+import { PravaahLogoLink } from '../../../components/brand';
 import { Badge } from '../../../components/ui';
 
 type AuthPageLayoutProps = {
@@ -60,13 +59,7 @@ function AuthPageLayout({
         <main className="min-h-screen bg-app-background px-4 py-8 text-app-text">
             <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-6xl flex-col justify-center gap-8 lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(320px,1fr)] lg:items-center">
                 <section className="max-w-xl">
-                    <Link
-                        to="/"
-                        className="inline-flex rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-action"
-                        aria-label="Pravaah home"
-                    >
-                        <PravaahLogo layout="horizontal" surface="light" size="md" />
-                    </Link>
+                    <PravaahLogoLink layout="horizontal" surface="light" size="md" />
 
                     <p className="mt-8 text-sm font-semibold uppercase text-brand-foreground">
                         {eyebrow}

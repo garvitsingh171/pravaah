@@ -1,4 +1,4 @@
-import { SignOutButton, useAuth } from '@clerk/react';
+import { useAuth, useClerk } from '@clerk/react';
 import { useCallback, useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { ErrorMessage, LoadingState } from '../components/feedback';
@@ -19,6 +19,7 @@ type ProtectedAppShellState =
       }
     | {
           status: 'ready';
+          data: OnboardingStatusResponseData;
           error: null;
       }
     | {
@@ -63,6 +64,18 @@ function FullPageLoadingState() {
 }
 
 function RecoveryRequiredState() {
+    const { signOut } = useClerk();
+    const [isSigningOut, setIsSigningOut] = useState(false);
+
+    const handleSignOut = async () => {
+        setIsSigningOut(true);
+        try {
+            await signOut({ redirectUrl: '/' });
+        } finally {
+            setIsSigningOut(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900">
             <div className="mx-auto flex max-w-2xl flex-col gap-4">
@@ -77,14 +90,14 @@ function RecoveryRequiredState() {
                     ]}
                 />
                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                    <SignOutButton>
-                        <button
-                            type="button"
-                            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-soft hover:bg-brand-subtle hover:text-brand-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
-                        >
-                            Sign out
-                        </button>
-                    </SignOutButton>
+                    <button
+                        type="button"
+                        className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-soft hover:bg-brand-subtle hover:text-brand-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action disabled:cursor-wait disabled:opacity-70"
+                        disabled={isSigningOut}
+                        onClick={() => void handleSignOut()}
+                    >
+                        {isSigningOut ? 'Signing out...' : 'Sign out'}
+                    </button>
                 </div>
             </div>
         </div>
@@ -130,6 +143,7 @@ function ProtectedAppShell() {
                 if (isCompletedActiveApplicationUser(data)) {
                     setState({
                         status: 'ready',
+                        data,
                         error: null,
                     });
                     return;
@@ -235,7 +249,7 @@ function ProtectedAppShell() {
 
     return (
         <ActiveClinicProvider>
-            <AppLayout />
+            <AppLayout initialSetup={state.data.setup} />
         </ActiveClinicProvider>
     );
 }

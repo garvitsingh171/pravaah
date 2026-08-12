@@ -104,6 +104,17 @@ const getOptionalText = (value: string | null | undefined): string => {
     return value?.trim() || 'Not added';
 };
 
+const getInitials = (name: string): string => {
+    const initials = name
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase())
+        .join('');
+
+    return initials || 'DR';
+};
+
 const isDoctorActiveInClinic = (doctor: DoctorSummary): boolean => {
     return doctor.isActive && doctor.clinicLinkIsActive !== false;
 };
@@ -545,9 +556,6 @@ function DoctorListSummary({
                     <p className="text-sm font-semibold text-slate-900">
                         {displayedCount} doctors visible
                     </p>
-                    <p className="mt-1 text-sm text-slate-500">
-                        Active records can be selected during appointment booking.
-                    </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                     <Badge tone="success">{activeCount} active</Badge>
@@ -703,9 +711,8 @@ function DoctorsPage() {
     return (
         <section className="space-y-6">
             <PageHeader
-                eyebrow="Doctors"
                 title="Doctors"
-                description="View clinic doctor records before booking appointments or managing the daily clinic flow."
+                description="Provider records for scheduling and queue lanes."
                 actions={
                     <Link
                         to="/doctors/new"
@@ -724,7 +731,7 @@ function DoctorsPage() {
                             className={fieldControlClassName}
                             value={searchTerm}
                             onChange={(event) => setSearchTerm(event.target.value)}
-                            placeholder="Name, specialization, qualification, registration, phone, or email"
+                            placeholder="Name, specialty, registration, phone, or email"
                             type="search"
                         />
                     </label>
@@ -839,12 +846,24 @@ function DoctorsPage() {
                                         <Fragment key={doctor.id}>
                                             <tr className="align-top transition hover:bg-slate-50/70">
                                                 <td className="min-w-52 px-4 py-5">
-                                                    <p className="font-semibold text-slate-900">
-                                                        {doctor.fullName}
-                                                    </p>
-                                                    <p className="mt-1 text-slate-600">
-                                                        {getOptionalText(doctor.specialization)}
-                                                    </p>
+                                                    <div className="flex items-start gap-3">
+                                                        <span
+                                                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-brand-subtle text-sm font-bold text-brand-foreground ring-1 ring-brand-soft"
+                                                            aria-hidden="true"
+                                                        >
+                                                            {getInitials(doctor.fullName)}
+                                                        </span>
+                                                        <div className="min-w-0">
+                                                            <p className="font-semibold text-slate-900">
+                                                                {doctor.fullName}
+                                                            </p>
+                                                            <p className="mt-1 text-slate-600">
+                                                                {getOptionalText(
+                                                                    doctor.specialization
+                                                                )}
+                                                            </p>
+                                                        </div>
+                                                    </div>
                                                 </td>
                                                 <td className="min-w-52 px-4 py-5 text-slate-700">
                                                     <p className="font-medium text-slate-900">

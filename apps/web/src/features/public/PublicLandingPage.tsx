@@ -1,7 +1,7 @@
 import { useAuth } from '@clerk/react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { PravaahLogo } from '../../components/brand';
+import { PravaahLogo, PravaahLogoLink } from '../../components/brand';
 import { Badge } from '../../components/ui';
 import ProductShowcase from './components/ProductShowcase';
 
@@ -155,16 +155,11 @@ function PublicHeader() {
         <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
             <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between gap-4">
-                    <Link
-                        to="/"
-                        className="flex min-w-0 items-center gap-3 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-action"
-                        aria-label="Pravaah home"
-                    >
-                        <PravaahLogo layout="horizontal" surface="light" size="sm" />
+                    <PravaahLogoLink layout="horizontal" surface="light" size="sm">
                         <span className="hidden text-sm font-semibold text-slate-500 sm:inline">
                             Clinic operations
                         </span>
-                    </Link>
+                    </PravaahLogoLink>
 
                     <div className="flex shrink-0 items-center gap-2">
                         {isLoaded && isSignedIn ? (
@@ -335,10 +330,9 @@ function HeroFlowPreview() {
                     {heroSteps.map((step, index) => (
                         <li
                             key={step.label}
-                            className={`showcase-rise rounded-lg border border-white/15 bg-white p-4 text-slate-950 shadow-lg shadow-slate-950/10 ${
+                            className={`rounded-lg border border-white/15 bg-white p-4 text-slate-950 shadow-lg shadow-slate-950/10 ${
                                 index % 2 === 0 ? 'mr-10' : 'ml-10'
                             }`}
-                            style={{ animationDelay: `${index * 70}ms` }}
                         >
                             <div className="flex items-center gap-3">
                                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-subtle text-sm font-bold text-brand-foreground ring-1 ring-brand-soft">
@@ -773,7 +767,7 @@ function PublicLandingPage() {
 
             <footer className="bg-white">
                 <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-6 text-sm text-slate-600 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
-                    <PravaahLogo layout="horizontal" surface="light" size="sm" />
+                    <PravaahLogoLink layout="horizontal" surface="light" size="sm" />
                     <p>Clinic-side appointment, queue, and explainable risk workspace.</p>
                     <p>&copy; {currentYear} Pravaah.</p>
                 </div>

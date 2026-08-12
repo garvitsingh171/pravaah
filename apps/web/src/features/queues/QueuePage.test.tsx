@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import QueuePage from './QueuePage';
@@ -109,8 +109,8 @@ const renderQueuePage = () => {
     });
 };
 
-const getQueueRows = () => {
-    return screen.getAllByRole('row').slice(1);
+const getActiveQueueCards = () => {
+    return screen.getAllByTestId('active-queue-card');
 };
 
 describe('QueuePage manual reorder controls', () => {
@@ -129,28 +129,20 @@ describe('QueuePage manual reorder controls', () => {
 
         expect(await screen.findByText('Position 1')).toBeVisible();
         expect(screen.getByText('Position 2')).toBeVisible();
-        expect(
-            screen.queryByRole('button', { name: /move riya malhotra up/i })
-        ).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /move riya malhotra up/i })).toBeDisabled();
         expect(screen.getByRole('button', { name: /move riya malhotra down/i })).toBeEnabled();
         expect(screen.getByRole('button', { name: /move kabir sen up/i })).toBeEnabled();
-        expect(
-            screen.queryByRole('button', { name: /move kabir sen down/i })
-        ).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /move kabir sen down/i })).toBeDisabled();
 
         mockListTodayQueue.mockResolvedValue({
             queueEntries: [firstEntry],
         });
 
-        await userEvent.click(screen.getByRole('button', { name: /refresh queue/i }));
+        await userEvent.click(screen.getByRole('button', { name: /^refresh$/i }));
 
         expect(await screen.findByText(/only active queue entry/i)).toBeVisible();
-        expect(
-            screen.queryByRole('button', { name: /move riya malhotra up/i })
-        ).not.toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: /move riya malhotra down/i })
-        ).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /move riya malhotra up/i })).toBeDisabled();
+        expect(screen.getByRole('button', { name: /move riya malhotra down/i })).toBeDisabled();
     });
 
     it('sends the selected date and unique reordered queue-entry ids after a deliberate move', async () => {
@@ -189,7 +181,7 @@ describe('QueuePage manual reorder controls', () => {
         expect(new Set(payload.queueEntryIds).size).toBe(payload.queueEntryIds.length);
         expect(payload.queueEntryIds).not.toContain(firstEntry.patientId);
         expect(payload.queueEntryIds).not.toContain(firstEntry.appointmentId);
-        expect(await screen.findByText('Moved Riya Malhotra.')).toBeVisible();
+        expect((await screen.findAllByText('Moved Riya Malhotra.'))[0]).toBeVisible();
     });
 
     it('disables move and status controls while saving and prevents repeated reorder requests', async () => {
@@ -233,7 +225,7 @@ describe('QueuePage manual reorder controls', () => {
             ],
         });
 
-        expect(await screen.findByText('Moved Riya Malhotra.')).toBeVisible();
+        expect((await screen.findAllByText('Moved Riya Malhotra.'))[0]).toBeVisible();
     });
 
     it('keeps the last confirmed order and selected filters after reorder failure', async () => {
@@ -268,10 +260,10 @@ describe('QueuePage manual reorder controls', () => {
             QueueStatus.WAITING
         );
 
-        const rows = getQueueRows();
+        const cards = getActiveQueueCards();
 
-        expect(within(rows[0]!).getByText('Riya Malhotra')).toBeVisible();
-        expect(within(rows[1]!).getByText('Kabir Sen')).toBeVisible();
+        expect(cards[0]).toHaveTextContent('Riya Malhotra');
+        expect(cards[1]).toHaveTextContent('Kabir Sen');
     });
 
     it('does not reorder automatically from no-show risk visibility and leaves status updates available', async () => {

@@ -54,7 +54,7 @@ function ToastProvider({ children }: PropsWithChildren) {
             {children}
 
             <div
-                className="fixed inset-x-4 bottom-4 z-50 flex flex-col gap-3 sm:inset-x-auto sm:bottom-auto sm:right-4 sm:top-4 sm:w-[min(24rem,calc(100vw-2rem))]"
+                className="fixed inset-x-4 bottom-24 z-50 flex flex-col gap-3 sm:inset-x-auto sm:bottom-auto sm:right-4 sm:top-4 sm:w-[min(24rem,calc(100vw-2rem))]"
                 aria-live="polite"
                 aria-atomic="true"
             >

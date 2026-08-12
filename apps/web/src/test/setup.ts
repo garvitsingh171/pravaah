@@ -2,6 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
 import {
+    getClerkClient,
     getClerkAuthState,
     MockClerkProvider,
     MockSignIn,
@@ -17,6 +18,7 @@ vi.mock('@clerk/react', () => ({
     SignUp: MockSignUp,
     SignOutButton: MockSignOutButton,
     useAuth: () => getClerkAuthState(),
+    useClerk: () => getClerkClient(),
 }));
 
 afterEach(() => {

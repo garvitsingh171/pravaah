@@ -215,7 +215,7 @@ not import feature business logic. `packages/*` has no current shared frontend c
 | `/sign-up/*`         | Authentication                  | Public/auth                                  | `AuthPageLayout`             | `SignUpPage`            | Clerk sign-up.                                               | Clerk fallback redirect `/onboarding/clinic`.                               | `noindex,nofollow`.            |
 | `/onboarding`        | Onboarding redirect             | Clerk-intended                               | Public boundary              | `Navigate`              | Normalizes onboarding entry.                                 | Redirects to `/onboarding/clinic`.                                          | `noindex,nofollow`.            |
 | `/onboarding/clinic` | Public authenticated onboarding | Clerk identity; internal user may be missing | Standalone onboarding layout | `ClinicOnboardingPage`  | Create clinic and first Admin.                               | Completed users continue to app; unprovisioned users see form.              | `noindex,nofollow`.            |
-| `/dashboard`         | Protected application           | Admin/Staff                                  | `AppLayout`                  | `DashboardOverviewPage` | Summary, high-risk appointments, activity, setup.            | Signed-out to login; unprovisioned to onboarding; recovery state otherwise. | `noindex,nofollow`.            |
+| `/dashboard`         | Protected application           | Admin/Staff                                  | `AppLayout`                  | `DashboardOverviewPage` | Summary, high-risk appointments, activity.                   | Signed-out to login; unprovisioned to onboarding; recovery state otherwise. | `noindex,nofollow`.            |
 | `/doctors`           | Protected application           | Admin/Staff                                  | `AppLayout`                  | `DoctorsPage`           | List/search/edit doctors.                                    | Guarded by shell.                                                           | `noindex,nofollow`.            |
 | `/doctors/new`       | Protected application           | Admin/Staff                                  | `AppLayout`                  | `DoctorCreatePage`      | Create doctor.                                               | Guarded by shell.                                                           | `noindex,nofollow`.            |
 | `/patients`          | Protected application           | Admin/Staff                                  | `AppLayout`                  | `PatientsPage`          | List/search/edit patients.                                   | Guarded by shell.                                                           | `noindex,nofollow`.            |
@@ -272,7 +272,7 @@ flowchart TD
 | Public landing layout  | `features/public/PublicLandingPage.tsx`                            | Public header, product sections, CTAs, footer, responsive wrapping nav.              |
 | Auth layout            | `features/auth/components/AuthPageLayout.tsx`                      | Clerk auth frame with app context and return handling.                               |
 | Onboarding layout      | `features/onboarding/ClinicOnboardingPage.tsx`                     | Standalone onboarding form, status, sample-data decision, redirect.                  |
-| Protected app shell    | `app/AppLayout.tsx`                                                | Skip link, mobile drawer, desktop sidebar, topbar, `main#main-content`, lazy Outlet. |
+| Protected app shell    | `app/AppLayout.tsx`                                                | Skip link, mobile drawer, desktop sidebar, topbar, floating setup dock, route transition wrapper, `main#main-content`, lazy Outlet. |
 | Recovery/error layouts | `ProtectedAppShell`, `ActiveClinicProvider`, `PublicErrorBoundary` | Full-page safe states for access, missing clinic, and public render errors.          |
 
 Protected navigation is sourced from `dashboardRoutes.tsx`. The mobile drawer in
@@ -288,6 +288,7 @@ Protected navigation is sourced from `dashboardRoutes.tsx`. The mobile drawer in
 | Onboarding route state  | `ProtectedAppShell`, `ClinicOnboardingPage` | React state                                       | API calls with abort where used            | Route unmount/retry.                            |
 | Active clinic           | `ActiveClinicProvider`, `clinicContext.ts`  | React context; optional localStorage/env fallback | `GET /api/auth/me`                         | Provider unmount; invalid localStorage cleared. |
 | Server state            | Feature pages                               | React state                                       | Feature API helpers and refetches          | Route unmount/manual retry.                     |
+| Setup dock              | `AppLayout`, `FloatingSetupDock`             | React state seeded by `ProtectedAppShell`         | `GET /api/auth/onboarding-status`          | Shell unmount; completed acknowledgement is session-local. |
 | Form state              | Feature form components                     | React state                                       | Input handlers and local validation        | Submit success/cancel/unmount.                  |
 | URL state               | React Router and search params              | Browser URL                                       | `navigate`, links, query params            | Navigation.                                     |
 | UI state                | Components/pages                            | React state                                       | Expand/collapse, drawers, dialogs, filters | Route unmount or close actions.                 |
@@ -329,7 +330,7 @@ Forms are implemented with local React state. Important forms:
 | Doctor create/edit  | `DoctorCreatePage`, `DoctorForm`, `DoctorsPage`    | Local required fields, backend validation, disabled submit, success redirect/toast.                   |
 | Patient create/edit | `PatientCreatePage`, `PatientForm`, `PatientsPage` | Patient profile plus clinic notes/distance; backend remains authority.                                |
 | Appointment booking | `AppointmentBookingForm`, `AppointmentsPage`       | Doctor/patient options, date/time conversion, conflict display, risk response display.                |
-| Queue actions       | `QueuePage`                                        | Native buttons, pending state per status/reorder, server reconciliation.                              |
+| Queue actions       | `QueuePage`                                        | Doctor-scoped ordered lanes/cards, icon move buttons with labels/tooltips, pending state per status/reorder, server reconciliation. |
 
 Validation errors appear as field errors when mapped, form summaries or inline
 `ErrorMessage` when request-level, toasts for mutation feedback, and full-page
@@ -348,13 +349,14 @@ public boundary where present; protected route chunks use shell Suspense fallbac
 | `PageHeader`, `FilterBar`, `Card`             | `components/ui`                         | Page structure and filter/action layout.                               |
 | `StatusBadge`, `RiskBadge`, `RiskExplanation` | `components/ui`                         | Text-first status and risk presentation.                               |
 | `Sidebar`, `Topbar`                           | `components/layout`                     | Desktop navigation, mobile drawer, page title, role context, sign out. |
+| `FloatingSetupDock`                           | `features/onboarding/components`        | Shell-level Admin setup progress dock backed by onboarding status.     |
 | `PravaahLogo`                                 | `components/brand/PravaahLogo.tsx`      | Inline brand mark/wordmark; avoids importing large public PNGs.        |
 
 ### Feature Interfaces
 
 - Dashboard (`/dashboard`) requests summary, high-risk appointments, and today
-  activity. It shows first-run setup status, appointment/queue/risk summaries,
-  and retryable errors.
+  activity. It shows operational pulse, appointment/queue/risk summaries, and
+  retryable errors. Admin setup progress is shown by the protected shell dock.
 - Clinic settings (`/clinic-settings`) is Admin-only. Slug is read-only; supported
   editable fields include profile/contact/address/timezone/hours/slot/buffer.
 - Doctor management (`/doctors`, `/doctors/new`) lists, searches, creates, edits,
@@ -366,8 +368,8 @@ public boundary where present; protected route chunks use shell Suspense fallbac
 - Appointment management (`/appointments`) loads doctors, patients, appointments,
   booking form data, filters, status actions, and prediction details.
 - Queue management (`/queue`) lists clinic-local today queue entries, separates
-  active/final groups, updates statuses, and manually reorders active entries for
-  one doctor scope.
+  active/final groups, presents active entries as doctor-scoped ordered lanes,
+  updates statuses, and manually reorders active entries for one doctor scope.
 - Explainable no-show assistance is shown through risk badges and explanation
   panels. Missing prediction data is presented as unavailable, not low risk.
 - Staff management is not implemented as a module or route.
@@ -376,16 +378,18 @@ public boundary where present; protected route chunks use shell Suspense fallbac
 
 Tailwind's `md` breakpoint (`768px`) switches from mobile drawer to desktop
 sidebar. Protected pages use constrained content inside `main#main-content`.
-Tables for doctors, patients, appointments, and active queue use intentional
-keyboard-focusable horizontal scrolling on small screens instead of duplicated
-hidden desktop/mobile datasets. Forms stack on mobile. Toasts move to the mobile
-bottom. Dialogs and the drawer lock background scroll while open.
+Tables for doctors, patients, and appointments use intentional keyboard-focusable
+horizontal scrolling on small screens instead of duplicated hidden desktop/mobile
+datasets. The queue uses responsive ordered lanes/cards instead of a horizontal
+active queue table. Forms stack on mobile. Toasts move above the mobile setup dock.
+Dialogs and the drawer lock background scroll while open.
 
 Implemented accessibility conventions include semantic landmarks, a protected
 skip link, labeled nav regions, visible focus styles, native buttons/links,
 field labels/errors, `role=status`/`role=alert` feedback, `aria-current` from
 `NavLink`, dialog focus loops, drawer focus restore, text labels inside status
-badges, social image alt metadata, and reduced-motion CSS.
+badges, accessible queue move labels/tooltips, social image alt metadata, and
+reduced-motion CSS.
 
 Known limits: no WCAG certification, no automated axe/E2E suite, and responsive
 verification evidence must be captured manually.

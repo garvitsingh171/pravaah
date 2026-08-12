@@ -11,10 +11,17 @@
     --color-action: #0f766e;
     --color-action-hover: #115e59;
     --color-action-soft: #99f6e4;
+    --color-pravaah-navy: #0f172a;
     --color-app-background: #f8fafc;
     --color-app-surface: #ffffff;
     --color-app-surface-muted: #f1f5f9;
     --color-app-surface-raised: #ffffff;
+    --color-surface-canvas: #eef4f7;
+    --color-surface: #ffffff;
+    --color-surface-soft: #f3f8f7;
+    --color-surface-raised: #ffffff;
+    --color-surface-inset: #e6eef2;
+    --color-surface-dark: #0f172a;
     --color-app-border: #e2e8f0;
     --color-app-border-strong: #cbd5e1;
     --color-app-text: #0f172a;
@@ -39,7 +46,15 @@
     --color-status-neutral-border: #cbd5e1;
     --radius-app-sm: 0.375rem;
     --radius-app-md: 0.5rem;
-    --radius-app-lg: 0.5rem;
+    --radius-app-lg: 0.625rem;
+    --radius-app-xl: 0.75rem;
+    --shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.05);
+    --shadow-raised: 0 14px 40px rgba(15, 23, 42, 0.1);
+    --shadow-command: 0 18px 60px rgba(15, 23, 42, 0.22);
+    --motion-fast: 140ms;
+    --motion-normal: 220ms;
+    --motion-slow: 360ms;
+    --motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
     font-family:
         Inter,
         system-ui,
@@ -80,6 +95,42 @@ select {
     }
 }
 
+@keyframes pravaah-page-reveal {
+    from {
+        opacity: 0;
+        transform: translateY(0.4rem);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pravaah-setup-dock-enter {
+    from {
+        opacity: 0;
+        transform: translateY(0.75rem) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes pravaah-queue-card-confirmed {
+    from {
+        opacity: 0.88;
+        transform: translateY(0.35rem);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 @keyframes pravaah-flow-dash {
     from {
         stroke-dashoffset: 42;
@@ -92,6 +143,18 @@ select {
 
 .showcase-rise {
     animation: pravaah-showcase-rise 420ms ease-out both;
+}
+
+.page-reveal {
+    animation: pravaah-page-reveal var(--motion-normal) var(--motion-ease) both;
+}
+
+.setup-dock-enter {
+    animation: pravaah-setup-dock-enter var(--motion-normal) var(--motion-ease) both;
+}
+
+.queue-card-confirmed {
+    animation: pravaah-queue-card-confirmed var(--motion-normal) var(--motion-ease) both;
 }
 
 .flow-path {
@@ -110,6 +173,12 @@ select {
     }
 
     .showcase-rise {
+        animation: none;
+    }
+
+    .page-reveal,
+    .setup-dock-enter,
+    .queue-card-confirmed {
         animation: none;
     }
 

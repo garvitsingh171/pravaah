@@ -121,6 +121,17 @@ const getOptionalText = (value: string | null | undefined): string => {
     return value?.trim() || 'Not added';
 };
 
+const getInitials = (name: string): string => {
+    const initials = name
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase())
+        .join('');
+
+    return initials || 'P';
+};
+
 const getGenderLabel = (gender: Gender | null | undefined): string => {
     if (!gender) {
         return 'Not added';
@@ -682,10 +693,6 @@ function PatientListSummary({
                     <p className="text-sm font-semibold text-slate-900">
                         {displayedCount} patients visible
                     </p>
-                    <p className="mt-1 text-sm text-slate-500">
-                        Clinic-specific history stays attached to patient records for scheduling and
-                        risk context.
-                    </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                     <Badge tone="success">{activeCount} active</Badge>
@@ -918,9 +925,8 @@ function PatientsPage() {
     return (
         <section className="space-y-6">
             <PageHeader
-                eyebrow="Patients"
                 title="Patients"
-                description="Find or create patient records before booking appointments and managing the clinic queue."
+                description="Identity and visit records for appointments and risk context."
                 actions={
                     <Link
                         to="/patients/new"
@@ -1055,12 +1061,22 @@ function PatientsPage() {
                                         <Fragment key={patient.id}>
                                             <tr className="align-top transition hover:bg-slate-50/70">
                                                 <td className="min-w-48 px-4 py-5">
-                                                    <p className="font-semibold text-slate-900">
-                                                        {patient.fullName}
-                                                    </p>
-                                                    <p className="mt-1 text-slate-600">
-                                                        {getGenderLabel(patient.gender)}
-                                                    </p>
+                                                    <div className="flex items-start gap-3">
+                                                        <span
+                                                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-brand-subtle text-sm font-bold text-brand-foreground ring-1 ring-brand-soft"
+                                                            aria-hidden="true"
+                                                        >
+                                                            {getInitials(patient.fullName)}
+                                                        </span>
+                                                        <div className="min-w-0">
+                                                            <p className="font-semibold text-slate-900">
+                                                                {patient.fullName}
+                                                            </p>
+                                                            <p className="mt-1 text-slate-600">
+                                                                {getGenderLabel(patient.gender)}
+                                                            </p>
+                                                        </div>
+                                                    </div>
                                                 </td>
                                                 <td className="min-w-56 px-4 py-5 text-slate-700">
                                                     <p className="font-medium text-slate-900">

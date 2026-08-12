@@ -2,19 +2,12 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DashboardOverviewPage from './DashboardOverviewPage';
-import { ApiClientError } from '../../lib';
 import {
     activeDashboardSummary,
     activityItem,
     emptyDashboardSummary,
     highRiskAppointment,
 } from '../../test/fixtures/dashboard';
-import {
-    completedAdminOnboarding,
-    setupAllComplete,
-    setupNoneComplete,
-    setupPartiallyComplete,
-} from '../../test/fixtures/onboarding';
 import {
     adminActiveClinic,
     renderWithProviders,
@@ -24,7 +17,6 @@ import {
 const mockGetDashboardSummary = vi.hoisted(() => vi.fn());
 const mockListHighRiskAppointments = vi.hoisted(() => vi.fn());
 const mockListTodayActivity = vi.hoisted(() => vi.fn());
-const mockGetOnboardingStatus = vi.hoisted(() => vi.fn());
 
 vi.mock('./dashboardApi', async (importOriginal) => {
     const actual = await importOriginal<typeof import('./dashboardApi')>();
@@ -34,15 +26,6 @@ vi.mock('./dashboardApi', async (importOriginal) => {
         getDashboardSummary: mockGetDashboardSummary,
         listHighRiskAppointments: mockListHighRiskAppointments,
         listTodayActivity: mockListTodayActivity,
-    };
-});
-
-vi.mock('../onboarding/onboardingApi', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('../onboarding/onboardingApi')>();
-
-    return {
-        ...actual,
-        getOnboardingStatus: mockGetOnboardingStatus,
     };
 });
 
@@ -67,73 +50,26 @@ describe('DashboardOverviewPage', () => {
         mockGetDashboardSummary.mockReset();
         mockListHighRiskAppointments.mockReset();
         mockListTodayActivity.mockReset();
-        mockGetOnboardingStatus.mockReset();
     });
 
-    it('loads dashboard data and Admin setup checklist progress', async () => {
+    it('loads dashboard data into operational command modules', async () => {
         mockDashboardSuccess();
-        mockGetOnboardingStatus.mockResolvedValue({
-            ...completedAdminOnboarding,
-            setup: setupPartiallyComplete,
-        });
 
         renderWithProviders(<DashboardOverviewPage />, {
             activeClinic: adminActiveClinic,
         });
 
         expect(screen.getByText('Loading dashboard summary...')).toBeInTheDocument();
-        expect(screen.getByText('Loading setup checklist...')).toBeInTheDocument();
 
         expect(await screen.findByText("Today's appointments")).toBeInTheDocument();
-        expect(screen.getByText('2 of 4 steps completed')).toBeInTheDocument();
+        expect(screen.getByText('Operational pulse')).toBeInTheDocument();
+        expect(screen.getByText('Today by status')).toBeInTheDocument();
         expect(screen.getAllByText('Riya Sharma').length).toBeGreaterThan(0);
         expect(screen.getByText('Appointment booked')).toBeInTheDocument();
+        expect(screen.queryByText('First-run setup')).not.toBeInTheDocument();
     });
 
-    it('shows an error when Admin setup status is missing from the backend response', async () => {
-        mockDashboardSuccess();
-        mockGetOnboardingStatus.mockResolvedValue({
-            ...completedAdminOnboarding,
-            setup: null,
-        });
-
-        renderWithProviders(<DashboardOverviewPage />, {
-            activeClinic: adminActiveClinic,
-        });
-
-        expect(await screen.findByText('Setup checklist could not be loaded')).toBeInTheDocument();
-        expect(screen.getByText('SETUP_STATUS_MISSING')).toBeInTheDocument();
-    });
-
-    it('shows setup-status API failures and retries through refresh', async () => {
-        const user = userEvent.setup();
-        mockDashboardSuccess();
-        mockGetOnboardingStatus
-            .mockRejectedValueOnce(
-                new ApiClientError({
-                    code: 'INVALID_AUTH_TOKEN',
-                    message: 'Authentication token is invalid or expired',
-                })
-            )
-            .mockResolvedValueOnce({
-                ...completedAdminOnboarding,
-                setup: setupAllComplete,
-            });
-
-        renderWithProviders(<DashboardOverviewPage />, {
-            activeClinic: adminActiveClinic,
-        });
-
-        expect(await screen.findByText('Setup checklist could not be loaded')).toBeInTheDocument();
-        expect(screen.getByText('INVALID_AUTH_TOKEN')).toBeInTheDocument();
-
-        await user.click(screen.getByRole('button', { name: /try again/i }));
-
-        expect(await screen.findByText('4 of 4 steps completed')).toBeInTheDocument();
-        expect(mockGetOnboardingStatus).toHaveBeenCalledTimes(2);
-    });
-
-    it('refreshes dashboard and updates checklist progress from changed backend data', async () => {
+    it('refreshes dashboard and updates operational modules from changed backend data', async () => {
         const user = userEvent.setup();
         mockGetDashboardSummary
             .mockResolvedValueOnce({
@@ -164,32 +100,22 @@ describe('DashboardOverviewPage', () => {
                 date: activeDashboardSummary.date,
                 activityItems: [activityItem],
             });
-        mockGetOnboardingStatus
-            .mockResolvedValueOnce({
-                ...completedAdminOnboarding,
-                setup: setupNoneComplete,
-            })
-            .mockResolvedValueOnce({
-                ...completedAdminOnboarding,
-                setup: setupPartiallyComplete,
-            });
 
         renderWithProviders(<DashboardOverviewPage />, {
             activeClinic: adminActiveClinic,
         });
 
-        expect(await screen.findByText('0 of 4 steps completed')).toBeInTheDocument();
-        expect(screen.getByText('No dashboard activity for today.')).toBeInTheDocument();
+        expect(await screen.findByText('No dashboard activity for today.')).toBeInTheDocument();
 
-        await user.click(screen.getByRole('button', { name: /refresh dashboard/i }));
+        await user.click(screen.getByRole('button', { name: /^refresh$/i }));
 
         await waitFor(() => {
-            expect(screen.getByText('2 of 4 steps completed')).toBeInTheDocument();
+            expect(screen.getAllByText('Riya Sharma').length).toBeGreaterThan(0);
         });
-        expect(screen.getAllByText('Riya Sharma').length).toBeGreaterThan(0);
+        expect(screen.getByText('Appointment booked')).toBeInTheDocument();
     });
 
-    it('does not request the Admin setup checklist for Staff users', async () => {
+    it('does not render first-run setup inside the Staff dashboard', async () => {
         mockDashboardSuccess();
 
         renderWithProviders(<DashboardOverviewPage />, {
@@ -197,9 +123,8 @@ describe('DashboardOverviewPage', () => {
         });
 
         expect(
-            await screen.findByRole('heading', { name: /dashboard overview/i })
+            await screen.findByRole('heading', { name: /today at pravaah/i })
         ).toBeInTheDocument();
         expect(screen.queryByText('First-run setup')).not.toBeInTheDocument();
-        expect(mockGetOnboardingStatus).not.toHaveBeenCalled();
     });
 });

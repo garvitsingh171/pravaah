@@ -1,6 +1,6 @@
 import { useAuth } from '@clerk/react';
 import { Link } from 'react-router-dom';
-import { PravaahLogo } from '../components/brand';
+import { PravaahLogoLink } from '../components/brand';
 import { defaultDashboardPath } from './dashboardRoutes';
 
 function NotFoundPage() {
@@ -12,7 +12,7 @@ function NotFoundPage() {
         <main className="flex min-h-screen items-center bg-app-background px-4 py-10 text-app-text">
             <section className="mx-auto grid w-full max-w-5xl gap-8 rounded-lg border border-app-border bg-white p-6 shadow-sm md:grid-cols-[0.85fr_1.15fr] md:p-8">
                 <div>
-                    <PravaahLogo layout="horizontal" surface="light" size="md" />
+                    <PravaahLogoLink layout="horizontal" surface="light" size="md" />
                     <p className="mt-8 text-sm font-semibold uppercase tracking-wide text-brand-foreground">
                         Not found
                     </p>

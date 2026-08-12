@@ -2,7 +2,7 @@ import { screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { AppRoutes } from './App';
 import { renderWithProviders } from './test/renderWithProviders';
-import { setClerkSignedOut } from './test/mocks/clerk';
+import { setClerkSignedIn, setClerkSignedOut } from './test/mocks/clerk';
 
 const mockGetOnboardingStatus = vi.hoisted(() => vi.fn());
 
@@ -37,5 +37,41 @@ describe('App routes', () => {
             '/sign-up'
         );
         expect(mockGetOnboardingStatus).not.toHaveBeenCalled();
+    });
+
+    it('routes the public logo home for signed-out visitors', async () => {
+        setClerkSignedOut();
+
+        renderWithProviders(<AppRoutes />, {
+            route: '/',
+        });
+
+        expect(
+            await screen.findByRole('heading', {
+                name: /pravaah turns a clinic day into one controlled patient-flow workspace/i,
+            })
+        ).toBeInTheDocument();
+        expect(screen.getAllByRole('link', { name: /pravaah home/i })[0]).toHaveAttribute(
+            'href',
+            '/'
+        );
+    });
+
+    it('routes the public logo to the dashboard for signed-in users', async () => {
+        setClerkSignedIn();
+
+        renderWithProviders(<AppRoutes />, {
+            route: '/',
+        });
+
+        expect(
+            await screen.findByRole('heading', {
+                name: /pravaah turns a clinic day into one controlled patient-flow workspace/i,
+            })
+        ).toBeInTheDocument();
+        expect(screen.getAllByRole('link', { name: /pravaah home/i })[0]).toHaveAttribute(
+            'href',
+            '/dashboard'
+        );
     });
 });

@@ -8,6 +8,9 @@ type ClerkAuthState = {
 };
 
 const defaultToken = 'test-clerk-token';
+const mockSignOut = vi.fn(async () => {
+    setClerkSignedOut();
+});
 
 let authState: ClerkAuthState = {
     isLoaded: true,
@@ -40,9 +43,14 @@ export const setClerkSignedIn = (token = defaultToken) => {
 };
 
 export const getClerkAuthState = () => authState;
+export const getClerkClient = () => ({
+    signOut: mockSignOut,
+});
+export const getMockClerkSignOut = () => mockSignOut;
 
 export const resetClerkMock = () => {
     setClerkSignedOut();
+    mockSignOut.mockClear();
 };
 
 export function MockClerkProvider({ children }: PropsWithChildren) {

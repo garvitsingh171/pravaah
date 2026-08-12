@@ -1279,9 +1279,8 @@ function AppointmentsPage() {
     return (
         <section className="space-y-6">
             <PageHeader
-                eyebrow="Appointments"
                 title="Appointments"
-                description="View clinic appointments, filter by date, doctor, patient, or status, and update appointment status during daily operations."
+                description="Book visits and move the schedule through arrival, queue, and closure."
                 actions={
                     <a
                         href="#book-appointment"
@@ -1416,7 +1415,7 @@ function AppointmentsPage() {
                     message={
                         hasAppointmentFilters
                             ? 'Try a different date, doctor, patient, or status to find matching appointments.'
-                            : 'Book the first appointment to create the linked appointment, queue entry, and deterministic risk assistance.'
+                            : 'Book the first appointment to start the schedule and queue.'
                     }
                     action={
                         <a

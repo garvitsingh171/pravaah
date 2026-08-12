@@ -1,6 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { PravaahLogo } from '../brand';
+import { PravaahLogoLink } from '../brand';
 
 type PublicErrorBoundaryProps = {
     children: ReactNode;
@@ -46,7 +46,7 @@ class PublicErrorBoundaryInner extends Component<
             <main className="flex min-h-screen items-center bg-app-background px-4 py-10 text-app-text">
                 <section className="mx-auto grid w-full max-w-5xl gap-8 rounded-lg border border-app-border bg-white p-6 shadow-sm md:grid-cols-[0.85fr_1.15fr] md:p-8">
                     <div>
-                        <PravaahLogo layout="horizontal" surface="light" size="md" />
+                        <PravaahLogoLink layout="horizontal" surface="light" size="md" />
                         <p className="mt-8 text-sm font-semibold uppercase text-brand-foreground">
                             Page recovery
                         </p>

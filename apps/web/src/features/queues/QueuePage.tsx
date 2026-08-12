@@ -256,6 +256,17 @@ const getQueueEntryIds = (queueEntries: QueueListItem[]): string[] => {
     return queueEntries.map((queueEntry) => queueEntry.id);
 };
 
+const getInitials = (name: string): string => {
+    const initials = name
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase())
+        .join('');
+
+    return initials || 'P';
+};
+
 const moveQueueEntryId = (queueEntryIds: string[], queueEntryId: string, offset: -1 | 1) => {
     const currentIndex = queueEntryIds.indexOf(queueEntryId);
     const nextIndex = currentIndex + offset;
@@ -346,9 +357,432 @@ function QueueLifecyclePanel({ selectedStatus }: { selectedStatus: QueueStatusTy
         <LifecycleRail
             steps={queueLifecycleSteps}
             currentStepId={currentStepId}
-            terminalLabel="Manual reorder applies only to eligible active entries. Completed, cancelled, and no-show entries remain visible but are not reorderable."
+            terminalLabel="Final entries are locked."
             ariaLabel="Queue lifecycle model"
         />
+    );
+}
+
+type QueueDoctorLane = {
+    doctor: QueueListItem['doctor'];
+    entries: QueueListItem[];
+};
+
+const getQueueDoctorLanes = (queueEntries: QueueListItem[]): QueueDoctorLane[] => {
+    const lanesByDoctor = new Map<string, QueueDoctorLane>();
+
+    queueEntries.forEach((queueEntry) => {
+        const existingLane = lanesByDoctor.get(queueEntry.doctor.id);
+
+        if (existingLane) {
+            existingLane.entries.push(queueEntry);
+            return;
+        }
+
+        lanesByDoctor.set(queueEntry.doctor.id, {
+            doctor: queueEntry.doctor,
+            entries: [queueEntry],
+        });
+    });
+
+    return [...lanesByDoctor.values()]
+        .map((lane) => ({
+            ...lane,
+            entries: [...lane.entries].sort(
+                (firstEntry, secondEntry) =>
+                    firstEntry.position - secondEntry.position ||
+                    firstEntry.appointment.scheduledAt.localeCompare(
+                        secondEntry.appointment.scheduledAt
+                    )
+            ),
+        }))
+        .sort((firstLane, secondLane) =>
+            firstLane.doctor.fullName.localeCompare(secondLane.doctor.fullName)
+        );
+};
+
+function QueueMoveButton({
+    direction,
+    disabled,
+    isBusy,
+    label,
+    onClick,
+}: {
+    direction: 'up' | 'down';
+    disabled: boolean;
+    isBusy: boolean;
+    label: string;
+    onClick: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-white text-sm font-bold text-slate-700 shadow-sm ring-1 ring-slate-200 transition duration-[var(--motion-fast)] ease-[var(--motion-ease)] hover:bg-brand-subtle hover:text-brand-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
+            aria-label={label}
+            title={label}
+            disabled={disabled}
+            onClick={onClick}
+        >
+            {isBusy ? '...' : direction === 'up' ? '↑' : '↓'}
+        </button>
+    );
+}
+
+function QueueStatusActions({
+    isReordering,
+    isUpdating,
+    onStatusUpdate,
+    queueEntry,
+    statusActions,
+}: {
+    isReordering: boolean;
+    isUpdating: boolean;
+    onStatusUpdate: (queueEntry: QueueListItem, nextStatus: QueueStatusType) => void;
+    queueEntry: QueueListItem;
+    statusActions: QueueStatusAction[];
+}) {
+    const primaryAction = statusActions[0];
+
+    if (statusActions.length === 0) {
+        return <span className="text-sm text-slate-500">Final status</span>;
+    }
+
+    return (
+        <div className="grid gap-2 sm:grid-cols-[auto_minmax(8rem,1fr)] sm:items-center">
+            {primaryAction ? (
+                <Button
+                    size="sm"
+                    onClick={() => onStatusUpdate(queueEntry, primaryAction.status)}
+                    disabled={isUpdating || isReordering}
+                    isLoading={isUpdating}
+                    loadingText="Updating..."
+                >
+                    {primaryAction.label}
+                </Button>
+            ) : null}
+            <select
+                className={`${fieldControlClassName} min-h-8 text-xs`}
+                value=""
+                onChange={(event) => {
+                    const nextStatus = event.target.value as QueueStatusType;
+
+                    if (nextStatus) {
+                        onStatusUpdate(queueEntry, nextStatus);
+                    }
+                }}
+                disabled={isUpdating || isReordering}
+                aria-label={`Update queue status for ${queueEntry.patient.fullName}`}
+            >
+                <option value="">{isUpdating ? 'Updating...' : 'More actions'}</option>
+                {statusActions.map((action) => (
+                    <option key={action.status} value={action.status}>
+                        {action.label}
+                    </option>
+                ))}
+            </select>
+        </div>
+    );
+}
+
+function QueueEntryCard({
+    activeQueueIndexesByDoctor,
+    allActiveQueueEntries,
+    handleQueueMove,
+    handleStatusUpdate,
+    isReordering,
+    queueEntry,
+    reorderingQueueEntryId,
+    updatingQueueEntryId,
+}: {
+    activeQueueIndexesByDoctor: Map<string, Map<string, number>>;
+    allActiveQueueEntries: QueueListItem[];
+    handleQueueMove: (queueEntry: QueueListItem, offset: -1 | 1) => void;
+    handleStatusUpdate: (queueEntry: QueueListItem, nextStatus: QueueStatusType) => void;
+    isReordering: boolean;
+    queueEntry: QueueListItem;
+    reorderingQueueEntryId: string | null;
+    updatingQueueEntryId: string | null;
+}) {
+    const statusActions = getQueueStatusActions(queueEntry.status);
+    const isUpdating = updatingQueueEntryId === queueEntry.id;
+    const isMoving = reorderingQueueEntryId === queueEntry.id;
+    const isWaiting = queueEntry.status === QueueStatus.WAITING;
+    const activeQueueIndex =
+        activeQueueIndexesByDoctor.get(queueEntry.doctor.id)?.get(queueEntry.id) ?? -1;
+    const doctorActiveQueueEntryIds = getQueueEntryIds(
+        getQueueEntriesForDoctorScope(allActiveQueueEntries, queueEntry.doctor.id)
+    );
+    const hasMoreThanOneActiveEntry = doctorActiveQueueEntryIds.length > 1;
+    const canMoveUp = activeQueueIndex > 0 && hasMoreThanOneActiveEntry;
+    const canMoveDown =
+        activeQueueIndex >= 0 &&
+        activeQueueIndex < doctorActiveQueueEntryIds.length - 1 &&
+        hasMoreThanOneActiveEntry;
+    const queueActionBusy = isReordering || Boolean(updatingQueueEntryId);
+
+    return (
+        <li
+            className={`queue-card-confirmed rounded-lg bg-white p-4 shadow-[var(--shadow-soft)] ring-1 ring-slate-200/80 transition duration-[var(--motion-fast)] ease-[var(--motion-ease)] hover:-translate-y-0.5 hover:shadow-[var(--shadow-raised)] ${
+                isWaiting ? 'bg-[var(--color-status-warning-bg)]' : ''
+            }`}
+            data-testid="active-queue-card"
+        >
+            <div className="grid gap-4 lg:grid-cols-[auto_minmax(0,1.1fr)_minmax(0,1fr)]">
+                <div className="flex gap-3 lg:flex-col">
+                    <div>
+                        <p className="inline-flex min-w-20 justify-center rounded-md bg-slate-950 px-3 py-2 text-xl font-bold leading-none text-white">
+                            #{String(queueEntry.position).padStart(2, '0')}
+                        </p>
+                        <p className="mt-2 text-xs font-semibold text-slate-500">
+                            Position {queueEntry.position}
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-1 lg:justify-center">
+                        <QueueMoveButton
+                            direction="up"
+                            disabled={!canMoveUp || queueActionBusy}
+                            isBusy={isMoving && canMoveUp}
+                            label={`Move ${queueEntry.patient.fullName} up`}
+                            onClick={() => handleQueueMove(queueEntry, -1)}
+                        />
+                        <QueueMoveButton
+                            direction="down"
+                            disabled={!canMoveDown || queueActionBusy}
+                            isBusy={isMoving && canMoveDown}
+                            label={`Move ${queueEntry.patient.fullName} down`}
+                            onClick={() => handleQueueMove(queueEntry, 1)}
+                        />
+                    </div>
+                    {!hasMoreThanOneActiveEntry ? (
+                        <p className="text-xs font-medium text-slate-500">
+                            Only active queue entry.
+                        </p>
+                    ) : null}
+                </div>
+
+                <div className="min-w-0">
+                    <div className="flex items-start gap-3">
+                        <span
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-brand-subtle text-sm font-bold text-brand-foreground ring-1 ring-brand-soft"
+                            aria-hidden="true"
+                        >
+                            {getInitials(queueEntry.patient.fullName)}
+                        </span>
+                        <div className="min-w-0">
+                            <h3 className="truncate text-base font-bold text-slate-950">
+                                {queueEntry.patient.fullName}
+                            </h3>
+                            <p className="mt-1 text-sm text-slate-600">
+                                {getOptionalText(queueEntry.patient.phone)}
+                            </p>
+                            {queueEntry.patient.age ? (
+                                <p className="mt-1 text-xs text-slate-500">
+                                    Age {queueEntry.patient.age}
+                                </p>
+                            ) : null}
+                        </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                        <div className="rounded-md bg-slate-50 p-3">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Appointment
+                            </p>
+                            <p className="mt-1 font-semibold text-slate-900">
+                                {formatDateTime(queueEntry.appointment.scheduledAt)}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">
+                                {queueEntry.appointment.durationMinutes} min
+                            </p>
+                        </div>
+                        <div className="rounded-md bg-slate-50 p-3">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Timeline
+                            </p>
+                            <div className="mt-1">
+                                <QueueTimeline queueEntry={queueEntry} />
+                            </div>
+                        </div>
+                    </div>
+                    {queueEntry.appointment.reason ? (
+                        <p className="mt-3 text-xs leading-5 text-slate-500">
+                            {queueEntry.appointment.reason}
+                        </p>
+                    ) : null}
+                </div>
+
+                <div className="grid gap-4 content-start">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <StatusBadge kind="queue" status={queueEntry.status} />
+                        {isWaiting ? (
+                            <span className="text-xs font-semibold text-[var(--color-status-warning-text)]">
+                                Waiting in queue
+                            </span>
+                        ) : null}
+                    </div>
+
+                    <div className="rounded-md bg-slate-50 p-3">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Risk support
+                        </p>
+                        <div className="mt-2">
+                            <RiskBadge queueEntry={queueEntry} />
+                        </div>
+                    </div>
+
+                    <QueueStatusActions
+                        isReordering={isReordering}
+                        isUpdating={isUpdating}
+                        onStatusUpdate={handleStatusUpdate}
+                        queueEntry={queueEntry}
+                        statusActions={statusActions}
+                    />
+                </div>
+            </div>
+        </li>
+    );
+}
+
+function ActiveQueueBoard({
+    activeQueueEntries,
+    activeQueueIndexesByDoctor,
+    allActiveQueueEntries,
+    handleQueueMove,
+    handleStatusUpdate,
+    isReordering,
+    reorderingQueueEntryId,
+    todayDate,
+    updatingQueueEntryId,
+}: {
+    activeQueueEntries: QueueListItem[];
+    activeQueueIndexesByDoctor: Map<string, Map<string, number>>;
+    allActiveQueueEntries: QueueListItem[];
+    handleQueueMove: (queueEntry: QueueListItem, offset: -1 | 1) => void;
+    handleStatusUpdate: (queueEntry: QueueListItem, nextStatus: QueueStatusType) => void;
+    isReordering: boolean;
+    reorderingQueueEntryId: string | null;
+    todayDate: string;
+    updatingQueueEntryId: string | null;
+}) {
+    const lanes = getQueueDoctorLanes(activeQueueEntries);
+
+    return (
+        <section className="space-y-4">
+            <div className="rounded-lg bg-slate-950 px-4 py-4 text-white shadow-[var(--shadow-raised)]">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-brand">
+                            Active queue board
+                        </p>
+                        <h2 className="mt-1 text-lg font-bold">Doctor lanes</h2>
+                    </div>
+                    <p className="max-w-2xl text-sm leading-6 text-slate-300">
+                        Active entries for {todayDate}, grouped by doctor.
+                    </p>
+                </div>
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-2">
+                {lanes.map((lane) => (
+                    <article
+                        key={lane.doctor.id}
+                        className="rounded-lg bg-[var(--color-surface-soft)] p-3 shadow-[var(--shadow-soft)] ring-1 ring-slate-200/70"
+                    >
+                        <header className="mb-3 flex items-center justify-between gap-3 px-1">
+                            <div className="flex min-w-0 items-center gap-3">
+                                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white text-sm font-bold text-slate-900 ring-1 ring-slate-200">
+                                    {getInitials(lane.doctor.fullName)}
+                                </span>
+                                <div className="min-w-0">
+                                    <h3 className="truncate text-base font-bold text-slate-950">
+                                        {lane.doctor.fullName}
+                                    </h3>
+                                    <p className="truncate text-xs text-slate-500">
+                                        {getOptionalText(lane.doctor.specialization)}
+                                    </p>
+                                </div>
+                            </div>
+                            <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-slate-700 ring-1 ring-slate-200">
+                                {lane.entries.length} active
+                            </span>
+                        </header>
+                        <ol
+                            className="grid gap-3"
+                            aria-label={`Active queue for ${lane.doctor.fullName}`}
+                        >
+                            {lane.entries.map((queueEntry) => (
+                                <QueueEntryCard
+                                    key={queueEntry.id}
+                                    activeQueueIndexesByDoctor={activeQueueIndexesByDoctor}
+                                    allActiveQueueEntries={allActiveQueueEntries}
+                                    handleQueueMove={handleQueueMove}
+                                    handleStatusUpdate={handleStatusUpdate}
+                                    isReordering={isReordering}
+                                    queueEntry={queueEntry}
+                                    reorderingQueueEntryId={reorderingQueueEntryId}
+                                    updatingQueueEntryId={updatingQueueEntryId}
+                                />
+                            ))}
+                        </ol>
+                    </article>
+                ))}
+            </div>
+        </section>
+    );
+}
+
+function FinalQueueEntriesSection({ finalQueueEntries }: { finalQueueEntries: QueueListItem[] }) {
+    return (
+        <details className="rounded-lg bg-white shadow-[var(--shadow-soft)] ring-1 ring-slate-200">
+            <summary className="cursor-pointer list-none px-4 py-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action [&::-webkit-details-marker]:hidden">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h2 className="text-base font-semibold text-slate-900">
+                            Final queue entries
+                        </h2>
+                        <p className="mt-1 text-sm text-slate-500">
+                            Completed, cancelled, and no-show entries are retained for review.
+                        </p>
+                    </div>
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                        {finalQueueEntries.length} final
+                    </span>
+                </div>
+            </summary>
+            <div className="divide-y divide-slate-200 border-t border-slate-200">
+                {finalQueueEntries.map((queueEntry) => (
+                    <article
+                        key={queueEntry.id}
+                        className="grid gap-4 px-4 py-4 text-sm md:grid-cols-[1fr_1fr_1fr_auto]"
+                    >
+                        <div>
+                            <p className="font-semibold text-slate-900">
+                                {queueEntry.patient.fullName}
+                            </p>
+                            <p className="mt-1 text-slate-500">
+                                Historical position {queueEntry.position}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="font-semibold text-slate-900">
+                                {queueEntry.doctor.fullName}
+                            </p>
+                            <p className="mt-1 text-slate-500">
+                                {formatDateTime(queueEntry.appointment.scheduledAt)}
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            <StatusBadge kind="queue" status={queueEntry.status} />
+                            <p className="text-slate-500">
+                                Appointment:{' '}
+                                {getAppointmentStatusLabel(queueEntry.appointment.status)}
+                            </p>
+                        </div>
+                        <p className="font-medium text-slate-500">Reorder unavailable</p>
+                    </article>
+                ))}
+            </div>
+        </details>
     );
 }
 
@@ -628,9 +1062,8 @@ function QueuePage() {
     return (
         <section className="space-y-6">
             <PageHeader
-                eyebrow="Today queue"
-                title="Live queue"
-                description="View today's appointment queue, check each patient's position, and update queue status as staff manage the clinic flow."
+                title="Queue"
+                description="Operate today's doctor-scoped waiting order."
                 actions={
                     <Button
                         variant="outline"
@@ -638,7 +1071,7 @@ function QueuePage() {
                         isLoading={queueListState.status === 'loading'}
                         loadingText="Refreshing..."
                     >
-                        Refresh queue
+                        Refresh
                     </Button>
                 }
             />
@@ -691,7 +1124,7 @@ function QueuePage() {
                                 : 'All doctors'}
                         </p>
                         <p className="mt-1 text-xs text-slate-500">
-                            Queue order is manual and doctor-scoped.
+                            Manual doctor-scoped order.
                         </p>
                     </div>
                 </div>
@@ -831,276 +1264,23 @@ function QueuePage() {
             ) : null}
 
             {hasFilteredQueueEntries && activeQueueEntries.length > 0 ? (
-                <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-                    <div className="border-b border-slate-200 px-4 py-4">
-                        <h2 className="text-base font-semibold text-slate-900">Active queue</h2>
-                        <p className="mt-1 text-sm text-slate-500">
-                            Active entries are shown in their server order. Move controls only
-                            affect the selected doctor&apos;s active queue for {todayDate}.
-                        </p>
-                    </div>
-                    <div
-                        className="overflow-x-auto"
-                        tabIndex={0}
-                        aria-label="Active queue table, horizontally scrollable on small screens"
-                    >
-                        <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-                            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                                <tr>
-                                    <th className="px-4 py-3 font-semibold">Position</th>
-                                    <th className="px-4 py-3 font-semibold">Patient</th>
-                                    <th className="px-4 py-3 font-semibold">Doctor</th>
-                                    <th className="px-4 py-3 font-semibold">Appointment</th>
-                                    <th className="px-4 py-3 font-semibold">Status</th>
-                                    <th className="px-4 py-3 font-semibold">Timeline</th>
-                                    <th className="px-4 py-3 font-semibold">Risk</th>
-                                    <th className="px-4 py-3 font-semibold">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-200">
-                                {activeQueueEntries.map((queueEntry) => {
-                                    const statusActions = getQueueStatusActions(queueEntry.status);
-                                    const isUpdating = updatingQueueEntryId === queueEntry.id;
-                                    const isMoving = reorderingQueueEntryId === queueEntry.id;
-                                    const isWaiting = queueEntry.status === QueueStatus.WAITING;
-                                    const isFinalStatus = isFinalQueueStatus(queueEntry.status);
-                                    const activeQueueIndex =
-                                        activeQueueIndexesByDoctor
-                                            .get(queueEntry.doctor.id)
-                                            ?.get(queueEntry.id) ?? -1;
-                                    const doctorActiveQueueEntryIds = getQueueEntryIds(
-                                        getQueueEntriesForDoctorScope(
-                                            allActiveQueueEntries,
-                                            queueEntry.doctor.id
-                                        )
-                                    );
-                                    const hasMoreThanOneActiveEntry =
-                                        doctorActiveQueueEntryIds.length > 1;
-                                    const canShowMoveUp =
-                                        activeQueueIndex > 0 && hasMoreThanOneActiveEntry;
-                                    const canShowMoveDown =
-                                        activeQueueIndex >= 0 &&
-                                        activeQueueIndex < doctorActiveQueueEntryIds.length - 1 &&
-                                        hasMoreThanOneActiveEntry;
-                                    const queueActionBusy =
-                                        isReordering || Boolean(updatingQueueEntryId);
-
-                                    return (
-                                        <tr
-                                            key={queueEntry.id}
-                                            className={`align-top transition hover:bg-slate-50/70 ${
-                                                isWaiting
-                                                    ? 'bg-[var(--color-status-warning-bg)]'
-                                                    : ''
-                                            }`}
-                                        >
-                                            <td className="min-w-28 px-4 py-5">
-                                                <p className="inline-flex min-w-16 justify-center rounded-md bg-slate-950 px-3 py-2 text-lg font-bold leading-none text-white">
-                                                    #{String(queueEntry.position).padStart(2, '0')}
-                                                </p>
-                                                <p className="mt-2 text-xs font-medium text-slate-500">
-                                                    Position {queueEntry.position}
-                                                </p>
-                                            </td>
-                                            <td className="min-w-48 px-4 py-5">
-                                                <p className="font-semibold text-slate-900">
-                                                    {queueEntry.patient.fullName}
-                                                </p>
-                                                <p className="mt-1 text-slate-600">
-                                                    {getOptionalText(queueEntry.patient.phone)}
-                                                </p>
-                                                {queueEntry.patient.age ? (
-                                                    <p className="mt-1 text-xs text-slate-500">
-                                                        Age {queueEntry.patient.age}
-                                                    </p>
-                                                ) : null}
-                                            </td>
-                                            <td className="min-w-44 px-4 py-5">
-                                                <p className="font-semibold text-slate-900">
-                                                    {queueEntry.doctor.fullName}
-                                                </p>
-                                                <p className="mt-1 text-slate-600">
-                                                    {getOptionalText(
-                                                        queueEntry.doctor.specialization
-                                                    )}
-                                                </p>
-                                            </td>
-                                            <td className="min-w-56 px-4 py-5 text-slate-700">
-                                                <p className="font-semibold text-slate-900">
-                                                    {formatDateTime(
-                                                        queueEntry.appointment.scheduledAt
-                                                    )}
-                                                </p>
-                                                <p className="mt-1 text-xs text-slate-500">
-                                                    {queueEntry.appointment.durationMinutes} min
-                                                </p>
-                                                {queueEntry.appointment.reason ? (
-                                                    <p className="mt-2 max-w-xs text-xs text-slate-500">
-                                                        {queueEntry.appointment.reason}
-                                                    </p>
-                                                ) : null}
-                                            </td>
-                                            <td className="min-w-32 px-4 py-5">
-                                                <StatusBadge
-                                                    kind="queue"
-                                                    status={queueEntry.status}
-                                                />
-                                                {isWaiting ? (
-                                                    <p className="mt-2 text-xs font-semibold text-[var(--color-status-warning-text)]">
-                                                        Waiting in queue
-                                                    </p>
-                                                ) : null}
-                                            </td>
-                                            <td className="min-w-32 px-4 py-5">
-                                                <QueueTimeline queueEntry={queueEntry} />
-                                            </td>
-                                            <td className="min-w-48 px-4 py-5">
-                                                <RiskBadge queueEntry={queueEntry} />
-                                            </td>
-                                            <td className="min-w-44 px-4 py-5">
-                                                {isFinalStatus ? (
-                                                    <p className="mb-3 text-sm text-slate-500">
-                                                        Queue order locked for final status.
-                                                    </p>
-                                                ) : (
-                                                    <div className="mb-3 flex flex-col gap-2">
-                                                        {canShowMoveUp ? (
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={() =>
-                                                                    void handleQueueMove(
-                                                                        queueEntry,
-                                                                        -1
-                                                                    )
-                                                                }
-                                                                disabled={queueActionBusy}
-                                                                aria-label={`Move ${queueEntry.patient.fullName} up`}
-                                                            >
-                                                                {isMoving
-                                                                    ? 'Moving...'
-                                                                    : 'Move earlier'}
-                                                            </Button>
-                                                        ) : null}
-                                                        {canShowMoveDown ? (
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={() =>
-                                                                    void handleQueueMove(
-                                                                        queueEntry,
-                                                                        1
-                                                                    )
-                                                                }
-                                                                disabled={queueActionBusy}
-                                                                aria-label={`Move ${queueEntry.patient.fullName} down`}
-                                                            >
-                                                                {isMoving
-                                                                    ? 'Moving...'
-                                                                    : 'Move later'}
-                                                            </Button>
-                                                        ) : null}
-                                                        {!canShowMoveUp && !canShowMoveDown ? (
-                                                            <p className="text-sm text-slate-500">
-                                                                Only active queue entry.
-                                                            </p>
-                                                        ) : null}
-                                                    </div>
-                                                )}
-                                                {statusActions.length > 0 ? (
-                                                    <select
-                                                        className={`${fieldControlClassName} w-40`}
-                                                        value=""
-                                                        onChange={(event) => {
-                                                            const nextStatus = event.target
-                                                                .value as QueueStatusType;
-
-                                                            if (nextStatus) {
-                                                                void handleStatusUpdate(
-                                                                    queueEntry,
-                                                                    nextStatus
-                                                                );
-                                                            }
-                                                        }}
-                                                        disabled={isUpdating || isReordering}
-                                                        aria-label={`Update queue status for ${queueEntry.patient.fullName}`}
-                                                    >
-                                                        <option value="">
-                                                            {isUpdating
-                                                                ? 'Updating...'
-                                                                : 'Update status'}
-                                                        </option>
-                                                        {statusActions.map((action) => (
-                                                            <option
-                                                                key={action.status}
-                                                                value={action.status}
-                                                            >
-                                                                {action.label}
-                                                            </option>
-                                                        ))}
-                                                    </select>
-                                                ) : (
-                                                    <span className="text-sm text-slate-500">
-                                                        Final status
-                                                    </span>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                <ActiveQueueBoard
+                    activeQueueEntries={activeQueueEntries}
+                    activeQueueIndexesByDoctor={activeQueueIndexesByDoctor}
+                    allActiveQueueEntries={allActiveQueueEntries}
+                    handleQueueMove={(queueEntry, offset) => void handleQueueMove(queueEntry, offset)}
+                    handleStatusUpdate={(queueEntry, nextStatus) =>
+                        void handleStatusUpdate(queueEntry, nextStatus)
+                    }
+                    isReordering={isReordering}
+                    reorderingQueueEntryId={reorderingQueueEntryId}
+                    todayDate={todayDate}
+                    updatingQueueEntryId={updatingQueueEntryId}
+                />
             ) : null}
 
             {hasFilteredQueueEntries && finalQueueEntries.length > 0 ? (
-                <div className="rounded-lg border border-slate-200 bg-white">
-                    <div className="border-b border-slate-200 px-4 py-4">
-                        <h2 className="text-base font-semibold text-slate-900">
-                            Final queue entries
-                        </h2>
-                        <p className="mt-1 text-sm text-slate-500">
-                            Completed, cancelled, and no-show entries remain visible for review.
-                            They are not included in active position changes.
-                        </p>
-                    </div>
-                    <div className="divide-y divide-slate-200">
-                        {finalQueueEntries.map((queueEntry) => (
-                            <article
-                                key={queueEntry.id}
-                                className="grid gap-4 px-4 py-4 md:grid-cols-[1fr_1fr_1fr_auto]"
-                            >
-                                <div>
-                                    <p className="font-semibold text-slate-900">
-                                        {queueEntry.patient.fullName}
-                                    </p>
-                                    <p className="mt-1 text-sm text-slate-500">
-                                        Historical position {queueEntry.position}
-                                    </p>
-                                </div>
-                                <div>
-                                    <p className="text-sm font-semibold text-slate-900">
-                                        {queueEntry.doctor.fullName}
-                                    </p>
-                                    <p className="mt-1 text-sm text-slate-500">
-                                        {formatDateTime(queueEntry.appointment.scheduledAt)}
-                                    </p>
-                                </div>
-                                <div className="space-y-2">
-                                    <StatusBadge kind="queue" status={queueEntry.status} />
-                                    <p className="text-sm text-slate-500">
-                                        Appointment:{' '}
-                                        {getAppointmentStatusLabel(queueEntry.appointment.status)}
-                                    </p>
-                                </div>
-                                <p className="text-sm font-medium text-slate-500">
-                                    Reorder unavailable
-                                </p>
-                            </article>
-                        ))}
-                    </div>
-                </div>
+                <FinalQueueEntriesSection finalQueueEntries={finalQueueEntries} />
             ) : null}
         </section>
     );
