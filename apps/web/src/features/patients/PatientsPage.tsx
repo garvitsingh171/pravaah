@@ -925,8 +925,6 @@ function PatientsPage() {
     return (
         <section className="space-y-6">
             <PageHeader
-                title="Patients"
-                description="Identity and visit records for appointments and risk context."
                 actions={
                     <Link
                         to="/patients/new"

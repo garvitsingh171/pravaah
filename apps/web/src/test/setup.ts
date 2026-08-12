@@ -26,4 +26,5 @@ afterEach(() => {
     resetClerkMock();
     setApiClientAuthTokenProvider(undefined);
     window.localStorage.clear();
+    window.sessionStorage.clear();
 });

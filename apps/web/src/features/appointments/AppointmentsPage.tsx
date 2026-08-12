@@ -1279,8 +1279,6 @@ function AppointmentsPage() {
     return (
         <section className="space-y-6">
             <PageHeader
-                title="Appointments"
-                description="Book visits and move the schedule through arrival, queue, and closure."
                 actions={
                     <a
                         href="#book-appointment"

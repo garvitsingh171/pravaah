@@ -662,8 +662,6 @@ function ClinicSettingsPage() {
     return (
         <section className="space-y-6">
             <PageHeader
-                title="Clinic settings"
-                description={`${state.clinic.name} / ${state.clinic.slug}`}
                 actions={
                     <Button
                         variant="outline"

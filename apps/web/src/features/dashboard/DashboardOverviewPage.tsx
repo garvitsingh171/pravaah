@@ -110,19 +110,6 @@ const getDashboardErrorState = (
     };
 };
 
-const formatDate = (value: string): string => {
-    const [year, month, day] = value.split('-').map(Number);
-    const date = year && month && day ? new Date(year, month - 1, day) : new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return value;
-    }
-
-    return new Intl.DateTimeFormat('en-IN', {
-        dateStyle: 'medium',
-    }).format(date);
-};
-
 const formatTime = (value: string): string => {
     const date = new Date(value);
 
@@ -666,12 +653,6 @@ function DashboardOverviewPage() {
     return (
         <section className="space-y-6">
             <PageHeader
-                title="Today at Pravaah"
-                description={
-                    dashboardData
-                        ? `${formatDate(dashboardData.summary.date)} clinic flow, queue pressure, and risk review.`
-                        : "Today's clinic flow, queue pressure, and risk review."
-                }
                 actions={
                     <Button
                         variant="outline"

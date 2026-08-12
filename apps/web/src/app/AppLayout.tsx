@@ -4,7 +4,11 @@ import Sidebar, { MobileWorkspaceNavigation } from '../components/layout/Sidebar
 import Topbar from '../components/layout/Topbar';
 import { LoadingState } from '../components/feedback';
 import { useActiveClinic } from './activeClinicContext';
-import { getNavigationRoutesForRole } from '../routes/dashboardRoutes';
+import {
+    appRoutePaths,
+    getNavigationRoutesForRole,
+    getRouteForPath,
+} from '../routes/dashboardRoutes';
 import { getOnboardingStatus, type SetupStatusSummary } from '../features/onboarding/onboardingApi';
 import FloatingSetupDock, {
     type FloatingSetupDockState,
@@ -89,9 +93,18 @@ const getSetupDockErrorState = (
     };
 };
 
+const formatTopbarDate = (date: Date): string => {
+    return new Intl.DateTimeFormat('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+    }).format(date);
+};
+
 function AppLayout({ initialSetup }: AppLayoutProps) {
     const location = useLocation();
     const activeClinic = useActiveClinic();
+    const currentRoute = getRouteForPath(location.pathname);
     const currentUserRole = activeClinic.currentUser?.role ?? null;
     const isAdmin = currentUserRole === UserRole.ADMIN;
     const clinicName = activeClinic.clinic?.name ?? 'Active clinic';
@@ -106,6 +119,10 @@ function AppLayout({ initialSetup }: AppLayoutProps) {
         currentUserRole === 'ADMIN' ? 'Admin' : currentUserRole === 'STAFF' ? 'Staff' : 'Clinic';
     const userName = activeClinic.currentUser?.fullName?.trim() || userRoleLabel;
     const navigationItems = getNavigationRoutesForRole(currentUserRole);
+    const topbarSupportingText =
+        currentRoute.path === appRoutePaths.dashboard
+            ? `${formatTopbarDate(new Date())} · Clinic flow`
+            : undefined;
     const lastSetupPathRef = useRef(location.pathname);
     const [setupDockState, setSetupDockState] = useState<FloatingSetupDockState>(() =>
         getInitialSetupDockState(isAdmin, initialSetup)
@@ -197,6 +214,8 @@ function AppLayout({ initialSetup }: AppLayoutProps) {
 
                 <div className="flex min-h-screen min-w-0 flex-1 flex-col">
                     <Topbar
+                        title={currentRoute.title}
+                        supportingText={topbarSupportingText}
                         clinicName={clinicName}
                         userName={userName}
                         userEmail={activeClinic.currentUser?.email}
@@ -205,7 +224,7 @@ function AppLayout({ initialSetup }: AppLayoutProps) {
 
                     <main
                         id="main-content"
-                        className="min-w-0 flex-1 px-3 py-4 sm:px-4 md:px-6 md:py-6"
+                        className="min-w-0 flex-1 px-3 py-4 sm:px-4 md:px-6 md:py-5"
                     >
                         <div className="mx-auto w-full max-w-screen-2xl">
                             <Suspense fallback={<ProtectedRouteLoadingState />}>
@@ -217,7 +236,12 @@ function AppLayout({ initialSetup }: AppLayoutProps) {
                     </main>
                 </div>
             </div>
-            <FloatingSetupDock state={setupDockState} onRetry={() => void loadSetupProgress()} />
+            <FloatingSetupDock
+                key={activeClinic.clinicId}
+                clinicId={activeClinic.clinicId}
+                state={setupDockState}
+                onRetry={() => void loadSetupProgress()}
+            />
         </div>
     );
 }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { SetupStatusSummary } from '../onboardingApi';
 import {
@@ -33,9 +33,12 @@ export type FloatingSetupDockState =
       };
 
 type FloatingSetupDockProps = {
+    clinicId: string;
     state: FloatingSetupDockState;
     onRetry: () => void;
 };
+
+const completionVisibleMs = 3200;
 
 const setupSignature = (setup: SetupStatusSummary | null): string => {
     if (!setup) {
@@ -50,6 +53,18 @@ const setupSignature = (setup: SetupStatusSummary | null): string => {
     ].join(':');
 };
 
+const getSessionDismissalKey = (clinicId: string): string => {
+    return `pravaah:setup-assistant-dismissed:${clinicId}`;
+};
+
+const readSessionDismissal = (clinicId: string): boolean => {
+    if (typeof window === 'undefined') {
+        return false;
+    }
+
+    return window.sessionStorage.getItem(getSessionDismissalKey(clinicId)) === 'true';
+};
+
 const getSetupProgress = (items: SetupChecklistItem[]) => {
     const completedSteps = items.filter((item) => item.completed).length;
     const progressPercent = Math.round((completedSteps / totalChecklistSteps) * 100);
@@ -60,6 +75,14 @@ const getSetupProgress = (items: SetupChecklistItem[]) => {
         isComplete: completedSteps === totalChecklistSteps,
         nextIncompleteItem: items.find((item) => !item.completed),
     };
+};
+
+const isSetupComplete = (setup: SetupStatusSummary | null): boolean => {
+    if (!setup) {
+        return false;
+    }
+
+    return buildSetupChecklistItems(setup).every((item) => item.completed);
 };
 
 function SetupProgressBar({
@@ -84,61 +107,6 @@ function SetupProgressBar({
                 style={{ width: `${progressPercent}%` }}
             />
         </div>
-    );
-}
-
-function CollapsedDock({
-    completedSteps,
-    isComplete,
-    nextIncompleteItem,
-    onExpand,
-    progressPercent,
-    state,
-}: {
-    completedSteps: number;
-    isComplete: boolean;
-    nextIncompleteItem?: SetupChecklistItem;
-    onExpand: () => void;
-    progressPercent: number;
-    state: FloatingSetupDockState;
-}) {
-    const label = isComplete
-        ? 'Open completed setup assistant'
-        : 'Expand setup assistant';
-    const helper =
-        state.status === 'error'
-            ? 'Needs backend status'
-            : state.status === 'loading'
-              ? 'Checking progress'
-              : isComplete
-                ? 'Ready for clinic flow'
-                : nextIncompleteItem?.title ?? 'Continue setup';
-
-    return (
-        <button
-            type="button"
-            className="group w-full rounded-lg bg-slate-950 px-4 py-3 text-left text-white shadow-[var(--shadow-command)] ring-1 ring-white/10 transition duration-[var(--motion-fast)] ease-[var(--motion-ease)] hover:-translate-y-0.5 hover:bg-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-            onClick={onExpand}
-            aria-label={label}
-        >
-            <span className="flex items-center justify-between gap-3">
-                <span className="min-w-0">
-                    <span className="block text-xs font-semibold uppercase tracking-wide text-brand">
-                        Clinic setup
-                    </span>
-                    <span className="mt-1 block truncate text-sm font-semibold">{helper}</span>
-                </span>
-                <span className="shrink-0 rounded-md bg-white/10 px-2.5 py-1 text-xs font-bold text-white ring-1 ring-white/15">
-                    {completedSteps}/{totalChecklistSteps}
-                </span>
-            </span>
-            <span className="mt-3 block h-1.5 overflow-hidden rounded-full bg-white/15">
-                <span
-                    className="block h-full rounded-full bg-brand transition-[width] duration-[var(--motion-normal)] ease-[var(--motion-ease)]"
-                    style={{ width: `${progressPercent}%` }}
-                />
-            </span>
-        </button>
     );
 }
 
@@ -191,10 +159,44 @@ function SetupStepItem({
     );
 }
 
-function FloatingSetupDock({ state, onRetry }: FloatingSetupDockProps) {
+function CompletionDock() {
+    return (
+        <section
+            className="setup-dock-enter fixed inset-x-3 bottom-3 z-40 rounded-lg bg-slate-950 px-4 py-4 text-white shadow-[var(--shadow-command)] ring-1 ring-white/10 sm:inset-x-auto sm:bottom-5 sm:right-5 sm:w-[min(22rem,calc(100vw-2rem))]"
+            role="status"
+            aria-label="Clinic setup complete"
+        >
+            <div className="flex items-start gap-3">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-brand text-sm font-bold text-slate-950">
+                    OK
+                </span>
+                <div className="min-w-0 flex-1">
+                    <h2 className="text-base font-bold">Clinic ready</h2>
+                    <p className="mt-1 text-sm leading-5 text-slate-200">
+                        You're ready for today's flow.
+                    </p>
+                    <div className="mt-3">
+                        <SetupProgressBar
+                            completedSteps={totalChecklistSteps}
+                            progressPercent={100}
+                        />
+                    </div>
+                </div>
+            </div>
+        </section>
+    );
+}
+
+function FloatingSetupDock({ clinicId, state, onRetry }: FloatingSetupDockProps) {
     const [isExpanded, setIsExpanded] = useState(false);
-    const [acknowledgedSetupSignature, setAcknowledgedSetupSignature] = useState<string | null>(
+    const [isSessionDismissed, setIsSessionDismissed] = useState(() =>
+        readSessionDismissal(clinicId)
+    );
+    const [dismissedCompletionSignature, setDismissedCompletionSignature] = useState<string | null>(
         null
+    );
+    const [hasSeenVisibleIncompleteSetup, setHasSeenVisibleIncompleteSetup] = useState(
+        () => Boolean(state.setup) && !isSetupComplete(state.setup) && !readSessionDismissal(clinicId)
     );
     const items = useMemo(
         () => (state.setup ? buildSetupChecklistItems(state.setup) : []),
@@ -203,136 +205,151 @@ function FloatingSetupDock({ state, onRetry }: FloatingSetupDockProps) {
     const stateSetupSignature = setupSignature(state.setup);
     const { completedSteps, isComplete, nextIncompleteItem, progressPercent } =
         getSetupProgress(items);
-    const isAcknowledged = isComplete && acknowledgedSetupSignature === stateSetupSignature;
+    const shouldShowCompletion =
+        Boolean(state.setup) &&
+        isComplete &&
+        hasSeenVisibleIncompleteSetup &&
+        dismissedCompletionSignature !== stateSetupSignature;
 
-    if (state.status === 'idle' || isAcknowledged) {
+    useEffect(() => {
+        if (!shouldShowCompletion) {
+            return undefined;
+        }
+
+        const timer = window.setTimeout(() => {
+            setDismissedCompletionSignature(stateSetupSignature);
+            setHasSeenVisibleIncompleteSetup(false);
+        }, completionVisibleMs);
+
+        return () => window.clearTimeout(timer);
+    }, [shouldShowCompletion, stateSetupSignature]);
+
+    const handleDismiss = () => {
+        window.sessionStorage.setItem(getSessionDismissalKey(clinicId), 'true');
+        setIsExpanded(false);
+        setIsSessionDismissed(true);
+        setHasSeenVisibleIncompleteSetup(false);
+    };
+
+    if (state.status === 'idle') {
         return null;
     }
 
+    if (shouldShowCompletion) {
+        return <CompletionDock />;
+    }
+
+    if (isComplete || isSessionDismissed) {
+        return null;
+    }
+
+    const helper =
+        state.status === 'error'
+            ? 'Setup status needs attention'
+            : state.status === 'loading'
+              ? 'Checking progress'
+              : nextIncompleteItem?.title ?? 'Continue setup';
+
     return (
-        <div className="fixed inset-x-3 bottom-3 z-40 sm:inset-x-auto sm:bottom-5 sm:right-5 sm:w-[min(24rem,calc(100vw-2rem))]">
-            {isExpanded ? (
-                <section
-                    className="max-h-[calc(100vh-6rem)] overflow-y-auto rounded-lg bg-white text-slate-950 shadow-[var(--shadow-command)] ring-1 ring-slate-200 setup-dock-enter"
-                    aria-label="Clinic setup assistant"
-                >
-                    <div className="rounded-t-lg bg-slate-950 px-4 py-4 text-white">
-                        <div className="flex items-start justify-between gap-3">
-                            <div>
-                                <p className="text-xs font-semibold uppercase tracking-wide text-brand">
-                                    Backend setup status
-                                </p>
-                                <h2 className="mt-1 text-base font-bold">
-                                    Clinic setup assistant
-                                </h2>
-                            </div>
-                            <button
-                                type="button"
-                                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-white/10 text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-                                aria-label="Collapse setup assistant"
-                                onClick={() => setIsExpanded(false)}
+        <section
+            className="setup-dock-enter fixed inset-x-3 bottom-3 z-40 rounded-lg bg-slate-950 text-white shadow-[var(--shadow-command)] ring-1 ring-white/10 sm:inset-x-auto sm:bottom-5 sm:right-5 sm:w-[min(24rem,calc(100vw-2rem))]"
+            role="region"
+            aria-label="Clinic setup assistant"
+        >
+            <div className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-brand">
+                            Clinic setup
+                        </p>
+                        <h2 className="mt-1 text-base font-bold">{helper}</h2>
+                    </div>
+                    <button
+                        type="button"
+                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white/10 text-lg font-semibold text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                        aria-label="Dismiss clinic setup"
+                        onClick={handleDismiss}
+                    >
+                        x
+                    </button>
+                </div>
+
+                <div className="mt-4">
+                    <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold text-slate-200">
+                        <span>
+                            {completedSteps} of {totalChecklistSteps} complete
+                        </span>
+                        <span>{progressPercent}%</span>
+                    </div>
+                    <SetupProgressBar
+                        completedSteps={completedSteps}
+                        progressPercent={progressPercent}
+                    />
+                </div>
+
+                {state.status === 'error' ? (
+                    <div
+                        className="mt-4 rounded-md border border-[var(--color-status-danger-border)] bg-[var(--color-status-danger-bg)] p-3 text-sm text-[var(--color-status-danger-text)]"
+                        role="alert"
+                    >
+                        <p className="font-semibold">Setup status could not be loaded.</p>
+                        <p className="mt-1">{state.error.message}</p>
+                        {state.error.code ? (
+                            <p className="mt-1 text-xs font-semibold">{state.error.code}</p>
+                        ) : null}
+                        <button
+                            type="button"
+                            className="mt-3 inline-flex min-h-9 items-center justify-center rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-[var(--color-status-danger-text)] ring-1 ring-[var(--color-status-danger-border)] transition hover:bg-[var(--color-status-danger-bg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
+                            onClick={onRetry}
+                        >
+                            Retry
+                        </button>
+                    </div>
+                ) : null}
+
+                {nextIncompleteItem ? (
+                    <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="min-w-0 text-sm font-medium text-slate-200">
+                            Next: {nextIncompleteItem.title}
+                        </p>
+                        {!nextIncompleteItem.blockedReason ? (
+                            <Link
+                                to={nextIncompleteItem.actionPath}
+                                className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-md bg-brand px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-brand-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                             >
-                                -
-                            </button>
-                        </div>
-                        <div className="mt-4">
-                            <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold text-slate-200">
-                                <span>
-                                    {completedSteps} of {totalChecklistSteps} steps complete
-                                </span>
-                                <span>{progressPercent}%</span>
-                            </div>
-                            <SetupProgressBar
-                                completedSteps={completedSteps}
-                                progressPercent={progressPercent}
+                                Continue
+                            </Link>
+                        ) : null}
+                    </div>
+                ) : null}
+
+                {items.length > 0 ? (
+                    <button
+                        type="button"
+                        className="mt-4 inline-flex min-h-9 items-center justify-center rounded-md border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                        aria-expanded={isExpanded}
+                        onClick={() => setIsExpanded((current) => !current)}
+                    >
+                        {isExpanded ? 'Hide details' : 'View details'}
+                    </button>
+                ) : null}
+            </div>
+
+            {isExpanded && items.length > 0 ? (
+                <div className="max-h-[calc(100vh-18rem)] overflow-y-auto border-t border-white/10 bg-white p-4 text-slate-950">
+                    <div className="grid gap-2">
+                        {items.map((item, index) => (
+                            <SetupStepItem
+                                key={item.id}
+                                item={item}
+                                index={index}
+                                isNext={nextIncompleteItem?.id === item.id}
                             />
-                        </div>
+                        ))}
                     </div>
-
-                    <div className="space-y-4 p-4">
-                        {state.status === 'loading' && !state.setup ? (
-                            <div className="rounded-md bg-slate-50 p-3 text-sm font-medium text-slate-600">
-                                Checking setup progress from the backend...
-                            </div>
-                        ) : null}
-
-                        {state.status === 'loading' && state.setup ? (
-                            <div className="rounded-md bg-brand-subtle p-3 text-sm font-medium text-brand-foreground">
-                                Refreshing setup progress...
-                            </div>
-                        ) : null}
-
-                        {state.status === 'error' ? (
-                            <div
-                                className="rounded-md border border-[var(--color-status-danger-border)] bg-[var(--color-status-danger-bg)] p-3 text-sm text-[var(--color-status-danger-text)]"
-                                role="alert"
-                            >
-                                <p className="font-semibold">Setup status could not be loaded.</p>
-                                <p className="mt-1">{state.error.message}</p>
-                                {state.error.code ? (
-                                    <p className="mt-1 text-xs font-semibold">{state.error.code}</p>
-                                ) : null}
-                                <button
-                                    type="button"
-                                    className="mt-3 inline-flex min-h-9 items-center justify-center rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-[var(--color-status-danger-text)] ring-1 ring-[var(--color-status-danger-border)] transition hover:bg-[var(--color-status-danger-bg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
-                                    onClick={onRetry}
-                                >
-                                    Retry setup status
-                                </button>
-                            </div>
-                        ) : null}
-
-                        {isComplete ? (
-                            <div className="rounded-md border border-[var(--color-status-success-border)] bg-[var(--color-status-success-bg)] p-3 text-sm text-[var(--color-status-success-text)]">
-                                <p className="font-semibold">Minimum setup complete.</p>
-                                <p className="mt-1">
-                                    The clinic has settings, one doctor, one patient, and one
-                                    appointment available for the operational workflow.
-                                </p>
-                                <button
-                                    type="button"
-                                    className="mt-3 inline-flex min-h-9 items-center justify-center rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-[var(--color-status-success-text)] ring-1 ring-[var(--color-status-success-border)] transition hover:bg-[var(--color-status-success-bg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
-                                    onClick={() =>
-                                        setAcknowledgedSetupSignature(stateSetupSignature)
-                                    }
-                                >
-                                    Acknowledge
-                                </button>
-                            </div>
-                        ) : null}
-
-                        {items.length > 0 ? (
-                            <div className="space-y-2">
-                                {nextIncompleteItem ? (
-                                    <p className="text-sm font-semibold text-slate-800">
-                                        Next: {nextIncompleteItem.title}
-                                    </p>
-                                ) : null}
-                                <div className="grid gap-2">
-                                    {items.map((item, index) => (
-                                        <SetupStepItem
-                                            key={item.id}
-                                            item={item}
-                                            index={index}
-                                            isNext={nextIncompleteItem?.id === item.id}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        ) : null}
-                    </div>
-                </section>
-            ) : (
-                <CollapsedDock
-                    completedSteps={completedSteps}
-                    isComplete={isComplete}
-                    nextIncompleteItem={nextIncompleteItem}
-                    onExpand={() => setIsExpanded(true)}
-                    progressPercent={progressPercent}
-                    state={state}
-                />
-            )}
-        </div>
+                </div>
+            ) : null}
+        </section>
     );
 }
 

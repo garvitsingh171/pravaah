@@ -2,12 +2,26 @@ import type { ReactNode } from 'react';
 
 type PageHeaderProps = {
     eyebrow?: string;
-    title: string;
+    title?: string;
     description?: string;
     actions?: ReactNode;
 };
 
 function PageHeader({ actions, description, eyebrow, title }: PageHeaderProps) {
+    if (!title && !description && !eyebrow) {
+        if (!actions) {
+            return null;
+        }
+
+        return (
+            <div className="flex min-w-0 justify-end">
+                <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end [&>*]:w-full sm:[&>*]:w-auto">
+                    {actions}
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="flex min-w-0 flex-col gap-4 border-b border-app-border pb-5 md:flex-row md:items-end md:justify-between">
             <div className="min-w-0">
@@ -16,15 +30,17 @@ function PageHeader({ actions, description, eyebrow, title }: PageHeaderProps) {
                         {eyebrow}
                     </p>
                 ) : null}
-                <h1
-                    className={
-                        eyebrow
-                            ? 'mt-2 break-words text-2xl font-bold leading-tight text-app-text sm:text-3xl'
-                            : 'break-words text-2xl font-bold leading-tight text-app-text sm:text-3xl'
-                    }
-                >
-                    {title}
-                </h1>
+                {title ? (
+                    <h1
+                        className={
+                            eyebrow
+                                ? 'mt-2 break-words text-2xl font-bold leading-tight text-app-text sm:text-3xl'
+                                : 'break-words text-2xl font-bold leading-tight text-app-text sm:text-3xl'
+                        }
+                    >
+                        {title}
+                    </h1>
+                ) : null}
                 {description ? (
                     <p className="mt-3 max-w-3xl text-sm leading-6 text-app-muted sm:text-base">
                         {description}

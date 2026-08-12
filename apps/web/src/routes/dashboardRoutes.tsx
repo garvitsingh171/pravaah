@@ -36,7 +36,7 @@ export type AppRoute = {
 export const dashboardRoutes: AppRoute[] = [
     {
         path: appRoutePaths.dashboard,
-        title: 'Dashboard',
+        title: 'Today at Pravaah',
         navigationLabel: 'Dashboard',
         navigationDescription: 'Daily summary',
         navigationIcon: 'dashboard',
@@ -54,7 +54,7 @@ export const dashboardRoutes: AppRoute[] = [
     },
     {
         path: appRoutePaths.newDoctor,
-        title: 'Add Doctor',
+        title: 'Add doctor',
         navigationIcon: 'doctors',
         element: <DoctorCreatePage />,
         showInNavigation: false,
@@ -70,7 +70,7 @@ export const dashboardRoutes: AppRoute[] = [
     },
     {
         path: appRoutePaths.newPatient,
-        title: 'Add Patient',
+        title: 'Add patient',
         navigationIcon: 'patients',
         element: <PatientCreatePage />,
         showInNavigation: false,
@@ -86,7 +86,7 @@ export const dashboardRoutes: AppRoute[] = [
     },
     {
         path: appRoutePaths.queue,
-        title: 'Queue',
+        title: "Today's queue",
         navigationLabel: 'Queue',
         navigationDescription: 'Arrivals and calls',
         navigationIcon: 'queue',
@@ -95,7 +95,7 @@ export const dashboardRoutes: AppRoute[] = [
     },
     {
         path: appRoutePaths.clinicSettings,
-        title: 'Clinic Settings',
+        title: 'Clinic settings',
         navigationLabel: 'Clinic Settings',
         navigationDescription: 'Admin workspace',
         navigationIcon: 'settings',
@@ -107,7 +107,7 @@ export const dashboardRoutes: AppRoute[] = [
 
 const notFoundRoute: AppRoute = {
     path: '*',
-    title: 'Page Not Found',
+    title: 'Page not found',
     navigationIcon: 'dashboard',
     element: null,
     showInNavigation: false,

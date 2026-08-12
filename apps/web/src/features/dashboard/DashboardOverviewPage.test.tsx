@@ -122,9 +122,7 @@ describe('DashboardOverviewPage', () => {
             activeClinic: staffActiveClinic,
         });
 
-        expect(
-            await screen.findByRole('heading', { name: /today at pravaah/i })
-        ).toBeInTheDocument();
+        expect(await screen.findByText("Today's appointments")).toBeInTheDocument();
         expect(screen.queryByText('First-run setup')).not.toBeInTheDocument();
     });
 });

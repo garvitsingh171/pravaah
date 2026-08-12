@@ -1062,8 +1062,6 @@ function QueuePage() {
     return (
         <section className="space-y-6">
             <PageHeader
-                title="Queue"
-                description="Operate today's doctor-scoped waiting order."
                 actions={
                     <Button
                         variant="outline"

@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from 'react';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -219,6 +219,22 @@ describe('ProtectedAppShell', () => {
         expect(screen.getByRole('link', { name: /clinic settings/i })).toBeInTheDocument();
     });
 
+    it('uses the topbar for current page context without repeating clinic identity', async () => {
+        setClerkSignedIn();
+        mockGetOnboardingStatus.mockResolvedValue(completedAdminOnboarding);
+
+        renderShell('/dashboard');
+
+        expect(
+            await screen.findByRole('heading', { name: /protected dashboard/i })
+        ).toBeInTheDocument();
+
+        const topbar = screen.getByRole('banner');
+        expect(within(topbar).getByRole('heading', { name: /today at pravaah/i })).toBeVisible();
+        expect(within(topbar).queryByText('Pravaah Test Clinic')).not.toBeInTheDocument();
+        expect(screen.getByText('Pravaah Test Clinic')).toBeInTheDocument();
+    });
+
     it('does not render the clinic timezone in protected navigation chrome', async () => {
         setClerkSignedIn();
         mockGetOnboardingStatus.mockResolvedValue(completedAdminOnboarding);
@@ -238,7 +254,7 @@ describe('ProtectedAppShell', () => {
 
         renderShell('/doctors');
 
-        expect(await screen.findByRole('heading', { name: /^doctors$/i })).toBeInTheDocument();
+        expect(await screen.findAllByRole('heading', { name: /^doctors$/i })).toHaveLength(2);
 
         await user.click(screen.getAllByRole('link', { name: /pravaah home/i })[0]);
 
@@ -260,6 +276,9 @@ describe('ProtectedAppShell', () => {
         ).toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: /test admin/i }));
+        const menu = screen.getByRole('menu');
+        expect(menu.className).toContain('z-[60]');
+
         await user.click(screen.getByRole('menuitem', { name: /^sign out$/i }));
 
         await waitFor(() => {
@@ -267,7 +286,33 @@ describe('ProtectedAppShell', () => {
         });
     });
 
-    it('renders backend setup progress in a floating dock and supports expansion', async () => {
+    it('opens and closes the profile menu with outside click and Escape', async () => {
+        const user = userEvent.setup();
+        setClerkSignedIn();
+        mockGetOnboardingStatus.mockResolvedValue(completedAdminOnboarding);
+
+        renderShell('/dashboard');
+
+        expect(
+            await screen.findByRole('heading', { name: /protected dashboard/i })
+        ).toBeInTheDocument();
+
+        const trigger = screen.getByRole('button', { name: /test admin/i });
+        await user.click(trigger);
+        expect(screen.getByRole('menu')).toBeInTheDocument();
+
+        await user.click(document.body);
+        await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+
+        await user.click(trigger);
+        expect(screen.getByRole('menu')).toBeInTheDocument();
+
+        await user.keyboard('{Escape}');
+        await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+        expect(trigger).toHaveFocus();
+    });
+
+    it('renders incomplete setup progress and lets users dismiss it for the session', async () => {
         const user = userEvent.setup();
         setClerkSignedIn();
         mockGetOnboardingStatus.mockResolvedValue({
@@ -281,30 +326,31 @@ describe('ProtectedAppShell', () => {
             await screen.findByRole('heading', { name: /protected dashboard/i })
         ).toBeInTheDocument();
 
-        const expandButton = screen.getByRole('button', { name: /expand setup assistant/i });
-        expect(expandButton).toHaveTextContent('0/4');
-
-        await user.click(expandButton);
-
         expect(
             screen.getByRole('region', { name: /clinic setup assistant/i })
         ).toBeInTheDocument();
+
+        expect(screen.getByText('0 of 4 complete')).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: /view details/i }));
         expect(screen.getByRole('link', { name: /complete clinic settings/i })).toHaveAttribute(
             'href',
             '/clinic-settings'
         );
 
-        await user.click(screen.getByRole('button', { name: /collapse setup assistant/i }));
+        await user.click(screen.getByRole('button', { name: /dismiss clinic setup/i }));
 
         await waitFor(() => {
             expect(
                 screen.queryByRole('region', { name: /clinic setup assistant/i })
             ).not.toBeInTheDocument();
         });
+        expect(window.sessionStorage.getItem(`pravaah:setup-assistant-dismissed:${testClinicId}`)).toBe(
+            'true'
+        );
+        expect(mockGetOnboardingStatus).toHaveBeenCalledTimes(1);
     });
 
-    it('allows completed setup to be acknowledged for the current shell session', async () => {
-        const user = userEvent.setup();
+    it('does not show the floating setup assistant when setup is already complete', async () => {
         setClerkSignedIn();
         mockGetOnboardingStatus.mockResolvedValue({
             ...completedAdminOnboarding,
@@ -317,15 +363,45 @@ describe('ProtectedAppShell', () => {
             await screen.findByRole('heading', { name: /protected dashboard/i })
         ).toBeInTheDocument();
 
-        await user.click(screen.getByRole('button', { name: /open completed setup assistant/i }));
+        expect(
+            screen.queryByRole('region', { name: /clinic setup assistant/i })
+        ).not.toBeInTheDocument();
+        expect(screen.queryByRole('status', { name: /clinic setup complete/i })).not.toBeInTheDocument();
+    });
 
-        expect(screen.getByText('Minimum setup complete.')).toBeInTheDocument();
+    it('briefly acknowledges setup when visible incomplete progress becomes complete', async () => {
+        const user = userEvent.setup();
+        setClerkSignedIn();
+        mockGetOnboardingStatus
+            .mockResolvedValueOnce({
+                ...completedAdminOnboarding,
+                setup: setupNoneComplete,
+            })
+            .mockResolvedValueOnce({
+                ...completedAdminOnboarding,
+                setup: setupAllComplete,
+            });
 
-        await user.click(screen.getByRole('button', { name: /acknowledge/i }));
+        renderShell('/dashboard');
 
         expect(
-            screen.queryByRole('button', { name: /open completed setup assistant/i })
-        ).not.toBeInTheDocument();
+            await screen.findByRole('region', { name: /clinic setup assistant/i })
+        ).toBeInTheDocument();
+
+        await user.click(screen.getAllByRole('link', { name: /doctors/i })[0]);
+
+        expect(
+            await screen.findByRole('status', { name: /clinic setup complete/i })
+        ).toHaveTextContent('Clinic ready');
+
+        await waitFor(
+            () => {
+                expect(
+                    screen.queryByRole('status', { name: /clinic setup complete/i })
+                ).not.toBeInTheDocument();
+            },
+            { timeout: 4000 }
+        );
     });
 
     it('opens and closes the mobile workspace navigation with keyboard focus restored', async () => {

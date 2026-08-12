@@ -711,8 +711,6 @@ function DoctorsPage() {
     return (
         <section className="space-y-6">
             <PageHeader
-                title="Doctors"
-                description="Provider records for scheduling and queue lanes."
                 actions={
                     <Link
                         to="/doctors/new"
