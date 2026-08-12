@@ -11,6 +11,7 @@ import {
 } from '../../components/feedback';
 import {
     Button,
+    Badge,
     ConfirmationDialog,
     FilterBar,
     FormSection,
@@ -656,6 +657,49 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
     );
 }
 
+function PatientListSummary({
+    displayedCount,
+    patients,
+}: {
+    displayedCount: number;
+    patients: PatientSummary[];
+}) {
+    const activeCount = patients.filter(isPatientActiveInClinic).length;
+    const inactiveCount = patients.length - activeCount;
+    const appointmentCount = patients.reduce(
+        (totalAppointments, patient) => totalAppointments + (patient.totalAppointments ?? 0),
+        0
+    );
+    const noShowCount = patients.reduce(
+        (totalNoShows, patient) => totalNoShows + (patient.totalNoShows ?? 0),
+        0
+    );
+
+    return (
+        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                        {displayedCount} patients visible
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500">
+                        Clinic-specific history stays attached to patient records for scheduling and
+                        risk context.
+                    </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    <Badge tone="success">{activeCount} active</Badge>
+                    <Badge tone="neutral">{inactiveCount} inactive</Badge>
+                    <Badge tone="brand">{appointmentCount} appointments</Badge>
+                    <Badge tone={noShowCount > 0 ? 'warning' : 'neutral'}>
+                        {noShowCount} no-shows
+                    </Badge>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function PatientsPage() {
     const navigate = useNavigate();
     const location = useLocation();
@@ -929,6 +973,13 @@ function PatientsPage() {
                 </div>
             </FilterBar>
 
+            {patientListState.status === 'success' && patientListState.patients.length > 0 ? (
+                <PatientListSummary
+                    patients={patientListState.patients}
+                    displayedCount={displayedPatients.length}
+                />
+            ) : null}
+
             {editingPatient ? (
                 <PatientEditPanel
                     key={editingPatient.id}
@@ -1040,7 +1091,10 @@ function PatientsPage() {
                                                 </td>
                                                 <td className="min-w-36 px-4 py-5">
                                                     <div className="space-y-2">
-                                                        <StatusBadge kind="active" status={isActive} />
+                                                        <StatusBadge
+                                                            kind="active"
+                                                            status={isActive}
+                                                        />
                                                         {!patient.isActive ? (
                                                             <p className="text-xs text-slate-500">
                                                                 Patient profile inactive
@@ -1069,12 +1123,16 @@ function PatientsPage() {
                                                                 isExpanded ? 'Hide' : 'View'
                                                             } details for ${patient.fullName}`}
                                                         >
-                                                            {isExpanded ? 'Hide details' : 'Details'}
+                                                            {isExpanded
+                                                                ? 'Hide details'
+                                                                : 'Details'}
                                                         </Button>
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
-                                                            onClick={() => setEditingPatient(patient)}
+                                                            onClick={() =>
+                                                                setEditingPatient(patient)
+                                                            }
                                                             aria-label={`Edit ${patient.fullName}`}
                                                         >
                                                             Edit
@@ -1089,8 +1147,7 @@ function PatientsPage() {
                                                             onClick={() => {
                                                                 setStatusAction({
                                                                     patient,
-                                                                    nextIsActive:
-                                                                        !patient.isActive,
+                                                                    nextIsActive: !patient.isActive,
                                                                 });
                                                                 setStatusActionError(null);
                                                             }}

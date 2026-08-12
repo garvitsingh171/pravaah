@@ -80,8 +80,23 @@ select {
     }
 }
 
+@keyframes pravaah-flow-dash {
+    from {
+        stroke-dashoffset: 42;
+    }
+
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
 .showcase-rise {
     animation: pravaah-showcase-rise 420ms ease-out both;
+}
+
+.flow-path {
+    stroke-dasharray: 14 14;
+    animation: pravaah-flow-dash 2200ms linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -95,6 +110,10 @@ select {
     }
 
     .showcase-rise {
+        animation: none;
+    }
+
+    .flow-path {
         animation: none;
     }
 }

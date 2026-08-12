@@ -1,4 +1,5 @@
 import type { RiskLevel } from '../../types';
+import Badge from './Badge';
 import RiskBadge from './RiskBadge';
 
 export type RiskReasonLike = {
@@ -87,9 +88,12 @@ const formatGeneratedAt = (value: string | undefined): string | null => {
 function RiskExplanation({ prediction, subjectName, compact = false }: RiskExplanationProps) {
     if (!prediction) {
         return (
-            <div className="rounded-md border border-app-border bg-app-surface-muted p-3 text-sm text-app-muted">
-                No no-show risk data is available from the backend for {subjectName}. Treat this
-                as unavailable information, not as low risk.
+            <div className="rounded-lg border border-dashed border-app-border-strong bg-app-surface-muted p-4 text-sm text-app-muted">
+                <p className="font-semibold text-app-text">Risk data unavailable</p>
+                <p className="mt-1 leading-6">
+                    No no-show risk data is available from the backend for {subjectName}. Treat this
+                    as unavailable information, not as low risk.
+                </p>
             </div>
         );
     }
@@ -100,58 +104,84 @@ function RiskExplanation({ prediction, subjectName, compact = false }: RiskExpla
     const generatedAt = formatGeneratedAt(prediction.generatedAt ?? prediction.createdAt);
 
     return (
-        <details className="group rounded-md border border-app-border bg-white p-3 text-sm">
+        <details className="group rounded-lg border border-app-border bg-white p-4 text-sm shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action">
-                <span>Risk explanation</span>
-                <span className="text-xs text-app-muted group-open:hidden">Show</span>
-                <span className="hidden text-xs text-app-muted group-open:inline">Hide</span>
-            </summary>
-            <div className="mt-3 space-y-3 text-app-muted">
-                <div className="flex flex-wrap items-center gap-2">
+                <span className="flex min-w-0 flex-wrap items-center gap-2">
+                    <span>Risk explanation</span>
                     <RiskBadge riskLevel={prediction.riskLevel} />
-                    {score !== null ? <span>Score {score}/100</span> : <span>Score unavailable</span>}
-                </div>
-                <p>
-                    This is deterministic, rule-based appointment-flow support for {subjectName}.
-                    It is not a diagnosis and it does not automatically cancel or reorder anything.
-                </p>
-                {generatedAt || prediction.modelVersion ? (
-                    <p className="text-xs">
-                        {prediction.modelVersion ? `Rule version: ${prediction.modelVersion}.` : ''}
-                        {generatedAt ? ` Generated ${generatedAt}.` : ''}
+                    {score !== null ? <Badge tone="neutral">Score {score}/100</Badge> : null}
+                </span>
+                <span className="shrink-0 text-xs text-app-muted group-open:hidden">Show</span>
+                <span className="hidden shrink-0 text-xs text-app-muted group-open:inline">
+                    Hide
+                </span>
+            </summary>
+            <div className="mt-4 space-y-4 text-app-muted">
+                <div className="rounded-md border border-app-border bg-app-surface-muted p-3">
+                    <p className="text-sm font-semibold text-app-text">
+                        Deterministic assistance for {subjectName}
                     </p>
-                ) : null}
+                    <p className="mt-1 text-sm leading-6">
+                        This is rule-based appointment-flow support. It is not a diagnosis and it
+                        does not automatically cancel, contact, or reorder anything.
+                    </p>
+                    {generatedAt || prediction.modelVersion ? (
+                        <p className="mt-2 text-xs">
+                            {prediction.modelVersion
+                                ? `Rule version: ${prediction.modelVersion}.`
+                                : ''}
+                            {generatedAt ? ` Generated ${generatedAt}.` : ''}
+                        </p>
+                    ) : null}
+                </div>
                 {!compact ? (
-                    <>
+                    <div className="grid gap-4 lg:grid-cols-2">
                         <div>
-                            <p className="font-semibold text-app-text">Contributing factors</p>
+                            <p className="font-semibold text-app-text">Why this level?</p>
                             {reasonMessages.length > 0 ? (
-                                <ul className="mt-2 list-disc space-y-1 pl-5">
+                                <ul className="mt-3 space-y-2">
                                     {reasonMessages.map((reasonMessage, index) => (
-                                        <li key={`${reasonMessage}-${index}`}>{reasonMessage}</li>
+                                        <li
+                                            key={`${reasonMessage}-${index}`}
+                                            className="flex gap-2 leading-6"
+                                        >
+                                            <span
+                                                className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand"
+                                                aria-hidden="true"
+                                            />
+                                            <span>{reasonMessage}</span>
+                                        </li>
                                     ))}
                                 </ul>
                             ) : (
-                                <p className="mt-2">No explanation reasons were returned.</p>
+                                <p className="mt-2 leading-6">
+                                    No explanation reasons were returned.
+                                </p>
                             )}
                         </div>
                         <div>
-                            <p className="font-semibold text-app-text">Suggested staff actions</p>
+                            <p className="font-semibold text-app-text">Suggested staff attention</p>
                             {suggestedActions.length > 0 ? (
-                                <ul className="mt-2 list-disc space-y-1 pl-5">
+                                <ul className="mt-3 space-y-2">
                                     {suggestedActions.map((action) => (
-                                        <li key={action}>{action}</li>
+                                        <li key={action} className="flex gap-2 leading-6">
+                                            <span
+                                                className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-status-warning-text)]"
+                                                aria-hidden="true"
+                                            />
+                                            <span>{action}</span>
+                                        </li>
                                     ))}
                                 </ul>
                             ) : (
-                                <p className="mt-2">
+                                <p className="mt-2 leading-6">
                                     Use the clinic's normal communication and queue workflow.
                                 </p>
                             )}
                         </div>
-                    </>
+                    </div>
                 ) : null}
-                <p className="rounded-md bg-app-surface-muted p-3 text-xs font-medium text-app-text">
+                <p className="rounded-md border border-brand-soft bg-brand-subtle p-3 text-xs font-medium leading-5 text-app-text">
                     {humanDecisionNotice}
                 </p>
             </div>

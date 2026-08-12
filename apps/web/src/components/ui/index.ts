@@ -6,6 +6,8 @@ export { default as ConfirmationDialog } from './ConfirmationDialog';
 export { default as FilterBar } from './FilterBar';
 export { FormField, Input, Select, fieldControlClassName } from './FormField';
 export { default as FormSection } from './FormSection';
+export { default as LifecycleRail } from './LifecycleRail';
+export type { LifecycleRailStep } from './LifecycleRail';
 export { default as PageHeader } from './PageHeader';
 export { default as RiskBadge } from './RiskBadge';
 export { default as RiskExplanation } from './RiskExplanation';

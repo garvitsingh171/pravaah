@@ -18,13 +18,13 @@ function Topbar({
     clinicTimezone,
 }: TopbarProps) {
     return (
-        <header className="border-b border-slate-200 bg-white px-4 py-4 md:px-6">
-            <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <header className="border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:px-6">
+            <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="min-w-0">
-                    <p className="text-sm font-medium text-teal-700">{eyebrow}</p>
-                    <h2 className="mt-1 text-2xl font-bold leading-tight text-slate-950 sm:text-3xl">
-                        {title}
-                    </h2>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-teal-700">
+                        {eyebrow}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-slate-900">Viewing {title}</p>
                 </div>
 
                 <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:w-auto lg:justify-end">

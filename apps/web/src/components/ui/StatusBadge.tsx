@@ -28,7 +28,19 @@ function StatusBadge(props: StatusBadgeProps) {
               ? queueStatusPresentation[props.status]
               : activeStatusPresentation[props.status ? 'active' : 'inactive'];
 
-    return <Badge tone={presentation.tone}>{presentation.label}</Badge>;
+    const accessiblePrefix =
+        props.kind === 'appointment'
+            ? 'Appointment status'
+            : props.kind === 'queue'
+              ? 'Queue status'
+              : 'Record status';
+
+    return (
+        <Badge tone={presentation.tone} aria-label={`${accessiblePrefix}: ${presentation.label}`}>
+            <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
+            {presentation.label}
+        </Badge>
+    );
 }
 
 export default StatusBadge;

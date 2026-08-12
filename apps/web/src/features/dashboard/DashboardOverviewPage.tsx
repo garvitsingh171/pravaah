@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useActiveClinic } from '../../app/activeClinicContext';
 import { EmptyState, ErrorMessage, LoadingState } from '../../components/feedback';
-import { Badge, Card, RiskBadge, type BadgeTone } from '../../components/ui';
+import { Badge, Button, Card, PageHeader, RiskBadge, type BadgeTone } from '../../components/ui';
 import { isApiClientError } from '../../lib';
+import { appRoutePaths } from '../../routes/dashboardRoutes';
 import { UserRole } from '../../types';
 import FirstRunSetupChecklist from '../onboarding/components/FirstRunSetupChecklist';
 import { getOnboardingStatus, type SetupStatusSummary } from '../onboarding/onboardingApi';
@@ -251,12 +253,90 @@ const hasUsefulDashboardData = (data: DashboardData): boolean => {
 function SummaryCardItem({ card }: { card: SummaryCard }) {
     return (
         <article
-            className={`rounded-lg border border-slate-200 border-l-4 bg-white p-5 ${card.accentClassName}`}
+            className={`rounded-lg border border-slate-200 border-l-4 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:shadow-md ${card.accentClassName}`}
         >
             <p className="text-sm font-medium text-slate-600">{card.label}</p>
             <p className="mt-3 text-3xl font-bold text-slate-900">{card.value}</p>
             <p className="mt-2 text-sm text-slate-500">{card.helper}</p>
         </article>
+    );
+}
+
+function OperationalPulsePanel({ data }: { data: DashboardData }) {
+    const { appointmentSummary, queueSummary, noShowRiskSummary } = data.summary;
+    const activeAppointments =
+        appointmentSummary.scheduled +
+        appointmentSummary.confirmed +
+        appointmentSummary.arrived +
+        appointmentSummary.inQueue +
+        appointmentSummary.called;
+    const finalAppointments =
+        appointmentSummary.completed + appointmentSummary.cancelled + appointmentSummary.noShow;
+    const activeQueue = queueSummary.waiting + queueSummary.arrived + queueSummary.called;
+    const attentionItems = [
+        {
+            label: 'Active appointment flow',
+            value: activeAppointments,
+            helper: `${finalAppointments} final appointment statuses today`,
+        },
+        {
+            label: 'Queue pressure',
+            value: activeQueue,
+            helper: `${queueSummary.waiting} waiting, ${queueSummary.called} called`,
+        },
+        {
+            label: 'Risk review',
+            value: noShowRiskSummary.high,
+            helper: `${noShowRiskSummary.medium} medium, ${noShowRiskSummary.low} low risk`,
+        },
+    ];
+
+    return (
+        <Card className="bg-slate-950 text-white">
+            <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
+                <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-brand">
+                        Today at a glance
+                    </p>
+                    <h2 className="mt-2 text-2xl font-bold text-white">
+                        What needs staff attention?
+                    </h2>
+                    <p className="mt-3 text-sm leading-6 text-slate-300">
+                        This panel uses only today&apos;s backend summary. It keeps urgent workflow
+                        cues visible without inventing analytics.
+                    </p>
+                    <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                        <Link
+                            to={appRoutePaths.appointments}
+                            className="inline-flex min-h-10 items-center justify-center rounded-md bg-brand px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-brand-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                        >
+                            Review appointments
+                        </Link>
+                        <Link
+                            to={appRoutePaths.queue}
+                            className="inline-flex min-h-10 items-center justify-center rounded-md border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                        >
+                            Open queue
+                        </Link>
+                    </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                    {attentionItems.map((item) => (
+                        <div
+                            key={item.label}
+                            className="rounded-lg border border-white/15 bg-white/10 p-4"
+                        >
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">
+                                {item.label}
+                            </p>
+                            <p className="mt-2 text-3xl font-bold text-white">{item.value}</p>
+                            <p className="mt-2 text-xs leading-5 text-slate-300">{item.helper}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </Card>
     );
 }
 
@@ -552,38 +632,30 @@ function DashboardOverviewPage() {
 
     return (
         <section className="space-y-6">
-            <div className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-6 md:flex-row md:items-start md:justify-between md:p-8">
-                <div>
-                    <p className="text-sm font-medium uppercase tracking-wide text-brand-foreground">
-                        Dashboard
-                    </p>
-
-                    <h1 className="mt-3 text-3xl font-bold text-slate-900">Dashboard overview</h1>
-
-                    <p className="mt-4 max-w-2xl text-slate-600">
-                        Track today's appointments, queue pressure, completed visits, and no-show
-                        risk before the clinic day slips out of view.
-                    </p>
-
-                    {dashboardData ? (
-                        <p className="mt-3 text-sm font-medium text-slate-500">
-                            Clinic day: {formatDate(dashboardData.summary.date)}
-                        </p>
-                    ) : null}
-                </div>
-
-                <button
-                    type="button"
-                    className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
-                    onClick={refreshDashboard}
-                    disabled={dashboardState.status === 'loading'}
-                >
-                    {dashboardState.status === 'loading' ? 'Refreshing...' : 'Refresh dashboard'}
-                </button>
-            </div>
+            <PageHeader
+                eyebrow="Dashboard"
+                title="Dashboard overview"
+                description={
+                    dashboardData
+                        ? `Clinic day: ${formatDate(
+                              dashboardData.summary.date
+                          )}. Track appointments, queue pressure, completed visits, and no-show risk before the clinic day slips out of view.`
+                        : "Track today's appointments, queue pressure, completed visits, and no-show risk before the clinic day slips out of view."
+                }
+                actions={
+                    <Button
+                        variant="outline"
+                        onClick={refreshDashboard}
+                        isLoading={dashboardState.status === 'loading'}
+                        loadingText="Refreshing..."
+                    >
+                        Refresh dashboard
+                    </Button>
+                }
+            />
 
             {dashboardState.status === 'loading' ? (
-                <LoadingState message="Loading dashboard summary..." />
+                <LoadingState message="Loading dashboard summary..." variant="panel" />
             ) : null}
 
             {dashboardState.status === 'error' ? (
@@ -601,6 +673,8 @@ function DashboardOverviewPage() {
 
             {dashboardData ? (
                 <>
+                    <OperationalPulsePanel data={dashboardData} />
+
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                         {summaryCards.map((card) => (
                             <SummaryCardItem key={card.label} card={card} />
@@ -611,6 +685,14 @@ function DashboardOverviewPage() {
                         <EmptyState
                             title="No dashboard activity for today."
                             message="Book today's first appointment to start filling the dashboard, queue, and activity feed."
+                            action={
+                                <Link
+                                    to={appRoutePaths.appointments}
+                                    className="inline-flex min-h-10 items-center justify-center rounded-md border border-transparent bg-action px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+                                >
+                                    Book appointment
+                                </Link>
+                            }
                         />
                     ) : null}
 

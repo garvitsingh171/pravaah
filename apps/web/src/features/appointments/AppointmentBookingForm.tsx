@@ -84,118 +84,166 @@ function AppointmentBookingForm({
     };
 
     const controlsDisabled = isSubmitting || isDisabled;
+    const selectedDoctor = doctors.find((doctor) => doctor.id === values.doctorId);
+    const selectedPatient = patients.find((patient) => patient.id === values.patientId);
 
     return (
         <form className="space-y-6" noValidate onSubmit={handleSubmit}>
-            <div className="grid gap-5 md:grid-cols-2">
-                <label className="block text-sm font-medium text-slate-700">
-                    Doctor <RequiredMark />
-                    <select
-                        className={getFieldClassName(Boolean(fieldErrors.doctorId))}
-                        value={values.doctorId}
-                        onChange={(event) => onChange('doctorId', event.target.value)}
-                        disabled={controlsDisabled}
-                        aria-invalid={Boolean(fieldErrors.doctorId)}
-                        aria-describedby={getFieldErrorDescriptionId('doctorId', fieldErrors)}
-                        required
-                    >
-                        <option value="">Select doctor</option>
-                        {doctors.map((doctor) => (
-                            <option key={doctor.id} value={doctor.id}>
-                                {getDoctorOptionLabel(doctor)}
-                            </option>
-                        ))}
-                    </select>
-                    <FieldError id={getFieldErrorId('doctorId')} message={fieldErrors.doctorId} />
-                </label>
+            <fieldset className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <legend className="px-1 text-sm font-semibold text-slate-950">
+                    Clinic records
+                </legend>
+                <p className="mb-4 text-sm leading-6 text-slate-600">
+                    Choose active records already available to this clinic. The backend validates
+                    clinic access again when booking.
+                </p>
+                <div className="grid gap-5 md:grid-cols-2">
+                    <label className="block text-sm font-medium text-slate-700">
+                        Doctor <RequiredMark />
+                        <select
+                            className={getFieldClassName(Boolean(fieldErrors.doctorId))}
+                            value={values.doctorId}
+                            onChange={(event) => onChange('doctorId', event.target.value)}
+                            disabled={controlsDisabled}
+                            aria-invalid={Boolean(fieldErrors.doctorId)}
+                            aria-describedby={getFieldErrorDescriptionId('doctorId', fieldErrors)}
+                            required
+                        >
+                            <option value="">Select doctor</option>
+                            {doctors.map((doctor) => (
+                                <option key={doctor.id} value={doctor.id}>
+                                    {getDoctorOptionLabel(doctor)}
+                                </option>
+                            ))}
+                        </select>
+                        <FieldError
+                            id={getFieldErrorId('doctorId')}
+                            message={fieldErrors.doctorId}
+                        />
+                        {selectedDoctor ? (
+                            <span className="mt-1 block text-xs text-slate-500">
+                                {getDoctorOptionLabel(selectedDoctor)}
+                            </span>
+                        ) : null}
+                    </label>
 
-                <label className="block text-sm font-medium text-slate-700">
-                    Patient <RequiredMark />
-                    <select
-                        className={getFieldClassName(Boolean(fieldErrors.patientId))}
-                        value={values.patientId}
-                        onChange={(event) => onChange('patientId', event.target.value)}
-                        disabled={controlsDisabled}
-                        aria-invalid={Boolean(fieldErrors.patientId)}
-                        aria-describedby={getFieldErrorDescriptionId('patientId', fieldErrors)}
-                        required
-                    >
-                        <option value="">Select patient</option>
-                        {patients.map((patient) => (
-                            <option key={patient.id} value={patient.id}>
-                                {getPatientOptionLabel(patient)}
-                            </option>
-                        ))}
-                    </select>
-                    <FieldError id={getFieldErrorId('patientId')} message={fieldErrors.patientId} />
-                </label>
+                    <label className="block text-sm font-medium text-slate-700">
+                        Patient <RequiredMark />
+                        <select
+                            className={getFieldClassName(Boolean(fieldErrors.patientId))}
+                            value={values.patientId}
+                            onChange={(event) => onChange('patientId', event.target.value)}
+                            disabled={controlsDisabled}
+                            aria-invalid={Boolean(fieldErrors.patientId)}
+                            aria-describedby={getFieldErrorDescriptionId('patientId', fieldErrors)}
+                            required
+                        >
+                            <option value="">Select patient</option>
+                            {patients.map((patient) => (
+                                <option key={patient.id} value={patient.id}>
+                                    {getPatientOptionLabel(patient)}
+                                </option>
+                            ))}
+                        </select>
+                        <FieldError
+                            id={getFieldErrorId('patientId')}
+                            message={fieldErrors.patientId}
+                        />
+                        {selectedPatient ? (
+                            <span className="mt-1 block text-xs text-slate-500">
+                                {getPatientOptionLabel(selectedPatient)}
+                            </span>
+                        ) : null}
+                    </label>
+                </div>
+            </fieldset>
 
-                <label className="block text-sm font-medium text-slate-700">
-                    Appointment date and time <RequiredMark />
-                    <input
-                        className={getFieldClassName(Boolean(fieldErrors.scheduledAt))}
-                        type="datetime-local"
-                        value={values.scheduledAt}
-                        onChange={(event) => onChange('scheduledAt', event.target.value)}
-                        disabled={controlsDisabled}
-                        aria-invalid={Boolean(fieldErrors.scheduledAt)}
-                        aria-describedby={getFieldErrorDescriptionId('scheduledAt', fieldErrors)}
-                        required
-                    />
-                    <FieldError
-                        id={getFieldErrorId('scheduledAt')}
-                        message={fieldErrors.scheduledAt}
-                    />
-                </label>
+            <fieldset className="rounded-lg border border-slate-200 bg-white p-4">
+                <legend className="px-1 text-sm font-semibold text-slate-950">Timing</legend>
+                <p className="mb-4 text-sm leading-6 text-slate-600">
+                    Select the intended appointment start and duration. Exact doctor/time conflicts
+                    are reported by the backend.
+                </p>
+                <div className="grid gap-5 md:grid-cols-2">
+                    <label className="block text-sm font-medium text-slate-700">
+                        Appointment date and time <RequiredMark />
+                        <input
+                            className={getFieldClassName(Boolean(fieldErrors.scheduledAt))}
+                            type="datetime-local"
+                            value={values.scheduledAt}
+                            onChange={(event) => onChange('scheduledAt', event.target.value)}
+                            disabled={controlsDisabled}
+                            aria-invalid={Boolean(fieldErrors.scheduledAt)}
+                            aria-describedby={getFieldErrorDescriptionId(
+                                'scheduledAt',
+                                fieldErrors
+                            )}
+                            required
+                        />
+                        <FieldError
+                            id={getFieldErrorId('scheduledAt')}
+                            message={fieldErrors.scheduledAt}
+                        />
+                    </label>
 
-                <label className="block text-sm font-medium text-slate-700">
-                    Duration minutes <RequiredMark />
-                    <input
-                        className={getFieldClassName(Boolean(fieldErrors.durationMinutes))}
-                        value={values.durationMinutes}
-                        onChange={(event) => onChange('durationMinutes', event.target.value)}
-                        disabled={controlsDisabled}
-                        type="number"
-                        min="1"
-                        step="1"
-                        inputMode="numeric"
-                        aria-invalid={Boolean(fieldErrors.durationMinutes)}
-                        aria-describedby={getFieldErrorDescriptionId(
-                            'durationMinutes',
-                            fieldErrors
-                        )}
-                        required
-                    />
-                    <FieldError
-                        id={getFieldErrorId('durationMinutes')}
-                        message={fieldErrors.durationMinutes}
-                    />
-                </label>
+                    <label className="block text-sm font-medium text-slate-700">
+                        Duration minutes <RequiredMark />
+                        <input
+                            className={getFieldClassName(Boolean(fieldErrors.durationMinutes))}
+                            value={values.durationMinutes}
+                            onChange={(event) => onChange('durationMinutes', event.target.value)}
+                            disabled={controlsDisabled}
+                            type="number"
+                            min="1"
+                            step="1"
+                            inputMode="numeric"
+                            aria-invalid={Boolean(fieldErrors.durationMinutes)}
+                            aria-describedby={getFieldErrorDescriptionId(
+                                'durationMinutes',
+                                fieldErrors
+                            )}
+                            required
+                        />
+                        <FieldError
+                            id={getFieldErrorId('durationMinutes')}
+                            message={fieldErrors.durationMinutes}
+                        />
+                    </label>
+                </div>
+            </fieldset>
 
-                <label className="block text-sm font-medium text-slate-700 md:col-span-2">
-                    Reason
-                    <input
-                        className={getFieldClassName(Boolean(fieldErrors.reason))}
-                        value={values.reason}
-                        onChange={(event) => onChange('reason', event.target.value)}
-                        disabled={controlsDisabled}
-                        placeholder="Fever, follow-up, consultation"
-                    />
-                    <FieldError message={fieldErrors.reason} />
-                </label>
+            <fieldset className="rounded-lg border border-slate-200 bg-white p-4">
+                <legend className="px-1 text-sm font-semibold text-slate-950">Visit context</legend>
+                <p className="mb-4 text-sm leading-6 text-slate-600">
+                    Reason and notes are optional operational context for staff. Keep them concise
+                    and relevant to this appointment.
+                </p>
+                <div className="grid gap-5">
+                    <label className="block text-sm font-medium text-slate-700 md:col-span-2">
+                        Reason
+                        <input
+                            className={getFieldClassName(Boolean(fieldErrors.reason))}
+                            value={values.reason}
+                            onChange={(event) => onChange('reason', event.target.value)}
+                            disabled={controlsDisabled}
+                            placeholder="Fever, follow-up, consultation"
+                        />
+                        <FieldError message={fieldErrors.reason} />
+                    </label>
 
-                <label className="block text-sm font-medium text-slate-700 md:col-span-2">
-                    Notes
-                    <textarea
-                        className={getFieldClassName(Boolean(fieldErrors.notes))}
-                        value={values.notes}
-                        onChange={(event) => onChange('notes', event.target.value)}
-                        disabled={controlsDisabled}
-                        rows={3}
-                    />
-                    <FieldError message={fieldErrors.notes} />
-                </label>
-            </div>
+                    <label className="block text-sm font-medium text-slate-700 md:col-span-2">
+                        Notes
+                        <textarea
+                            className={getFieldClassName(Boolean(fieldErrors.notes))}
+                            value={values.notes}
+                            onChange={(event) => onChange('notes', event.target.value)}
+                            disabled={controlsDisabled}
+                            rows={3}
+                        />
+                        <FieldError message={fieldErrors.notes} />
+                    </label>
+                </div>
+            </fieldset>
 
             <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
                 <Button

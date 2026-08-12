@@ -25,7 +25,7 @@ describe('App routes', () => {
 
         expect(
             await screen.findByRole('heading', {
-                name: /pravaah helps clinics manage appointments, queues, and explainable no-show risk/i,
+                name: /pravaah turns a clinic day into one controlled patient-flow workspace/i,
             })
         ).toBeInTheDocument();
         expect(screen.getAllByRole('link', { name: /^sign in$/i })[0]).toHaveAttribute(

@@ -1,14 +1,17 @@
 import { useAuth } from '@clerk/react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PravaahLogo } from '../../components/brand';
+import { Badge } from '../../components/ui';
 import ProductShowcase from './components/ProductShowcase';
 
 const publicNavigationItems = [
     { label: 'Problem', href: '#problem' },
     { label: 'Product', href: '#product' },
-    { label: 'Workflow', href: '#workflow' },
+    { label: 'Workflow', href: '#workflow-tour' },
     { label: 'Capabilities', href: '#capabilities' },
     { label: 'Risk support', href: '#risk-support' },
+    { label: 'Engineering', href: '#engineering' },
 ];
 
 const onboardingClinicPath = '/onboarding/clinic';
@@ -16,36 +19,71 @@ const dashboardPath = '/dashboard';
 
 const workflowSteps = [
     {
-        title: 'Clinic setup',
-        description: 'Create the clinic workspace and keep the operating context clear.',
+        title: 'Schedule',
+        status: 'Appointment created',
+        description:
+            'Staff choose an active doctor, an active patient, time, duration, source, reason, and notes.',
+        validates: 'Backend creates appointment, queue entry, and no-show assistance together.',
+        humanControl: 'Staff decides when and why to book.',
+        previewTitle: 'Booking form',
+        previewItems: ['Active doctor', 'Active patient', 'Scheduled time', 'Reception source'],
     },
     {
-        title: 'Doctor and patient management',
-        description: 'Maintain records for the people involved in each clinic visit.',
+        title: 'Confirm',
+        status: 'Confirmed',
+        description:
+            'The appointment can be manually confirmed when staff have completed their normal follow-up.',
+        validates: 'Status stays attached to the clinic-scoped appointment.',
+        humanControl: 'No automatic confirmation or patient contact is implied.',
+        previewTitle: 'Status action',
+        previewItems: ['Confirm', 'Mark arrived', 'Cancel', 'Mark no-show'],
     },
     {
-        title: 'Appointment booking',
-        description: 'Schedule visits with timing, source, reason, and status context.',
+        title: 'Arrive',
+        status: 'Arrived',
+        description:
+            'Staff record arrival so the front desk and queue screen show that the patient is present.',
+        validates: 'Queue status can sync with appointment status where a queue entry exists.',
+        humanControl: 'Arrival is recorded by clinic staff.',
+        previewTitle: 'Reception update',
+        previewItems: ['Patient present', 'Doctor context', 'Time visible', 'Queue ready'],
     },
     {
-        title: 'No-show risk assistance',
-        description: 'Review rule-based risk level and reasons before staff follow-up.',
+        title: 'Queue',
+        status: 'Waiting',
+        description:
+            'The patient appears in the doctor-scoped active queue with a visible position number.',
+        validates: 'Manual reorder requests send authoritative queue-entry IDs to the backend.',
+        humanControl: 'Only staff move the queue order.',
+        previewTitle: 'Queue board',
+        previewItems: ['#01 position', 'Waiting status', 'Move up/down', 'Server confirmed'],
     },
     {
-        title: 'Arrival and live queue operations',
-        description: 'Move arrived patients through waiting, called, and active queue states.',
+        title: 'Call',
+        status: 'Called',
+        description:
+            'Staff call the next patient and keep the waiting board current during the clinic day.',
+        validates: 'Called timestamps stay on the queue entry when available.',
+        humanControl: 'Calling a patient is a deliberate staff action.',
+        previewTitle: 'Queue status',
+        previewItems: ['Call patient', 'Called time', 'Appointment status', 'Risk visible'],
     },
     {
-        title: 'Completion or no-show handling',
-        description: 'Close the visit manually as completed, cancelled, or No Show.',
+        title: 'Close',
+        status: 'Completed / No Show',
+        description:
+            'The visit is closed as completed, cancelled, or no-show. Final entries remain visible for review.',
+        validates: 'Final states are not shown as reorderable.',
+        humanControl: 'Final operational decisions remain with Admin or Staff.',
+        previewTitle: 'Visit outcome',
+        previewItems: ['Completed', 'Cancelled', 'No Show', 'Reorder locked'],
     },
 ];
 
 const capabilityItems = [
     {
         title: 'Clinic operations',
-        description:
-            'Give Admin and Staff users one protected workspace for daily clinic flow.',
+        description: 'Give Admin and Staff users one protected workspace for daily clinic flow.',
     },
     {
         title: 'Doctor and patient records',
@@ -99,6 +137,15 @@ const riskGuardrailItems = [
     'No attendance guarantees or medical conclusions.',
     'No automatic cancellation, queue reorder, or patient contact.',
     'Staff can review the reasons and decide the next follow-up step.',
+];
+
+const architectureItems = [
+    'React, TypeScript, Vite, and Tailwind on the frontend.',
+    'Express, Prisma, PostgreSQL, and Zod on the backend.',
+    'Clerk identity mapped to backend-owned Pravaah users, roles, and clinic access.',
+    'Backend-enforced clinic isolation for protected workflow APIs.',
+    'Transactional appointment creation with queue entry and deterministic risk assistance.',
+    'Human-controlled queue reorder with backend validation.',
 ];
 
 function PublicHeader() {
@@ -224,6 +271,209 @@ function SectionHeading({
     );
 }
 
+function HeroFlowPreview() {
+    const heroSteps = [
+        { label: 'Appointment', detail: '10:10 with Dr. Rao' },
+        { label: 'Arrival', detail: 'Reception marks present' },
+        { label: 'Queue', detail: '#02 waiting' },
+        { label: 'Called', detail: 'Room 2' },
+        { label: 'Completed', detail: 'Visit closed' },
+    ];
+
+    return (
+        <div className="relative rounded-lg border border-white/15 bg-white/5 p-4 shadow-2xl shadow-slate-950/30 sm:p-5">
+            <svg
+                className="absolute inset-x-4 top-24 h-48 w-[calc(100%-2rem)] text-brand opacity-80"
+                viewBox="0 0 520 190"
+                fill="none"
+                aria-hidden="true"
+            >
+                <path
+                    className="flow-path"
+                    d="M34 134 C112 42 170 46 244 112 C310 170 378 162 486 58"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                />
+            </svg>
+
+            <div className="relative grid gap-3">
+                <div className="rounded-lg border border-white/15 bg-slate-950/80 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-brand">
+                                Today flow
+                            </p>
+                            <h2 className="mt-1 text-lg font-bold text-white">
+                                Pravaah Family Clinic
+                            </h2>
+                        </div>
+                        <Badge
+                            tone="brand"
+                            className="bg-brand-subtle text-brand-foreground ring-brand-soft"
+                        >
+                            Staff controlled
+                        </Badge>
+                    </div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                        <div>
+                            <p className="text-2xl font-bold text-white">12</p>
+                            <p className="text-xs text-slate-300">appointments</p>
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold text-white">5</p>
+                            <p className="text-xs text-slate-300">active queue</p>
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold text-white">2</p>
+                            <p className="text-xs text-slate-300">need review</p>
+                        </div>
+                    </div>
+                </div>
+
+                <ol className="relative mt-2 grid gap-3">
+                    {heroSteps.map((step, index) => (
+                        <li
+                            key={step.label}
+                            className={`showcase-rise rounded-lg border border-white/15 bg-white p-4 text-slate-950 shadow-lg shadow-slate-950/10 ${
+                                index % 2 === 0 ? 'mr-10' : 'ml-10'
+                            }`}
+                            style={{ animationDelay: `${index * 70}ms` }}
+                        >
+                            <div className="flex items-center gap-3">
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-subtle text-sm font-bold text-brand-foreground ring-1 ring-brand-soft">
+                                    {index + 1}
+                                </span>
+                                <div className="min-w-0">
+                                    <p className="text-sm font-bold">{step.label}</p>
+                                    <p className="mt-0.5 text-xs text-slate-500">{step.detail}</p>
+                                </div>
+                            </div>
+                        </li>
+                    ))}
+                </ol>
+            </div>
+        </div>
+    );
+}
+
+function CompactFlowStrip() {
+    const labels = ['Appointment', 'Arrival', 'Queue', 'Called', 'Completed'];
+
+    return (
+        <ol className="mt-6 flex flex-wrap gap-2" aria-label="Clinic flow summary">
+            {labels.map((label, index) => (
+                <li key={label} className="flex items-center gap-2">
+                    <span className="rounded-md border border-white/15 bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-slate-100">
+                        {label}
+                    </span>
+                    {index < labels.length - 1 ? (
+                        <span className="text-brand" aria-hidden="true">
+                            -&gt;
+                        </span>
+                    ) : null}
+                </li>
+            ))}
+        </ol>
+    );
+}
+
+function WorkflowTour() {
+    const [activeIndex, setActiveIndex] = useState(0);
+    const activeStep = workflowSteps[activeIndex] ?? workflowSteps[0]!;
+
+    return (
+        <div className="mt-10 grid gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
+            <ol className="grid gap-3">
+                {workflowSteps.map((step, index) => {
+                    const isActive = index === activeIndex;
+
+                    return (
+                        <li key={step.title}>
+                            <button
+                                type="button"
+                                className={`w-full rounded-lg border p-4 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action ${
+                                    isActive
+                                        ? 'border-brand-soft bg-brand-subtle shadow-sm'
+                                        : 'border-slate-200 bg-white hover:border-brand-soft hover:bg-slate-50'
+                                }`}
+                                onMouseEnter={() => setActiveIndex(index)}
+                                onFocus={() => setActiveIndex(index)}
+                                onClick={() => setActiveIndex(index)}
+                                aria-current={isActive ? 'step' : undefined}
+                            >
+                                <span className="flex items-start gap-3">
+                                    <span
+                                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-sm font-bold ring-1 ${
+                                            isActive
+                                                ? 'bg-white text-brand-foreground ring-brand-soft'
+                                                : 'bg-slate-50 text-slate-600 ring-slate-200'
+                                        }`}
+                                    >
+                                        {String(index + 1).padStart(2, '0')}
+                                    </span>
+                                    <span className="min-w-0">
+                                        <span className="block text-base font-bold text-slate-950">
+                                            {step.title}
+                                        </span>
+                                        <span className="mt-1 block text-sm leading-6 text-slate-600">
+                                            {step.description}
+                                        </span>
+                                    </span>
+                                </span>
+                            </button>
+                        </li>
+                    );
+                })}
+            </ol>
+
+            <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-brand-foreground">
+                            {activeStep.status}
+                        </p>
+                        <h3 className="mt-2 text-2xl font-bold text-slate-950">
+                            {activeStep.previewTitle}
+                        </h3>
+                    </div>
+                    <Badge tone="brand">Interactive model</Badge>
+                </div>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    {activeStep.previewItems.map((item) => (
+                        <div
+                            key={item}
+                            className="rounded-md border border-slate-200 bg-slate-50 p-3"
+                        >
+                            <p className="text-sm font-semibold text-slate-900">{item}</p>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                    <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-sm font-bold text-slate-950">
+                            What the system validates
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-slate-600">
+                            {activeStep.validates}
+                        </p>
+                    </div>
+                    <div className="rounded-md border border-[var(--color-status-warning-border)] bg-[var(--color-status-warning-bg)] p-4">
+                        <p className="text-sm font-bold text-[var(--color-status-warning-text)]">
+                            Human decision boundary
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-[var(--color-status-warning-text)]">
+                            {activeStep.humanControl}
+                        </p>
+                    </div>
+                </div>
+            </article>
+        </div>
+    );
+}
+
 function PublicLandingPage() {
     const currentYear = new Date().getFullYear();
 
@@ -233,18 +483,7 @@ function PublicLandingPage() {
 
             <main>
                 <section className="relative overflow-hidden bg-slate-950">
-                    <div
-                        className="pointer-events-none absolute bottom-[-6rem] right-[-4rem] hidden opacity-10 lg:block"
-                        aria-hidden="true"
-                    >
-                        <PravaahLogo
-                            layout="mark"
-                            surface="dark"
-                            size="xl"
-                            className="scale-[3.8]"
-                        />
-                    </div>
-                    <div className="relative mx-auto max-w-7xl px-4 py-16 text-white sm:px-6 md:py-20 lg:px-8">
+                    <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-12 text-white sm:px-6 md:py-14 lg:min-h-[calc(100vh-6.5rem)] lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:px-8">
                         <div className="max-w-3xl">
                             <PravaahLogo
                                 layout="horizontal"
@@ -253,21 +492,44 @@ function PublicLandingPage() {
                                 className="mb-8"
                             />
                             <p className="text-sm font-semibold uppercase tracking-wide text-brand">
-                                Clinic appointment and queue-management platform
+                                Clinic-side operations for appointments, arrivals, and queues
                             </p>
                             <h1 className="mt-4 text-4xl font-bold leading-tight sm:text-5xl">
-                                Pravaah helps clinics manage appointments, queues, and explainable
-                                no-show risk.
+                                Pravaah turns a clinic day into one controlled patient-flow
+                                workspace.
                             </h1>
                             <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-200">
-                                Built for small and medium clinic teams, Pravaah gives Admin and
-                                Staff users a focused workspace for the day: setup, records,
-                                appointment booking, risk review, arrivals, and queue decisions.
+                                Admin and Staff users can create the clinic, maintain records, book
+                                appointments, review deterministic no-show reasons, manage arrivals,
+                                and manually operate the queue without pretending the software makes
+                                the final decision.
                             </p>
+
+                            <CompactFlowStrip />
 
                             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                                 <PublicCtaActions />
+                                <a
+                                    href="#workflow-tour"
+                                    className="inline-flex min-h-11 items-center justify-center rounded-lg border border-white/30 bg-transparent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                                >
+                                    Explore the workflow
+                                </a>
                             </div>
+                        </div>
+
+                        <HeroFlowPreview />
+
+                        <div className="grid gap-3 text-sm text-slate-300 sm:grid-cols-3 lg:col-span-2">
+                            <p className="rounded-md border border-white/10 bg-white/5 p-3">
+                                No patient or doctor login implied.
+                            </p>
+                            <p className="rounded-md border border-white/10 bg-white/5 p-3">
+                                No trained ML or automatic queue decisions.
+                            </p>
+                            <p className="rounded-md border border-white/10 bg-white/5 p-3">
+                                Backend remains authoritative.
+                            </p>
                         </div>
                     </div>
                 </section>
@@ -360,34 +622,17 @@ function PublicLandingPage() {
                 </section>
 
                 <section
-                    id="workflow"
+                    id="workflow-tour"
                     className="scroll-mt-36 border-b border-slate-200 bg-white md:scroll-mt-32"
                 >
                     <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
                         <SectionHeading
-                            eyebrow="Core workflow"
-                            title="A clear path from setup to final visit handling."
-                            description="The application keeps each operational step visible while final appointment and queue decisions remain under Admin or Staff control."
+                            eyebrow="Interactive workflow"
+                            title="Click through the appointment-to-queue lifecycle."
+                            description="Each stage reflects implemented product behavior: staff actions, backend validation, queue visibility, and the boundary between assistance and final human decisions."
                         />
 
-                        <ol className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                            {workflowSteps.map((step, index) => (
-                                <li
-                                    key={step.title}
-                                    className="rounded-lg border border-slate-200 bg-[#F8FAFC] p-5"
-                                >
-                                    <p className="text-sm font-bold text-brand-foreground">
-                                        Step {index + 1}
-                                    </p>
-                                    <h3 className="mt-3 text-lg font-bold text-slate-950">
-                                        {step.title}
-                                    </h3>
-                                    <p className="mt-3 text-sm leading-6 text-slate-600">
-                                        {step.description}
-                                    </p>
-                                </li>
-                            ))}
-                        </ol>
+                        <WorkflowTour />
                     </div>
                 </section>
 
@@ -475,6 +720,37 @@ function PublicLandingPage() {
                                     </ul>
                                 </article>
                             </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section
+                    id="engineering"
+                    className="scroll-mt-36 border-y border-slate-200 bg-[#F8FAFC] md:scroll-mt-32"
+                >
+                    <div className="mx-auto grid max-w-7xl gap-8 px-4 py-16 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
+                        <SectionHeading
+                            eyebrow="Engineering credibility"
+                            title="The product surface reflects the system design."
+                            description="Pravaah exposes enough workflow truth in the UI for a reviewer to understand why the architecture matters, without turning the landing page into a resume."
+                        />
+
+                        <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                {architectureItems.map((item) => (
+                                    <div
+                                        key={item}
+                                        className="rounded-md border border-slate-200 bg-slate-50 p-4"
+                                    >
+                                        <p className="text-sm leading-6 text-slate-700">{item}</p>
+                                    </div>
+                                ))}
+                            </div>
+                            <p className="mt-5 rounded-md border border-brand-soft bg-brand-subtle p-4 text-sm leading-6 text-app-text">
+                                The important boundary is deliberate: Clerk proves identity, but
+                                Pravaah's backend owns role, clinic access, appointment writes,
+                                queue ordering, and deterministic risk calculation.
+                            </p>
                         </div>
                     </div>
                 </section>

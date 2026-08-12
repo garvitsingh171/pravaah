@@ -11,6 +11,7 @@ import {
 } from '../../components/feedback';
 import {
     Button,
+    Badge,
     ConfirmationDialog,
     FilterBar,
     FormSection,
@@ -527,6 +528,37 @@ function DoctorEditPanel({ clinicId, doctor, onCancel, onSaved }: DoctorEditPane
     );
 }
 
+function DoctorListSummary({
+    doctors,
+    displayedCount,
+}: {
+    doctors: DoctorSummary[];
+    displayedCount: number;
+}) {
+    const activeCount = doctors.filter(isDoctorActiveInClinic).length;
+    const inactiveCount = doctors.length - activeCount;
+
+    return (
+        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                        {displayedCount} doctors visible
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500">
+                        Active records can be selected during appointment booking.
+                    </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    <Badge tone="success">{activeCount} active</Badge>
+                    <Badge tone="neutral">{inactiveCount} inactive</Badge>
+                    <Badge tone="brand">{doctors.length} total</Badge>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function DoctorsPage() {
     const navigate = useNavigate();
     const location = useLocation();
@@ -661,8 +693,7 @@ function DoctorsPage() {
 
         return doctorListState.doctors.filter(
             (doctor) =>
-                doctorMatchesSearch(doctor, searchTerm) &&
-                doctorMatchesStatus(doctor, statusFilter)
+                doctorMatchesSearch(doctor, searchTerm) && doctorMatchesStatus(doctor, statusFilter)
         );
     }, [doctorListState, searchTerm, statusFilter]);
     const hasSearch = searchTerm.trim().length > 0;
@@ -703,7 +734,9 @@ function DoctorsPage() {
                         <select
                             className={fieldControlClassName}
                             value={statusFilter}
-                            onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+                            onChange={(event) =>
+                                setStatusFilter(event.target.value as StatusFilter)
+                            }
                         >
                             <option value="all">All doctor records</option>
                             <option value="active">Active for booking</option>
@@ -724,6 +757,13 @@ function DoctorsPage() {
                     ) : null}
                 </div>
             </FilterBar>
+
+            {doctorListState.status === 'success' && doctorListState.doctors.length > 0 ? (
+                <DoctorListSummary
+                    doctors={doctorListState.doctors}
+                    displayedCount={displayedDoctors.length}
+                />
+            ) : null}
 
             {editingDoctor ? (
                 <DoctorEditPanel
@@ -830,7 +870,10 @@ function DoctorsPage() {
                                                 </td>
                                                 <td className="min-w-36 px-4 py-5">
                                                     <div className="space-y-2">
-                                                        <StatusBadge kind="active" status={isActive} />
+                                                        <StatusBadge
+                                                            kind="active"
+                                                            status={isActive}
+                                                        />
                                                         {!doctor.isActive ? (
                                                             <p className="text-xs text-slate-500">
                                                                 Doctor profile inactive
@@ -859,7 +902,9 @@ function DoctorsPage() {
                                                                 isExpanded ? 'Hide' : 'View'
                                                             } details for ${doctor.fullName}`}
                                                         >
-                                                            {isExpanded ? 'Hide details' : 'Details'}
+                                                            {isExpanded
+                                                                ? 'Hide details'
+                                                                : 'Details'}
                                                         </Button>
                                                         <Button
                                                             variant="outline"
@@ -870,7 +915,11 @@ function DoctorsPage() {
                                                             Edit
                                                         </Button>
                                                         <Button
-                                                            variant={doctor.isActive ? 'danger' : 'secondary'}
+                                                            variant={
+                                                                doctor.isActive
+                                                                    ? 'danger'
+                                                                    : 'secondary'
+                                                            }
                                                             size="sm"
                                                             onClick={() => {
                                                                 setStatusAction({
@@ -940,14 +989,18 @@ function DoctorsPage() {
             <ConfirmationDialog
                 open={Boolean(statusAction)}
                 title={
-                    statusAction?.nextIsActive ? 'Reactivate doctor record?' : 'Deactivate doctor record?'
+                    statusAction?.nextIsActive
+                        ? 'Reactivate doctor record?'
+                        : 'Deactivate doctor record?'
                 }
                 description={
                     statusAction?.nextIsActive
                         ? `Reactivate ${statusAction.doctor.fullName} for supported clinic workflows.`
                         : `Deactivate ${statusAction?.doctor.fullName ?? 'this doctor'} without deleting the record or appointment history.`
                 }
-                confirmLabel={statusAction?.nextIsActive ? 'Reactivate doctor' : 'Deactivate doctor'}
+                confirmLabel={
+                    statusAction?.nextIsActive ? 'Reactivate doctor' : 'Deactivate doctor'
+                }
                 cancelLabel="Keep current status"
                 confirmVariant={statusAction?.nextIsActive ? 'primary' : 'danger'}
                 isConfirming={isStatusUpdating}

@@ -5,6 +5,7 @@ import { EmptyState, ErrorMessage, LoadingState, useToast } from '../../componen
 import {
     Button,
     FilterBar,
+    LifecycleRail,
     PageHeader,
     RiskBadge as RiskLevelBadge,
     StatusBadge,
@@ -201,6 +202,39 @@ const finalAppointmentStatuses: AppointmentStatus[] = [
     AppointmentStatus.COMPLETED,
     AppointmentStatus.CANCELLED,
     AppointmentStatus.NO_SHOW,
+];
+
+const appointmentLifecycleSteps = [
+    {
+        id: AppointmentStatus.SCHEDULED,
+        label: 'Scheduled',
+        description: 'Booked appointment',
+    },
+    {
+        id: AppointmentStatus.CONFIRMED,
+        label: 'Confirmed',
+        description: 'Staff confirmed',
+    },
+    {
+        id: AppointmentStatus.ARRIVED,
+        label: 'Arrived',
+        description: 'Patient present',
+    },
+    {
+        id: AppointmentStatus.IN_QUEUE,
+        label: 'In queue',
+        description: 'Visible in queue',
+    },
+    {
+        id: AppointmentStatus.CALLED,
+        label: 'Called',
+        description: 'Staff called patient',
+    },
+    {
+        id: AppointmentStatus.COMPLETED,
+        label: 'Completed',
+        description: 'Visit closed',
+    },
 ];
 
 const isFinalAppointmentStatus = (status: AppointmentStatus): boolean => {
@@ -737,6 +771,29 @@ function PredictionDetailPanel({ appointment }: { appointment: AppointmentListIt
     );
 }
 
+function AppointmentLifecyclePanel({ appointment }: { appointment: AppointmentListItem }) {
+    const terminalLabel =
+        appointment.status === AppointmentStatus.CANCELLED
+            ? 'Cancelled is a final appointment state. Queue sync remains backend-authoritative where a queue entry exists.'
+            : appointment.status === AppointmentStatus.NO_SHOW
+              ? 'No Show is a final appointment state. Risk assistance remains advisory and does not mark this automatically.'
+              : 'Final statuses are locked. Non-final updates remain manual Admin/Staff actions in the current product.';
+
+    return (
+        <LifecycleRail
+            steps={appointmentLifecycleSteps}
+            currentStepId={
+                appointment.status === AppointmentStatus.CANCELLED ||
+                appointment.status === AppointmentStatus.NO_SHOW
+                    ? undefined
+                    : appointment.status
+            }
+            terminalLabel={terminalLabel}
+            ariaLabel={`Appointment lifecycle for ${appointment.patient.fullName}`}
+        />
+    );
+}
+
 function AppointmentDetailPanel({ appointment }: { appointment: AppointmentListItem }) {
     const queueEntry = appointment.queueEntry;
     const patientContact = [appointment.patient.phone, appointment.patient.email]
@@ -745,6 +802,8 @@ function AppointmentDetailPanel({ appointment }: { appointment: AppointmentListI
 
     return (
         <div className="space-y-4">
+            <AppointmentLifecyclePanel appointment={appointment} />
+
             <div className="rounded-lg border border-slate-200 bg-white p-5">
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div>
@@ -1349,8 +1408,31 @@ function AppointmentsPage() {
             {appointmentListState.status === 'success' &&
             appointmentListState.appointments.length === 0 ? (
                 <EmptyState
-                    title="No appointments match these filters."
-                    message="Try a different date, doctor, patient, or status to find matching appointments."
+                    title={
+                        hasAppointmentFilters
+                            ? 'No appointments match these filters.'
+                            : 'No appointments scheduled yet.'
+                    }
+                    message={
+                        hasAppointmentFilters
+                            ? 'Try a different date, doctor, patient, or status to find matching appointments.'
+                            : 'Book the first appointment to create the linked appointment, queue entry, and deterministic risk assistance.'
+                    }
+                    action={
+                        <a
+                            href="#book-appointment"
+                            className="inline-flex min-h-10 items-center justify-center rounded-md border border-transparent bg-action px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+                        >
+                            Book appointment
+                        </a>
+                    }
+                    secondaryAction={
+                        hasAppointmentFilters ? (
+                            <Button variant="outline" onClick={handleClearAppointmentFilters}>
+                                Clear filters
+                            </Button>
+                        ) : undefined
+                    }
                 />
             ) : null}
 

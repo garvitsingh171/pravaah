@@ -2,7 +2,7 @@ import type { FormEvent } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useActiveClinic } from '../../app/activeClinicContext';
 import { ErrorMessage, FieldError, LoadingState, useToast } from '../../components/feedback';
-import { Button, PageHeader, fieldControlClassName } from '../../components/ui';
+import { Badge, Button, PageHeader, fieldControlClassName } from '../../components/ui';
 import { isApiClientError } from '../../lib';
 import {
     getClinicSettings,
@@ -366,6 +366,46 @@ function TextField({
     );
 }
 
+function ClinicSettingsSummary({ clinic }: { clinic: ClinicSettings }) {
+    const location = [clinic.city, clinic.state, clinic.country]
+        .filter((value): value is string => Boolean(value?.trim()))
+        .join(', ');
+
+    return (
+        <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Workspace identity
+                </p>
+                <p className="mt-2 text-sm font-semibold text-slate-900">{clinic.name}</p>
+                <p className="mt-1 text-sm text-slate-500">/{clinic.slug}</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Operating window
+                </p>
+                <p className="mt-2 text-sm font-semibold text-slate-900">
+                    {clinic.openingTime} to {clinic.closingTime}
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                    {clinic.slotDurationMinutes} min slots, {clinic.bufferMinutes} min buffer
+                </p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Region
+                </p>
+                <p className="mt-2 text-sm font-semibold text-slate-900">
+                    {location || 'Location not added'}
+                </p>
+                <div className="mt-2">
+                    <Badge tone="brand">{clinic.timezone}</Badge>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function ClinicSettingsPage() {
     const activeClinic = useActiveClinic();
     const { clinicId } = activeClinic;
@@ -650,6 +690,8 @@ function ClinicSettingsPage() {
                     {statusMessage}
                 </div>
             ) : null}
+
+            <ClinicSettingsSummary clinic={state.clinic} />
 
             <form
                 className="space-y-6 rounded-lg border border-slate-200 bg-white p-6 md:p-8"

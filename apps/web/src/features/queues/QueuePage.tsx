@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useActiveClinic } from '../../app/activeClinicContext';
 import { EmptyState, ErrorMessage, LoadingState, useToast } from '../../components/feedback';
 import {
     Button,
     FilterBar,
+    LifecycleRail,
     PageHeader,
     RiskBadge as RiskLevelBadge,
     RiskExplanation,
@@ -13,6 +15,7 @@ import {
     getAppointmentStatusLabel,
 } from '../../components/ui';
 import { isApiClientError } from '../../lib';
+import { appRoutePaths } from '../../routes/dashboardRoutes';
 import { QueueStatus } from '../../types';
 import type { QueueStatus as QueueStatusType } from '../../types';
 import { listTodayQueue, reorderQueue, updateQueueStatus, type QueueListItem } from './queueApi';
@@ -77,6 +80,29 @@ const finalQueueStatuses: QueueStatusType[] = [
     QueueStatus.COMPLETED,
     QueueStatus.CANCELLED,
     QueueStatus.NO_SHOW,
+];
+
+const queueLifecycleSteps = [
+    {
+        id: QueueStatus.ARRIVED,
+        label: 'Arrived',
+        description: 'Patient present',
+    },
+    {
+        id: QueueStatus.WAITING,
+        label: 'Waiting',
+        description: 'Active queue order',
+    },
+    {
+        id: QueueStatus.CALLED,
+        label: 'Called',
+        description: 'Patient called',
+    },
+    {
+        id: QueueStatus.COMPLETED,
+        label: 'Completed',
+        description: 'Visit closed',
+    },
 ];
 
 const isFinalQueueStatus = (status: QueueStatusType): boolean => {
@@ -312,6 +338,20 @@ function QueueTimeline({ queueEntry }: { queueEntry: QueueListItem }) {
     );
 }
 
+function QueueLifecyclePanel({ selectedStatus }: { selectedStatus: QueueStatusType | '' }) {
+    const currentStepId =
+        selectedStatus && !isFinalQueueStatus(selectedStatus) ? selectedStatus : undefined;
+
+    return (
+        <LifecycleRail
+            steps={queueLifecycleSteps}
+            currentStepId={currentStepId}
+            terminalLabel="Manual reorder applies only to eligible active entries. Completed, cancelled, and no-show entries remain visible but are not reorderable."
+            ariaLabel="Queue lifecycle model"
+        />
+    );
+}
+
 function QueuePage() {
     const activeClinic = useActiveClinic();
     const { clinicId } = activeClinic;
@@ -534,12 +574,14 @@ function QueuePage() {
     const hasFilteredQueueEntries =
         queueListState.status === 'success' && displayedQueueEntries.length > 0;
     const hasQueueFilters = Boolean(selectedDoctorId || selectedStatus);
-    const activeQueueEntries = useMemo(() => getActiveQueueEntries(displayedQueueEntries), [
-        displayedQueueEntries,
-    ]);
-    const finalQueueEntries = useMemo(() => getFinalQueueEntries(displayedQueueEntries), [
-        displayedQueueEntries,
-    ]);
+    const activeQueueEntries = useMemo(
+        () => getActiveQueueEntries(displayedQueueEntries),
+        [displayedQueueEntries]
+    );
+    const finalQueueEntries = useMemo(
+        () => getFinalQueueEntries(displayedQueueEntries),
+        [displayedQueueEntries]
+    );
     const allActiveQueueEntries = useMemo(
         () => getActiveQueueEntries(queueListState.queueEntries),
         [queueListState.queueEntries]
@@ -600,6 +642,8 @@ function QueuePage() {
                     </Button>
                 }
             />
+
+            <QueueLifecyclePanel selectedStatus={selectedStatus} />
 
             <div className="rounded-lg border border-slate-200 bg-white p-4 md:p-5">
                 <div className="grid gap-4 md:grid-cols-4">
@@ -768,6 +812,14 @@ function QueuePage() {
                 <EmptyState
                     title="No queue entries for today yet."
                     message="Book appointments for today to add patients into the clinic queue."
+                    action={
+                        <Link
+                            to={appRoutePaths.appointments}
+                            className="inline-flex min-h-10 items-center justify-center rounded-md border border-transparent bg-action px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+                        >
+                            Book appointment
+                        </Link>
+                    }
                 />
             ) : null}
 
@@ -843,8 +895,8 @@ function QueuePage() {
                                             }`}
                                         >
                                             <td className="min-w-28 px-4 py-5">
-                                                <p className="inline-flex min-w-14 justify-center rounded-md bg-slate-900 px-3 py-2 text-sm font-bold text-white">
-                                                    #{queueEntry.position}
+                                                <p className="inline-flex min-w-16 justify-center rounded-md bg-slate-950 px-3 py-2 text-lg font-bold leading-none text-white">
+                                                    #{String(queueEntry.position).padStart(2, '0')}
                                                 </p>
                                                 <p className="mt-2 text-xs font-medium text-slate-500">
                                                     Position {queueEntry.position}
@@ -925,7 +977,9 @@ function QueuePage() {
                                                                 disabled={queueActionBusy}
                                                                 aria-label={`Move ${queueEntry.patient.fullName} up`}
                                                             >
-                                                                {isMoving ? 'Moving...' : 'Move up'}
+                                                                {isMoving
+                                                                    ? 'Moving...'
+                                                                    : 'Move earlier'}
                                                             </Button>
                                                         ) : null}
                                                         {canShowMoveDown ? (
@@ -943,7 +997,7 @@ function QueuePage() {
                                                             >
                                                                 {isMoving
                                                                     ? 'Moving...'
-                                                                    : 'Move down'}
+                                                                    : 'Move later'}
                                                             </Button>
                                                         ) : null}
                                                         {!canShowMoveUp && !canShowMoveDown ? (

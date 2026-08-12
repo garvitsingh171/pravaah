@@ -74,13 +74,14 @@ function FirstRunSetupChecklist({ setup }: { setup: SetupStatusSummary }) {
     const completedSteps = checklistItems.filter((item) => item.completed).length;
     const progressPercent = Math.round((completedSteps / totalChecklistSteps) * 100);
     const isComplete = completedSteps === totalChecklistSteps;
+    const nextIncompleteItem = checklistItems.find((item) => !item.completed);
 
     if (isComplete && isCollapsed) {
         return null;
     }
 
     return (
-        <section className="rounded-lg border border-slate-200 bg-white p-5 md:p-6">
+        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:p-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div>
                     <p className="text-sm font-medium uppercase tracking-wide text-brand-foreground">
@@ -93,6 +94,11 @@ function FirstRunSetupChecklist({ setup }: { setup: SetupStatusSummary }) {
                         Follow the minimum setup flow: clinic settings, doctor, patient, then
                         appointment.
                     </p>
+                    {nextIncompleteItem ? (
+                        <p className="mt-3 text-sm font-medium text-slate-700">
+                            Next step: {nextIncompleteItem.title}
+                        </p>
+                    ) : null}
                 </div>
 
                 {isComplete ? (
@@ -141,11 +147,17 @@ function FirstRunSetupChecklist({ setup }: { setup: SetupStatusSummary }) {
                 </div>
             ) : null}
 
-            <div className="mt-5 divide-y divide-slate-200">
+            <div className="mt-5 grid gap-3">
                 {checklistItems.map((item, index) => (
                     <article
                         key={item.id}
-                        className="grid gap-4 py-4 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center"
+                        className={`grid gap-4 rounded-lg border p-4 transition md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center ${
+                            item.completed
+                                ? 'border-[var(--color-status-success-border)] bg-[var(--color-status-success-bg)]'
+                                : nextIncompleteItem?.id === item.id
+                                  ? 'border-brand-soft bg-brand-subtle'
+                                  : 'border-slate-200 bg-slate-50'
+                        }`}
                     >
                         <div
                             className={`flex h-9 w-9 items-center justify-center rounded-full border text-sm font-bold ${

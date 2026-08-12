@@ -22,8 +22,7 @@ const variantClassNames: Record<ButtonVariant, string> = {
     outline:
         'border-app-border-strong bg-white text-app-muted hover:bg-app-surface-muted focus-visible:outline-action',
     ghost: 'border-transparent bg-transparent text-app-muted hover:bg-app-surface-muted focus-visible:outline-action',
-    danger:
-        'border-transparent bg-[var(--color-status-danger-text)] text-white shadow-sm hover:brightness-95 focus-visible:outline-[var(--color-status-danger-text)]',
+    danger: 'border-transparent bg-[var(--color-status-danger-text)] text-white shadow-sm hover:brightness-95 focus-visible:outline-[var(--color-status-danger-text)]',
 };
 
 const sizeClassNames: Record<ButtonSize, string> = {
@@ -58,6 +57,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
             disabled={isDisabled}
             className={cx(
                 'inline-flex items-center justify-center gap-2 rounded-md border font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:border-app-border disabled:bg-app-surface-muted disabled:text-app-subtle disabled:shadow-none',
+                'active:translate-y-px disabled:translate-y-0',
                 variantClassNames[variant],
                 sizeClassNames[size],
                 className
