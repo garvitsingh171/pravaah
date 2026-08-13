@@ -298,8 +298,8 @@ function OperationalPulsePanel({ data }: { data: DashboardData }) {
     ];
 
     return (
-        <Card className="border-transparent bg-[#061927] text-white shadow-[var(--shadow-raised)]">
-            <div className="grid gap-6 xl:grid-cols-[0.72fr_1.28fr] xl:items-center">
+        <Card className="border-slate-950 bg-surface-dark text-white shadow-[var(--shadow-command)]">
+            <div className="grid gap-6 xl:grid-cols-[0.7fr_1.3fr] xl:items-center">
                 <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-brand">
                         Operational pulse
@@ -333,7 +333,7 @@ function OperationalPulsePanel({ data }: { data: DashboardData }) {
                         {attentionItems.map((item) => (
                             <div
                                 key={item.label}
-                                className="rounded-lg border-t-2 border-brand bg-white/[0.08] p-4 ring-1 ring-white/15"
+                                className="rounded-lg border border-white/15 border-t-brand bg-white/[0.08] p-4 shadow-[0_1px_0_rgba(255,255,255,0.08)_inset]"
                             >
                                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-200">
                                     {item.label}
@@ -349,13 +349,13 @@ function OperationalPulsePanel({ data }: { data: DashboardData }) {
                     </div>
 
                     <ol
-                        className="grid gap-3 rounded-lg bg-white/[0.06] p-3 ring-1 ring-white/10 sm:grid-cols-4"
+                        className="grid gap-3 rounded-lg border border-white/10 bg-white/[0.05] p-3 sm:grid-cols-4"
                         aria-label="Appointment flow status summary"
                     >
                         {flowNodes.map((node, index) => (
                             <li
                                 key={node.label}
-                                className="relative rounded-md bg-[#092235] p-3 ring-1 ring-white/10"
+                                className="relative rounded-md border border-white/15 bg-white/[0.08] p-3 shadow-[0_1px_0_rgba(255,255,255,0.08)_inset]"
                             >
                                 {index < flowNodes.length - 1 ? (
                                     <span

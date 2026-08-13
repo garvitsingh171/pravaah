@@ -573,7 +573,7 @@ function PublicLandingPage() {
                     className="scroll-mt-36 border-b border-slate-200 bg-[#F8FAFC] md:scroll-mt-32"
                 >
                     <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-                        <div className="grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
+                        <div className="space-y-8">
                             <SectionHeading
                                 eyebrow="Product showcase"
                                 title="A faithful preview of the clinic-side workspace."

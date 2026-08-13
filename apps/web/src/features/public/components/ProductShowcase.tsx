@@ -99,7 +99,7 @@ function AppointmentPreview() {
                 {appointmentRows.map((row) => (
                     <div
                         key={`${row.time}-${row.patient}`}
-                        className="grid gap-3 border-b border-app-border pb-3 last:border-b-0 last:pb-0 sm:grid-cols-[4rem_minmax(0,1fr)_auto]"
+                        className="grid gap-3 border-b border-app-border pb-3 last:border-b-0 last:pb-0 sm:grid-cols-[4rem_minmax(0,1fr)] xl:grid-cols-[4rem_minmax(10rem,1fr)_auto]"
                     >
                         <p className="text-sm font-bold text-app-text">{row.time}</p>
                         <div className="min-w-0">
@@ -110,7 +110,7 @@ function AppointmentPreview() {
                                 {row.doctor} - {row.source}
                             </p>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2 sm:col-start-2 xl:col-start-auto">
                             <StatusBadge kind="appointment" status={row.status} />
                             <RiskBadge riskLevel={row.risk} />
                         </div>
@@ -128,7 +128,7 @@ function QueuePreview() {
                 {queueRows.map((row) => (
                     <div
                         key={row.position}
-                        className="grid grid-cols-[2.5rem_minmax(0,1fr)] gap-3 rounded-md border border-app-border bg-app-background p-3 sm:grid-cols-[2.5rem_minmax(0,1fr)_auto]"
+                        className="grid grid-cols-[2.5rem_minmax(0,1fr)] gap-3 rounded-md border border-app-border bg-app-background p-3 sm:grid-cols-[2.5rem_minmax(0,1fr)] xl:grid-cols-[2.5rem_minmax(10rem,1fr)_auto]"
                     >
                         <span className="flex h-9 w-9 items-center justify-center rounded-md bg-brand-subtle text-sm font-bold text-brand-foreground ring-1 ring-brand-soft">
                             {row.position}
@@ -141,7 +141,7 @@ function QueuePreview() {
                                 {row.doctor} - {row.note}
                             </p>
                         </div>
-                        <div className="col-span-2 flex items-center sm:col-span-1">
+                        <div className="col-span-2 flex items-center sm:col-start-2 xl:col-span-1 xl:col-start-auto">
                             <StatusBadge kind="queue" status={row.status} />
                         </div>
                     </div>
@@ -178,8 +178,8 @@ function RiskPreview() {
 
 function WorkflowDiagram() {
     return (
-        <div className="rounded-lg border border-app-border bg-slate-950 p-4 text-white">
-            <div className="flex flex-wrap items-center gap-2">
+        <div className="rounded-lg border border-white/10 bg-surface-dark p-4 text-white shadow-[var(--shadow-command)]">
+            <div className="flex flex-wrap items-center gap-2 xl:justify-between">
                 {workflowPoints.map((point, index) => (
                     <div key={point} className="flex items-center gap-2">
                         <Badge
@@ -216,9 +216,9 @@ function WorkflowDiagram() {
 
 function ProductShowcase() {
     return (
-        <div className="space-y-5">
+        <div className="rounded-lg border border-app-border bg-white p-3 shadow-[var(--shadow-soft)] md:p-4">
             <WorkflowDiagram />
-            <div className="grid gap-5 lg:grid-cols-3">
+            <div className="mt-4 grid gap-4 xl:grid-cols-3">
                 <AppointmentPreview />
                 <QueuePreview />
                 <RiskPreview />
