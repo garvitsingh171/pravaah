@@ -27,9 +27,9 @@ export type RouteMetadata = {
 export const publicRouteMetadata: RouteMetadata[] = [
     {
         path: '/',
-        title: 'Pravaah | Clinic Appointment and Queue Management',
+        title: 'Pravaah | Clinic Flow and Operations Platform',
         description:
-            'Pravaah helps clinic Admin and Staff users manage appointments, daily queues, and explainable no-show assistance while keeping final decisions human-controlled.',
+            'Pravaah helps small and medium clinics connect appointments, arrivals, queues, daily visibility, and explainable no-show assistance in one clinic operations workflow.',
         indexingType: 'public',
         indexable: true,
         canonicalPath: '/',

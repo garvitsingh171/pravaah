@@ -25,14 +25,14 @@ describe('App routes', () => {
 
         expect(
             await screen.findByRole('heading', {
-                name: /pravaah turns a clinic day into one controlled patient-flow workspace/i,
+                name: /keep your clinic day moving/i,
             })
         ).toBeInTheDocument();
         expect(screen.getAllByRole('link', { name: /^sign in$/i })[0]).toHaveAttribute(
             'href',
             '/login'
         );
-        expect(screen.getAllByRole('link', { name: /^start onboarding$/i })[0]).toHaveAttribute(
+        expect(screen.getAllByRole('link', { name: /^explore pravaah$/i })[0]).toHaveAttribute(
             'href',
             '/sign-up'
         );
@@ -48,7 +48,7 @@ describe('App routes', () => {
 
         expect(
             await screen.findByRole('heading', {
-                name: /pravaah turns a clinic day into one controlled patient-flow workspace/i,
+                name: /keep your clinic day moving/i,
             })
         ).toBeInTheDocument();
         expect(screen.getAllByRole('link', { name: /pravaah home/i })[0]).toHaveAttribute(
@@ -66,7 +66,7 @@ describe('App routes', () => {
 
         expect(
             await screen.findByRole('heading', {
-                name: /pravaah turns a clinic day into one controlled patient-flow workspace/i,
+                name: /keep your clinic day moving/i,
             })
         ).toBeInTheDocument();
         expect(screen.getAllByRole('link', { name: /pravaah home/i })[0]).toHaveAttribute(

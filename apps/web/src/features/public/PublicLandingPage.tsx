@@ -6,146 +6,320 @@ import { Badge } from '../../components/ui';
 import ProductShowcase from './components/ProductShowcase';
 
 const publicNavigationItems = [
-    { label: 'Problem', href: '#problem' },
     { label: 'Product', href: '#product' },
+    { label: 'Benefits', href: '#benefits' },
     { label: 'Workflow', href: '#workflow-tour' },
-    { label: 'Capabilities', href: '#capabilities' },
-    { label: 'Risk support', href: '#risk-support' },
-    { label: 'Engineering', href: '#engineering' },
+    { label: 'No-show assistance', href: '#risk-support' },
+    { label: 'Roadmap', href: '#roadmap' },
+    { label: 'FAQ', href: '#faq' },
 ];
 
 const onboardingClinicPath = '/onboarding/clinic';
 const dashboardPath = '/dashboard';
 
+const connectedFlowItems = [
+    'Appointment',
+    'Expected arrival',
+    'Arrival',
+    'Waiting',
+    'Queue',
+    'Consultation',
+    'Completion',
+];
+
+const problemItems = [
+    {
+        title: 'Scattered appointment context',
+        description:
+            'When appointment details live across calls, registers, messages, and memory, staff spend more time finding the state of the day.',
+    },
+    {
+        title: 'Unclear arrival and waiting status',
+        description:
+            'Reception needs to know who has arrived, who is still expected, who is waiting, and what changed since the last update.',
+    },
+    {
+        title: 'Manual queue coordination',
+        description:
+            'Busy front desks can lose time repeatedly confirming queue order and communicating what should happen next.',
+    },
+    {
+        title: 'No-shows affect more than one slot',
+        description:
+            'A missed appointment can affect doctor utilization, patient waiting, reception workload, and the rhythm of the clinic day.',
+    },
+];
+
+const outcomeItems = [
+    {
+        title: 'Save staff time',
+        description:
+            'Reduce repetitive coordination around appointments, patient arrival status, queue movement, and daily operational checks.',
+        capability: 'Appointments, patient records, live queue, dashboard',
+    },
+    {
+        title: 'Protect appointment capacity',
+        description:
+            'Give staff earlier visibility into appointments that may deserve attention before they become operational gaps.',
+        capability: 'Explainable no-show assistance and high-risk appointment views',
+    },
+    {
+        title: 'Keep the queue moving',
+        description:
+            'Help reception teams track who has arrived, who is waiting, who has been called, and which visits are complete.',
+        capability: 'Human-controlled queue status and reorder workflow',
+    },
+    {
+        title: 'Improve operational visibility',
+        description:
+            'Give Admin and Staff users a shared picture of what has happened, what is happening, and what needs attention next.',
+        capability: 'Clinic-day dashboard and activity summary',
+    },
+];
+
+const timeSavingItems = [
+    'Finding appointment information',
+    'Checking whether a patient has arrived',
+    'Reconstructing the queue order',
+    'Switching between records and manual notes',
+    'Understanding which appointments need attention',
+    'Updating the doctor-facing flow around consultations',
+];
+
+const valueChainItems = [
+    {
+        cause: 'Less manual coordination',
+        effect: 'More staff capacity',
+    },
+    {
+        cause: 'Better appointment visibility',
+        effect: 'Fewer avoidable operational gaps',
+    },
+    {
+        cause: 'Clearer queue flow',
+        effect: 'Better use of clinic time',
+    },
+    {
+        cause: 'Earlier risk awareness',
+        effect: 'More informed staff follow-up',
+    },
+];
+
+const productivityItems = [
+    {
+        role: 'Reception and Staff',
+        description:
+            'See today\'s appointments, update arrival and appointment status, manage queue movement, and spend less time reconstructing the clinic day.',
+    },
+    {
+        role: 'Clinic Admin and Owner',
+        description:
+            'Maintain structured clinic records, understand daily operations, and reduce dependency on ad-hoc coordination.',
+    },
+    {
+        role: 'Doctors',
+        description:
+            'Benefit indirectly when the staff workflow around scheduled consultation time, patient order, and queue progression is clearer.',
+    },
+];
+
 const workflowSteps = [
     {
-        title: 'Schedule',
-        status: 'Appointment created',
+        title: 'Set up the clinic',
+        status: 'Clinic workspace',
         description:
-            'Staff choose an active doctor, an active patient, time, duration, source, reason, and notes.',
-        validates: 'Backend creates appointment, queue entry, and no-show assistance together.',
-        humanControl: 'Staff decides when and why to book.',
-        previewTitle: 'Booking form',
-        previewItems: ['Active doctor', 'Active patient', 'Scheduled time', 'Reception source'],
+            'Create the clinic workspace, operating details, and first Admin account during onboarding.',
+        validates: 'Clinic and first Admin are created through the protected onboarding flow.',
+        humanControl: 'The clinic controls setup details and remains responsible for operational use.',
+        previewTitle: 'Clinic setup',
+        previewItems: ['Clinic profile', 'Operating hours', 'Admin user', 'Sample data option'],
     },
     {
-        title: 'Confirm',
-        status: 'Confirmed',
+        title: 'Add doctors and patients',
+        status: 'Operational records',
         description:
-            'The appointment can be manually confirmed when staff have completed their normal follow-up.',
-        validates: 'Status stays attached to the clinic-scoped appointment.',
-        humanControl: 'No automatic confirmation or patient contact is implied.',
-        previewTitle: 'Status action',
-        previewItems: ['Confirm', 'Mark arrived', 'Cancel', 'Mark no-show'],
+            'Maintain clinic-side doctor and patient records so scheduling does not depend on repeated manual entry.',
+        validates: 'Appointments require active doctor and patient links for the clinic.',
+        humanControl: 'Doctors and patients are records today, not authenticated portals.',
+        previewTitle: 'Records ready',
+        previewItems: ['Doctor profile', 'Patient details', 'Clinic history', 'Active status'],
     },
     {
-        title: 'Arrive',
-        status: 'Arrived',
+        title: 'Schedule appointments',
+        status: 'Appointment booked',
         description:
-            'Staff record arrival so the front desk and queue screen show that the patient is present.',
-        validates: 'Queue status can sync with appointment status where a queue entry exists.',
-        humanControl: 'Arrival is recorded by clinic staff.',
+            'Book appointments with doctor, patient, time, source, duration, reason, and notes in one structured workflow.',
+        validates: 'Appointment creation also creates queue context and stored no-show assistance.',
+        humanControl: 'Staff decides when and why to book, confirm, cancel, or mark no-show.',
+        previewTitle: 'Appointment view',
+        previewItems: ['Scheduled time', 'Doctor context', 'Patient context', 'Status actions'],
+    },
+    {
+        title: 'Review risk context',
+        status: 'Risk assistance',
+        description:
+            'See Low, Medium, or High no-show risk with reasons that staff can inspect before choosing a follow-up action.',
+        validates: 'Risk is deterministic, stored, and shown in appointment, queue, and dashboard views.',
+        humanControl: 'Decision support, not decision replacement.',
+        previewTitle: 'Reasons visible',
+        previewItems: ['Risk level', 'Score', 'Reasons', 'Suggested staff actions'],
+    },
+    {
+        title: 'Record arrival',
+        status: 'Patient arrived',
+        description:
+            'Mark patient arrival so the clinic team can see who is present and ready to move through the day.',
+        validates: 'Appointment and queue state remain connected where a queue entry exists.',
+        humanControl: 'Arrival is recorded by authorized clinic users.',
         previewTitle: 'Reception update',
-        previewItems: ['Patient present', 'Doctor context', 'Time visible', 'Queue ready'],
+        previewItems: ['Arrived status', 'Queue entry', 'Doctor context', 'Time visible'],
     },
     {
-        title: 'Queue',
-        status: 'Waiting',
+        title: 'Manage the live queue',
+        status: 'Waiting, called, completed',
         description:
-            'The patient appears in the doctor-scoped active queue with a visible position number.',
-        validates: 'Manual reorder requests send authoritative queue-entry IDs to the backend.',
-        humanControl: 'Only staff move the queue order.',
+            'Track patient progression, manually reorder active queue entries where supported, and close visits cleanly.',
+        validates: 'Queue reorder requests are checked by the backend for clinic, doctor, date, and active entries.',
+        humanControl: 'The system does not silently reorder the queue.',
         previewTitle: 'Queue board',
-        previewItems: ['#01 position', 'Waiting status', 'Move up/down', 'Server confirmed'],
+        previewItems: ['Waiting', 'Called', 'Completed', 'Manual reorder'],
     },
     {
-        title: 'Call',
-        status: 'Called',
+        title: 'Review the clinic day',
+        status: 'Dashboard overview',
         description:
-            'Staff call the next patient and keep the waiting board current during the clinic day.',
-        validates: 'Called timestamps stay on the queue entry when available.',
-        humanControl: 'Calling a patient is a deliberate staff action.',
-        previewTitle: 'Queue status',
-        previewItems: ['Call patient', 'Called time', 'Appointment status', 'Risk visible'],
-    },
-    {
-        title: 'Close',
-        status: 'Completed / No Show',
-        description:
-            'The visit is closed as completed, cancelled, or no-show. Final entries remain visible for review.',
-        validates: 'Final states are not shown as reorderable.',
-        humanControl: 'Final operational decisions remain with Admin or Staff.',
-        previewTitle: 'Visit outcome',
-        previewItems: ['Completed', 'Cancelled', 'No Show', 'Reorder locked'],
+            'Start or review the day with appointments, queue status, completed visits, cancellations, no-shows, and risk priorities.',
+        validates: 'Dashboard data is scoped to clinic and selected clinic-local date.',
+        humanControl: 'The dashboard gives visibility; staff still choose what to do next.',
+        previewTitle: 'Operational summary',
+        previewItems: ['Appointments', 'Queue status', 'High risk list', 'Activity feed'],
     },
 ];
 
 const capabilityItems = [
     {
-        title: 'Clinic operations',
-        description: 'Give Admin and Staff users one protected workspace for daily clinic flow.',
-    },
-    {
-        title: 'Doctor and patient records',
-        description:
-            'Keep clinic-side doctor and patient records available for scheduling and follow-up.',
-    },
-    {
         title: 'Appointment management',
         description:
-            'Book appointments, review schedule status, and preserve visit context for the team.',
+            'Plan and track the clinic schedule so staff can see appointment context, status, doctor, patient, and timing in one workflow.',
+    },
+    {
+        title: 'Patient management',
+        description:
+            'Keep operational patient information and clinic-specific history organized for scheduling and follow-up.',
+    },
+    {
+        title: 'Doctor management',
+        description:
+            'Maintain the doctors connected to clinic operations so appointment and queue work has the right provider context.',
     },
     {
         title: 'Live queue management',
         description:
-            'Track arrivals, calls, completed visits, cancellations, and No Show outcomes.',
+            'Track patient progress through arrival, waiting, called, completed, cancelled, and no-show states during the clinic day.',
     },
     {
-        title: 'Explainable risk assistance',
+        title: 'Explainable no-show assistance',
         description:
-            'Show Low, Medium, or High no-show risk with understandable reasons for staff review.',
+            'Highlight appointments that may need attention and show understandable reasons where supported by available records.',
+    },
+    {
+        title: 'Operational dashboard',
+        description:
+            'Give clinic teams a quick view of appointments, queue activity, risk priorities, and the current day\'s operational status.',
     },
 ];
 
-const problemItems = [
-    'Appointment changes live across notebooks, calls, and memory.',
-    'Doctor and patient details are repeated instead of shared.',
-    'Arrival order and queue status are hard to keep visible during busy hours.',
-    'No-show follow-up depends on guesswork unless staff can see the reasons.',
-];
-
-const roleItems = [
+const differentiatorItems = [
     {
-        title: 'Clinic Admin',
+        title: 'Appointment-to-queue continuity',
         description:
-            'Sets up the clinic workspace, manages settings, and keeps operational records ready.',
+            'Appointments are not isolated calendar entries. They connect into arrival tracking, queue status, and dashboard visibility.',
     },
     {
-        title: 'Clinic Staff',
+        title: 'Explainable assistance',
         description:
-            'Books appointments, records arrivals, manages the queue, and reviews risk context.',
+            'Risk levels are paired with reasons, so staff can understand why an appointment was flagged.',
+    },
+    {
+        title: 'Human-controlled decisions',
+        description:
+            'Pravaah supports clinic judgment instead of automatically cancelling appointments or making hidden queue decisions.',
+    },
+    {
+        title: 'Clinic-flow-first scope',
+        description:
+            'The product focuses on small and medium clinic operations rather than trying to become a hospital ERP or clinical record system.',
     },
 ];
 
 const riskFactorItems = [
-    'Previous no-show or late-arrival history stored in the clinic record.',
-    'Booking source and timing context captured during appointment creation.',
-    'Patient distance or visit-pattern context when available on the record.',
+    'Prior no-show or late-arrival history in the clinic record',
+    'Appointment timing and booking context',
+    'Patient distance or visit-pattern context when available',
 ];
 
 const riskGuardrailItems = [
-    'No attendance guarantees or medical conclusions.',
-    'No automatic cancellation, queue reorder, or patient contact.',
-    'Staff can review the reasons and decide the next follow-up step.',
+    'No attendance guarantees',
+    'No automatic cancellation',
+    'No silent queue reordering',
+    'No medical diagnosis or treatment decision',
+    'Final action remains with authorized clinic staff',
 ];
 
-const architectureItems = [
-    'React, TypeScript, Vite, and Tailwind on the frontend.',
-    'Express, Prisma, PostgreSQL, and Zod on the backend.',
-    'Clerk identity mapped to backend-owned Pravaah users, roles, and clinic access.',
-    'Backend-enforced clinic isolation for protected workflow APIs.',
-    'Transactional appointment creation with queue entry and deterministic risk assistance.',
-    'Human-controlled queue reorder with backend validation.',
+const roadmapItems = [
+    {
+        title: 'Smarter patient communication',
+        label: 'Planned',
+        description:
+            'Reminder logs, confirmations, rescheduling or cancellation flows, and communication integrations may extend staff follow-up workflows.',
+    },
+    {
+        title: 'Deeper operational intelligence',
+        label: 'Roadmap',
+        description:
+            'Richer analytics, better risk history, and smarter recommendations can build on the current clinic-day data model.',
+    },
+    {
+        title: 'Doctor and patient experiences',
+        label: 'Future',
+        description:
+            'Future portals may extend visibility and self-service beyond reception staff. These are not part of the current released product surface.',
+    },
+    {
+        title: 'Growing with clinics',
+        label: 'Planned',
+        description:
+            'Multi-clinic membership, expanded staff permissions, auditability, and organization-level workflows are later SaaS maturity work.',
+    },
+    {
+        title: 'Context-aware operations',
+        label: 'Explored later',
+        description:
+            'Traffic, weather, location-aware arrival estimates, and advanced prediction belong after stronger operational data and validation.',
+    },
+];
+
+const faqItems = [
+    {
+        question: 'Is Pravaah only appointment booking software?',
+        answer:
+            'No. Appointment booking is part of the workflow, but Pravaah is positioned around clinic flow: appointments, arrival status, live queue work, dashboard visibility, and explainable no-show assistance.',
+    },
+    {
+        question: 'Does Pravaah replace doctors or clinical judgment?',
+        answer:
+            'No. Pravaah handles clinic operations. It does not diagnose patients, make treatment decisions, or replace medical judgment.',
+    },
+    {
+        question: 'Does Pravaah automatically predict and cancel no-shows?',
+        answer:
+            'No. Current no-show assistance is deterministic and explainable. It shows risk context and reasons so staff can prioritize follow-up while keeping the final decision with the clinic.',
+    },
+    {
+        question: 'Who can use the current product?',
+        answer:
+            'The current product is for authenticated Admin and Staff users. Doctors and patients are managed as records today and do not have their own portals in the current product.',
+    },
 ];
 
 function PublicHeader() {
@@ -157,7 +331,7 @@ function PublicHeader() {
                 <div className="flex items-center justify-between gap-4">
                     <PravaahLogoLink layout="horizontal" surface="light" size="sm">
                         <span className="hidden text-sm font-semibold text-slate-500 sm:inline">
-                            Clinic operations
+                            Clinic Operations
                         </span>
                     </PravaahLogoLink>
 
@@ -181,7 +355,7 @@ function PublicHeader() {
                                     to="/sign-up"
                                     className="hidden min-h-10 items-center justify-center rounded-lg bg-action px-4 py-2 text-sm font-semibold text-white transition hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action sm:inline-flex"
                                 >
-                                    Start onboarding
+                                    Explore Pravaah
                                 </Link>
                             </>
                         )}
@@ -232,14 +406,14 @@ function PublicCtaActions() {
                 to="/sign-up"
                 className="inline-flex min-h-11 items-center justify-center rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-brand-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
             >
-                Start onboarding
+                Explore Pravaah
             </Link>
-            <Link
-                to="/login"
+            <a
+                href="#workflow-tour"
                 className="inline-flex min-h-11 items-center justify-center rounded-lg border border-white/30 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
-                Sign in
-            </Link>
+                See how it works
+            </a>
         </>
     );
 }
@@ -269,100 +443,79 @@ function SectionHeading({
 function HeroFlowPreview() {
     const heroSteps = [
         { label: 'Appointment', detail: '10:10 with Dr. Rao' },
+        { label: 'Expected arrival', detail: 'Staff can see what is due' },
         { label: 'Arrival', detail: 'Reception marks present' },
         { label: 'Queue', detail: '#02 waiting' },
-        { label: 'Called', detail: 'Room 2' },
-        { label: 'Completed', detail: 'Visit closed' },
+        { label: 'Completion', detail: 'Visit closed' },
     ];
 
     return (
         <div className="relative rounded-lg border border-white/15 bg-white/5 p-4 shadow-2xl shadow-slate-950/30 sm:p-5">
-            <svg
-                className="absolute inset-x-4 top-24 h-48 w-[calc(100%-2rem)] text-brand opacity-80"
-                viewBox="0 0 520 190"
-                fill="none"
-                aria-hidden="true"
-            >
-                <path
-                    className="flow-path"
-                    d="M34 134 C112 42 170 46 244 112 C310 170 378 162 486 58"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                    strokeLinecap="round"
-                />
-            </svg>
-
-            <div className="relative grid gap-3">
-                <div className="rounded-lg border border-white/15 bg-slate-950/80 p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <p className="text-xs font-semibold uppercase tracking-wide text-brand">
-                                Today flow
-                            </p>
-                            <h2 className="mt-1 text-lg font-bold text-white">
-                                Pravaah Family Clinic
-                            </h2>
-                        </div>
-                        <Badge
-                            tone="brand"
-                            className="bg-brand-subtle text-brand-foreground ring-brand-soft"
-                        >
-                            Staff controlled
-                        </Badge>
+            <div className="rounded-lg border border-white/15 bg-slate-950/80 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-brand">
+                            Today at Pravaah Family Clinic
+                        </p>
+                        <h2 className="mt-1 text-lg font-bold text-white">
+                            Clinic flow dashboard
+                        </h2>
                     </div>
-                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                        <div>
-                            <p className="text-2xl font-bold text-white">12</p>
-                            <p className="text-xs text-slate-300">appointments</p>
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold text-white">5</p>
-                            <p className="text-xs text-slate-300">active queue</p>
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold text-white">2</p>
-                            <p className="text-xs text-slate-300">need review</p>
-                        </div>
+                    <Badge
+                        tone="brand"
+                        className="bg-brand-subtle text-brand-foreground ring-brand-soft"
+                    >
+                        Staff controlled
+                    </Badge>
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                    <div>
+                        <p className="text-2xl font-bold text-white">12</p>
+                        <p className="text-xs text-slate-300">appointments</p>
+                    </div>
+                    <div>
+                        <p className="text-2xl font-bold text-white">5</p>
+                        <p className="text-xs text-slate-300">active queue</p>
+                    </div>
+                    <div>
+                        <p className="text-2xl font-bold text-white">2</p>
+                        <p className="text-xs text-slate-300">need review</p>
                     </div>
                 </div>
-
-                <ol className="relative mt-2 grid gap-3">
-                    {heroSteps.map((step, index) => (
-                        <li
-                            key={step.label}
-                            className={`rounded-lg border border-white/15 bg-white p-4 text-slate-950 shadow-lg shadow-slate-950/10 ${
-                                index % 2 === 0 ? 'mr-10' : 'ml-10'
-                            }`}
-                        >
-                            <div className="flex items-center gap-3">
-                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-subtle text-sm font-bold text-brand-foreground ring-1 ring-brand-soft">
-                                    {index + 1}
-                                </span>
-                                <div className="min-w-0">
-                                    <p className="text-sm font-bold">{step.label}</p>
-                                    <p className="mt-0.5 text-xs text-slate-500">{step.detail}</p>
-                                </div>
-                            </div>
-                        </li>
-                    ))}
-                </ol>
             </div>
+
+            <ol className="mt-4 grid gap-3">
+                {heroSteps.map((step, index) => (
+                    <li
+                        key={step.label}
+                        className="rounded-lg border border-white/15 bg-white p-4 text-slate-950 shadow-lg shadow-slate-950/10"
+                    >
+                        <div className="flex items-center gap-3">
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-subtle text-sm font-bold text-brand-foreground ring-1 ring-brand-soft">
+                                {index + 1}
+                            </span>
+                            <div className="min-w-0">
+                                <p className="text-sm font-bold">{step.label}</p>
+                                <p className="mt-0.5 text-xs text-slate-500">{step.detail}</p>
+                            </div>
+                        </div>
+                    </li>
+                ))}
+            </ol>
         </div>
     );
 }
 
-function CompactFlowStrip() {
-    const labels = ['Appointment', 'Arrival', 'Queue', 'Called', 'Completed'];
-
+function ConnectedFlowStrip() {
     return (
-        <ol className="mt-6 flex flex-wrap gap-2" aria-label="Clinic flow summary">
-            {labels.map((label, index) => (
+        <ol className="mt-8 flex flex-wrap items-center gap-2" aria-label="Clinic day flow">
+            {connectedFlowItems.map((label, index) => (
                 <li key={label} className="flex items-center gap-2">
-                    <span className="rounded-md border border-white/15 bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-slate-100">
+                    <span className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm">
                         {label}
                     </span>
-                    {index < labels.length - 1 ? (
-                        <span className="text-brand" aria-hidden="true">
+                    {index < connectedFlowItems.length - 1 ? (
+                        <span className="text-brand-foreground" aria-hidden="true">
                             -&gt;
                         </span>
                     ) : null}
@@ -431,7 +584,7 @@ function WorkflowTour() {
                             {activeStep.previewTitle}
                         </h3>
                     </div>
-                    <Badge tone="brand">Interactive model</Badge>
+                    <Badge tone="brand">Workflow view</Badge>
                 </div>
 
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -448,7 +601,7 @@ function WorkflowTour() {
                 <div className="mt-5 grid gap-4 lg:grid-cols-2">
                     <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
                         <p className="text-sm font-bold text-slate-950">
-                            What the system validates
+                            What stays connected
                         </p>
                         <p className="mt-2 text-sm leading-6 text-slate-600">
                             {activeStep.validates}
@@ -486,85 +639,52 @@ function PublicLandingPage() {
                                 className="mb-8"
                             />
                             <p className="text-sm font-semibold uppercase tracking-wide text-brand">
-                                Clinic-side operations for appointments, arrivals, and queues
+                                Clinic flow and operations for small and growing clinics
                             </p>
                             <h1 className="mt-4 text-4xl font-bold leading-tight sm:text-5xl">
-                                Pravaah turns a clinic day into one controlled patient-flow
-                                workspace.
+                                Keep your clinic day moving.
                             </h1>
                             <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-200">
-                                Admin and Staff users can create the clinic, maintain records, book
-                                appointments, review deterministic no-show reasons, manage arrivals,
-                                and manually operate the queue without pretending the software makes
-                                the final decision.
+                                Pravaah brings appointments, patient arrival, live queues,
+                                operational visibility, and explainable no-show assistance into one
+                                clinic workflow, helping teams spend less time coordinating and more
+                                time running the clinic.
                             </p>
-
-                            <CompactFlowStrip />
 
                             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                                 <PublicCtaActions />
-                                <a
-                                    href="#workflow-tour"
-                                    className="inline-flex min-h-11 items-center justify-center rounded-lg border border-white/30 bg-transparent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-                                >
-                                    Explore the workflow
-                                </a>
+                            </div>
+
+                            <div className="mt-8 grid gap-3 text-sm text-slate-300 sm:grid-cols-3">
+                                <p className="rounded-md border border-white/10 bg-white/5 p-3">
+                                    Built around appointments, arrivals, and queues.
+                                </p>
+                                <p className="rounded-md border border-white/10 bg-white/5 p-3">
+                                    Designed for Admin and Staff workflows.
+                                </p>
+                                <p className="rounded-md border border-white/10 bg-white/5 p-3">
+                                    Decision support, not decision replacement.
+                                </p>
                             </div>
                         </div>
 
                         <HeroFlowPreview />
-
-                        <div className="grid gap-3 text-sm text-slate-300 sm:grid-cols-3 lg:col-span-2">
-                            <p className="rounded-md border border-white/10 bg-white/5 p-3">
-                                No patient or doctor login implied.
-                            </p>
-                            <p className="rounded-md border border-white/10 bg-white/5 p-3">
-                                No trained ML or automatic queue decisions.
-                            </p>
-                            <p className="rounded-md border border-white/10 bg-white/5 p-3">
-                                Backend remains authoritative.
-                            </p>
-                        </div>
                     </div>
                 </section>
 
-                <section
-                    id="problem"
-                    className="scroll-mt-36 border-b border-slate-200 bg-white md:scroll-mt-32"
-                >
-                    <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
+                <section className="border-b border-slate-200 bg-white">
+                    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
                         <SectionHeading
-                            eyebrow="The clinic problem"
-                            title="Daily flow gets fragile when the system is a notebook, a call log, and memory."
-                            description="Pravaah is designed around the practical coordination work clinic teams already do, without pretending to replace staff judgment."
+                            eyebrow="The clinic day is connected"
+                            title="Your clinic does not run as separate screens."
+                            description="An appointment is not just a calendar entry. It affects expected arrival, waiting, queue order, doctor time, and completion. When one stage changes, the rest of the clinic day changes with it."
                         />
-
-                        <div className="grid gap-3 sm:grid-cols-2">
-                            {problemItems.map((item) => (
-                                <div
-                                    key={item}
-                                    className="rounded-lg border border-slate-200 bg-[#F8FAFC] p-4"
-                                >
-                                    <span
-                                        className="mb-3 flex h-8 w-8 items-center justify-center rounded-md bg-brand-subtle text-sm font-bold text-brand-foreground ring-1 ring-brand-soft"
-                                        aria-hidden="true"
-                                    >
-                                        <svg
-                                            className="h-4 w-4"
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            strokeWidth="2"
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                        >
-                                            <path d="m5 12 4 4L19 6" />
-                                        </svg>
-                                    </span>
-                                    <p className="text-sm leading-6 text-slate-700">{item}</p>
-                                </div>
-                            ))}
-                        </div>
+                        <ConnectedFlowStrip />
+                        <p className="mt-8 max-w-3xl text-base leading-8 text-slate-600">
+                            Pravaah is built around that flow, so staff can understand what is
+                            happening now instead of reconstructing the clinic day from disconnected
+                            notes, calls, spreadsheets, and conversations.
+                        </p>
                     </div>
                 </section>
 
@@ -575,43 +695,161 @@ function PublicLandingPage() {
                     <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
                         <div className="space-y-8">
                             <SectionHeading
-                                eyebrow="Product showcase"
-                                title="A faithful preview of the clinic-side workspace."
-                                description="These are product-focused React previews using fictional demo data. They mirror the implemented workflow surfaces: appointments, queue status, and explainable no-show risk context."
+                                eyebrow="Product"
+                                title="A clinic-side workspace for the rhythm of the day."
+                                description="The preview uses fictional demo data, but it reflects the implemented product surfaces: appointments, queue status, dashboard-like operational context, and explainable no-show risk reasons."
                             />
                             <ProductShowcase />
                         </div>
                     </div>
                 </section>
 
-                <section className="border-b border-slate-200 bg-[#F8FAFC]">
-                    <div className="mx-auto grid max-w-7xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:px-8">
+                <section
+                    id="problem"
+                    className="scroll-mt-36 border-b border-slate-200 bg-white md:scroll-mt-32"
+                >
+                    <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
                         <SectionHeading
-                            eyebrow="MVP users"
-                            title="Clinic-side access for Admin and Staff."
+                            eyebrow="Why it matters"
+                            title="When clinic operations are fragmented, small delays become daily friction."
+                            description="Pravaah does not assume every clinic is broken. It focuses on a common operational pattern: appointments, arrivals, queues, and follow-up often become harder to manage when they are coordinated separately."
                         />
 
                         <div className="grid gap-4 sm:grid-cols-2">
-                            {roleItems.map((role) => (
+                            {problemItems.map((item) => (
                                 <article
-                                    key={role.title}
-                                    className="rounded-lg border border-slate-200 bg-white p-5"
+                                    key={item.title}
+                                    className="rounded-lg border border-slate-200 bg-[#F8FAFC] p-5"
                                 >
                                     <h3 className="text-lg font-bold text-slate-950">
-                                        {role.title}
+                                        {item.title}
                                     </h3>
                                     <p className="mt-3 text-sm leading-6 text-slate-600">
-                                        {role.description}
+                                        {item.description}
                                     </p>
                                 </article>
                             ))}
                         </div>
+                    </div>
+                </section>
 
-                        <p className="rounded-lg border border-[var(--color-status-warning-border)] bg-[var(--color-status-warning-bg)] p-4 text-sm leading-6 text-[var(--color-status-warning-text)] lg:col-start-2">
-                            Doctors and patients are managed as records in the current product.
-                            Pravaah does not currently provide authenticated doctor or patient
-                            portals.
-                        </p>
+                <section
+                    id="benefits"
+                    className="scroll-mt-36 border-b border-slate-200 bg-[#F8FAFC] md:scroll-mt-32"
+                >
+                    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+                        <SectionHeading
+                            eyebrow="Business outcomes"
+                            title="Built to make the clinic day more productive."
+                            description="Pravaah connects capabilities to operational value: less coordination, clearer capacity, better queue visibility, and a shared view of daily priorities."
+                        />
+
+                        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                            {outcomeItems.map((item) => (
+                                <article
+                                    key={item.title}
+                                    className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
+                                >
+                                    <h3 className="text-lg font-bold text-slate-950">
+                                        {item.title}
+                                    </h3>
+                                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                                        {item.description}
+                                    </p>
+                                    <p className="mt-4 text-xs font-semibold uppercase leading-5 tracking-wide text-brand-foreground">
+                                        {item.capability}
+                                    </p>
+                                </article>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
+                <section className="border-b border-slate-200 bg-white">
+                    <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
+                        <SectionHeading
+                            eyebrow="Time and capacity"
+                            title="Give clinic teams more time back."
+                            description="Time savings in clinic operations usually come from removing repeated coordination, not asking staff to rush. Pravaah is designed to keep common reception and operations information visible in one workflow."
+                        />
+
+                        <div>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                {timeSavingItems.map((item) => (
+                                    <div
+                                        key={item}
+                                        className="rounded-md border border-slate-200 bg-[#F8FAFC] p-4"
+                                    >
+                                        <p className="text-sm font-semibold text-slate-800">
+                                            {item}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                            <p className="mt-5 rounded-lg border border-brand-soft bg-brand-subtle p-4 text-sm leading-6 text-app-text">
+                                The value is practical: staff spend less time reconstructing the
+                                clinic day and more time handling patient-facing work, follow-up,
+                                and the next operational action.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <section className="border-b border-slate-200 bg-[#F8FAFC]">
+                    <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
+                        <SectionHeading
+                            eyebrow="Financial impact"
+                            title="Better flow can mean less operational waste."
+                            description="Pravaah does not promise fixed hours saved or guaranteed financial returns. The commercial value comes from improving visibility around staff time, doctor capacity, appointment gaps, and queue movement."
+                        />
+
+                        <div className="grid gap-4">
+                            {valueChainItems.map((item) => (
+                                <article
+                                    key={item.cause}
+                                    className="grid gap-3 rounded-lg border border-slate-200 bg-white p-5 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center"
+                                >
+                                    <p className="text-base font-bold text-slate-950">
+                                        {item.cause}
+                                    </p>
+                                    <span
+                                        className="text-lg font-bold text-brand-foreground"
+                                        aria-hidden="true"
+                                    >
+                                        -&gt;
+                                    </span>
+                                    <p className="text-base font-semibold text-slate-700">
+                                        {item.effect}
+                                    </p>
+                                </article>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
+                <section className="border-b border-slate-200 bg-white">
+                    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+                        <SectionHeading
+                            eyebrow="Productivity"
+                            title="Less coordination. More clinic work."
+                            description="Productivity is not about forcing staff to move faster. It is about giving each person a clearer operating picture so fewer actions depend on memory, repeated checks, or manual reconciliation."
+                        />
+
+                        <div className="mt-10 grid gap-4 md:grid-cols-3">
+                            {productivityItems.map((item) => (
+                                <article
+                                    key={item.role}
+                                    className="rounded-lg border border-slate-200 bg-[#F8FAFC] p-5"
+                                >
+                                    <h3 className="text-lg font-bold text-slate-950">
+                                        {item.role}
+                                    </h3>
+                                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                                        {item.description}
+                                    </p>
+                                </article>
+                            ))}
+                        </div>
                     </div>
                 </section>
 
@@ -621,9 +859,9 @@ function PublicLandingPage() {
                 >
                     <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
                         <SectionHeading
-                            eyebrow="Interactive workflow"
-                            title="Click through the appointment-to-queue lifecycle."
-                            description="Each stage reflects implemented product behavior: staff actions, backend validation, queue visibility, and the boundary between assistance and final human decisions."
+                            eyebrow="How Pravaah works"
+                            title="From clinic setup to completed visits."
+                            description="The workflow is intentionally non-technical: set up the clinic, keep records ready, schedule appointments, review risk context, record arrivals, manage the live queue, and review the clinic day from the dashboard."
                         />
 
                         <WorkflowTour />
@@ -637,8 +875,8 @@ function PublicLandingPage() {
                     <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
                         <SectionHeading
                             eyebrow="Capabilities"
-                            title="The implemented clinic workspace, presented plainly."
-                            description="Each capability supports the same clinic-side flow instead of adding separate portals or automated operational decisions."
+                            title="Product capabilities that support one clinic-day flow."
+                            description="Individual features matter because they reduce fragmentation. Pravaah keeps the core appointment-to-queue workflow visible to clinic-side Admin and Staff users."
                         />
 
                         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -663,12 +901,41 @@ function PublicLandingPage() {
                     </div>
                 </section>
 
-                <section id="risk-support" className="scroll-mt-36 bg-white md:scroll-mt-32">
+                <section className="border-b border-slate-200 bg-white">
+                    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+                        <SectionHeading
+                            eyebrow="What makes Pravaah different"
+                            title="Built around the clinic day, not just the appointment calendar."
+                            description="Pravaah's differentiation comes from how its product pieces work together: appointment continuity, explainable assistance, human control, and a clear clinic-flow-first scope."
+                        />
+
+                        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                            {differentiatorItems.map((item) => (
+                                <article
+                                    key={item.title}
+                                    className="rounded-lg border border-slate-200 bg-[#F8FAFC] p-5"
+                                >
+                                    <h3 className="text-lg font-bold text-slate-950">
+                                        {item.title}
+                                    </h3>
+                                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                                        {item.description}
+                                    </p>
+                                </article>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
+                <section
+                    id="risk-support"
+                    className="scroll-mt-36 border-b border-slate-200 bg-[#F8FAFC] md:scroll-mt-32"
+                >
                     <div className="mx-auto grid max-w-7xl gap-8 px-4 py-16 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
                         <SectionHeading
-                            eyebrow="Explainable risk support"
-                            title="Risk assistance is advisory, rule-based, and human-controlled."
-                            description="Pravaah can surface no-show risk level and reasons during appointment work, but it does not diagnose, guarantee attendance, cancel appointments, or automatically reorder the queue."
+                            eyebrow="No-show assistance"
+                            title="No-show risk that staff can actually understand."
+                            description="Pravaah evaluates relevant available appointment and patient-history signals, presents a risk level, and shows reasons where supported. Staff can use that context to prioritize attention while the clinic stays in control."
                         />
 
                         <div className="grid gap-4">
@@ -676,7 +943,7 @@ function PublicLandingPage() {
                                 {['Low', 'Medium', 'High'].map((level) => (
                                     <div
                                         key={level}
-                                        className="rounded-lg border border-slate-200 bg-[#F8FAFC] p-5"
+                                        className="rounded-lg border border-slate-200 bg-white p-5"
                                     >
                                         <p className="text-sm font-semibold text-slate-500">
                                             No-show risk
@@ -692,10 +959,21 @@ function PublicLandingPage() {
                                 ))}
                             </div>
 
+                            <div className="rounded-lg border border-brand-soft bg-brand-subtle p-5">
+                                <p className="text-lg font-bold text-app-text">
+                                    Decision support, not decision replacement.
+                                </p>
+                                <p className="mt-3 text-sm leading-6 text-app-text">
+                                    Pravaah does not know who will arrive. It surfaces operational
+                                    risk context so staff can decide whether an appointment deserves
+                                    confirmation, follow-up, or closer attention.
+                                </p>
+                            </div>
+
                             <div className="grid gap-4 md:grid-cols-2">
-                                <article className="rounded-lg border border-slate-200 bg-[#F8FAFC] p-5">
+                                <article className="rounded-lg border border-slate-200 bg-white p-5">
                                     <h3 className="text-base font-bold text-slate-950">
-                                        Factors staff can inspect
+                                        Signals staff can inspect
                                     </h3>
                                     <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
                                         {riskFactorItems.map((item) => (
@@ -718,20 +996,52 @@ function PublicLandingPage() {
                     </div>
                 </section>
 
-                <section
-                    id="engineering"
-                    className="scroll-mt-36 border-y border-slate-200 bg-[#F8FAFC] md:scroll-mt-32"
-                >
+                <section className="border-b border-slate-200 bg-white">
                     <div className="mx-auto grid max-w-7xl gap-8 px-4 py-16 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
                         <SectionHeading
-                            eyebrow="Engineering credibility"
-                            title="The product surface reflects the system design."
-                            description="Pravaah exposes enough workflow truth in the UI for a reviewer to understand why the architecture matters, without turning the landing page into a resume."
+                            eyebrow="Doctor time"
+                            title="Better operations around the doctor."
+                            description="Doctors do not need to become receptionists. In the current product, doctors are records rather than logged-in users, but they benefit when the operational workflow around them is clearer."
+                        />
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            {[
+                                'Clearer patient order around scheduled consultation time',
+                                'Fewer avoidable interruptions caused by queue uncertainty',
+                                'Better visibility from reception and clinic staff',
+                                'More structured movement from waiting to consultation',
+                            ].map((item) => (
+                                <div
+                                    key={item}
+                                    className="rounded-lg border border-slate-200 bg-[#F8FAFC] p-5"
+                                >
+                                    <p className="text-sm font-semibold leading-6 text-slate-800">
+                                        {item}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
+                <section className="border-b border-slate-200 bg-[#F8FAFC]">
+                    <div className="mx-auto grid max-w-7xl gap-8 px-4 py-16 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
+                        <SectionHeading
+                            eyebrow="Responsible assistance"
+                            title="Assistance where it helps. Humans where it matters."
+                            description="Pravaah can surface operational signals, appointment status, queue state, and no-show risk. It does not silently make sensitive operational decisions for the clinic."
                         />
 
                         <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm md:p-6">
                             <div className="grid gap-3 sm:grid-cols-2">
-                                {architectureItems.map((item) => (
+                                {[
+                                    'Explainable risk reasons',
+                                    'Visible staff actions',
+                                    'Human-controlled queue movement',
+                                    'No automatic patient contact',
+                                    'No automatic appointment cancellation',
+                                    'No clinical decision-making',
+                                ].map((item) => (
                                     <div
                                         key={item}
                                         className="rounded-md border border-slate-200 bg-slate-50 p-4"
@@ -740,11 +1050,65 @@ function PublicLandingPage() {
                                     </div>
                                 ))}
                             </div>
-                            <p className="mt-5 rounded-md border border-brand-soft bg-brand-subtle p-4 text-sm leading-6 text-app-text">
-                                The important boundary is deliberate: Clerk proves identity, but
-                                Pravaah's backend owns role, clinic access, appointment writes,
-                                queue ordering, and deterministic risk calculation.
-                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <section
+                    id="roadmap"
+                    className="scroll-mt-36 border-b border-slate-200 bg-white md:scroll-mt-32"
+                >
+                    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+                        <SectionHeading
+                            eyebrow="Where Pravaah is going"
+                            title="Being built beyond today's clinic workflow."
+                            description="Pravaah is a developing SaaS clinic-operations product. The current product focuses on clinic-side Admin and Staff workflows; the areas below are future direction and should not be read as currently available features."
+                        />
+
+                        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            {roadmapItems.map((item) => (
+                                <article
+                                    key={item.title}
+                                    className="rounded-lg border border-slate-200 bg-[#F8FAFC] p-5"
+                                >
+                                    <Badge tone="neutral">{item.label}</Badge>
+                                    <h3 className="mt-4 text-lg font-bold text-slate-950">
+                                        {item.title}
+                                    </h3>
+                                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                                        {item.description}
+                                    </p>
+                                </article>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
+                <section
+                    id="faq"
+                    className="scroll-mt-36 border-b border-slate-200 bg-[#F8FAFC] md:scroll-mt-32"
+                >
+                    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+                        <SectionHeading
+                            eyebrow="FAQ"
+                            title="Clear product boundaries for a serious clinic-operations product."
+                            description="Pravaah is being developed as a SaaS product, but the page stays honest about what exists today and what remains planned."
+                        />
+
+                        <div className="mt-10 grid gap-4 md:grid-cols-2">
+                            {faqItems.map((item) => (
+                                <article
+                                    key={item.question}
+                                    className="rounded-lg border border-slate-200 bg-white p-5"
+                                >
+                                    <h3 className="text-base font-bold text-slate-950">
+                                        {item.question}
+                                    </h3>
+                                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                                        {item.answer}
+                                    </p>
+                                </article>
+                            ))}
                         </div>
                     </div>
                 </section>
@@ -752,10 +1116,12 @@ function PublicLandingPage() {
                 <section className="border-y border-slate-200 bg-slate-950">
                     <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-14 text-white sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
                         <div className="max-w-2xl">
-                            <h2 className="text-3xl font-bold">Open the clinic workspace.</h2>
+                            <h2 className="text-3xl font-bold">
+                                Explore the Pravaah clinic workspace.
+                            </h2>
                             <p className="mt-3 text-base leading-7 text-slate-300">
-                                Sign in with a provisioned Admin or Staff account, or start
-                                onboarding to create the first clinic workspace.
+                                Start onboarding to create a clinic workspace, or sign in with a
+                                provisioned Admin or Staff account to open the protected product.
                             </p>
                         </div>
                         <div className="flex flex-col gap-3 sm:flex-row">
@@ -768,7 +1134,7 @@ function PublicLandingPage() {
             <footer className="bg-white">
                 <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-6 text-sm text-slate-600 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
                     <PravaahLogoLink layout="horizontal" surface="light" size="sm" />
-                    <p>Clinic-side appointment, queue, and explainable risk workspace.</p>
+                    <p>Clinic flow, appointments, queues, and explainable no-show assistance.</p>
                     <p>&copy; {currentYear} Pravaah.</p>
                 </div>
             </footer>

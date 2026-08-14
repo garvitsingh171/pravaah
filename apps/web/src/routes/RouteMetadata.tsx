@@ -118,7 +118,7 @@ function RouteMetadata() {
         });
         upsertMeta('meta[property="og:image:alt"]', {
             property: 'og:image:alt',
-            content: 'Pravaah clinic appointment and queue management',
+            content: 'Pravaah clinic flow and operations platform',
         });
         upsertMeta('meta[name="twitter:card"]', {
             name: 'twitter:card',
