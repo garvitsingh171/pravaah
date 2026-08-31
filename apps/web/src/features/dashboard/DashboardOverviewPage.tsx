@@ -208,13 +208,7 @@ type DistributionSegment = {
     className: string;
 };
 
-function DistributionBar({
-    label,
-    segments,
-}: {
-    label: string;
-    segments: DistributionSegment[];
-}) {
+function DistributionBar({ label, segments }: { label: string; segments: DistributionSegment[] }) {
     const total = segments.reduce((sum, segment) => sum + segment.value, 0);
 
     return (
@@ -259,8 +253,7 @@ function OperationalPulsePanel({ data }: { data: DashboardData }) {
     const finalAppointments =
         appointmentSummary.completed + appointmentSummary.cancelled + appointmentSummary.noShow;
     const activeQueue = queueSummary.waiting + queueSummary.arrived + queueSummary.called;
-    const needsAttention =
-        activeAppointments > 0 || activeQueue > 0 || noShowRiskSummary.high > 0;
+    const needsAttention = activeAppointments > 0 || activeQueue > 0 || noShowRiskSummary.high > 0;
     const attentionItems = [
         {
             label: 'Appointments',
@@ -298,7 +291,7 @@ function OperationalPulsePanel({ data }: { data: DashboardData }) {
     ];
 
     return (
-        <Card className="border-slate-950 bg-surface-dark text-white shadow-[var(--shadow-command)]">
+        <section className="rounded-lg border border-slate-800 bg-slate-950 p-5 text-white shadow-[var(--shadow-command)]">
             <div className="grid gap-6 xl:grid-cols-[0.7fr_1.3fr] xl:items-center">
                 <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-brand">
@@ -338,9 +331,7 @@ function OperationalPulsePanel({ data }: { data: DashboardData }) {
                                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-200">
                                     {item.label}
                                 </p>
-                                <p className="mt-2 text-3xl font-bold text-white">
-                                    {item.value}
-                                </p>
+                                <p className="mt-2 text-3xl font-bold text-white">{item.value}</p>
                                 <p className="mt-2 text-xs leading-5 text-slate-200">
                                     {item.helper}
                                 </p>
@@ -363,18 +354,14 @@ function OperationalPulsePanel({ data }: { data: DashboardData }) {
                                         aria-hidden="true"
                                     />
                                 ) : null}
-                                <p className="text-xs font-semibold text-slate-200">
-                                    {node.label}
-                                </p>
-                                <p className="mt-2 text-2xl font-bold text-brand">
-                                    {node.value}
-                                </p>
+                                <p className="text-xs font-semibold text-slate-200">{node.label}</p>
+                                <p className="mt-2 text-2xl font-bold text-brand">{node.value}</p>
                             </li>
                         ))}
                     </ol>
                 </div>
             </div>
-        </Card>
+        </section>
     );
 }
 

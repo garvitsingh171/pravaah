@@ -11,8 +11,10 @@ import {
     UserStatus,
 } from '../src/generated/prisma/client.js';
 import {
+    SAMPLE_DATA_NOTE_MARKER,
     addClinicDays,
     addMinutes,
+    getClinicDateLabel,
     getClinicDateTime,
     getClinicTodayParts,
     sampleDoctorDefinitions,
@@ -102,23 +104,660 @@ const assertEmailIsAvailableForClerkUser = async (email: string, clerkUserId: st
     }
 };
 
-const getAsiaKolkataDateTime = (
-    dateParts: { year: number; month: number; day: number },
-    time: string
-): Date => {
-    return getClinicDateTime(dateParts, time, 'Asia/Kolkata');
-};
-
 const doctors = sampleDoctorDefinitions;
 const patients = samplePatientDefinitions;
 
+type AppointmentSeed = {
+    id: string;
+    doctorIndex: number;
+    patientIndex: number;
+    dateOffset: number;
+    time: string;
+    status: AppointmentStatus;
+    queueStatus: QueueStatus | null;
+    position: number | null;
+    reason: string;
+    notes: string | null;
+    bookingSource: BookingSource;
+    bookedMinutesBefore: number;
+};
+
+const stripSampleMarker = (notes: string): string => {
+    return notes.replace(SAMPLE_DATA_NOTE_MARKER, '').trim();
+};
+
+const buildAppointmentId = (sequence: number): string => {
+    return `30000000-0000-4000-8000-${String(sequence).padStart(12, '0')}`;
+};
+
+const buildAppointmentSeeds = (
+    today: ReturnType<typeof getClinicTodayParts>,
+    clinicTimezone: string
+) => {
+    const appointmentDefinitions: AppointmentSeed[] = [
+        {
+            id: buildAppointmentId(1),
+            doctorIndex: 0,
+            patientIndex: 0,
+            dateOffset: 0,
+            time: '10:05',
+            status: AppointmentStatus.ARRIVED,
+            queueStatus: QueueStatus.ARRIVED,
+            position: 1,
+            reason: 'Routine follow-up',
+            notes: 'Prefers morning appointments when available.',
+            bookingSource: BookingSource.RECEPTION,
+            bookedMinutesBefore: 3 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(2),
+            doctorIndex: 0,
+            patientIndex: 6,
+            dateOffset: 0,
+            time: '10:20',
+            status: AppointmentStatus.IN_QUEUE,
+            queueStatus: QueueStatus.WAITING,
+            position: 2,
+            reason: 'Blood pressure review',
+            notes: 'Asked to confirm current medication list at reception.',
+            bookingSource: BookingSource.PHONE,
+            bookedMinutesBefore: 6 * 60,
+        },
+        {
+            id: buildAppointmentId(3),
+            doctorIndex: 0,
+            patientIndex: 2,
+            dateOffset: 0,
+            time: '10:35',
+            status: AppointmentStatus.IN_QUEUE,
+            queueStatus: QueueStatus.WAITING,
+            position: 3,
+            reason: 'Medication review',
+            notes: 'Front desk plans a manual confirmation before future visits.',
+            bookingSource: BookingSource.RECEPTION,
+            bookedMinutesBefore: 4 * 60,
+        },
+        {
+            id: buildAppointmentId(4),
+            doctorIndex: 0,
+            patientIndex: 3,
+            dateOffset: 0,
+            time: '10:50',
+            status: AppointmentStatus.CALLED,
+            queueStatus: QueueStatus.CALLED,
+            position: 4,
+            reason: 'Annual health consultation',
+            notes: 'Vitals captured at arrival.',
+            bookingSource: BookingSource.RECEPTION,
+            bookedMinutesBefore: 5 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(5),
+            doctorIndex: 1,
+            patientIndex: 4,
+            dateOffset: 0,
+            time: '09:15',
+            status: AppointmentStatus.COMPLETED,
+            queueStatus: QueueStatus.COMPLETED,
+            position: 1,
+            reason: 'Pediatric fever review',
+            notes: 'Follow-up instructions shared with guardian.',
+            bookingSource: BookingSource.PHONE,
+            bookedMinutesBefore: 7 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(6),
+            doctorIndex: 1,
+            patientIndex: 5,
+            dateOffset: 0,
+            time: '11:10',
+            status: AppointmentStatus.ARRIVED,
+            queueStatus: QueueStatus.ARRIVED,
+            position: 2,
+            reason: 'New patient visit',
+            notes: 'Contact details verified during check-in.',
+            bookingSource: BookingSource.WALK_IN,
+            bookedMinutesBefore: 12 * 60,
+        },
+        {
+            id: buildAppointmentId(7),
+            doctorIndex: 2,
+            patientIndex: 7,
+            dateOffset: 0,
+            time: '09:40',
+            status: AppointmentStatus.COMPLETED,
+            queueStatus: QueueStatus.COMPLETED,
+            position: 1,
+            reason: 'Skin irritation',
+            notes: 'Review advised if symptoms persist.',
+            bookingSource: BookingSource.RECEPTION,
+            bookedMinutesBefore: 4 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(8),
+            doctorIndex: 3,
+            patientIndex: 8,
+            dateOffset: 0,
+            time: '10:00',
+            status: AppointmentStatus.COMPLETED,
+            queueStatus: QueueStatus.COMPLETED,
+            position: 1,
+            reason: 'Knee pain follow-up',
+            notes: 'Exercise plan reviewed.',
+            bookingSource: BookingSource.RECEPTION,
+            bookedMinutesBefore: 6 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(9),
+            doctorIndex: 4,
+            patientIndex: 16,
+            dateOffset: 0,
+            time: '09:55',
+            status: AppointmentStatus.NO_SHOW,
+            queueStatus: QueueStatus.NO_SHOW,
+            position: 1,
+            reason: 'Routine follow-up',
+            notes: 'Marked after front-desk follow-up window.',
+            bookingSource: BookingSource.PHONE,
+            bookedMinutesBefore: 3 * 60,
+        },
+        {
+            id: buildAppointmentId(10),
+            doctorIndex: 3,
+            patientIndex: 14,
+            dateOffset: 0,
+            time: '11:30',
+            status: AppointmentStatus.CANCELLED,
+            queueStatus: QueueStatus.CANCELLED,
+            position: 2,
+            reason: 'Back pain assessment',
+            notes: 'Patient requested a later date.',
+            bookingSource: BookingSource.PHONE,
+            bookedMinutesBefore: 2 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(11),
+            doctorIndex: 2,
+            patientIndex: 13,
+            dateOffset: 0,
+            time: '12:20',
+            status: AppointmentStatus.SCHEDULED,
+            queueStatus: null,
+            position: null,
+            reason: 'Allergy consultation',
+            notes: null,
+            bookingSource: BookingSource.WEB,
+            bookedMinutesBefore: 2 * 60,
+        },
+        {
+            id: buildAppointmentId(12),
+            doctorIndex: 5,
+            patientIndex: 20,
+            dateOffset: 0,
+            time: '12:45',
+            status: AppointmentStatus.SCHEDULED,
+            queueStatus: null,
+            position: null,
+            reason: 'Persistent cough',
+            notes: null,
+            bookingSource: BookingSource.PHONE,
+            bookedMinutesBefore: 5 * 60,
+        },
+        {
+            id: buildAppointmentId(13),
+            doctorIndex: 4,
+            patientIndex: 17,
+            dateOffset: 0,
+            time: '13:30',
+            status: AppointmentStatus.CONFIRMED,
+            queueStatus: null,
+            position: null,
+            reason: 'Medication review',
+            notes: 'Confirmed by phone this morning.',
+            bookingSource: BookingSource.RECEPTION,
+            bookedMinutesBefore: 2 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(14),
+            doctorIndex: 1,
+            patientIndex: 12,
+            dateOffset: 0,
+            time: '14:30',
+            status: AppointmentStatus.CONFIRMED,
+            queueStatus: null,
+            position: null,
+            reason: 'Pediatric follow-up',
+            notes: null,
+            bookingSource: BookingSource.PHONE,
+            bookedMinutesBefore: 8 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(15),
+            doctorIndex: 3,
+            patientIndex: 15,
+            dateOffset: 0,
+            time: '15:40',
+            status: AppointmentStatus.SCHEDULED,
+            queueStatus: null,
+            position: null,
+            reason: 'Shoulder stiffness',
+            notes: null,
+            bookingSource: BookingSource.WEB,
+            bookedMinutesBefore: 30 * 60,
+        },
+        {
+            id: buildAppointmentId(16),
+            doctorIndex: 0,
+            patientIndex: 11,
+            dateOffset: 0,
+            time: '16:10',
+            status: AppointmentStatus.CONFIRMED,
+            queueStatus: null,
+            position: null,
+            reason: 'Blood pressure review',
+            notes: null,
+            bookingSource: BookingSource.RECEPTION,
+            bookedMinutesBefore: 9 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(17),
+            doctorIndex: 0,
+            patientIndex: 0,
+            dateOffset: -2,
+            time: '09:30',
+            status: AppointmentStatus.COMPLETED,
+            queueStatus: null,
+            position: null,
+            reason: 'Routine follow-up',
+            notes: null,
+            bookingSource: BookingSource.RECEPTION,
+            bookedMinutesBefore: 5 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(18),
+            doctorIndex: 1,
+            patientIndex: 4,
+            dateOffset: -2,
+            time: '10:15',
+            status: AppointmentStatus.COMPLETED,
+            queueStatus: null,
+            position: null,
+            reason: 'Fever and fatigue',
+            notes: null,
+            bookingSource: BookingSource.PHONE,
+            bookedMinutesBefore: 2 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(19),
+            doctorIndex: 2,
+            patientIndex: 7,
+            dateOffset: -3,
+            time: '12:00',
+            status: AppointmentStatus.COMPLETED,
+            queueStatus: null,
+            position: null,
+            reason: 'Skin irritation',
+            notes: null,
+            bookingSource: BookingSource.RECEPTION,
+            bookedMinutesBefore: 4 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(20),
+            doctorIndex: 3,
+            patientIndex: 8,
+            dateOffset: -4,
+            time: '11:45',
+            status: AppointmentStatus.COMPLETED,
+            queueStatus: null,
+            position: null,
+            reason: 'Knee pain follow-up',
+            notes: null,
+            bookingSource: BookingSource.RECEPTION,
+            bookedMinutesBefore: 8 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(21),
+            doctorIndex: 5,
+            patientIndex: 19,
+            dateOffset: -5,
+            time: '16:00',
+            status: AppointmentStatus.COMPLETED,
+            queueStatus: null,
+            position: null,
+            reason: 'ENT review',
+            notes: null,
+            bookingSource: BookingSource.PHONE,
+            bookedMinutesBefore: 6 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(22),
+            doctorIndex: 0,
+            patientIndex: 21,
+            dateOffset: -6,
+            time: '09:45',
+            status: AppointmentStatus.NO_SHOW,
+            queueStatus: null,
+            position: null,
+            reason: 'Medication review',
+            notes: null,
+            bookingSource: BookingSource.PHONE,
+            bookedMinutesBefore: 3 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(23),
+            doctorIndex: 4,
+            patientIndex: 18,
+            dateOffset: -7,
+            time: '13:15',
+            status: AppointmentStatus.COMPLETED,
+            queueStatus: null,
+            position: null,
+            reason: 'Routine follow-up',
+            notes: null,
+            bookingSource: BookingSource.RECEPTION,
+            bookedMinutesBefore: 5 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(24),
+            doctorIndex: 1,
+            patientIndex: 22,
+            dateOffset: -8,
+            time: '10:30',
+            status: AppointmentStatus.COMPLETED,
+            queueStatus: null,
+            position: null,
+            reason: 'Pediatric fever review',
+            notes: null,
+            bookingSource: BookingSource.PHONE,
+            bookedMinutesBefore: 2 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(25),
+            doctorIndex: 2,
+            patientIndex: 9,
+            dateOffset: -9,
+            time: '15:00',
+            status: AppointmentStatus.CANCELLED,
+            queueStatus: null,
+            position: null,
+            reason: 'Skin follow-up',
+            notes: null,
+            bookingSource: BookingSource.WEB,
+            bookedMinutesBefore: 7 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(26),
+            doctorIndex: 0,
+            patientIndex: 10,
+            dateOffset: -10,
+            time: '11:00',
+            status: AppointmentStatus.COMPLETED,
+            queueStatus: null,
+            position: null,
+            reason: 'Annual health consultation',
+            notes: null,
+            bookingSource: BookingSource.RECEPTION,
+            bookedMinutesBefore: 14 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(27),
+            doctorIndex: 3,
+            patientIndex: 23,
+            dateOffset: -11,
+            time: '12:30',
+            status: AppointmentStatus.NO_SHOW,
+            queueStatus: null,
+            position: null,
+            reason: 'Back pain assessment',
+            notes: null,
+            bookingSource: BookingSource.PHONE,
+            bookedMinutesBefore: 4 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(28),
+            doctorIndex: 5,
+            patientIndex: 20,
+            dateOffset: -12,
+            time: '10:00',
+            status: AppointmentStatus.COMPLETED,
+            queueStatus: null,
+            position: null,
+            reason: 'Allergy consultation',
+            notes: null,
+            bookingSource: BookingSource.RECEPTION,
+            bookedMinutesBefore: 6 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(29),
+            doctorIndex: 4,
+            patientIndex: 13,
+            dateOffset: -13,
+            time: '14:15',
+            status: AppointmentStatus.COMPLETED,
+            queueStatus: null,
+            position: null,
+            reason: 'Medication review',
+            notes: null,
+            bookingSource: BookingSource.PHONE,
+            bookedMinutesBefore: 9 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(30),
+            doctorIndex: 0,
+            patientIndex: 1,
+            dateOffset: -14,
+            time: '16:30',
+            status: AppointmentStatus.COMPLETED,
+            queueStatus: null,
+            position: null,
+            reason: 'Blood pressure review',
+            notes: null,
+            bookingSource: BookingSource.RECEPTION,
+            bookedMinutesBefore: 5 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(31),
+            doctorIndex: 2,
+            patientIndex: 2,
+            dateOffset: -16,
+            time: '09:20',
+            status: AppointmentStatus.NO_SHOW,
+            queueStatus: null,
+            position: null,
+            reason: 'Follow-up consultation',
+            notes: null,
+            bookingSource: BookingSource.PHONE,
+            bookedMinutesBefore: 2 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(32),
+            doctorIndex: 3,
+            patientIndex: 14,
+            dateOffset: -17,
+            time: '11:20',
+            status: AppointmentStatus.COMPLETED,
+            queueStatus: null,
+            position: null,
+            reason: 'Shoulder stiffness',
+            notes: null,
+            bookingSource: BookingSource.RECEPTION,
+            bookedMinutesBefore: 3 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(33),
+            doctorIndex: 5,
+            patientIndex: 5,
+            dateOffset: -18,
+            time: '12:45',
+            status: AppointmentStatus.COMPLETED,
+            queueStatus: null,
+            position: null,
+            reason: 'Persistent cough',
+            notes: null,
+            bookingSource: BookingSource.WALK_IN,
+            bookedMinutesBefore: 8 * 60,
+        },
+        {
+            id: buildAppointmentId(34),
+            doctorIndex: 1,
+            patientIndex: 12,
+            dateOffset: -20,
+            time: '10:45',
+            status: AppointmentStatus.CANCELLED,
+            queueStatus: null,
+            position: null,
+            reason: 'Pediatric follow-up',
+            notes: null,
+            bookingSource: BookingSource.PHONE,
+            bookedMinutesBefore: 6 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(35),
+            doctorIndex: 4,
+            patientIndex: 17,
+            dateOffset: -22,
+            time: '15:30',
+            status: AppointmentStatus.COMPLETED,
+            queueStatus: null,
+            position: null,
+            reason: 'Routine follow-up',
+            notes: null,
+            bookingSource: BookingSource.RECEPTION,
+            bookedMinutesBefore: 10 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(36),
+            doctorIndex: 0,
+            patientIndex: 11,
+            dateOffset: -24,
+            time: '09:50',
+            status: AppointmentStatus.COMPLETED,
+            queueStatus: null,
+            position: null,
+            reason: 'Medication review',
+            notes: null,
+            bookingSource: BookingSource.RECEPTION,
+            bookedMinutesBefore: 5 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(37),
+            doctorIndex: 0,
+            patientIndex: 9,
+            dateOffset: 1,
+            time: '09:30',
+            status: AppointmentStatus.CONFIRMED,
+            queueStatus: null,
+            position: null,
+            reason: 'Routine follow-up',
+            notes: null,
+            bookingSource: BookingSource.RECEPTION,
+            bookedMinutesBefore: 4 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(38),
+            doctorIndex: 2,
+            patientIndex: 7,
+            dateOffset: 1,
+            time: '11:00',
+            status: AppointmentStatus.SCHEDULED,
+            queueStatus: null,
+            position: null,
+            reason: 'Skin follow-up',
+            notes: null,
+            bookingSource: BookingSource.WEB,
+            bookedMinutesBefore: 2 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(39),
+            doctorIndex: 1,
+            patientIndex: 22,
+            dateOffset: 2,
+            time: '10:15',
+            status: AppointmentStatus.CONFIRMED,
+            queueStatus: null,
+            position: null,
+            reason: 'Pediatric review',
+            notes: null,
+            bookingSource: BookingSource.PHONE,
+            bookedMinutesBefore: 5 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(40),
+            doctorIndex: 3,
+            patientIndex: 8,
+            dateOffset: 3,
+            time: '15:45',
+            status: AppointmentStatus.SCHEDULED,
+            queueStatus: null,
+            position: null,
+            reason: 'Knee pain follow-up',
+            notes: null,
+            bookingSource: BookingSource.RECEPTION,
+            bookedMinutesBefore: 6 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(41),
+            doctorIndex: 5,
+            patientIndex: 19,
+            dateOffset: 4,
+            time: '12:00',
+            status: AppointmentStatus.CONFIRMED,
+            queueStatus: null,
+            position: null,
+            reason: 'ENT review',
+            notes: null,
+            bookingSource: BookingSource.PHONE,
+            bookedMinutesBefore: 8 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(42),
+            doctorIndex: 4,
+            patientIndex: 18,
+            dateOffset: 5,
+            time: '13:15',
+            status: AppointmentStatus.SCHEDULED,
+            queueStatus: null,
+            position: null,
+            reason: 'Routine follow-up',
+            notes: null,
+            bookingSource: BookingSource.WEB,
+            bookedMinutesBefore: 7 * 24 * 60,
+        },
+        {
+            id: buildAppointmentId(43),
+            doctorIndex: 0,
+            patientIndex: 21,
+            dateOffset: 7,
+            time: '16:00',
+            status: AppointmentStatus.CONFIRMED,
+            queueStatus: null,
+            position: null,
+            reason: 'Medication review',
+            notes: null,
+            bookingSource: BookingSource.PHONE,
+            bookedMinutesBefore: 16 * 24 * 60,
+        },
+    ];
+
+    return appointmentDefinitions.map((appointmentDefinition) => {
+        const scheduledAt = getClinicDateTime(
+            addClinicDays(today, appointmentDefinition.dateOffset),
+            appointmentDefinition.time,
+            clinicTimezone
+        );
+
+        return {
+            ...appointmentDefinition,
+            scheduledAt,
+            bookedAt: addMinutes(scheduledAt, -appointmentDefinition.bookedMinutesBefore),
+        };
+    });
+};
+
 async function main() {
-    const clinicId = getDemoClinicId();
+    const configuredDemoClinicId = getDemoClinicId();
     const clinicTimezone = 'Asia/Kolkata';
     const today = getClinicTodayParts(clinicTimezone);
-    const yesterday = addClinicDays(today, -1);
-    const tomorrow = addClinicDays(today, 1);
-    const nextWeek = addClinicDays(today, 7);
 
     const adminSeedUser = getSeedClerkUserId(
         'SEED_CLERK_USER_ID',
@@ -144,46 +783,46 @@ async function main() {
     await assertEmailIsAvailableForClerkUser(adminEmail, adminSeedUser.clerkUserId);
     await assertEmailIsAvailableForClerkUser(staffEmail, staffSeedUser.clerkUserId);
 
+    const existingAdminUser = await prisma.user.findUnique({
+        where: {
+            clerkUserId: adminSeedUser.clerkUserId,
+        },
+        select: {
+            clinicId: true,
+        },
+    });
+    const clinicId = existingAdminUser?.clinicId ?? configuredDemoClinicId;
+    const isReusingExistingAdminClinic = Boolean(existingAdminUser?.clinicId);
+    const clinicUpdateData = {
+        name: 'Pravaah Family Care',
+        phone: '+91 00000 03000',
+        email: 'frontdesk@pravaah.local',
+        addressLine1: '101 Care Circle',
+        addressLine2: 'Indiranagar Extension',
+        city: 'Bengaluru',
+        state: 'Karnataka',
+        country: 'India',
+        pincode: '560000',
+        timezone: clinicTimezone,
+        openingTime: '09:00',
+        closingTime: '18:00',
+        slotDurationMinutes: 15,
+        bufferMinutes: 5,
+        isActive: true,
+    };
+
     const clinic = await prisma.clinic.upsert({
         where: {
             id: clinicId,
         },
         update: {
-            name: 'Pravaah Demo Family Clinic',
-            slug: DEFAULT_DEMO_CLINIC_SLUG,
-            phone: '+91 00000 03000',
-            email: 'demo-clinic@pravaah.local',
-            addressLine1: '101 Demo Care Street',
-            addressLine2: 'Training District',
-            city: 'Bengaluru',
-            state: 'Karnataka',
-            country: 'India',
-            pincode: '560000',
-            timezone: clinicTimezone,
-            openingTime: '09:00',
-            closingTime: '18:00',
-            slotDurationMinutes: 15,
-            bufferMinutes: 5,
-            isActive: true,
+            ...clinicUpdateData,
+            ...(clinicId === configuredDemoClinicId ? { slug: DEFAULT_DEMO_CLINIC_SLUG } : {}),
         },
         create: {
             id: clinicId,
-            name: 'Pravaah Demo Family Clinic',
             slug: DEFAULT_DEMO_CLINIC_SLUG,
-            phone: '+91 00000 03000',
-            email: 'demo-clinic@pravaah.local',
-            addressLine1: '101 Demo Care Street',
-            addressLine2: 'Training District',
-            city: 'Bengaluru',
-            state: 'Karnataka',
-            country: 'India',
-            pincode: '560000',
-            timezone: clinicTimezone,
-            openingTime: '09:00',
-            closingTime: '18:00',
-            slotDurationMinutes: 15,
-            bufferMinutes: 5,
-            isActive: true,
+            ...clinicUpdateData,
         },
     });
 
@@ -212,14 +851,14 @@ async function main() {
             clerkUserId: staffSeedUser.clerkUserId,
         },
         update: {
-            fullName: process.env.SEED_STAFF_USER_FULL_NAME ?? 'Demo Front Desk Staff',
+            fullName: process.env.SEED_STAFF_USER_FULL_NAME ?? 'Maya Front Desk',
             role: UserRole.STAFF,
             status: staffSeedUser.usesPlaceholder ? UserStatus.INVITED : UserStatus.ACTIVE,
             clinicId: clinic.id,
         },
         create: {
             clerkUserId: staffSeedUser.clerkUserId,
-            fullName: process.env.SEED_STAFF_USER_FULL_NAME ?? 'Demo Front Desk Staff',
+            fullName: process.env.SEED_STAFF_USER_FULL_NAME ?? 'Maya Front Desk',
             email: staffEmail,
             role: UserRole.STAFF,
             status: staffSeedUser.usesPlaceholder ? UserStatus.INVITED : UserStatus.ACTIVE,
@@ -323,7 +962,7 @@ async function main() {
                 totalNoShows: patient.history.totalNoShows,
                 totalLateArrivals: patient.history.totalLateArrivals,
                 distanceFromClinicKm: patient.history.distanceFromClinicKm,
-                notes: patient.history.notes,
+                notes: stripSampleMarker(patient.history.notes),
                 isActive: true,
             },
             create: {
@@ -333,168 +972,55 @@ async function main() {
                 totalNoShows: patient.history.totalNoShows,
                 totalLateArrivals: patient.history.totalLateArrivals,
                 distanceFromClinicKm: patient.history.distanceFromClinicKm,
-                notes: patient.history.notes,
+                notes: stripSampleMarker(patient.history.notes),
                 isActive: true,
             },
         });
     }
 
-    const appointmentSeeds = [
-        {
-            id: '30000000-0000-4000-8000-000000000001',
-            doctorId: doctors[0].id,
-            patientId: patients[0].id,
-            scheduledAt: getAsiaKolkataDateTime(today, '09:15'),
-            status: AppointmentStatus.IN_QUEUE,
-            queueStatus: QueueStatus.WAITING,
-            position: 1,
-            reason: 'Routine follow-up',
-            notes: 'Demo low-risk appointment in today queue.',
-            bookingSource: BookingSource.RECEPTION,
-            bookedAt: addMinutes(getAsiaKolkataDateTime(today, '09:15'), -72 * 60),
-        },
-        {
-            id: '30000000-0000-4000-8000-000000000002',
-            doctorId: doctors[1].id,
-            patientId: patients[1].id,
-            scheduledAt: getAsiaKolkataDateTime(today, '09:45'),
-            status: AppointmentStatus.ARRIVED,
-            queueStatus: QueueStatus.ARRIVED,
-            position: 2,
-            reason: 'Child fever review',
-            notes: 'Demo medium-risk appointment marked arrived manually.',
-            bookingSource: BookingSource.PHONE,
-            bookedAt: addMinutes(getAsiaKolkataDateTime(today, '09:45'), -5 * 60),
-        },
-        {
-            id: '30000000-0000-4000-8000-000000000003',
-            doctorId: doctors[2].id,
-            patientId: patients[2].id,
-            scheduledAt: getAsiaKolkataDateTime(today, '10:15'),
-            status: AppointmentStatus.CALLED,
-            queueStatus: QueueStatus.CALLED,
-            position: 3,
-            reason: 'Follow-up consultation',
-            notes: 'Demo high-risk appointment currently called by staff.',
-            bookingSource: BookingSource.RECEPTION,
-            bookedAt: addMinutes(getAsiaKolkataDateTime(today, '10:15'), -3 * 60),
-        },
-        {
-            id: '30000000-0000-4000-8000-000000000004',
-            doctorId: doctors[0].id,
-            patientId: patients[3].id,
-            scheduledAt: getAsiaKolkataDateTime(today, '10:45'),
-            status: AppointmentStatus.COMPLETED,
-            queueStatus: QueueStatus.COMPLETED,
-            position: 4,
-            reason: 'Review visit',
-            notes: 'Demo completed queue entry.',
-            bookingSource: BookingSource.RECEPTION,
-            bookedAt: addMinutes(getAsiaKolkataDateTime(today, '10:45'), -4 * 24 * 60),
-        },
-        {
-            id: '30000000-0000-4000-8000-000000000005',
-            doctorId: doctors[1].id,
-            patientId: patients[4].id,
-            scheduledAt: getAsiaKolkataDateTime(today, '11:15'),
-            status: AppointmentStatus.CANCELLED,
-            queueStatus: QueueStatus.CANCELLED,
-            position: 5,
-            reason: 'General consultation',
-            notes: 'Demo cancelled queue entry. Staff made the decision manually.',
-            bookingSource: BookingSource.PHONE,
-            bookedAt: addMinutes(getAsiaKolkataDateTime(today, '11:15'), -4 * 60),
-        },
-        {
-            id: '30000000-0000-4000-8000-000000000006',
-            doctorId: doctors[2].id,
-            patientId: patients[2].id,
-            scheduledAt: getAsiaKolkataDateTime(today, '11:45'),
-            status: AppointmentStatus.NO_SHOW,
-            queueStatus: QueueStatus.NO_SHOW,
-            position: 6,
-            reason: 'Medication review',
-            notes: 'Demo no-show queue entry. Staff marked it manually.',
-            bookingSource: BookingSource.RECEPTION,
-            bookedAt: addMinutes(getAsiaKolkataDateTime(today, '11:45'), -6 * 60),
-        },
-        {
-            id: '30000000-0000-4000-8000-000000000007',
-            doctorId: doctors[0].id,
-            patientId: patients[5].id,
-            scheduledAt: getAsiaKolkataDateTime(tomorrow, '12:00'),
-            status: AppointmentStatus.SCHEDULED,
-            queueStatus: null,
-            position: null,
-            reason: 'New patient visit',
-            notes: 'Demo tomorrow appointment.',
-            bookingSource: BookingSource.WALK_IN,
-            bookedAt: addMinutes(getAsiaKolkataDateTime(tomorrow, '12:00'), -30 * 60),
-        },
-        {
-            id: '30000000-0000-4000-8000-000000000008',
-            doctorId: doctors[1].id,
-            patientId: patients[1].id,
-            scheduledAt: getAsiaKolkataDateTime(nextWeek, '15:30'),
-            status: AppointmentStatus.CONFIRMED,
-            queueStatus: null,
-            position: null,
-            reason: 'Pediatric follow-up',
-            notes: 'Demo future confirmed appointment.',
-            bookingSource: BookingSource.PHONE,
-            bookedAt: addMinutes(getAsiaKolkataDateTime(nextWeek, '15:30'), -10 * 24 * 60),
-        },
-        {
-            id: '30000000-0000-4000-8000-000000000009',
-            doctorId: doctors[0].id,
-            patientId: patients[0].id,
-            scheduledAt: getAsiaKolkataDateTime(yesterday, '16:00'),
-            status: AppointmentStatus.COMPLETED,
-            queueStatus: null,
-            position: null,
-            reason: 'Past completed demo visit',
-            notes: 'Demo history appointment outside today queue.',
-            bookingSource: BookingSource.RECEPTION,
-            bookedAt: addMinutes(getAsiaKolkataDateTime(yesterday, '16:00'), -7 * 24 * 60),
-        },
-    ];
+    const appointmentSeeds = buildAppointmentSeeds(today, clinic.timezone);
+    const appointmentSeedIds = appointmentSeeds.map((appointmentSeed) => appointmentSeed.id);
 
-    for (const appointmentSeed of appointmentSeeds) {
-        const appointment = await prisma.appointment.upsert({
+    const cleanupSummary = await prisma.$transaction(async (tx) => {
+        const deletedNoShowPredictions = await tx.noShowPrediction.deleteMany({
             where: {
-                id: appointmentSeed.id,
+                appointmentId: {
+                    in: appointmentSeedIds,
+                },
             },
-            update: {
-                clinicId: clinic.id,
-                doctorId: appointmentSeed.doctorId,
-                patientId: appointmentSeed.patientId,
-                createdByUserId: adminUser.id,
-                scheduledAt: appointmentSeed.scheduledAt,
-                durationMinutes: 15,
-                status: appointmentSeed.status,
-                bookingSource: appointmentSeed.bookingSource,
-                reason: appointmentSeed.reason,
-                notes: appointmentSeed.notes,
+        });
+        const deletedQueueEntries = await tx.queueEntry.deleteMany({
+            where: {
+                appointmentId: {
+                    in: appointmentSeedIds,
+                },
             },
-            create: {
-                id: appointmentSeed.id,
-                clinicId: clinic.id,
-                doctorId: appointmentSeed.doctorId,
-                patientId: appointmentSeed.patientId,
-                createdByUserId: adminUser.id,
-                scheduledAt: appointmentSeed.scheduledAt,
-                durationMinutes: 15,
-                status: appointmentSeed.status,
-                bookingSource: appointmentSeed.bookingSource,
-                reason: appointmentSeed.reason,
-                notes: appointmentSeed.notes,
+        });
+        const deletedAppointments = await tx.appointment.deleteMany({
+            where: {
+                id: {
+                    in: appointmentSeedIds,
+                },
             },
         });
 
-        const patient = patients.find((demoPatient) => demoPatient.id === appointment.patientId);
+        return {
+            appointments: deletedAppointments.count,
+            queueEntries: deletedQueueEntries.count,
+            noShowPredictions: deletedNoShowPredictions.count,
+        };
+    });
+
+    for (const appointmentSeed of appointmentSeeds) {
+        const doctor = doctors[appointmentSeed.doctorIndex];
+        const patient = patients[appointmentSeed.patientIndex];
 
         if (!patient) {
-            throw new Error(`Seed patient not found for appointment ${appointment.id}`);
+            throw new Error(`Seed patient not found for appointment ${appointmentSeed.id}`);
+        }
+
+        if (!doctor) {
+            throw new Error(`Seed doctor not found for appointment ${appointmentSeed.id}`);
         }
 
         const completedAppointmentCount = Math.max(
@@ -502,7 +1028,7 @@ async function main() {
             0
         );
         const noShowPrediction = predictNoShowRisk({
-            scheduledAt: appointment.scheduledAt,
+            scheduledAt: appointmentSeed.scheduledAt,
             bookedAt: appointmentSeed.bookedAt,
             patientNoShowCount: patient.history.totalNoShows,
             patientLateArrivalCount: patient.history.totalLateArrivals,
@@ -510,50 +1036,38 @@ async function main() {
             distanceFromClinicKm: Number(patient.history.distanceFromClinicKm),
         });
 
-        await prisma.noShowPrediction.upsert({
-            where: {
-                appointmentId: appointment.id,
-            },
-            update: {
+        const appointment = await prisma.appointment.create({
+            data: {
+                id: appointmentSeed.id,
                 clinicId: clinic.id,
-                patientId: appointment.patientId,
-                riskLevel: noShowPrediction.riskLevel,
-                score: noShowPrediction.score,
-                reasons: noShowPrediction.reasons,
-            },
-            create: {
-                appointmentId: appointment.id,
-                clinicId: clinic.id,
-                patientId: appointment.patientId,
-                riskLevel: noShowPrediction.riskLevel,
-                score: noShowPrediction.score,
-                reasons: noShowPrediction.reasons,
+                doctorId: doctor.id,
+                patientId: patient.id,
+                createdByUserId: adminUser.id,
+                scheduledAt: appointmentSeed.scheduledAt,
+                durationMinutes: clinic.slotDurationMinutes,
+                status: appointmentSeed.status,
+                bookingSource: appointmentSeed.bookingSource,
+                reason: appointmentSeed.reason,
+                notes: appointmentSeed.notes,
+                createdAt: appointmentSeed.bookedAt,
             },
         });
 
-        if (appointmentSeed.queueStatus && appointmentSeed.position) {
-            await prisma.queueEntry.upsert({
-                where: {
-                    appointmentId: appointment.id,
-                },
-                update: {
-                    clinicId: clinic.id,
-                    doctorId: appointment.doctorId,
-                    patientId: appointment.patientId,
-                    position: appointmentSeed.position,
-                    status: appointmentSeed.queueStatus,
-                    queuedAt: addMinutes(appointment.scheduledAt, -15),
-                    calledAt:
-                        appointmentSeed.queueStatus === QueueStatus.CALLED ||
-                        appointmentSeed.queueStatus === QueueStatus.COMPLETED
-                            ? addMinutes(appointment.scheduledAt, 5)
-                            : null,
-                    completedAt:
-                        appointmentSeed.queueStatus === QueueStatus.COMPLETED
-                            ? addMinutes(appointment.scheduledAt, 20)
-                            : null,
-                },
-                create: {
+        await prisma.noShowPrediction.create({
+            data: {
+                appointmentId: appointment.id,
+                clinicId: clinic.id,
+                patientId: appointment.patientId,
+                riskLevel: noShowPrediction.riskLevel,
+                score: noShowPrediction.score,
+                reasons: noShowPrediction.reasons,
+                createdAt: appointmentSeed.bookedAt,
+            },
+        });
+
+        if (appointmentSeed.queueStatus !== null && appointmentSeed.position !== null) {
+            await prisma.queueEntry.create({
+                data: {
                     clinicId: clinic.id,
                     appointmentId: appointment.id,
                     doctorId: appointment.doctorId,
@@ -575,17 +1089,43 @@ async function main() {
         }
     }
 
-    console.log('Seeded Pravaah demo clinic data:');
+    const todayAppointmentCount = appointmentSeeds.filter(
+        (appointmentSeed) => appointmentSeed.dateOffset === 0
+    ).length;
+    const historicalAppointmentCount = appointmentSeeds.filter(
+        (appointmentSeed) => appointmentSeed.dateOffset < 0
+    ).length;
+    const futureAppointmentCount = appointmentSeeds.filter(
+        (appointmentSeed) => appointmentSeed.dateOffset > 0
+    ).length;
+    const todayQueueEntryCount = appointmentSeeds.filter(
+        (appointmentSeed) =>
+            appointmentSeed.dateOffset === 0 && appointmentSeed.queueStatus !== null
+    ).length;
+
+    console.log('Seeded Pravaah localhost demo data:');
     console.log(`- clinicId: ${clinic.id}`);
     console.log(`- clinicSlug: ${clinic.slug}`);
+    console.log(
+        `- clinicSource: ${
+            isReusingExistingAdminClinic
+                ? 'reused configured Admin clinic'
+                : 'used configured demo clinic'
+        }`
+    );
     console.log(`- adminUserId: ${adminUser.id}`);
-    console.log(`- adminClerkUserId: ${adminUser.clerkUserId}`);
     console.log(`- staffUserId: ${staffUser.id}`);
-    console.log(`- staffClerkUserId: ${staffUser.clerkUserId}`);
     console.log(`- doctors: ${doctors.length}`);
     console.log(`- patients: ${patients.length}`);
     console.log(`- appointments: ${appointmentSeeds.length}`);
-    console.log('- todayQueueEntries: 6');
+    console.log(`- today: ${getClinicDateLabel(today)}`);
+    console.log(`- todayAppointments: ${todayAppointmentCount}`);
+    console.log(`- historicalAppointments: ${historicalAppointmentCount}`);
+    console.log(`- futureAppointments: ${futureAppointmentCount}`);
+    console.log(`- todayQueueEntries: ${todayQueueEntryCount}`);
+    console.log(
+        `- refreshedOldSeedRows: ${cleanupSummary.appointments} appointments, ${cleanupSummary.queueEntries} queue entries, ${cleanupSummary.noShowPredictions} predictions`
+    );
     console.log('');
     console.log('Next local web setup:');
     console.log(
