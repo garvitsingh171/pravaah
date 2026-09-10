@@ -705,8 +705,9 @@ hours or reject past appointment times as business rules.
 | `CANCELLED` | Appointment cancelled.       | Yes    | `QueueStatus.CANCELLED`.                              |
 | `NO_SHOW`   | Patient did not attend.      | Yes    | `QueueStatus.NO_SHOW`.                                |
 
-Current code blocks changing a final appointment to a different status. It does not
-yet enforce a strict non-final transition graph.
+Current code blocks changing a final appointment to a different status and enforces
+the approved non-final transition graph through the centralized appointment
+lifecycle policy.
 
 #### Queue
 

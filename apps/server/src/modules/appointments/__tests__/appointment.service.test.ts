@@ -522,6 +522,51 @@ describe('appointmentService.updateAppointmentStatus', () => {
         );
     });
 
+    it('maps invalid appointment lifecycle transitions to a domain conflict', async () => {
+        mockAccessService.verifyAppointmentClinicAccess.mockResolvedValue({
+            id: 'appointment-id',
+            clinicId: 'clinic-id',
+        });
+        mockAppointmentRepository.updateAppointmentStatus.mockResolvedValue({
+            appointment: null,
+            failureReason: 'INVALID_STATUS_TRANSITION',
+        });
+
+        await expect(
+            appointmentService.updateAppointmentStatus(
+                authenticatedUser,
+                'appointment-id',
+                AppointmentStatus.CONFIRMED
+            )
+        ).rejects.toMatchObject({
+            statusCode: 409,
+            code: 'APPOINTMENT_STATUS_TRANSITION_INVALID',
+            message: 'Requested appointment status transition is not allowed',
+        });
+    });
+
+    it('preserves final-status conflict errors from the repository', async () => {
+        mockAccessService.verifyAppointmentClinicAccess.mockResolvedValue({
+            id: 'appointment-id',
+            clinicId: 'clinic-id',
+        });
+        mockAppointmentRepository.updateAppointmentStatus.mockResolvedValue({
+            appointment: null,
+            failureReason: 'FINAL_STATUS_CONFLICT',
+        });
+
+        await expect(
+            appointmentService.updateAppointmentStatus(
+                authenticatedUser,
+                'appointment-id',
+                AppointmentStatus.ARRIVED
+            )
+        ).rejects.toMatchObject({
+            statusCode: 409,
+            code: 'APPOINTMENT_STATUS_FINAL',
+        });
+    });
+
     it('does not update appointment status when clinic access is denied', async () => {
         mockAccessService.verifyAppointmentClinicAccess.mockRejectedValue(
             new Error('CLINIC_ACCESS_DENIED')

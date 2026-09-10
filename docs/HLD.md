@@ -393,7 +393,7 @@ stateDiagram-v2
     CALLED --> NO_SHOW
 ```
 
-Text note: this diagram is the intended human workflow. Current code allows any non-final appointment status to move to any enum value and blocks changes only after `COMPLETED`, `CANCELLED`, or `NO_SHOW`.
+Text note: this diagram is the intended human workflow. Current code enforces this appointment transition policy server-side and blocks changes after `COMPLETED`, `CANCELLED`, or `NO_SHOW`.
 
 Queue lifecycle:
 
@@ -558,7 +558,7 @@ sequenceDiagram
 ```mermaid
 flowchart TD
     A[Appointment exists with QueueEntry from booking] --> B[Staff updates appointment or queue status]
-    B --> C[Backend verifies access and non-final current state]
+    B --> C[Backend verifies access and endpoint-specific status rules]
     C --> D[Repository transaction]
     D --> E[Appointment status synchronized]
     D --> F[QueueEntry status and timestamps synchronized]
@@ -624,7 +624,7 @@ flowchart TD
 | Patient creation    | `Patient`, `PatientClinic`                          | Patient history must be clinic-linked.            | Both records.                                            | Rollback.                                 | `patient.repository.ts`     | Counters can drift later.                           |
 | Patient update      | `Patient`, `PatientClinic`                          | Profile and clinic history may update together.   | Requested fields.                                        | Rollback.                                 | `patient.repository.ts`     | Link active field not exposed.                      |
 | Appointment booking | `Appointment`, `QueueEntry`, `NoShowPrediction`     | Booking creates operational queue/risk context.   | All related writes.                                      | Rollback; conflicts mapped.               | `appointment.repository.ts` | Exact-slot conflict only.                           |
-| Appointment status  | `Appointment`, `QueueEntry` where mapped            | Keep statuses consistent.                         | Appointment and queue status.                            | Conflict or rollback.                     | `appointment.repository.ts` | No PatientClinic counter update.                    |
+| Appointment status  | `Appointment`, `QueueEntry` where mapped            | Keep statuses consistent.                         | Appointment and queue status.                            | Conflict or rollback.                     | `appointment.repository.ts` | Transition policy is centralized in `appointment.lifecycle.ts`. |
 | Queue status        | `QueueEntry`, `Appointment`                         | Keep queue and appointment synchronized.          | Queue and appointment status.                            | Conflict or rollback.                     | `queue.repository.ts`       | Broad transition rules.                             |
 | Queue reorder       | `QueueEntry.position` rows                          | Avoid duplicate positions during reorder.         | Temporary and final positions for one doctor/date scope. | Rollback.                                 | `queue.repository.ts`       | Owner verification pending after doctor-scoped fix. |
 | Dashboard backfill  | `NoShowPrediction` rows                             | Fill missing prediction records before summaries. | Bulk create with skip duplicates.                        | Dashboard error path.                     | `dashboard.service.ts`      | Backfill inputs are more limited than booking path. |

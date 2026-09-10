@@ -319,6 +319,22 @@ export const appointmentService = {
             );
         }
 
+        if (result.failureReason === 'INVALID_STATUS_TRANSITION') {
+            throw new AppError(
+                409,
+                'APPOINTMENT_STATUS_TRANSITION_INVALID',
+                'Requested appointment status transition is not allowed'
+            );
+        }
+
+        if (result.failureReason === 'STATUS_TRANSITION_CONFLICT') {
+            throw new AppError(
+                409,
+                'STATUS_SYNC_CONFLICT',
+                'Status changed while updating. Please refresh and try again.'
+            );
+        }
+
         if (result.failureReason === 'QUEUE_ENTRY_NOT_FOUND') {
             throw new AppError(
                 409,

@@ -28,7 +28,7 @@
 | Side effects          | Booking always creates a `QueueEntry` and a `NoShowPrediction` in current code                                                                                                                                           |
 | Errors                | `APPOINTMENT_SLOT_CONFLICT`, `DOCTOR_NOT_LINKED_TO_CLINIC`, `PATIENT_NOT_LINKED_TO_CLINIC`, `APPOINTMENT_STATUS_FINAL`, `STATUS_SYNC_CONFLICT`, `QUEUE_ENTRY_NOT_FOUND`                                                  |
 | Tests                 | Appointment service/controller/validation tests; `AppointmentsPage` has no dedicated test file in current tree                                                                                                           |
-| Known gaps            | No operating-hours or buffer-duration conflict validation is implemented in appointment service. Backend does not enforce a full transition matrix beyond final-status protections                                       |
+| Known gaps            | No operating-hours or buffer-duration conflict validation is implemented in appointment service. Queue lifecycle enforcement is tracked separately from appointment status transitions                                |
 
 ## Appointment Booking Trace
 
@@ -201,8 +201,9 @@ Backend status behavior:
 
 | Rule                                                                 | Evidence                                                                         |
 | -------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| Final statuses cannot change to a different status                   | `appointment.repository.ts -> finalAppointmentStatuses` and guarded `updateMany` |
-| Non-final appointments can be set to any enum value accepted by Zod  | `updateAppointmentStatusSchema` accepts all enum values                          |
+| Final statuses cannot change to a different status                   | `appointment.lifecycle.ts -> finalAppointmentStatuses` and guarded `updateMany`  |
+| Non-final appointments must follow the approved transition policy    | `appointment.lifecycle.ts -> appointmentStatusTransitions`                       |
+| Same-status updates are accepted as idempotent retries               | `appointment.lifecycle.ts -> isAppointmentStatusTransitionAllowed`               |
 | `SCHEDULED` and `CONFIRMED` do not map to a queue status             | `appointmentStatusToQueueStatus` has no entries for these states                 |
 | `ARRIVED` maps to queue `ARRIVED`                                    | `appointmentStatusToQueueStatus`                                                 |
 | `IN_QUEUE` maps to queue `WAITING`                                   | `appointmentStatusToQueueStatus`                                                 |
@@ -244,9 +245,9 @@ prisma.$transaction
     ↓
 tx.appointment.findFirst({ id, clinicId, status, queueEntry })
     ↓
-reject missing appointment, final status conflict, or missing queue entry for queue-mapped status
+reject missing appointment, final status conflict, invalid transition, or missing queue entry for queue-mapped status
     ↓
-tx.appointment.updateMany({ final-status guard })
+tx.appointment.updateMany({ transition-aware current-status guard })
     ↓
 optional tx.queueEntry.updateMany({ final-status guard })
     ↓
