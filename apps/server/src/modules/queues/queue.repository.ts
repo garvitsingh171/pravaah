@@ -1,5 +1,9 @@
 import { prisma } from '../../config/prisma.js';
 import { AppointmentStatus, Prisma, QueueStatus } from '../../generated/prisma/client.js';
+import {
+    getAllowedAppointmentCurrentStatusesForRequest,
+    isAppointmentStatusTransitionAllowed,
+} from '../appointments/appointment.lifecycle.js';
 
 const noShowPredictionQueueSelect = {
     id: true,
@@ -87,12 +91,6 @@ const finalQueueStatuses: QueueStatus[] = [
     QueueStatus.COMPLETED,
     QueueStatus.CANCELLED,
     QueueStatus.NO_SHOW,
-];
-
-const finalAppointmentStatuses: AppointmentStatus[] = [
-    AppointmentStatus.COMPLETED,
-    AppointmentStatus.CANCELLED,
-    AppointmentStatus.NO_SHOW,
 ];
 
 export const queueRepository = {
@@ -239,6 +237,26 @@ export const queueRepository = {
         timestampUpdates: { calledAt?: Date; completedAt?: Date }
     ) {
         return prisma.$transaction(async (tx) => {
+            const existingAppointment = await tx.appointment.findFirst({
+                where: {
+                    id: appointmentId,
+                    clinicId,
+                },
+                select: {
+                    status: true,
+                },
+            });
+
+            if (
+                !existingAppointment ||
+                !isAppointmentStatusTransitionAllowed(
+                    existingAppointment.status,
+                    appointmentStatus
+                )
+            ) {
+                throw new Error('APPOINTMENT_STATUS_TRANSITION_INVALID');
+            }
+
             const queueUpdateResult = await tx.queueEntry.updateMany({
                 where: {
                     id: queueEntryId,
@@ -293,16 +311,9 @@ export const queueRepository = {
                 where: {
                     id: appointmentId,
                     clinicId,
-                    OR: [
-                        {
-                            status: appointmentStatus,
-                        },
-                        {
-                            status: {
-                                notIn: finalAppointmentStatuses,
-                            },
-                        },
-                    ],
+                    status: {
+                        in: getAllowedAppointmentCurrentStatusesForRequest(appointmentStatus),
+                    },
                 },
                 data: {
                     status: appointmentStatus,

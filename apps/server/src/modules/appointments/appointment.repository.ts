@@ -4,6 +4,11 @@ import type {
     NoShowPredictionOutput,
     StoredNoShowPredictionForResponse,
 } from '../predictions/prediction.types.js';
+import {
+    finalAppointmentStatuses,
+    getAllowedAppointmentCurrentStatusesForRequest,
+    isAppointmentStatusTransitionAllowed,
+} from './appointment.lifecycle.js';
 import type { CreateAppointmentInput, ListAppointmentsQueryInput } from './appointment.types.js';
 
 const getClinicDateRange = async (date: string, clinicTimezone: string) => {
@@ -24,12 +29,6 @@ const appointmentStatusToQueueStatus: Partial<Record<AppointmentStatus, QueueSta
     CANCELLED: QueueStatus.CANCELLED,
     NO_SHOW: QueueStatus.NO_SHOW,
 };
-
-const finalAppointmentStatuses: AppointmentStatus[] = [
-    AppointmentStatus.COMPLETED,
-    AppointmentStatus.CANCELLED,
-    AppointmentStatus.NO_SHOW,
-];
 
 const finalQueueStatuses: QueueStatus[] = [
     QueueStatus.COMPLETED,
@@ -295,6 +294,13 @@ export const appointmentRepository = {
                 };
             }
 
+            if (!isAppointmentStatusTransitionAllowed(existingAppointment.status, status)) {
+                return {
+                    appointment: null,
+                    failureReason: 'INVALID_STATUS_TRANSITION' as const,
+                };
+            }
+
             if (queueStatus !== undefined && !existingAppointment.queueEntry) {
                 return {
                     appointment: null,
@@ -306,16 +312,9 @@ export const appointmentRepository = {
                 where: {
                     id: appointmentId,
                     clinicId,
-                    OR: [
-                        {
-                            status,
-                        },
-                        {
-                            status: {
-                                notIn: finalAppointmentStatuses,
-                            },
-                        },
-                    ],
+                    status: {
+                        in: getAllowedAppointmentCurrentStatusesForRequest(status),
+                    },
                 },
                 data: {
                     status,
@@ -325,7 +324,7 @@ export const appointmentRepository = {
             if (updateResult.count !== 1) {
                 return {
                     appointment: null,
-                    failureReason: 'FINAL_STATUS_CONFLICT' as const,
+                    failureReason: 'STATUS_TRANSITION_CONFLICT' as const,
                 };
             }
 

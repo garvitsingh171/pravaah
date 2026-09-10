@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mockAppointmentService = vi.hoisted(() => ({
     createAppointment: vi.fn(),
     listAppointments: vi.fn(),
+    updateAppointmentStatus: vi.fn(),
 }));
 
 vi.mock('../appointment.service.js', () => ({
@@ -13,6 +14,7 @@ vi.mock('../appointment.service.js', () => ({
 import {
     createAppointmentController,
     listAppointmentsController,
+    updateAppointmentStatusController,
 } from '../appointment.controller.js';
 
 describe('createAppointmentController', () => {
@@ -202,5 +204,86 @@ describe('listAppointmentsController', () => {
                 appointments,
             },
         });
+    });
+});
+
+describe('updateAppointmentStatusController', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('updates appointment status through the service and returns the appointment', async () => {
+        const appointment = {
+            id: 'appointment-id',
+            clinicId: 'clinic-id',
+            status: 'ARRIVED',
+            noShowPrediction: null,
+        };
+        const user = {
+            id: 'user-id',
+        };
+        const req = {
+            params: {
+                appointmentId: 'appointment-id',
+            },
+            body: {
+                status: 'ARRIVED',
+            },
+            user,
+        } as unknown as Request;
+
+        const json = vi.fn();
+        const status = vi.fn(() => ({ json }));
+        const res = {
+            status,
+        } as unknown as Response;
+        const next = vi.fn() as NextFunction;
+
+        mockAppointmentService.updateAppointmentStatus.mockResolvedValue(appointment);
+
+        await updateAppointmentStatusController(req, res, next);
+
+        expect(mockAppointmentService.updateAppointmentStatus).toHaveBeenCalledWith(
+            user,
+            'appointment-id',
+            'ARRIVED'
+        );
+        expect(status).toHaveBeenCalledWith(200);
+        expect(json).toHaveBeenCalledWith({
+            success: true,
+            message: 'Appointment status updated successfully',
+            data: {
+                appointment,
+            },
+        });
+    });
+
+    it('passes invalid transition errors to error middleware', async () => {
+        const error = new Error('Requested appointment status transition is not allowed');
+        const req = {
+            params: {
+                appointmentId: 'appointment-id',
+            },
+            body: {
+                status: 'CONFIRMED',
+            },
+            user: {
+                id: 'user-id',
+            },
+        } as unknown as Request;
+
+        const json = vi.fn();
+        const status = vi.fn(() => ({ json }));
+        const res = {
+            status,
+        } as unknown as Response;
+        const next = vi.fn() as NextFunction;
+
+        mockAppointmentService.updateAppointmentStatus.mockRejectedValue(error);
+
+        await updateAppointmentStatusController(req, res, next);
+
+        expect(next).toHaveBeenCalledWith(error);
+        expect(status).not.toHaveBeenCalled();
     });
 });

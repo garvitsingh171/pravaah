@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { QueueStatus } from '../../../generated/prisma/client.js';
 
 const mockQueueRepository = vi.hoisted(() => ({
     findQueueByClinicDate: vi.fn(),
@@ -176,6 +177,37 @@ describe('queueService.listQueueByClinicDate', () => {
         expect(result[0]?.appointment).not.toHaveProperty('noShowPrediction');
         expect(result[0]?.noShowPrediction).toHaveProperty('score', 60);
         expect(result[0]?.noShowPrediction).not.toHaveProperty('appointmentId');
+    });
+});
+
+describe('queueService.updateQueueStatus', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockAccessService.verifyClinicAccess.mockResolvedValue({
+            id: 'clinic-id',
+            isActive: true,
+            timezone: 'Asia/Kolkata',
+        });
+    });
+
+    it('returns a domain error when a queue update implies an invalid appointment transition', async () => {
+        mockQueueRepository.findQueueEntryById.mockResolvedValue(createQueueEntry());
+        mockQueueRepository.updateQueueEntryStatus.mockRejectedValue(
+            new Error('APPOINTMENT_STATUS_TRANSITION_INVALID')
+        );
+
+        await expect(
+            queueService.updateQueueStatus(
+                authenticatedUser,
+                'clinic-id',
+                'queue-entry-id',
+                QueueStatus.COMPLETED
+            )
+        ).rejects.toMatchObject({
+            statusCode: 409,
+            code: 'APPOINTMENT_STATUS_TRANSITION_INVALID',
+            message: 'Requested appointment status transition is not allowed',
+        });
     });
 });
 

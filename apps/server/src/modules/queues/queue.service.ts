@@ -121,6 +121,17 @@ export const queueService = {
         } catch (error) {
             if (
                 error instanceof Error &&
+                error.message === 'APPOINTMENT_STATUS_TRANSITION_INVALID'
+            ) {
+                throw new AppError(
+                    409,
+                    'APPOINTMENT_STATUS_TRANSITION_INVALID',
+                    'Requested appointment status transition is not allowed'
+                );
+            }
+
+            if (
+                error instanceof Error &&
                 ['QUEUE_STATUS_UPDATE_CONFLICT', 'APPOINTMENT_STATUS_SYNC_CONFLICT'].includes(
                     error.message
                 )
