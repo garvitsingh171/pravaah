@@ -25,7 +25,7 @@
 | Transaction           | Status update and reorder each run in `prisma.$transaction`                                                                                                                              |
 | Concurrency control   | Reorder uses PostgreSQL advisory transaction lock per clinic/doctor/date and verifies active set inside transaction                                                                      |
 | State changes         | Queue status, appointment status sync, `calledAt`, `completedAt`, queue positions                                                                                                        |
-| Errors                | `QUEUE_ENTRY_NOT_FOUND`, `QUEUE_ENTRY_CLINIC_MISMATCH`, `QUEUE_ENTRY_FINAL_STATUS`, `QUEUE_SCOPE_MISMATCH`, `QUEUE_REORDER_INCOMPLETE`, `QUEUE_REORDER_CONFLICT`, `STATUS_SYNC_CONFLICT` |
+| Errors                | `QUEUE_ENTRY_NOT_FOUND`, `QUEUE_ENTRY_CLINIC_MISMATCH`, `QUEUE_ENTRY_FINAL_STATUS`, `QUEUE_SCOPE_MISMATCH`, `QUEUE_REORDER_INCOMPLETE`, `QUEUE_REORDER_CONFLICT`, `APPOINTMENT_STATUS_TRANSITION_INVALID`, `STATUS_SYNC_CONFLICT` |
 | Tests                 | `queue.service.test.ts`, `QueuePage.test.tsx`                                                                                                                                            |
 | Known gaps            | UI is fixed to today's local browser date; backend supports a `date` query/body but frontend does not expose arbitrary date selection                                                    |
 
@@ -96,11 +96,15 @@ queueRepository.updateQueueEntryStatus(...)
     ↓
 prisma.$transaction
     ↓
+tx.appointment.findFirst({ id, clinicId, status })
+    ↓
+reject appointment sync states that violate the appointment lifecycle policy
+    ↓
 tx.queueEntry.updateMany({ final-status guard })
     ↓
 optional calledAt/completedAt timestamp update
     ↓
-tx.appointment.updateMany({ final-status guard })
+tx.appointment.updateMany({ transition-aware current-status guard })
     ↓
 tx.queueEntry.findUniqueOrThrow({ include: queueEntryDetailsInclude })
     ↓
@@ -118,7 +122,7 @@ Queue to appointment status mapping:
 | `CANCELLED`  | `CANCELLED`        |
 | `NO_SHOW`    | `NO_SHOW`          |
 
-Final queue statuses: `COMPLETED`, `CANCELLED`, `NO_SHOW`. Final entries cannot be updated or reordered by backend service logic.
+Final queue statuses: `COMPLETED`, `CANCELLED`, `NO_SHOW`. Final entries cannot be updated or reordered by backend service logic. Queue status updates also cannot synchronize the linked appointment through a transition rejected by the appointment lifecycle policy.
 
 ## Queue Reordering Trace
 
@@ -212,8 +216,8 @@ stateDiagram-v2
     NO_SHOW --> [*]
 ```
 
-The backend accepts any non-final source to any Zod-accepted queue status. The diagram shows common transitions plus the fact that `ARRIVED` can be set back to `WAITING` because the backend does not enforce a stricter matrix.
+The queue status graph itself remains broad for non-final queue entries. However, the synchronized appointment update is guarded by the appointment lifecycle policy, so a queue action cannot persist an invalid appointment transition.
 
 ## How To Explain This Workflow
 
-The queue is created when appointments are booked. Staff can then change queue status or manually reorder active entries. Queue status updates synchronize the linked appointment inside the same transaction. Reorder is conservative: it only works within one doctor/date queue, requires the complete active set, locks that scope, rechecks it, and rewrites positions atomically.
+The queue is created when appointments are booked. Staff can then change queue status or manually reorder active entries. Queue status updates synchronize the linked appointment inside the same transaction, subject to appointment lifecycle rules. Reorder is conservative: it only works within one doctor/date queue, requires the complete active set, locks that scope, rechecks it, and rewrites positions atomically.

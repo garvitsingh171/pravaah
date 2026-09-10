@@ -720,7 +720,8 @@ Final statuses: `COMPLETED`, `CANCELLED`, `NO_SHOW`.
 
 Queue status updates reject final current statuses, update queue status, synchronize
 appointment status in the same transaction, and set `calledAt` / `completedAt` where
-applicable. Broad non-final queue transitions are still possible.
+applicable. Broad non-final queue transitions are still tracked separately, but the
+synchronized appointment write is guarded by the appointment lifecycle policy.
 
 #### Queue Manual Reordering
 
@@ -882,7 +883,7 @@ a Prisma `@@unique` because it is partial SQL.
 | Patient create/update         | `Patient`, `PatientClinic`                           | Transaction.                                                                              | Link-aware active filtering incomplete.            |
 | Appointment booking           | `Appointment`, `QueueEntry`, `NoShowPrediction`      | Advisory locks for exact slot and queue position; partial unique index.                   | No duration-overlap or clinic-hours rule.          |
 | Appointment status            | `Appointment`, mapped `QueueEntry`                   | Transaction and final-state guard.                                                        | Broad non-final transitions.                       |
-| Queue status                  | `QueueEntry`, mapped `Appointment`                   | Transaction and final-state guard.                                                        | Broad non-final transitions.                       |
+| Queue status                  | `QueueEntry`, mapped `Appointment`                   | Transaction, final-state guard, and appointment lifecycle sync guard.                     | Broad non-final queue transitions.                 |
 | Queue reorder                 | `QueueEntry.position` rows                           | Advisory lock by clinic/doctor/date, complete active-set validation, temporary positions. | Needs owner test/manual evidence after fix.        |
 | Dashboard prediction backfill | `NoShowPrediction` rows                              | Unique appointment constraint and duplicate skipping.                                     | Backfill inputs are less rich than booking inputs. |
 
