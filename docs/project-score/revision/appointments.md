@@ -26,4 +26,4 @@ Trace:
 
 Strong answer: appointment booking is the best proof of real workflow engineering.
 
-Limitations: conflict is exact doctor/time; no strict duration-overlap check; status lifecycle has final-state protection but broad non-final transitions.
+Limitations: conflict is exact doctor/time; no strict duration-overlap check; route-level lifecycle coverage can still expand.

@@ -4,13 +4,11 @@ import { accessService } from '../auth/access.service.js';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
 import { toNoShowPredictionResponse } from '../predictions/prediction.service.js';
 import type { StoredNoShowPredictionForResponse } from '../predictions/prediction.types.js';
+import {
+    isFinalQueueStatus,
+    isQueueStatusTransitionAllowed,
+} from './queue.lifecycle.js';
 import { queueRepository } from './queue.repository.js';
-
-const finalQueueStatuses: QueueStatus[] = [
-    QueueStatus.COMPLETED,
-    QueueStatus.CANCELLED,
-    QueueStatus.NO_SHOW,
-];
 
 const activeQueueStatuses: QueueStatus[] = [
     QueueStatus.ARRIVED,
@@ -88,11 +86,23 @@ export const queueService = {
             );
         }
 
-        if (finalQueueStatuses.includes(queueEntry.status)) {
+        if (queueEntry.status === status) {
+            return withQueueNoShowPredictionResponse(queueEntry);
+        }
+
+        if (isFinalQueueStatus(queueEntry.status)) {
             throw new AppError(
                 409,
                 'QUEUE_ENTRY_FINAL_STATUS',
                 'Final queue entries cannot be updated'
+            );
+        }
+
+        if (!isQueueStatusTransitionAllowed(queueEntry.status, status)) {
+            throw new AppError(
+                409,
+                'QUEUE_STATUS_TRANSITION_INVALID',
+                `Queue entry cannot transition from ${queueEntry.status} to ${status}.`
             );
         }
 
@@ -108,17 +118,27 @@ export const queueService = {
         }
 
         try {
-            const updatedQueueEntry = await queueRepository.updateQueueEntryStatus(
+            const updatedQueueEntry = await queueRepository.updateQueueEntryStatus({
                 queueEntryId,
-                queueEntry.appointmentId,
+                appointmentId: queueEntry.appointmentId,
                 clinicId,
+                expectedQueueStatus: queueEntry.status,
+                expectedAppointmentStatus: queueEntry.appointment.status,
                 status,
-                queueStatusToAppointmentStatus[status],
-                timestampUpdates
-            );
+                appointmentStatus: queueStatusToAppointmentStatus[status],
+                timestampUpdates,
+            });
 
             return withQueueNoShowPredictionResponse(updatedQueueEntry);
         } catch (error) {
+            if (error instanceof Error && error.message === 'QUEUE_STATUS_TRANSITION_INVALID') {
+                throw new AppError(
+                    409,
+                    'QUEUE_STATUS_TRANSITION_INVALID',
+                    `Queue entry cannot transition from ${queueEntry.status} to ${status}.`
+                );
+            }
+
             if (
                 error instanceof Error &&
                 error.message === 'APPOINTMENT_STATUS_TRANSITION_INVALID'
@@ -186,7 +206,7 @@ export const queueService = {
         }
 
         const hasFinalQueueEntry = requestedQueueEntries.some((queueEntry) =>
-            finalQueueStatuses.includes(queueEntry.status)
+            isFinalQueueStatus(queueEntry.status)
         );
 
         if (hasFinalQueueEntry) {

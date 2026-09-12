@@ -1,9 +1,7 @@
 import { prisma } from '../../config/prisma.js';
 import { AppointmentStatus, Prisma, QueueStatus } from '../../generated/prisma/client.js';
-import {
-    getAllowedAppointmentCurrentStatusesForRequest,
-    isAppointmentStatusTransitionAllowed,
-} from '../appointments/appointment.lifecycle.js';
+import { isAppointmentStatusTransitionAllowed } from '../appointments/appointment.lifecycle.js';
+import { isQueueStatusTransitionAllowed } from './queue.lifecycle.js';
 
 const noShowPredictionQueueSelect = {
     id: true,
@@ -87,11 +85,16 @@ const acquireQueueScopeLock = (
     `;
 };
 
-const finalQueueStatuses: QueueStatus[] = [
-    QueueStatus.COMPLETED,
-    QueueStatus.CANCELLED,
-    QueueStatus.NO_SHOW,
-];
+type UpdateQueueEntryStatusInput = {
+    queueEntryId: string;
+    appointmentId: string;
+    clinicId: string;
+    expectedQueueStatus: QueueStatus;
+    expectedAppointmentStatus: AppointmentStatus;
+    status: QueueStatus;
+    appointmentStatus: AppointmentStatus;
+    timestampUpdates: { calledAt?: Date; completedAt?: Date };
+};
 
 export const queueRepository = {
     async findQueueByClinicDate(clinicId: string, date: string, clinicTimezone: string) {
@@ -228,29 +231,48 @@ export const queueRepository = {
         });
     },
 
-    async updateQueueEntryStatus(
-        queueEntryId: string,
-        appointmentId: string,
-        clinicId: string,
-        status: QueueStatus,
-        appointmentStatus: AppointmentStatus,
-        timestampUpdates: { calledAt?: Date; completedAt?: Date }
-    ) {
+    async updateQueueEntryStatus({
+        queueEntryId,
+        appointmentId,
+        clinicId,
+        expectedQueueStatus,
+        expectedAppointmentStatus,
+        status,
+        appointmentStatus,
+        timestampUpdates,
+    }: UpdateQueueEntryStatusInput) {
         return prisma.$transaction(async (tx) => {
-            const existingAppointment = await tx.appointment.findFirst({
+            const existingQueueEntry = await tx.queueEntry.findFirst({
                 where: {
-                    id: appointmentId,
+                    id: queueEntryId,
+                    appointmentId,
                     clinicId,
                 },
                 select: {
                     status: true,
+                    appointment: {
+                        select: {
+                            status: true,
+                        },
+                    },
                 },
             });
 
+            if (!existingQueueEntry || existingQueueEntry.status !== expectedQueueStatus) {
+                throw new Error('QUEUE_STATUS_UPDATE_CONFLICT');
+            }
+
+            if (!isQueueStatusTransitionAllowed(existingQueueEntry.status, status)) {
+                throw new Error('QUEUE_STATUS_TRANSITION_INVALID');
+            }
+
+            if (existingQueueEntry.appointment.status !== expectedAppointmentStatus) {
+                throw new Error('APPOINTMENT_STATUS_SYNC_CONFLICT');
+            }
+
             if (
-                !existingAppointment ||
                 !isAppointmentStatusTransitionAllowed(
-                    existingAppointment.status,
+                    existingQueueEntry.appointment.status,
                     appointmentStatus
                 )
             ) {
@@ -261,16 +283,7 @@ export const queueRepository = {
                 where: {
                     id: queueEntryId,
                     clinicId,
-                    OR: [
-                        {
-                            status,
-                        },
-                        {
-                            status: {
-                                notIn: finalQueueStatuses,
-                            },
-                        },
-                    ],
+                    status: expectedQueueStatus,
                 },
                 data: {
                     status,
@@ -311,9 +324,7 @@ export const queueRepository = {
                 where: {
                     id: appointmentId,
                     clinicId,
-                    status: {
-                        in: getAllowedAppointmentCurrentStatusesForRequest(appointmentStatus),
-                    },
+                    status: expectedAppointmentStatus,
                 },
                 data: {
                     status: appointmentStatus,

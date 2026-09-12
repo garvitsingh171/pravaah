@@ -46,5 +46,5 @@ I was not able to finish the full implementation in time. The request path and b
 Pravaah example:
 
 ```text
-For a stricter queue transition rule, I would add a transition map in queue service, reject invalid non-final reversals with AppError 409, keep the repository transaction unchanged, and add service tests for allowed and rejected transitions.
+For a stale queue status request, I would point to `queue.lifecycle.ts`, show the service-level transition rejection, then explain how the repository uses exact current-status guards so concurrent updates return a refresh-and-retry conflict instead of overwriting newer state.
 ```

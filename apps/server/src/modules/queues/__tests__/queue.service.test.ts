@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { QueueStatus } from '../../../generated/prisma/client.js';
+import { AppointmentStatus, QueueStatus } from '../../../generated/prisma/client.js';
 
 const mockQueueRepository = vi.hoisted(() => ({
     findQueueByClinicDate: vi.fn(),
@@ -208,6 +208,54 @@ describe('queueService.updateQueueStatus', () => {
             code: 'APPOINTMENT_STATUS_TRANSITION_INVALID',
             message: 'Requested appointment status transition is not allowed',
         });
+    });
+
+    it('rejects unsupported queue transitions before persistence', async () => {
+        mockQueueRepository.findQueueEntryById.mockResolvedValue(
+            createQueueEntry({
+                status: QueueStatus.CALLED,
+            })
+        );
+
+        await expect(
+            queueService.updateQueueStatus(
+                authenticatedUser,
+                'clinic-id',
+                'queue-entry-id',
+                QueueStatus.WAITING
+            )
+        ).rejects.toMatchObject({
+            statusCode: 409,
+            code: 'QUEUE_STATUS_TRANSITION_INVALID',
+            message: 'Queue entry cannot transition from CALLED to WAITING.',
+        });
+
+        expect(mockQueueRepository.updateQueueEntryStatus).not.toHaveBeenCalled();
+    });
+
+    it('treats same-status requests as no-op retries without synchronizing appointment state', async () => {
+        const queueEntry = createQueueEntry({
+            status: QueueStatus.WAITING,
+        });
+
+        mockQueueRepository.findQueueEntryById.mockResolvedValue({
+            ...queueEntry,
+            appointment: {
+                ...queueEntry.appointment,
+                status: AppointmentStatus.SCHEDULED,
+            },
+        });
+
+        const result = await queueService.updateQueueStatus(
+            authenticatedUser,
+            'clinic-id',
+            'queue-entry-id',
+            QueueStatus.WAITING
+        );
+
+        expect(mockQueueRepository.updateQueueEntryStatus).not.toHaveBeenCalled();
+        expect(result.status).toBe(QueueStatus.WAITING);
+        expect(result.appointment.status).toBe(AppointmentStatus.SCHEDULED);
     });
 });
 

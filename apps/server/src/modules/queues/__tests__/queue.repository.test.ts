@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppointmentStatus, QueueStatus } from '../../../generated/prisma/client.js';
 
 const mockTransaction = vi.hoisted(() => vi.fn());
-const mockAppointmentFindFirst = vi.hoisted(() => vi.fn());
 const mockAppointmentUpdateMany = vi.hoisted(() => vi.fn());
+const mockQueueEntryFindFirst = vi.hoisted(() => vi.fn());
 const mockQueueEntryUpdateMany = vi.hoisted(() => vi.fn());
 const mockQueueEntryFindUniqueOrThrow = vi.hoisted(() => vi.fn());
 
@@ -17,10 +17,10 @@ import { queueRepository } from '../queue.repository.js';
 
 const transactionClient = {
     appointment: {
-        findFirst: mockAppointmentFindFirst,
         updateMany: mockAppointmentUpdateMany,
     },
     queueEntry: {
+        findFirst: mockQueueEntryFindFirst,
         updateMany: mockQueueEntryUpdateMany,
         findUniqueOrThrow: mockQueueEntryFindUniqueOrThrow,
     },
@@ -33,19 +33,24 @@ describe('queueRepository.updateQueueEntryStatus', () => {
     });
 
     it('rejects queue-driven writes that imply invalid appointment lifecycle transitions', async () => {
-        mockAppointmentFindFirst.mockResolvedValue({
-            status: AppointmentStatus.SCHEDULED,
+        mockQueueEntryFindFirst.mockResolvedValue({
+            status: QueueStatus.WAITING,
+            appointment: {
+                status: AppointmentStatus.SCHEDULED,
+            },
         });
 
         await expect(
-            queueRepository.updateQueueEntryStatus(
-                'queue-entry-id',
-                'appointment-id',
-                'clinic-id',
-                QueueStatus.COMPLETED,
-                AppointmentStatus.COMPLETED,
-                {}
-            )
+            queueRepository.updateQueueEntryStatus({
+                queueEntryId: 'queue-entry-id',
+                appointmentId: 'appointment-id',
+                clinicId: 'clinic-id',
+                expectedQueueStatus: QueueStatus.WAITING,
+                expectedAppointmentStatus: AppointmentStatus.SCHEDULED,
+                status: QueueStatus.COMPLETED,
+                appointmentStatus: AppointmentStatus.COMPLETED,
+                timestampUpdates: {},
+            })
         ).rejects.toThrow('APPOINTMENT_STATUS_TRANSITION_INVALID');
 
         expect(mockQueueEntryUpdateMany).not.toHaveBeenCalled();
@@ -63,8 +68,11 @@ describe('queueRepository.updateQueueEntryStatus', () => {
             },
         };
 
-        mockAppointmentFindFirst.mockResolvedValue({
-            status: AppointmentStatus.SCHEDULED,
+        mockQueueEntryFindFirst.mockResolvedValue({
+            status: QueueStatus.WAITING,
+            appointment: {
+                status: AppointmentStatus.SCHEDULED,
+            },
         });
         mockQueueEntryUpdateMany.mockResolvedValue({
             count: 1,
@@ -74,17 +82,24 @@ describe('queueRepository.updateQueueEntryStatus', () => {
         });
         mockQueueEntryFindUniqueOrThrow.mockResolvedValue(queueEntry);
 
-        const result = await queueRepository.updateQueueEntryStatus(
-            'queue-entry-id',
-            'appointment-id',
-            'clinic-id',
-            QueueStatus.NO_SHOW,
-            AppointmentStatus.NO_SHOW,
-            {}
-        );
+        const result = await queueRepository.updateQueueEntryStatus({
+            queueEntryId: 'queue-entry-id',
+            appointmentId: 'appointment-id',
+            clinicId: 'clinic-id',
+            expectedQueueStatus: QueueStatus.WAITING,
+            expectedAppointmentStatus: AppointmentStatus.SCHEDULED,
+            status: QueueStatus.NO_SHOW,
+            appointmentStatus: AppointmentStatus.NO_SHOW,
+            timestampUpdates: {},
+        });
 
         expect(mockQueueEntryUpdateMany).toHaveBeenCalledWith(
             expect.objectContaining({
+                where: expect.objectContaining({
+                    id: 'queue-entry-id',
+                    clinicId: 'clinic-id',
+                    status: QueueStatus.WAITING,
+                }),
                 data: {
                     status: QueueStatus.NO_SHOW,
                 },
@@ -95,16 +110,7 @@ describe('queueRepository.updateQueueEntryStatus', () => {
                 where: expect.objectContaining({
                     id: 'appointment-id',
                     clinicId: 'clinic-id',
-                    status: {
-                        in: [
-                            AppointmentStatus.SCHEDULED,
-                            AppointmentStatus.CONFIRMED,
-                            AppointmentStatus.ARRIVED,
-                            AppointmentStatus.IN_QUEUE,
-                            AppointmentStatus.CALLED,
-                            AppointmentStatus.NO_SHOW,
-                        ],
-                    },
+                    status: AppointmentStatus.SCHEDULED,
                 }),
                 data: {
                     status: AppointmentStatus.NO_SHOW,
@@ -114,9 +120,37 @@ describe('queueRepository.updateQueueEntryStatus', () => {
         expect(result).toBe(queueEntry);
     });
 
+    it('rejects invalid queue lifecycle transitions inside the transaction', async () => {
+        mockQueueEntryFindFirst.mockResolvedValue({
+            status: QueueStatus.CALLED,
+            appointment: {
+                status: AppointmentStatus.CALLED,
+            },
+        });
+
+        await expect(
+            queueRepository.updateQueueEntryStatus({
+                queueEntryId: 'queue-entry-id',
+                appointmentId: 'appointment-id',
+                clinicId: 'clinic-id',
+                expectedQueueStatus: QueueStatus.CALLED,
+                expectedAppointmentStatus: AppointmentStatus.CALLED,
+                status: QueueStatus.WAITING,
+                appointmentStatus: AppointmentStatus.IN_QUEUE,
+                timestampUpdates: {},
+            })
+        ).rejects.toThrow('QUEUE_STATUS_TRANSITION_INVALID');
+
+        expect(mockQueueEntryUpdateMany).not.toHaveBeenCalled();
+        expect(mockAppointmentUpdateMany).not.toHaveBeenCalled();
+    });
+
     it('keeps appointment lifecycle guards on the final synchronized write', async () => {
-        mockAppointmentFindFirst.mockResolvedValue({
-            status: AppointmentStatus.IN_QUEUE,
+        mockQueueEntryFindFirst.mockResolvedValue({
+            status: QueueStatus.WAITING,
+            appointment: {
+                status: AppointmentStatus.IN_QUEUE,
+            },
         });
         mockQueueEntryUpdateMany.mockResolvedValue({
             count: 1,
@@ -126,14 +160,41 @@ describe('queueRepository.updateQueueEntryStatus', () => {
         });
 
         await expect(
-            queueRepository.updateQueueEntryStatus(
-                'queue-entry-id',
-                'appointment-id',
-                'clinic-id',
-                QueueStatus.COMPLETED,
-                AppointmentStatus.COMPLETED,
-                {}
-            )
+            queueRepository.updateQueueEntryStatus({
+                queueEntryId: 'queue-entry-id',
+                appointmentId: 'appointment-id',
+                clinicId: 'clinic-id',
+                expectedQueueStatus: QueueStatus.WAITING,
+                expectedAppointmentStatus: AppointmentStatus.IN_QUEUE,
+                status: QueueStatus.COMPLETED,
+                appointmentStatus: AppointmentStatus.COMPLETED,
+                timestampUpdates: {},
+            })
         ).rejects.toThrow('APPOINTMENT_STATUS_SYNC_CONFLICT');
+    });
+
+    it('rejects stale queue writes instead of reinterpreting the newer queue status', async () => {
+        mockQueueEntryFindFirst.mockResolvedValue({
+            status: QueueStatus.CALLED,
+            appointment: {
+                status: AppointmentStatus.CALLED,
+            },
+        });
+
+        await expect(
+            queueRepository.updateQueueEntryStatus({
+                queueEntryId: 'queue-entry-id',
+                appointmentId: 'appointment-id',
+                clinicId: 'clinic-id',
+                expectedQueueStatus: QueueStatus.WAITING,
+                expectedAppointmentStatus: AppointmentStatus.IN_QUEUE,
+                status: QueueStatus.CANCELLED,
+                appointmentStatus: AppointmentStatus.CANCELLED,
+                timestampUpdates: {},
+            })
+        ).rejects.toThrow('QUEUE_STATUS_UPDATE_CONFLICT');
+
+        expect(mockQueueEntryUpdateMany).not.toHaveBeenCalled();
+        expect(mockAppointmentUpdateMany).not.toHaveBeenCalled();
     });
 });

@@ -14,4 +14,4 @@ Database: `Clinic`, `User`, `Doctor`, `DoctorClinic`, `Patient`, `PatientClinic`
 
 Strongest decisions: backend authorization, relational join tables, appointment transaction, queue reorder validation, deterministic explainable risk assistance, human-controlled decisions.
 
-Limitations: no trained ML/LLM, no MongoDB, no patient/doctor login, no browser E2E, no verified production URLs in repo, broad non-final status transitions, no full multi-clinic user membership.
+Limitations: no trained ML/LLM, no MongoDB, no patient/doctor login, no browser E2E, no verified production URLs in repo, route-level lifecycle coverage can still expand, no full multi-clinic user membership.

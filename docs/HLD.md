@@ -399,19 +399,24 @@ Queue lifecycle:
 
 ```mermaid
 stateDiagram-v2
-    [*] --> WAITING
-    WAITING --> ARRIVED
+    [*] --> WAITING: appointment booking creates QueueEntry
+    ARRIVED --> WAITING
     ARRIVED --> CALLED
-    CALLED --> COMPLETED
-    WAITING --> CANCELLED
     ARRIVED --> CANCELLED
-    CALLED --> CANCELLED
-    WAITING --> NO_SHOW
     ARRIVED --> NO_SHOW
+    WAITING --> CALLED
+    WAITING --> COMPLETED
+    WAITING --> CANCELLED
+    WAITING --> NO_SHOW
+    CALLED --> COMPLETED
+    CALLED --> CANCELLED
     CALLED --> NO_SHOW
+    COMPLETED --> [*]
+    CANCELLED --> [*]
+    NO_SHOW --> [*]
 ```
 
-Current code allows broad non-final queue status changes and blocks changes after final statuses.
+Current code enforces the queue transition policy server-side through `queue.lifecycle.ts`. `WAITING -> ARRIVED`, `CALLED -> WAITING`, and `ARRIVED -> COMPLETED` are rejected even though each individual value is a valid `QueueStatus`.
 
 ## Database Constraints And Indexes
 
@@ -625,7 +630,7 @@ flowchart TD
 | Patient update      | `Patient`, `PatientClinic`                          | Profile and clinic history may update together.   | Requested fields.                                        | Rollback.                                 | `patient.repository.ts`     | Link active field not exposed.                      |
 | Appointment booking | `Appointment`, `QueueEntry`, `NoShowPrediction`     | Booking creates operational queue/risk context.   | All related writes.                                      | Rollback; conflicts mapped.               | `appointment.repository.ts` | Exact-slot conflict only.                           |
 | Appointment status  | `Appointment`, `QueueEntry` where mapped            | Keep statuses consistent.                         | Appointment and queue status.                            | Conflict or rollback.                     | `appointment.repository.ts` | Transition policy is centralized in `appointment.lifecycle.ts`. |
-| Queue status        | `QueueEntry`, `Appointment`                         | Keep queue and appointment synchronized.          | Queue and appointment status.                            | Conflict or rollback.                     | `queue.repository.ts`       | Appointment sync uses the lifecycle policy.          |
+| Queue status        | `QueueEntry`, `Appointment`                         | Keep queue and appointment synchronized.          | Queue and appointment status.                            | Conflict or rollback.                     | `queue.repository.ts`       | Queue policy is centralized in `queue.lifecycle.ts`; appointment sync uses the appointment lifecycle policy. |
 | Queue reorder       | `QueueEntry.position` rows                          | Avoid duplicate positions during reorder.         | Temporary and final positions for one doctor/date scope. | Rollback.                                 | `queue.repository.ts`       | Owner verification pending after doctor-scoped fix. |
 | Dashboard backfill  | `NoShowPrediction` rows                             | Fill missing prediction records before summaries. | Bulk create with skip duplicates.                        | Dashboard error path.                     | `dashboard.service.ts`      | Backfill inputs are more limited than booking path. |
 
@@ -636,7 +641,7 @@ flowchart TD
 | Clinic onboarding    | Duplicate user/clinic creation.      | Unique constraints and current-identity re-read after conflict.           | `User.clerkUserId`, `Clinic.slug`.   | External Clerk/provider runtime pending.            |
 | Appointment conflict | Two bookings same doctor/time.       | PostgreSQL advisory lock plus active-slot query and partial unique index. | Clinic, doctor, exact `scheduledAt`. | Duration overlap not prevented.                     |
 | Queue position       | Two bookings get same next position. | Advisory lock and max position query.                                     | Clinic, doctor, clinic-local date.   | Future appointments also get queue entries.         |
-| Queue status         | Concurrent final/status updates.     | Transaction, final-state checks, and appointment lifecycle sync guard.     | Queue entry and appointment.         | Broad queue status graph.                           |
+| Queue status         | Concurrent final/status updates.     | Transaction, queue lifecycle checks, exact current-status guards, and appointment lifecycle sync guard. | Queue entry and appointment.         | Manual retry/refresh may be needed after conflicts. |
 | Queue reorder        | Duplicate positions during reorder.  | Two-phase temporary positions inside transaction.                         | Active clinic/date entries.          | Doctor-scope validation gap.                        |
 | Prediction backfill  | Duplicate prediction insertion.      | `skipDuplicates` and appointment unique constraint.                       | Appointment.                         | Rules can generate stale scores if history changes. |
 
@@ -750,7 +755,7 @@ No secrets are documented here.
 | Validation failure          | `VALIDATION_ERROR` with details.                                                       | No generated contract docs.            |
 | Transaction failure         | Transaction rolls back related writes.                                                 | Some workflows lack counter updates.   |
 | Appointment conflict        | `APPOINTMENT_SLOT_CONFLICT`.                                                           | No duration-overlap conflict.          |
-| Queue conflict              | Final-state/sync/reorder conflicts.                                                    | Broad transition graph.                |
+| Queue conflict              | Final-state, lifecycle, sync, and reorder conflicts.                                    | Manual retry/refresh UX only.          |
 | Prediction failure          | Surrounding request fails unless handled by dashboard backfill path.                   | No separate risk retry UI.             |
 | Frontend network failure    | API client maps structured frontend errors.                                            | No retry policy.                       |
 | Deployment failure          | Owner must inspect provider logs and health endpoint.                                  | No CI/CD workflow committed.           |

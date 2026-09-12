@@ -718,10 +718,10 @@ clinic-local date. List sorting groups by doctor, then position, then scheduled 
 Active statuses: `ARRIVED`, `WAITING`, `CALLED`.
 Final statuses: `COMPLETED`, `CANCELLED`, `NO_SHOW`.
 
-Queue status updates reject final current statuses, update queue status, synchronize
-appointment status in the same transaction, and set `calledAt` / `completedAt` where
-applicable. Broad non-final queue transitions are still tracked separately, but the
-synchronized appointment write is guarded by the appointment lifecycle policy.
+Queue status updates reject invalid current-to-requested queue transitions through
+the centralized queue lifecycle policy, synchronize appointment status in the same
+transaction, and set `calledAt` / `completedAt` where applicable. The synchronized
+appointment write is also guarded by the appointment lifecycle policy.
 
 #### Queue Manual Reordering
 
@@ -883,7 +883,7 @@ a Prisma `@@unique` because it is partial SQL.
 | Patient create/update         | `Patient`, `PatientClinic`                           | Transaction.                                                                              | Link-aware active filtering incomplete.            |
 | Appointment booking           | `Appointment`, `QueueEntry`, `NoShowPrediction`      | Advisory locks for exact slot and queue position; partial unique index.                   | No duration-overlap or clinic-hours rule.          |
 | Appointment status            | `Appointment`, mapped `QueueEntry`                   | Transaction and final-state guard.                                                        | Broad non-final transitions.                       |
-| Queue status                  | `QueueEntry`, mapped `Appointment`                   | Transaction, final-state guard, and appointment lifecycle sync guard.                     | Broad non-final queue transitions.                 |
+| Queue status                  | `QueueEntry`, mapped `Appointment`                   | Transaction, queue lifecycle guard, exact current-status guard, and appointment lifecycle sync guard. | Route-level lifecycle coverage can be expanded.    |
 | Queue reorder                 | `QueueEntry.position` rows                           | Advisory lock by clinic/doctor/date, complete active-set validation, temporary positions. | Needs owner test/manual evidence after fix.        |
 | Dashboard prediction backfill | `NoShowPrediction` rows                              | Unique appointment constraint and duplicate skipping.                                     | Backfill inputs are less rich than booking inputs. |
 
@@ -933,7 +933,7 @@ evidence commands for this issue.
 - Backend lint script is a placeholder.
 - No explicit 404 fallback middleware is registered.
 - No staff-management module exists.
-- Appointment and queue final states are protected, but strict transition graphs are planned.
+- Appointment and queue final states are protected, and strict transition graphs are enforced server-side.
 - Appointment conflict detection is exact start time only.
 - Queue entries are created during booking, including future appointments.
 - `PatientClinic` counters can drift because status flows do not update every counter.
