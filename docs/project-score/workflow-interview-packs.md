@@ -97,9 +97,9 @@ Best demo: status controls on `/appointments`.
 
 Files: `AppointmentsPage.tsx`, `appointmentApi.ts`, `appointment.service.ts`, `appointment.repository.ts`, `appointment.validation.ts`.
 
-Questions: Which statuses are final? How does queue sync work? What strict transition gap remains?
+Questions: Which statuses are final? How does queue sync work? How are strict transitions enforced?
 
-Known limitation: broad non-final transitions are still allowed.
+Current boundary: lifecycle transitions are server-enforced, while route-level coverage can still be expanded.
 
 ## Queue Management
 

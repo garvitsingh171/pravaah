@@ -112,30 +112,30 @@ stateDiagram-v2
     NO_SHOW --> [*]
 ```
 
-Note: frontend actions guide the natural path. Backend enforcement currently blocks changes away from final states but does not enforce this full transition matrix for every state pair.
+Note: frontend actions guide the natural path. Backend enforcement uses the centralized appointment lifecycle policy and guarded synchronized queue writes.
 
 ## Queue Lifecycle
 
 ```mermaid
 stateDiagram-v2
     [*] --> WAITING: appointment booking creates queue entry
-    WAITING --> ARRIVED
     ARRIVED --> WAITING
-    WAITING --> CALLED
     ARRIVED --> CALLED
-    CALLED --> COMPLETED
-    WAITING --> CANCELLED
     ARRIVED --> CANCELLED
-    CALLED --> CANCELLED
-    WAITING --> NO_SHOW
     ARRIVED --> NO_SHOW
+    WAITING --> CALLED
+    WAITING --> COMPLETED
+    WAITING --> CANCELLED
+    WAITING --> NO_SHOW
+    CALLED --> COMPLETED
+    CALLED --> CANCELLED
     CALLED --> NO_SHOW
     COMPLETED --> [*]
     CANCELLED --> [*]
     NO_SHOW --> [*]
 ```
 
-Terminal queue entries cannot be updated or reordered.
+Terminal queue entries cannot move to a different status or be reordered. The backend rejects unsupported transitions such as `WAITING -> ARRIVED`, `CALLED -> WAITING`, and `ARRIVED -> COMPLETED`.
 
 ## Queue Reorder
 
