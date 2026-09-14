@@ -184,6 +184,48 @@ describe('DoctorsPage edit workflow', () => {
         expect(mockUpdateDoctor).not.toHaveBeenCalled();
     });
 
+    it('confirms cancel when weekly availability has unsaved changes', async () => {
+        const user = userEvent.setup();
+        mockListDoctors.mockResolvedValue({
+            doctors: [doctor],
+        });
+
+        renderDoctorsPage();
+
+        await user.click(await screen.findByRole('button', { name: /edit dr\. asha raman/i }));
+        await user.click(
+            await screen
+                .findAllByRole('button', { name: /add period/i })
+                .then((buttons) => buttons[0])
+        );
+
+        expect(
+            await screen.findByText(
+                'Availability changes are saved from the weekly availability section.'
+            )
+        ).toBeVisible();
+
+        await user.click(screen.getByRole('button', { name: /^cancel$/i }));
+
+        expect(screen.getByRole('dialog', { name: /discard doctor changes/i })).toBeVisible();
+        expect(screen.getByText('The weekly availability has unsaved edits.')).toBeVisible();
+        expect(screen.getByRole('heading', { name: /edit dr\. asha raman/i })).toBeVisible();
+
+        await user.click(screen.getByRole('button', { name: /continue editing/i }));
+
+        expect(
+            screen.queryByRole('dialog', { name: /discard doctor changes/i })
+        ).not.toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /edit dr\. asha raman/i })).toBeVisible();
+
+        await user.click(screen.getByRole('button', { name: /^cancel$/i }));
+        await user.click(screen.getByRole('button', { name: /discard changes/i }));
+
+        expect(
+            screen.queryByRole('heading', { name: /edit dr\. asha raman/i })
+        ).not.toBeInTheDocument();
+    });
+
     it('shows backend validation and authorization errors while preserving input', async () => {
         const user = userEvent.setup();
         mockListDoctors.mockResolvedValue({

@@ -146,4 +146,22 @@ describe('doctor availability validation', () => {
         expect(duplicateResult.success).toBe(false);
         expect(gapResult.success).toBe(true);
     });
+
+    it('rejects later periods contained by a longer earlier period', () => {
+        const result = replaceDoctorAvailabilitySchema.safeParse({
+            days: [
+                {
+                    weekday: 'MONDAY',
+                    periods: [
+                        { startTime: '09:00', endTime: '17:00' },
+                        { startTime: '10:00', endTime: '11:00' },
+                        { startTime: '12:00', endTime: '13:00' },
+                    ],
+                },
+                ...emptyWeek.slice(1),
+            ],
+        });
+
+        expect(result.success).toBe(false);
+    });
 });

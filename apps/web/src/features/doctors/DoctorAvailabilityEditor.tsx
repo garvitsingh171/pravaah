@@ -12,6 +12,7 @@ import { getDoctorAvailability, replaceDoctorAvailability } from './doctorApi';
 type DoctorAvailabilityEditorProps = {
     clinicId: string;
     doctorId: string;
+    onDirtyChange?: (isDirty: boolean) => void;
 };
 
 type AvailabilityLoadState =
@@ -111,6 +112,10 @@ const normalizeEditorDays = (days: DoctorAvailabilityDay[]): DoctorAvailabilityD
     }));
 };
 
+const getAvailabilityFingerprint = (days: DoctorAvailabilityDay[]): string => {
+    return JSON.stringify(normalizeEditorDays(days));
+};
+
 const timeToMinutes = (time: string): number => {
     const [hours = '0', minutes = '0'] = time.split(':');
 
@@ -136,23 +141,19 @@ const validateAvailabilityDays = (days: DoctorAvailabilityDay[]): AvailabilityVa
             }))
             .filter((period) => {
                 if (!period.startTime) {
-                    periodErrors[
-                        getPeriodErrorKey(day.weekday, period.periodIndex, 'startTime')
-                    ] = 'Start time is required.';
+                    periodErrors[getPeriodErrorKey(day.weekday, period.periodIndex, 'startTime')] =
+                        'Start time is required.';
                 } else if (period.startMinutes === null) {
-                    periodErrors[
-                        getPeriodErrorKey(day.weekday, period.periodIndex, 'startTime')
-                    ] = 'Use a 24-hour time such as 09:00.';
+                    periodErrors[getPeriodErrorKey(day.weekday, period.periodIndex, 'startTime')] =
+                        'Use a 24-hour time such as 09:00.';
                 }
 
                 if (!period.endTime) {
-                    periodErrors[
-                        getPeriodErrorKey(day.weekday, period.periodIndex, 'endTime')
-                    ] = 'End time is required.';
+                    periodErrors[getPeriodErrorKey(day.weekday, period.periodIndex, 'endTime')] =
+                        'End time is required.';
                 } else if (period.endMinutes === null) {
-                    periodErrors[
-                        getPeriodErrorKey(day.weekday, period.periodIndex, 'endTime')
-                    ] = 'Use a 24-hour time such as 13:00.';
+                    periodErrors[getPeriodErrorKey(day.weekday, period.periodIndex, 'endTime')] =
+                        'Use a 24-hour time such as 13:00.';
                 }
 
                 return period.startMinutes !== null && period.endMinutes !== null;
@@ -176,20 +177,35 @@ const validateAvailabilityDays = (days: DoctorAvailabilityDay[]): AvailabilityVa
                 (firstPeriod, secondPeriod) => firstPeriod.startMinutes - secondPeriod.startMinutes
             );
 
+        const firstOrderedPeriod = validOrderedPeriods[0];
+
+        if (!firstOrderedPeriod) {
+            continue;
+        }
+
+        let furthestPriorEndPeriod = firstOrderedPeriod;
+
         for (let index = 1; index < validOrderedPeriods.length; index += 1) {
-            const previousPeriod = validOrderedPeriods[index - 1];
             const currentPeriod = validOrderedPeriods[index];
 
-            if (currentPeriod.startMinutes < previousPeriod.endMinutes) {
+            if (!currentPeriod) {
+                continue;
+            }
+
+            if (currentPeriod.startMinutes < furthestPriorEndPeriod.endMinutes) {
                 const duplicate =
-                    currentPeriod.startTime === previousPeriod.startTime &&
-                    currentPeriod.endTime === previousPeriod.endTime;
+                    currentPeriod.startTime === furthestPriorEndPeriod.startTime &&
+                    currentPeriod.endTime === furthestPriorEndPeriod.endTime;
 
                 formMessages.push(
                     duplicate
                         ? `${weekdayLabels[day.weekday]} contains a duplicate availability period.`
                         : `${weekdayLabels[day.weekday]} contains overlapping availability periods.`
                 );
+            }
+
+            if (currentPeriod.endMinutes > furthestPriorEndPeriod.endMinutes) {
+                furthestPriorEndPeriod = currentPeriod;
             }
         }
     }
@@ -200,7 +216,11 @@ const validateAvailabilityDays = (days: DoctorAvailabilityDay[]): AvailabilityVa
     };
 };
 
-function DoctorAvailabilityEditor({ clinicId, doctorId }: DoctorAvailabilityEditorProps) {
+function DoctorAvailabilityEditor({
+    clinicId,
+    doctorId,
+    onDirtyChange,
+}: DoctorAvailabilityEditorProps) {
     const { showErrorToast, showSuccessToast } = useToast();
     const [availabilityState, setAvailabilityState] = useState<AvailabilityLoadState>({
         status: 'loading',
@@ -216,6 +236,9 @@ function DoctorAvailabilityEditor({ clinicId, doctorId }: DoctorAvailabilityEdit
         details?: BackendValidationDetail[];
     } | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [savedFingerprint, setSavedFingerprint] = useState(() =>
+        getAvailabilityFingerprint(getEmptyDays())
+    );
 
     const loadAvailability = useCallback(
         (signal?: AbortSignal) => {
@@ -237,6 +260,7 @@ function DoctorAvailabilityEditor({ clinicId, doctorId }: DoctorAvailabilityEdit
                         days: normalizeEditorDays(data.availability.days),
                         error: null,
                     });
+                    setSavedFingerprint(getAvailabilityFingerprint(data.availability.days));
                 })
                 .catch((error: unknown) => {
                     if (isApiClientError(error) && error.code === 'API_REQUEST_ABORTED') {
@@ -257,7 +281,9 @@ function DoctorAvailabilityEditor({ clinicId, doctorId }: DoctorAvailabilityEdit
                         days: getEmptyDays(),
                         error: {
                             message,
-                            code: isApiClientError(error) ? error.code : 'DOCTOR_AVAILABILITY_LOAD_FAILED',
+                            code: isApiClientError(error)
+                                ? error.code
+                                : 'DOCTOR_AVAILABILITY_LOAD_FAILED',
                             details: isApiClientError(error)
                                 ? getBackendValidationDetails(error.details)
                                 : undefined,
@@ -277,6 +303,24 @@ function DoctorAvailabilityEditor({ clinicId, doctorId }: DoctorAvailabilityEdit
             abortController.abort();
         };
     }, [loadAvailability]);
+
+    const hasUnsavedChanges = useMemo(() => {
+        if (availabilityState.status !== 'success') {
+            return false;
+        }
+
+        return getAvailabilityFingerprint(availabilityState.days) !== savedFingerprint;
+    }, [availabilityState.days, availabilityState.status, savedFingerprint]);
+
+    useEffect(() => {
+        onDirtyChange?.(hasUnsavedChanges);
+    }, [hasUnsavedChanges, onDirtyChange]);
+
+    useEffect(() => {
+        return () => {
+            onDirtyChange?.(false);
+        };
+    }, [onDirtyChange]);
 
     const timezoneLabel = useMemo(() => {
         return availabilityState.timezone ?? 'clinic timezone';
@@ -386,6 +430,7 @@ function DoctorAvailabilityEditor({ clinicId, doctorId }: DoctorAvailabilityEdit
                 days: normalizeEditorDays(data.availability.days),
                 error: null,
             });
+            setSavedFingerprint(getAvailabilityFingerprint(data.availability.days));
             setPeriodErrors({});
             setValidationMessages([]);
             showSuccessToast('Weekly availability saved successfully.');
@@ -448,10 +493,7 @@ function DoctorAvailabilityEditor({ clinicId, doctorId }: DoctorAvailabilityEdit
 
                 <div className="divide-y divide-slate-200 rounded-md border border-slate-200">
                     {availabilityState.days.map((day) => (
-                        <div
-                            key={day.weekday}
-                            className="grid gap-4 p-4 md:grid-cols-[9rem_1fr]"
-                        >
+                        <div key={day.weekday} className="grid gap-4 p-4 md:grid-cols-[9rem_1fr]">
                             <div>
                                 <p className="font-semibold text-slate-900">
                                     {weekdayLabels[day.weekday]}
@@ -465,19 +507,11 @@ function DoctorAvailabilityEditor({ clinicId, doctorId }: DoctorAvailabilityEdit
                                 {day.periods.map((period, periodIndex) => {
                                     const startError =
                                         periodErrors[
-                                            getPeriodErrorKey(
-                                                day.weekday,
-                                                periodIndex,
-                                                'startTime'
-                                            )
+                                            getPeriodErrorKey(day.weekday, periodIndex, 'startTime')
                                         ];
                                     const endError =
                                         periodErrors[
-                                            getPeriodErrorKey(
-                                                day.weekday,
-                                                periodIndex,
-                                                'endTime'
-                                            )
+                                            getPeriodErrorKey(day.weekday, periodIndex, 'endTime')
                                         ];
 
                                     return (

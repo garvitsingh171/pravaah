@@ -41,9 +41,7 @@ type ValidComparablePeriod = DoctorAvailabilityPeriodInput & {
 
 const canonicalTimePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-const weekdayOrder = new Map<Weekday, number>(
-    weekdays.map((weekday, index) => [weekday, index])
-);
+const weekdayOrder = new Map<Weekday, number>(weekdays.map((weekday, index) => [weekday, index]));
 
 const isWeekday = (value: string): value is Weekday => {
     return weekdays.includes(value as Weekday);
@@ -158,14 +156,25 @@ export const getAvailabilityValidationIssues = (
             .filter((period) => period.startMinutes < period.endMinutes)
             .sort((first, second) => first.startMinutes - second.startMinutes);
 
+        const firstOrderedPeriod = validOrderedPeriods[0];
+
+        if (!firstOrderedPeriod) {
+            return;
+        }
+
+        let furthestPriorEndPeriod = firstOrderedPeriod;
+
         for (let index = 1; index < validOrderedPeriods.length; index += 1) {
-            const previousPeriod = validOrderedPeriods[index - 1];
             const currentPeriod = validOrderedPeriods[index];
 
-            if (currentPeriod.startMinutes < previousPeriod.endMinutes) {
+            if (!currentPeriod) {
+                continue;
+            }
+
+            if (currentPeriod.startMinutes < furthestPriorEndPeriod.endMinutes) {
                 const isDuplicate =
-                    currentPeriod.startTime === previousPeriod.startTime &&
-                    currentPeriod.endTime === previousPeriod.endTime;
+                    currentPeriod.startTime === furthestPriorEndPeriod.startTime &&
+                    currentPeriod.endTime === furthestPriorEndPeriod.endTime;
 
                 issues.push({
                     path: ['days', dayIndex, 'periods', currentPeriod.periodIndex, 'startTime'],
@@ -173,6 +182,10 @@ export const getAvailabilityValidationIssues = (
                         ? `${getWeekdayLabel(day.weekday)} contains a duplicate availability period.`
                         : `${getWeekdayLabel(day.weekday)} contains overlapping availability periods.`,
                 });
+            }
+
+            if (currentPeriod.endMinutes > furthestPriorEndPeriod.endMinutes) {
+                furthestPriorEndPeriod = currentPeriod;
             }
         }
     });

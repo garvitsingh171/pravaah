@@ -283,6 +283,7 @@ function DoctorEditPanel({ clinicId, doctor, onCancel, onSaved }: DoctorEditPane
     const [formErrorDetails, setFormErrorDetails] = useState<BackendValidationDetail[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showDiscardDialog, setShowDiscardDialog] = useState(false);
+    const [hasAvailabilityChanges, setHasAvailabilityChanges] = useState(false);
 
     const initialComparableValues = useMemo(
         () => toComparableDoctorValues(toDoctorEditValues(doctor)),
@@ -293,7 +294,8 @@ function DoctorEditPanel({ clinicId, doctor, onCancel, onSaved }: DoctorEditPane
         () => buildDoctorUpdatePayload(initialComparableValues, nextComparableValues),
         [initialComparableValues, nextComparableValues]
     );
-    const hasChanges = Object.keys(updatePayload).length > 0;
+    const hasProfileChanges = Object.keys(updatePayload).length > 0;
+    const hasChanges = hasProfileChanges || hasAvailabilityChanges;
 
     const handleFieldChange = (field: keyof DoctorEditFormValues, value: string | boolean) => {
         setValues((currentValues) => ({
@@ -332,7 +334,7 @@ function DoctorEditPanel({ clinicId, doctor, onCancel, onSaved }: DoctorEditPane
             return;
         }
 
-        if (!hasChanges) {
+        if (!hasProfileChanges) {
             setFormError('Change at least one supported doctor field before saving.');
             setFormErrorCode('DOCTOR_UPDATE_UNCHANGED');
             return;
@@ -513,13 +515,15 @@ function DoctorEditPanel({ clinicId, doctor, onCancel, onSaved }: DoctorEditPane
 
                 <div className="flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm text-slate-500" role="status">
-                        {hasChanges
+                        {hasProfileChanges
                             ? 'Only changed supported fields will be saved.'
-                            : 'Change at least one supported field to save.'}
+                            : hasAvailabilityChanges
+                              ? 'Availability changes are saved from the weekly availability section.'
+                              : 'Change at least one supported field to save.'}
                     </p>
                     <Button
                         type="submit"
-                        disabled={isSubmitting || !hasChanges}
+                        disabled={isSubmitting || !hasProfileChanges}
                         isLoading={isSubmitting}
                         loadingText="Saving doctor..."
                     >
@@ -529,12 +533,22 @@ function DoctorEditPanel({ clinicId, doctor, onCancel, onSaved }: DoctorEditPane
             </form>
 
             <div className="mt-8 border-t border-slate-200 pt-6">
-                <DoctorAvailabilityEditor clinicId={clinicId} doctorId={doctor.id} />
+                <DoctorAvailabilityEditor
+                    clinicId={clinicId}
+                    doctorId={doctor.id}
+                    onDirtyChange={setHasAvailabilityChanges}
+                />
             </div>
             <ConfirmationDialog
                 open={showDiscardDialog}
                 title="Discard doctor changes?"
-                description="The doctor profile has unsaved edits."
+                description={
+                    hasProfileChanges && hasAvailabilityChanges
+                        ? 'The doctor profile and weekly availability have unsaved edits.'
+                        : hasAvailabilityChanges
+                          ? 'The weekly availability has unsaved edits.'
+                          : 'The doctor profile has unsaved edits.'
+                }
                 confirmLabel="Discard changes"
                 cancelLabel="Continue editing"
                 onConfirm={onCancel}

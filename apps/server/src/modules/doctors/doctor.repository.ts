@@ -3,10 +3,7 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import type { DoctorAvailabilityDayInput } from './doctorAvailability.js';
 import type { CreateDoctorInput, UpdateDoctorInput } from './doctor.types.js';
 
-const flattenAvailabilityPeriods = (
-    doctorClinicId: string,
-    days: DoctorAvailabilityDayInput[]
-) => {
+const flattenAvailabilityPeriods = (doctorClinicId: string, days: DoctorAvailabilityDayInput[]) => {
     return days.flatMap((day) =>
         day.periods.map((period) => ({
             doctorClinicId,
@@ -161,6 +158,13 @@ export const doctorRepository = {
         const replacementPeriods = flattenAvailabilityPeriods(doctorClinicId, days);
 
         return prisma.$transaction(async (tx) => {
+            await tx.$queryRaw`
+                SELECT "id"
+                FROM "doctor_clinics"
+                WHERE "id" = ${doctorClinicId}::uuid
+                FOR UPDATE
+            `;
+
             await tx.doctorAvailabilityPeriod.deleteMany({
                 where: {
                     doctorClinicId,
