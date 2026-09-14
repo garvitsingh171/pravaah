@@ -6,6 +6,7 @@ import type {
     RiskLevel,
     UserRole,
     UserStatus,
+    Weekday,
 } from './enums';
 
 export type BaseEntity = {
@@ -46,6 +47,25 @@ export type DoctorSummary = BaseEntity & {
     gender?: Gender | null;
     experienceYears?: number | null;
     isActive: boolean;
+};
+
+export type DoctorAvailabilityPeriod = {
+    id?: string;
+    startTime: string;
+    endTime: string;
+};
+
+export type DoctorAvailabilityDay = {
+    weekday: Weekday;
+    periods: DoctorAvailabilityPeriod[];
+};
+
+export type DoctorAvailability = {
+    doctorId: string;
+    doctorClinicId: string;
+    clinicId: string;
+    timezone: string;
+    days: DoctorAvailabilityDay[];
 };
 
 export type PatientSummary = BaseEntity & {

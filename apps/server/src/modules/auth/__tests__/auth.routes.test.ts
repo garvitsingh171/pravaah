@@ -104,6 +104,18 @@ describe('protected application route authentication regression', () => {
         ['doctor create', doctorRouter, 'post', '/:clinicId/doctors'],
         ['doctor list', doctorRouter, 'get', '/:clinicId/doctors'],
         ['doctor update', doctorRouter, 'patch', '/:clinicId/doctors/:doctorId'],
+        [
+            'doctor availability read',
+            doctorRouter,
+            'get',
+            '/:clinicId/doctors/:doctorId/availability',
+        ],
+        [
+            'doctor availability replace',
+            doctorRouter,
+            'put',
+            '/:clinicId/doctors/:doctorId/availability',
+        ],
         ['patient create', patientRouter, 'post', '/:clinicId/patients'],
         ['patient list', patientRouter, 'get', '/:clinicId/patients'],
         ['patient update', patientRouter, 'patch', '/:clinicId/patients/:patientId'],

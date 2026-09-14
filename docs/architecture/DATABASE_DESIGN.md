@@ -40,20 +40,22 @@ The generated Prisma client lives in `apps/server/src/generated/prisma` and is i
 | `QueueStatus`       | `WAITING`, `ARRIVED`, `CALLED`, `COMPLETED`, `CANCELLED`, `NO_SHOW`                            |
 | `RiskLevel`         | `LOW`, `MEDIUM`, `HIGH`                                                                        |
 | `BookingSource`     | `RECEPTION`, `PHONE`, `WEB`, `WALK_IN`                                                         |
+| `Weekday`           | `MONDAY`, `TUESDAY`, `WEDNESDAY`, `THURSDAY`, `FRIDAY`, `SATURDAY`, `SUNDAY`                   |
 
 ## Models Overview
 
-| Model              | Table                 | Purpose                                                   |
-| ------------------ | --------------------- | --------------------------------------------------------- |
-| `Clinic`           | `clinics`             | Operational clinic boundary and settings.                 |
-| `User`             | `users`               | Internal app user mapped to Clerk identity.               |
-| `Doctor`           | `doctors`             | Doctor record; does not log in.                           |
-| `DoctorClinic`     | `doctor_clinics`      | Join table linking doctors to clinics.                    |
-| `Patient`          | `patients`            | Patient record; does not log in.                          |
-| `PatientClinic`    | `patient_clinics`     | Join table with clinic-specific patient history.          |
-| `Appointment`      | `appointments`        | Scheduled visit for clinic, doctor, patient, and creator. |
-| `QueueEntry`       | `queue_entries`       | Daily queue position/status for an appointment.           |
-| `NoShowPrediction` | `no_show_predictions` | Stored rule-based no-show risk result for an appointment. |
+| Model                      | Table                         | Purpose                                                   |
+| -------------------------- | ----------------------------- | --------------------------------------------------------- |
+| `Clinic`                   | `clinics`                     | Operational clinic boundary and settings.                 |
+| `User`                     | `users`                       | Internal app user mapped to Clerk identity.               |
+| `Doctor`                   | `doctors`                     | Doctor record; does not log in.                           |
+| `DoctorClinic`             | `doctor_clinics`              | Join table linking doctors to clinics.                    |
+| `DoctorAvailabilityPeriod` | `doctor_availability_periods` | Clinic-specific recurring weekly doctor working periods.  |
+| `Patient`                  | `patients`                    | Patient record; does not log in.                          |
+| `PatientClinic`            | `patient_clinics`             | Join table with clinic-specific patient history.          |
+| `Appointment`              | `appointments`                | Scheduled visit for clinic, doctor, patient, and creator. |
+| `QueueEntry`               | `queue_entries`               | Daily queue position/status for an appointment.           |
+| `NoShowPrediction`         | `no_show_predictions`         | Stored rule-based no-show risk result for an appointment. |
 
 ## Important Fields And Constraints
 
@@ -146,6 +148,40 @@ Why `DoctorClinic` exists:
 - The MVP can use one clinic per doctor in practice.
 - The data model still supports a doctor working with multiple clinics later.
 - Clinic-specific doctor settings can live on the link instead of the global Doctor record.
+
+Weekly availability also belongs under `DoctorClinic`. This means Dr. Sharma at
+Clinic A can have a different recurring week from the same doctor at a future
+Clinic B without duplicating or corrupting the global doctor profile.
+
+### DoctorAvailabilityPeriod
+
+Important fields:
+
+- `doctorClinicId`
+- `weekday`
+- `startTime`
+- `endTime`
+
+Constraints and indexes:
+
+- unique `(doctorClinicId, weekday, startTime, endTime)` to prevent exact duplicates
+- index `(doctorClinicId, weekday, startTime)` for future weekday schedule lookup
+
+Deletion behavior:
+
+- cascades when the owning `DoctorClinic` is deleted.
+
+Time semantics:
+
+- `startTime` and `endTime` are recurring clinic-local wall-clock strings in strict
+  `HH:mm` format.
+- They are not UTC `DateTime` values and do not use fake calendar dates.
+- `Clinic.timezone` supplies interpretation context through the `DoctorClinic -> Clinic`
+  relationship.
+- No rows for a weekday means no configured recurring availability that day.
+- Multiple rows for a weekday support split working sessions.
+- Intervals are treated as half-open `[startTime, endTime)`, so adjacent periods
+  are valid but overlaps are rejected by the API.
 
 ### Patient
 
@@ -292,6 +328,7 @@ Storage notes:
 ```txt
 Clinic 1 -> many User
 Clinic many <-> many Doctor through DoctorClinic
+DoctorClinic 1 -> many DoctorAvailabilityPeriod
 Clinic many <-> many Patient through PatientClinic
 Clinic 1 -> many Appointment
 Doctor 1 -> many Appointment
@@ -314,6 +351,19 @@ Patient 1 -> many NoShowPrediction
 2. `DoctorClinic`
 
 inside one transaction.
+
+### Doctor Availability Replacement
+
+`doctorRepository.replaceDoctorAvailability` replaces a full week for one
+`DoctorClinic` inside one transaction:
+
+1. delete existing `DoctorAvailabilityPeriod` rows for the link
+2. insert the normalized replacement periods
+3. re-read the saved periods
+
+The service validates the complete payload, clinic/doctor/link ownership, and
+clinic operating-hour boundaries before this mutation. Invalid requests should
+not destroy an existing valid schedule.
 
 ### Patient Creation
 
@@ -402,7 +452,7 @@ The seed uses placeholder contact data. Never replace it with real patient data.
 
 - `ClinicMember` or `UserClinic` for multi-clinic user access
 - audit logs for appointment/queue changes
-- doctor availability and schedules
+- appointment slot generation, date-specific overrides, leave, and holiday schedule models
 - pagination-friendly indexes for large lists
 - no-show prediction version/history table
 - reminder logs and notification preferences

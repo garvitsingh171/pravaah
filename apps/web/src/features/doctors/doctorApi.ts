@@ -1,5 +1,5 @@
 import { apiClient } from '../../lib';
-import type { DoctorSummary, Gender } from '../../types';
+import type { DoctorAvailability, DoctorAvailabilityDay, DoctorSummary, Gender } from '../../types';
 
 export type DoctorListResponseData = {
     doctors: DoctorSummary[];
@@ -36,6 +36,14 @@ export type UpdateDoctorResponseData = {
     doctor: DoctorSummary;
 };
 
+export type DoctorAvailabilityResponseData = {
+    availability: DoctorAvailability;
+};
+
+export type ReplaceDoctorAvailabilityRequest = {
+    days: DoctorAvailabilityDay[];
+};
+
 const getDoctorCollectionPath = (clinicId: string): string => {
     return `/clinics/${encodeURIComponent(clinicId)}/doctors`;
 };
@@ -51,6 +59,32 @@ export const createDoctor = (clinicId: string, payload: CreateDoctorRequest) => 
 export const updateDoctor = (clinicId: string, doctorId: string, payload: UpdateDoctorRequest) => {
     return apiClient.patch<UpdateDoctorResponseData>(
         `${getDoctorCollectionPath(clinicId)}/${encodeURIComponent(doctorId)}`,
+        payload
+    );
+};
+
+const getDoctorAvailabilityPath = (clinicId: string, doctorId: string): string => {
+    return `${getDoctorCollectionPath(clinicId)}/${encodeURIComponent(doctorId)}/availability`;
+};
+
+export const getDoctorAvailability = (
+    clinicId: string,
+    doctorId: string,
+    signal?: AbortSignal
+) => {
+    return apiClient.get<DoctorAvailabilityResponseData>(
+        getDoctorAvailabilityPath(clinicId, doctorId),
+        { signal }
+    );
+};
+
+export const replaceDoctorAvailability = (
+    clinicId: string,
+    doctorId: string,
+    payload: ReplaceDoctorAvailabilityRequest
+) => {
+    return apiClient.put<DoctorAvailabilityResponseData>(
+        getDoctorAvailabilityPath(clinicId, doctorId),
         payload
     );
 };

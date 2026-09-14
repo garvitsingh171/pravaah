@@ -8,6 +8,8 @@ import { adminActiveClinic, renderWithProviders } from '../../test/renderWithPro
 
 const mockListDoctors = vi.hoisted(() => vi.fn());
 const mockUpdateDoctor = vi.hoisted(() => vi.fn());
+const mockGetDoctorAvailability = vi.hoisted(() => vi.fn());
+const mockReplaceDoctorAvailability = vi.hoisted(() => vi.fn());
 
 vi.mock('./doctorApi', async (importOriginal) => {
     const actual = await importOriginal<typeof import('./doctorApi')>();
@@ -16,6 +18,8 @@ vi.mock('./doctorApi', async (importOriginal) => {
         ...actual,
         listDoctors: mockListDoctors,
         updateDoctor: mockUpdateDoctor,
+        getDoctorAvailability: mockGetDoctorAvailability,
+        replaceDoctorAvailability: mockReplaceDoctorAvailability,
     };
 });
 
@@ -55,10 +59,31 @@ const renderDoctorsPage = () => {
     });
 };
 
+const emptyAvailabilityResponse = {
+    availability: {
+        doctorId: doctor.id,
+        doctorClinicId: doctor.doctorClinicId,
+        clinicId: adminActiveClinic.clinicId,
+        timezone: 'Asia/Kolkata',
+        days: [
+            { weekday: 'MONDAY', periods: [] },
+            { weekday: 'TUESDAY', periods: [] },
+            { weekday: 'WEDNESDAY', periods: [] },
+            { weekday: 'THURSDAY', periods: [] },
+            { weekday: 'FRIDAY', periods: [] },
+            { weekday: 'SATURDAY', periods: [] },
+            { weekday: 'SUNDAY', periods: [] },
+        ],
+    },
+};
+
 describe('DoctorsPage edit workflow', () => {
     beforeEach(() => {
         mockListDoctors.mockReset();
         mockUpdateDoctor.mockReset();
+        mockGetDoctorAvailability.mockReset();
+        mockReplaceDoctorAvailability.mockReset();
+        mockGetDoctorAvailability.mockResolvedValue(emptyAvailabilityResponse);
     });
 
     it('shows edit actions, opens pre-filled values, handles optional empty values, and cancels', async () => {
@@ -70,10 +95,18 @@ describe('DoctorsPage edit workflow', () => {
         renderDoctorsPage();
 
         expect(await screen.findByRole('button', { name: /edit dr\. asha raman/i })).toBeVisible();
+        expect(mockGetDoctorAvailability).not.toHaveBeenCalled();
 
         await user.click(screen.getByRole('button', { name: /edit dr\. empty optional/i }));
 
         expect(screen.getByRole('heading', { name: /edit dr\. empty optional/i })).toBeVisible();
+        await waitFor(() => {
+            expect(mockGetDoctorAvailability).toHaveBeenCalledWith(
+                adminActiveClinic.clinicId,
+                doctorWithEmptyOptionalValues.id,
+                expect.any(AbortSignal)
+            );
+        });
         expect(screen.getByLabelText(/full name/i)).toHaveValue('Dr. Empty Optional');
         expect(screen.getByLabelText(/specialization/i)).toHaveValue('');
         expect(screen.getByLabelText(/email/i)).toHaveValue('');
@@ -149,6 +182,48 @@ describe('DoctorsPage edit workflow', () => {
             screen.getByText('Experience years must be a whole number greater than or equal to 0.')
         ).toBeVisible();
         expect(mockUpdateDoctor).not.toHaveBeenCalled();
+    });
+
+    it('confirms cancel when weekly availability has unsaved changes', async () => {
+        const user = userEvent.setup();
+        mockListDoctors.mockResolvedValue({
+            doctors: [doctor],
+        });
+
+        renderDoctorsPage();
+
+        await user.click(await screen.findByRole('button', { name: /edit dr\. asha raman/i }));
+        await user.click(
+            await screen
+                .findAllByRole('button', { name: /add period/i })
+                .then((buttons) => buttons[0])
+        );
+
+        expect(
+            await screen.findByText(
+                'Availability changes are saved from the weekly availability section.'
+            )
+        ).toBeVisible();
+
+        await user.click(screen.getByRole('button', { name: /^cancel$/i }));
+
+        expect(screen.getByRole('dialog', { name: /discard doctor changes/i })).toBeVisible();
+        expect(screen.getByText('The weekly availability has unsaved edits.')).toBeVisible();
+        expect(screen.getByRole('heading', { name: /edit dr\. asha raman/i })).toBeVisible();
+
+        await user.click(screen.getByRole('button', { name: /continue editing/i }));
+
+        expect(
+            screen.queryByRole('dialog', { name: /discard doctor changes/i })
+        ).not.toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /edit dr\. asha raman/i })).toBeVisible();
+
+        await user.click(screen.getByRole('button', { name: /^cancel$/i }));
+        await user.click(screen.getByRole('button', { name: /discard changes/i }));
+
+        expect(
+            screen.queryByRole('heading', { name: /edit dr\. asha raman/i })
+        ).not.toBeInTheDocument();
     });
 
     it('shows backend validation and authorization errors while preserving input', async () => {
