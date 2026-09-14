@@ -1,6 +1,21 @@
 import { prisma } from '../../config/prisma.js';
 import type { Prisma } from '../../generated/prisma/client.js';
+import type { DoctorAvailabilityDayInput } from './doctorAvailability.js';
 import type { CreateDoctorInput, UpdateDoctorInput } from './doctor.types.js';
+
+const flattenAvailabilityPeriods = (
+    doctorClinicId: string,
+    days: DoctorAvailabilityDayInput[]
+) => {
+    return days.flatMap((day) =>
+        day.periods.map((period) => ({
+            doctorClinicId,
+            weekday: day.weekday,
+            startTime: period.startTime,
+            endTime: period.endTime,
+        }))
+    );
+};
 
 export const doctorRepository = {
     findClinicById(id: string) {
@@ -123,6 +138,54 @@ export const doctorRepository = {
                 id,
             },
             data: updateData,
+        });
+    },
+
+    findDoctorAvailabilityPeriods(doctorClinicId: string) {
+        return prisma.doctorAvailabilityPeriod.findMany({
+            where: {
+                doctorClinicId,
+            },
+            orderBy: [
+                {
+                    weekday: 'asc',
+                },
+                {
+                    startTime: 'asc',
+                },
+            ],
+        });
+    },
+
+    replaceDoctorAvailability(doctorClinicId: string, days: DoctorAvailabilityDayInput[]) {
+        const replacementPeriods = flattenAvailabilityPeriods(doctorClinicId, days);
+
+        return prisma.$transaction(async (tx) => {
+            await tx.doctorAvailabilityPeriod.deleteMany({
+                where: {
+                    doctorClinicId,
+                },
+            });
+
+            if (replacementPeriods.length > 0) {
+                await tx.doctorAvailabilityPeriod.createMany({
+                    data: replacementPeriods,
+                });
+            }
+
+            return tx.doctorAvailabilityPeriod.findMany({
+                where: {
+                    doctorClinicId,
+                },
+                orderBy: [
+                    {
+                        weekday: 'asc',
+                    },
+                    {
+                        startTime: 'asc',
+                    },
+                ],
+            });
         });
     },
 };

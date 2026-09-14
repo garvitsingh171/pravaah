@@ -7,7 +7,9 @@ import {
 } from '../auth/auth.middleware.js';
 import {
     createDoctorController,
+    getDoctorAvailabilityController,
     listDoctorsByClinicController,
+    replaceDoctorAvailabilityController,
     updateDoctorController,
 } from './doctor.controller.js';
 import {
@@ -15,6 +17,7 @@ import {
     updateDoctorSchema,
     clinicIdParamsSchema,
     doctorClinicParamsSchema,
+    replaceDoctorAvailabilitySchema,
 } from './doctor.validation.js';
 
 const doctorRouter = Router();
@@ -52,6 +55,29 @@ doctorRouter.patch(
     requireClinicAccess,
     requireClinicStaffRole,
     updateDoctorController
+);
+
+doctorRouter.get(
+    '/:clinicId/doctors/:doctorId/availability',
+    authenticateRequest,
+    validateRequest({
+        params: doctorClinicParamsSchema,
+    }),
+    requireClinicAccess,
+    requireClinicStaffRole,
+    getDoctorAvailabilityController
+);
+
+doctorRouter.put(
+    '/:clinicId/doctors/:doctorId/availability',
+    authenticateRequest,
+    validateRequest({
+        params: doctorClinicParamsSchema,
+        body: replaceDoctorAvailabilitySchema,
+    }),
+    requireClinicAccess,
+    requireClinicStaffRole,
+    replaceDoctorAvailabilityController
 );
 
 export { doctorRouter };

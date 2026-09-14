@@ -333,6 +333,7 @@ erDiagram
     Clinic ||--o{ User : has
     Clinic ||--o{ DoctorClinic : links
     Doctor ||--o{ DoctorClinic : links
+    DoctorClinic ||--o{ DoctorAvailabilityPeriod : has
     Clinic ||--o{ PatientClinic : links
     Patient ||--o{ PatientClinic : links
     Clinic ||--o{ Appointment : owns
@@ -351,8 +352,9 @@ Model summary:
 | ------------------ | ---------------------------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------ |
 | `User`             | Internal app user mapped to Clerk. | `clerkUserId` unique, `email` unique, `role`, `status`, optional `clinicId`.                  | Many users to one clinic with `SetNull`; indexes on clinic, role, status.  | Single-clinic access model.                            |
 | `Clinic`           | Clinic tenant and settings.        | `slug` unique, timezone, hours, slot duration, buffer, `isActive`.                            | Has users, links, appointments, queue, predictions.                        | No active-state settings update endpoint.              |
-| `Doctor`           | Provider profile.                  | name, specialization, qualification, contact, gender, experience, `isActive`.                 | Linked to clinics through `DoctorClinic`; appointments restrict deletion.  | No login or schedule model.                            |
+| `Doctor`           | Provider profile.                  | name, specialization, qualification, contact, gender, experience, `isActive`.                 | Linked to clinics through `DoctorClinic`; appointments restrict deletion.  | No login.                                             |
 | `DoctorClinic`     | Doctor-clinic join.                | `doctorId`, `clinicId`, `isActive`, optional display name and fee.                            | Unique `(doctorId, clinicId)`; cascade from doctor/clinic.                 | Link fields not exposed in current edit API.           |
+| `DoctorAvailabilityPeriod` | Recurring weekly working periods. | `doctorClinicId`, weekday, `HH:mm` start/end strings.                                 | Cascades from `DoctorClinic`; unique exact periods; indexed by weekday.    | Booking does not enforce availability yet.             |
 | `Patient`          | Patient profile.                   | name, phone, optional demographics/address/emergency contact, `isActive`.                     | Linked to clinics through `PatientClinic`; appointments restrict deletion. | No login or full medical record.                       |
 | `PatientClinic`    | Clinic-specific patient history.   | total appointments/no-shows/late arrivals, last visit, notes, distance, `isActive`.           | Unique `(patientId, clinicId)`; cascade from patient/clinic.               | Some counters are not updated by all status flows.     |
 | `Appointment`      | Scheduled visit.                   | clinic, doctor, patient, creator, scheduledAt, duration, status, source, reason/notes.        | Partial unique active doctor/time index; many query indexes.               | Exact start-time conflict only; no duration overlap.   |
@@ -426,6 +428,7 @@ Key protections:
 - unique `User.email`
 - unique `Clinic.slug`
 - unique `DoctorClinic(doctorId, clinicId)`
+- unique `DoctorAvailabilityPeriod(doctorClinicId, weekday, startTime, endTime)`
 - unique `PatientClinic(patientId, clinicId)`
 - unique `QueueEntry.appointmentId`
 - unique `NoShowPrediction.appointmentId`
@@ -449,6 +452,8 @@ Foreign-key behavior includes cascade for doctor/patient clinic links and restri
 | POST   | `/api/clinics/:clinicId/doctors`                          | Admin/Staff    | Route clinic             | doctor body                       | doctor                               | access/validation                                | doctor controller/service/repository      | Implemented but not yet released |
 | GET    | `/api/clinics/:clinicId/doctors`                          | Admin/Staff    | Route clinic             | none                              | doctors                              | access                                           | doctor controller/service/repository      | Implemented but not yet released |
 | PATCH  | `/api/clinics/:clinicId/doctors/:doctorId`                | Admin/Staff    | Route clinic/link        | doctor update body                | doctor                               | not found/link/access                            | doctor controller/service/repository      | Implemented but not yet released |
+| GET    | `/api/clinics/:clinicId/doctors/:doctorId/availability`   | Admin/Staff    | Route clinic/link        | params                            | weekly availability                  | not found/link/access                            | doctor controller/service/repository      | Implemented but not yet released |
+| PUT    | `/api/clinics/:clinicId/doctors/:doctorId/availability`   | Admin/Staff    | Route clinic/link        | full seven-day schedule           | weekly availability                  | validation/hours/link/access                     | doctor controller/service/repository      | Implemented but not yet released |
 | POST   | `/api/clinics/:clinicId/patients`                         | Admin/Staff    | Route clinic             | patient body                      | patient                              | access/validation                                | patient controller/service/repository     | Implemented but not yet released |
 | GET    | `/api/clinics/:clinicId/patients`                         | Admin/Staff    | Route clinic             | `search`, `isActive`              | patients                             | access/validation                                | patient controller/service/repository     | Implemented but not yet released |
 | PATCH  | `/api/clinics/:clinicId/patients/:patientId`              | Admin/Staff    | Route clinic/link        | patient update body               | patient                              | not found/link/access                            | patient controller/service/repository     | Implemented but not yet released |
@@ -626,6 +631,7 @@ flowchart TD
 | Clinic onboarding   | `Clinic`, first `User`                              | Prevent orphan clinic and user mismatch.          | Clinic and Admin.                                        | Rollback and mapped conflict.             | `auth.repository.ts`        | Owner production verification recorded for v0.3.    |
 | Sample data         | doctors, patients, appointments, queue, predictions | Demo data must be isolated and repeat-safe.       | Full sample set.                                         | Rollback or already-provisioned response. | `clinic.repository.ts`      | Demo-only.                                          |
 | Doctor creation     | `Doctor`, `DoctorClinic`                            | Doctor must be linked to clinic.                  | Both records.                                            | Rollback.                                 | `doctor.repository.ts`      | Link settings update not exposed.                   |
+| Doctor availability | `DoctorAvailabilityPeriod` rows for one `DoctorClinic` | Full week must be valid before replacement.       | Delete old periods, insert replacement periods, re-read. | Rollback.                                 | `doctor.repository.ts`      | No slot generation or booking enforcement yet.      |
 | Patient creation    | `Patient`, `PatientClinic`                          | Patient history must be clinic-linked.            | Both records.                                            | Rollback.                                 | `patient.repository.ts`     | Counters can drift later.                           |
 | Patient update      | `Patient`, `PatientClinic`                          | Profile and clinic history may update together.   | Requested fields.                                        | Rollback.                                 | `patient.repository.ts`     | Link active field not exposed.                      |
 | Appointment booking | `Appointment`, `QueueEntry`, `NoShowPrediction`     | Booking creates operational queue/risk context.   | All related writes.                                      | Rollback; conflicts mapped.               | `appointment.repository.ts` | Exact-slot conflict only.                           |
@@ -808,7 +814,7 @@ Browser-based E2E testing is intentionally absent. Manual workflow checks are re
 ## Known Technical Limitations
 
 - `User.clinicId` is not multi-clinic membership.
-- No doctor scheduling/availability model.
+- Doctor recurring weekly availability is modeled, but appointment booking does not enforce it yet.
 - No patient or doctor portal.
 - No notifications or reminder integrations.
 - No trained ML.
@@ -826,7 +832,7 @@ Browser-based E2E testing is intentionally absent. Manual workflow checks are re
 Future work should stay separate from current implementation:
 
 - `UserClinic` or `ClinicMember`
-- doctor schedule and availability windows
+- appointment slot generation from doctor schedule and availability windows
 - stricter appointment/queue transition tables
 - doctor-scoped queue reorder validation
 - notifications and reminder logs

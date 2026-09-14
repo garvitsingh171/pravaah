@@ -1,6 +1,10 @@
 import type { Request, Response, NextFunction } from 'express';
 import { doctorService } from './doctor.service.js';
-import type { CreateDoctorInput, UpdateDoctorInput } from './doctor.types.js';
+import type {
+    CreateDoctorInput,
+    ReplaceDoctorAvailabilityInput,
+    UpdateDoctorInput,
+} from './doctor.types.js';
 
 export async function createDoctorController(
     req: Request,
@@ -67,6 +71,61 @@ export async function updateDoctorController(
             message: 'Doctor updated successfully',
             data: {
                 doctor,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function getDoctorAvailabilityController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { clinicId, doctorId } = req.params as {
+            clinicId: string;
+            doctorId: string;
+        };
+
+        const availability = await doctorService.getDoctorAvailability(clinicId, doctorId);
+
+        res.status(200).json({
+            success: true,
+            message: 'Doctor availability fetched successfully',
+            data: {
+                availability,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function replaceDoctorAvailabilityController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { clinicId, doctorId } = req.params as {
+            clinicId: string;
+            doctorId: string;
+        };
+        const availabilityData = req.body as ReplaceDoctorAvailabilityInput;
+
+        const availability = await doctorService.replaceDoctorAvailability(
+            clinicId,
+            doctorId,
+            availabilityData
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'Doctor availability updated successfully',
+            data: {
+                availability,
             },
         });
     } catch (error) {

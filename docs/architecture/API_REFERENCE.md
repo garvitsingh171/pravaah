@@ -70,7 +70,7 @@ This read-only endpoint derives provisioning state from the existing internal `U
 and assigned `Clinic` records. It does not create a clinic, create an internal user,
 assign a role, or provision sample data.
 
-Response shape:
+Response shape, abbreviated:
 
 ```json
 {
@@ -474,6 +474,123 @@ Main errors:
 - `DOCTOR_NOT_LINKED_TO_CLINIC`
 - `CLINIC_ACCESS_DENIED`
 - `VALIDATION_ERROR`
+
+### Get Doctor Availability
+
+| Field  | Value                                                   |
+| ------ | ------------------------------------------------------- |
+| Method | GET                                                     |
+| Path   | `/api/clinics/:clinicId/doctors/:doctorId/availability` |
+| Auth   | Required, own active clinic, Admin/Staff                |
+
+This returns the doctor's recurring weekly working schedule for the scoped clinic.
+Availability is owned by the `DoctorClinic` link, not the global `Doctor` row.
+Times are clinic-local `HH:mm` wall-clock values interpreted in the returned
+`timezone`.
+
+Response shape:
+
+```json
+{
+    "availability": {
+        "doctorId": "doctor-id",
+        "doctorClinicId": "doctor-clinic-id",
+        "clinicId": "clinic-id",
+        "timezone": "Asia/Kolkata",
+        "days": [
+            {
+                "weekday": "MONDAY",
+                "periods": [
+                    {
+                        "id": "period-id",
+                        "startTime": "09:00",
+                        "endTime": "13:00"
+                    }
+                ]
+            },
+            {
+                "weekday": "TUESDAY",
+                "periods": []
+            }
+        ]
+    }
+}
+```
+
+The response always returns all seven weekdays in Monday-through-Sunday order.
+Periods within a day are ordered by `startTime`.
+
+Main errors:
+
+- `DOCTOR_NOT_FOUND`
+- `DOCTOR_NOT_LINKED_TO_CLINIC`
+- `CLINIC_ACCESS_DENIED`
+- `CLINIC_STAFF_REQUIRED`
+- `VALIDATION_ERROR`
+
+### Replace Doctor Availability
+
+| Field  | Value                                                   |
+| ------ | ------------------------------------------------------- |
+| Method | PUT                                                     |
+| Path   | `/api/clinics/:clinicId/doctors/:doctorId/availability` |
+| Auth   | Required, own active clinic, Admin/Staff                |
+
+This replaces the full recurring week atomically. The body must include each
+weekday exactly once. Empty `periods` means no recurring availability for that
+weekday. Multiple periods per weekday are allowed.
+
+Request body, abbreviated:
+
+```json
+{
+    "days": [
+        {
+            "weekday": "MONDAY",
+            "periods": [
+                {
+                    "startTime": "09:00",
+                    "endTime": "13:00"
+                },
+                {
+                    "startTime": "15:00",
+                    "endTime": "18:00"
+                }
+            ]
+        },
+        {
+            "weekday": "TUESDAY",
+            "periods": []
+        }
+    ]
+}
+```
+
+Validation:
+
+- weekdays must use `MONDAY` through `SUNDAY`
+- all seven weekdays must be present exactly once
+- times must be strict zero-padded `HH:mm`
+- `startTime < endTime`
+- duplicate and overlapping periods are rejected per weekday
+- adjacent half-open intervals such as `09:00-12:00` and `12:00-15:00` are valid
+- periods must fit within `Clinic.openingTime` and `Clinic.closingTime`
+
+Response shape matches Get Doctor Availability.
+
+Main errors:
+
+- `DOCTOR_NOT_FOUND`
+- `DOCTOR_NOT_LINKED_TO_CLINIC`
+- `CLINIC_OPERATING_HOURS_INVALID`
+- `DOCTOR_AVAILABILITY_OUTSIDE_CLINIC_HOURS`
+- `CLINIC_ACCESS_DENIED`
+- `CLINIC_STAFF_REQUIRED`
+- `VALIDATION_ERROR`
+
+This endpoint does not generate appointment slots, enforce appointment booking
+availability, cancel existing appointments, reschedule appointments, or change
+queue/prediction data.
 
 ## Patients
 

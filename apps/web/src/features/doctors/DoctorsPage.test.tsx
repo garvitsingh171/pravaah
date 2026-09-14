@@ -8,6 +8,8 @@ import { adminActiveClinic, renderWithProviders } from '../../test/renderWithPro
 
 const mockListDoctors = vi.hoisted(() => vi.fn());
 const mockUpdateDoctor = vi.hoisted(() => vi.fn());
+const mockGetDoctorAvailability = vi.hoisted(() => vi.fn());
+const mockReplaceDoctorAvailability = vi.hoisted(() => vi.fn());
 
 vi.mock('./doctorApi', async (importOriginal) => {
     const actual = await importOriginal<typeof import('./doctorApi')>();
@@ -16,6 +18,8 @@ vi.mock('./doctorApi', async (importOriginal) => {
         ...actual,
         listDoctors: mockListDoctors,
         updateDoctor: mockUpdateDoctor,
+        getDoctorAvailability: mockGetDoctorAvailability,
+        replaceDoctorAvailability: mockReplaceDoctorAvailability,
     };
 });
 
@@ -55,10 +59,31 @@ const renderDoctorsPage = () => {
     });
 };
 
+const emptyAvailabilityResponse = {
+    availability: {
+        doctorId: doctor.id,
+        doctorClinicId: doctor.doctorClinicId,
+        clinicId: adminActiveClinic.clinicId,
+        timezone: 'Asia/Kolkata',
+        days: [
+            { weekday: 'MONDAY', periods: [] },
+            { weekday: 'TUESDAY', periods: [] },
+            { weekday: 'WEDNESDAY', periods: [] },
+            { weekday: 'THURSDAY', periods: [] },
+            { weekday: 'FRIDAY', periods: [] },
+            { weekday: 'SATURDAY', periods: [] },
+            { weekday: 'SUNDAY', periods: [] },
+        ],
+    },
+};
+
 describe('DoctorsPage edit workflow', () => {
     beforeEach(() => {
         mockListDoctors.mockReset();
         mockUpdateDoctor.mockReset();
+        mockGetDoctorAvailability.mockReset();
+        mockReplaceDoctorAvailability.mockReset();
+        mockGetDoctorAvailability.mockResolvedValue(emptyAvailabilityResponse);
     });
 
     it('shows edit actions, opens pre-filled values, handles optional empty values, and cancels', async () => {
@@ -70,10 +95,18 @@ describe('DoctorsPage edit workflow', () => {
         renderDoctorsPage();
 
         expect(await screen.findByRole('button', { name: /edit dr\. asha raman/i })).toBeVisible();
+        expect(mockGetDoctorAvailability).not.toHaveBeenCalled();
 
         await user.click(screen.getByRole('button', { name: /edit dr\. empty optional/i }));
 
         expect(screen.getByRole('heading', { name: /edit dr\. empty optional/i })).toBeVisible();
+        await waitFor(() => {
+            expect(mockGetDoctorAvailability).toHaveBeenCalledWith(
+                adminActiveClinic.clinicId,
+                doctorWithEmptyOptionalValues.id,
+                expect.any(AbortSignal)
+            );
+        });
         expect(screen.getByLabelText(/full name/i)).toHaveValue('Dr. Empty Optional');
         expect(screen.getByLabelText(/specialization/i)).toHaveValue('');
         expect(screen.getByLabelText(/email/i)).toHaveValue('');

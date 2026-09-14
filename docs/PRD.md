@@ -104,7 +104,7 @@ The current product addresses:
 | Admin                 | Authenticated internal `User` with `role = ADMIN`; can access Admin-only clinic settings and normal clinic workflows.                         |
 | Staff                 | Authenticated internal `User` with `role = STAFF`; can access daily doctor, patient, appointment, queue, and dashboard workflows.             |
 | Doctor                | Provider record stored in `Doctor`; does not authenticate in the current product.                                                             |
-| DoctorClinic          | Join record linking a doctor to a clinic; stores clinic-link status and future clinic-specific fields.                                        |
+| DoctorClinic          | Join record linking a doctor to a clinic; stores clinic-link status, clinic-specific weekly availability ownership, and future clinic-specific fields. |
 | Patient               | Patient record stored in `Patient`; does not authenticate in the current product.                                                             |
 | PatientClinic         | Join record linking a patient to a clinic; stores clinic-specific history, notes, distance, and link status.                                  |
 | Appointment           | Scheduled visit stored in `Appointment`; links clinic, doctor, patient, creator, time, status, and booking details.                           |
@@ -189,7 +189,7 @@ Patient is currently a record, not a logged-in user. A patient can be linked to 
 | First-run setup           | Server-derived setup checklist.                   | Implemented but not yet released | Admin                   | `getClinicSetupStatus`, dashboard components                                                   | Non-blocking checklist.                                                                          | [Workflows](product/WORKFLOWS.md)                                                   |
 | Clinic settings           | Admin clinic profile and operating settings.      | Implemented but not yet released | Admin                   | `clinics` module, `ClinicSettingsPage`                                                         | Slug and active state are read-only in current API.                                              | [API Reference](architecture/API_REFERENCE.md)                                      |
 | Dashboard                 | Summary, high-risk list, activity feed.           | Implemented but not yet released | Admin, Staff            | `dashboard` module and feature                                                                 | Metrics are date and clinic scoped; runtime pending.                                             | [Testing](guides/TESTING.md)                                                        |
-| Doctor management         | Create/list/edit doctor records.                  | Implemented but not yet released | Admin, Staff            | `doctors` module and feature                                                                   | No detail route; link status update not exposed.                                                 | [User Roles](product/USER_ROLES.md)                                                 |
+| Doctor management         | Create/list/edit doctor records and recurring weekly availability. | Implemented but not yet released | Admin, Staff            | `doctors` module and feature                                                                   | No detail route; link status update not exposed; booking does not enforce availability yet.       | [User Roles](product/USER_ROLES.md)                                                 |
 | Patient management        | Create/list/edit patient records.                 | Implemented but not yet released | Admin, Staff            | `patients` module and feature                                                                  | Link status filtering has known product/API gap when link is inactive.                           | [Roadmap](scope/ROADMAP.md)                                                         |
 | Appointment booking       | Creates appointment, queue entry, prediction.     | Implemented but not yet released | Admin, Staff            | `appointments` module                                                                          | Conflict is exact doctor/time, not duration-overlap.                                             | [API Reference](architecture/API_REFERENCE.md)                                      |
 | Appointment filters       | Date, doctor, patient, status filtering.          | Implemented but not yet released | Admin, Staff            | `appointment.validation.ts`, API feature helpers                                               | No pagination.                                                                                   | [Testing](guides/TESTING.md)                                                        |
@@ -235,7 +235,7 @@ Dashboard summary is scoped to clinic and selected clinic-local date. It summari
 
 ### Doctor Management
 
-Doctor creation validates required profile fields and creates `Doctor` plus `DoctorClinic` transactionally. Doctor list returns the doctor and link status. Doctor edit updates the global doctor profile and `Doctor.isActive`; current API does not update `DoctorClinic.isActive`, display name, or consultation fee. Search/filtering is frontend list-page behavior; there is no dedicated detail endpoint. Doctors remain historical records for appointments. Status: Implemented but not yet released.
+Doctor creation validates required profile fields and creates `Doctor` plus `DoctorClinic` transactionally. Doctor list returns the doctor and link status. Doctor edit updates the global doctor profile and `Doctor.isActive`; current API does not update `DoctorClinic.isActive`, display name, or consultation fee. Staff can configure a selected doctor's recurring weekly availability as full-week clinic-local `HH:mm` periods owned by `DoctorClinic`. Search/filtering is frontend list-page behavior; there is no dedicated detail endpoint. Doctors remain historical records for appointments. Appointment booking does not yet enforce weekly availability or generate slots from it. Status: Implemented but not yet released.
 
 ### Patient Management
 
@@ -528,7 +528,7 @@ flowchart TD
 ## Open Questions
 
 - Should future multi-clinic access use `UserClinic`, `ClinicMember`, or another membership model?
-- What doctor scheduling and availability model should constrain bookings?
+- How should the appointment slot engine consume doctor weekly availability, clinic slot duration, buffers, appointments, and future exceptions?
 - Should appointment status transitions become a strict transition table?
 - Should queue reorder be doctor-scoped in API input and validation?
 - What is the reactivation policy for `DoctorClinic` and `PatientClinic` links?

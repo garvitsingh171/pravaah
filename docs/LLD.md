@@ -360,8 +360,9 @@ public boundary where present; protected route chunks use shell Suspense fallbac
 - Clinic settings (`/clinic-settings`) is Admin-only. Slug is read-only; supported
   editable fields include profile/contact/address/timezone/hours/slot/buffer.
 - Doctor management (`/doctors`, `/doctors/new`) lists, searches, creates, edits,
-  and toggles `Doctor.isActive`. `DoctorClinic.isActive` fields are displayed but
-  not edited through the current UI/API.
+  toggles `Doctor.isActive`, and manages recurring weekly availability for a
+  selected doctor. `DoctorClinic.isActive` fields are displayed but not edited
+  through the current UI/API.
 - Patient management (`/patients`, `/patients/new`) lists, searches, creates,
   edits, and toggles `Patient.isActive`; clinic-specific notes/distance/history
   are surfaced from `PatientClinic`.
@@ -575,6 +576,8 @@ Prisma queries, includes/projections, raw SQL, and transaction bodies.
 | GET    | `/api/clinics/:clinicId/doctors`                          | Admin/Staff          | params                             | `listDoctorsByClinicController`     | `doctorService.listDoctorsByClinic`          | No                       | doctors                              | access/not found.                                 |
 | POST   | `/api/clinics/:clinicId/doctors`                          | Admin/Staff          | params + `createDoctorSchema`      | `createDoctorController`            | `doctorService.createDoctor`                 | Yes                      | doctor                               | access/validation.                                |
 | PATCH  | `/api/clinics/:clinicId/doctors/:doctorId`                | Admin/Staff          | params + `updateDoctorSchema`      | `updateDoctorController`            | `doctorService.updateDoctor`                 | No                       | doctor                               | not found/link/access.                            |
+| GET    | `/api/clinics/:clinicId/doctors/:doctorId/availability`   | Admin/Staff          | params                             | `getDoctorAvailabilityController`   | `doctorService.getDoctorAvailability`        | No                       | weekly availability                  | not found/link/access.                            |
+| PUT    | `/api/clinics/:clinicId/doctors/:doctorId/availability`   | Admin/Staff          | params + full-week body            | `replaceDoctorAvailabilityController` | `doctorService.replaceDoctorAvailability`  | Yes                      | weekly availability                  | validation/hours/link/access.                     |
 | GET    | `/api/clinics/:clinicId/patients`                         | Admin/Staff          | params + query                     | `listPatientsByClinicController`    | `patientService.listPatientsByClinic`        | No                       | patient links                        | access/validation.                                |
 | POST   | `/api/clinics/:clinicId/patients`                         | Admin/Staff          | params + `createPatientSchema`     | `createPatientController`           | `patientService.createPatient`               | Yes                      | patient                              | access/validation.                                |
 | PATCH  | `/api/clinics/:clinicId/patients/:patientId`              | Admin/Staff          | params + `updatePatientSchema`     | `updatePatientController`           | `patientService.updatePatient`               | Yes                      | patient                              | not found/link/access.                            |
@@ -665,6 +668,17 @@ Doctor creation checks clinic existence and transactionally creates `Doctor` and
 doctor exists and is linked to the clinic, then updates global doctor fields and
 `Doctor.isActive`. `DoctorClinic.displayName`, `consultationFee`, and link active
 state are schema-supported but not exposed in the current edit API.
+
+Doctor weekly availability is a clinic-specific configuration under
+`DoctorClinic`. The availability API exposes `GET` and full replacement `PUT`
+endpoints at `/api/clinics/:clinicId/doctors/:doctorId/availability`. Responses
+include all seven weekdays in Monday-through-Sunday order and the clinic
+timezone. Periods store strict `HH:mm` wall-clock strings, not UTC instants. The
+PUT validator requires all seven weekdays exactly once, rejects invalid times,
+duplicates, and overlaps, and allows adjacent half-open intervals. The service
+checks clinic, doctor, and `DoctorClinic` ownership, then validates each period
+against `Clinic.openingTime` and `Clinic.closingTime` before transactionally
+replacing rows. Appointment booking does not consume this schedule yet.
 
 #### Patient
 
@@ -839,6 +853,7 @@ erDiagram
     Clinic ||--o{ User : has
     Clinic ||--o{ DoctorClinic : links
     Doctor ||--o{ DoctorClinic : links
+    DoctorClinic ||--o{ DoctorAvailabilityPeriod : has
     Clinic ||--o{ PatientClinic : links
     Patient ||--o{ PatientClinic : links
     Clinic ||--o{ Appointment : owns
@@ -860,6 +875,7 @@ erDiagram
 | `User`             | Internal Clerk-mapped user.      | unique `clerkUserId`, unique email; indexes clinic, role, status.                                                         | `UserStatus`; clinic deletion sets null.                        |
 | `Doctor`           | Doctor record.                   | indexes active and specialization.                                                                                        | `isActive`; appointments restrict deletion.                     |
 | `DoctorClinic`     | Doctor-clinic join.              | unique `(doctorId, clinicId)`; indexes doctor/clinic/active.                                                              | `isActive`; cascades from doctor/clinic.                        |
+| `DoctorAvailabilityPeriod` | Recurring clinic-specific doctor work periods. | unique `(doctorClinicId, weekday, startTime, endTime)`; index `(doctorClinicId, weekday, startTime)`.             | Cascades from `DoctorClinic`.                                  |
 | `Patient`          | Patient record.                  | indexes phone/fullName/active.                                                                                            | `isActive`; appointments restrict deletion.                     |
 | `PatientClinic`    | Clinic-specific patient history. | unique `(patientId, clinicId)`; indexes clinic/patient/active.                                                            | `isActive`; cascades from patient/clinic.                       |
 | `Appointment`      | Scheduled visit.                 | indexes clinic/date, clinic/doctor/date, clinic/patient/date, clinic/status; migration partial unique active doctor slot. | final statuses preserve history; restrict deletion.             |
@@ -880,6 +896,7 @@ a Prisma `@@unique` because it is partial SQL.
 | Clinic onboarding             | `Clinic`, first Admin `User`                         | Unique constraints and transaction.                                                       | Production replay not externally verified.         |
 | Sample data                   | demo doctors/patients/appointments/queue/predictions | Repository transaction and fake data definitions.                                         | Demo-only.                                         |
 | Doctor create                 | `Doctor`, `DoctorClinic`                             | Transaction.                                                                              | Link update fields not exposed.                    |
+| Doctor availability replace   | `DoctorAvailabilityPeriod` rows for one `DoctorClinic` | Transaction after full payload and clinic-hours validation.                                | Does not enforce booking or generate slots.        |
 | Patient create/update         | `Patient`, `PatientClinic`                           | Transaction.                                                                              | Link-aware active filtering incomplete.            |
 | Appointment booking           | `Appointment`, `QueueEntry`, `NoShowPrediction`      | Advisory locks for exact slot and queue position; partial unique index.                   | No duration-overlap or clinic-hours rule.          |
 | Appointment status            | `Appointment`, mapped `QueueEntry`                   | Transaction and final-state guard.                                                        | Broad non-final transitions.                       |

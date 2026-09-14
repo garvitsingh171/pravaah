@@ -63,6 +63,16 @@ enum BookingSource {
   WALK_IN
 }
 
+enum Weekday {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
 model Clinic {
   id                  String   @id @default(uuid()) @db.Uuid
   name                String
@@ -150,14 +160,31 @@ model DoctorClinic {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  doctor              Doctor                     @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  clinic              Clinic                     @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  availabilityPeriods DoctorAvailabilityPeriod[]
 
   @@unique([doctorId, clinicId])
   @@index([doctorId])
   @@index([clinicId])
   @@index([isActive])
   @@map("doctor_clinics")
+}
+
+model DoctorAvailabilityPeriod {
+  id             String   @id @default(uuid()) @db.Uuid
+  doctorClinicId String   @db.Uuid
+  weekday        Weekday
+  startTime      String
+  endTime        String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  doctorClinic DoctorClinic @relation(fields: [doctorClinicId], references: [id], onDelete: Cascade)
+
+  @@unique([doctorClinicId, weekday, startTime, endTime])
+  @@index([doctorClinicId, weekday, startTime])
+  @@map("doctor_availability_periods")
 }
 
 model Patient {

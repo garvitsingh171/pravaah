@@ -62,3 +62,15 @@ export const Gender = {
 } as const;
 
 export type Gender = (typeof Gender)[keyof typeof Gender];
+
+export const Weekday = {
+    MONDAY: 'MONDAY',
+    TUESDAY: 'TUESDAY',
+    WEDNESDAY: 'WEDNESDAY',
+    THURSDAY: 'THURSDAY',
+    FRIDAY: 'FRIDAY',
+    SATURDAY: 'SATURDAY',
+    SUNDAY: 'SUNDAY',
+} as const;
+
+export type Weekday = (typeof Weekday)[keyof typeof Weekday];

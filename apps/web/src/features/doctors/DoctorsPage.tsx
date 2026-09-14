@@ -26,6 +26,7 @@ import {
     type BackendValidationDetail,
 } from '../../lib';
 import { Gender, type DoctorSummary, type Gender as GenderType } from '../../types';
+import DoctorAvailabilityEditor from './DoctorAvailabilityEditor';
 import { listDoctors, updateDoctor, type UpdateDoctorRequest } from './doctorApi';
 
 type DoctorsLocationState = {
@@ -526,6 +527,10 @@ function DoctorEditPanel({ clinicId, doctor, onCancel, onSaved }: DoctorEditPane
                     </Button>
                 </div>
             </form>
+
+            <div className="mt-8 border-t border-slate-200 pt-6">
+                <DoctorAvailabilityEditor clinicId={clinicId} doctorId={doctor.id} />
+            </div>
             <ConfirmationDialog
                 open={showDiscardDialog}
                 title="Discard doctor changes?"

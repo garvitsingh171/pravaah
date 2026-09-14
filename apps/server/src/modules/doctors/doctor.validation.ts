@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { getAvailabilityValidationIssues, weekdays } from './doctorAvailability.js';
 
 const uuidSchema = z
     .string()
@@ -71,3 +72,44 @@ export const doctorClinicParamsSchema = z.object({
 });
 
 export type DoctorClinicParamsInput = z.infer<typeof doctorClinicParamsSchema>;
+
+const timeSchema = z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use a 24-hour time such as 09:00');
+
+const doctorAvailabilityWeekdaySchema = z.enum(weekdays);
+
+const doctorAvailabilityPeriodSchema = z
+    .object({
+        startTime: timeSchema,
+        endTime: timeSchema,
+    })
+    .strict();
+
+const doctorAvailabilityDaySchema = z
+    .object({
+        weekday: doctorAvailabilityWeekdaySchema,
+        periods: z.array(doctorAvailabilityPeriodSchema),
+    })
+    .strict();
+
+export const replaceDoctorAvailabilitySchema = z
+    .object({
+        days: z
+            .array(doctorAvailabilityDaySchema)
+            .length(weekdays.length, 'Weekly availability must include all seven weekdays.'),
+    })
+    .strict()
+    .superRefine((value, context) => {
+        for (const issue of getAvailabilityValidationIssues(value.days)) {
+            context.addIssue({
+                code: 'custom',
+                path: issue.path,
+                message: issue.message,
+            });
+        }
+    });
+
+export type ReplaceDoctorAvailabilitySchemaInput = z.infer<
+    typeof replaceDoctorAvailabilitySchema
+>;
