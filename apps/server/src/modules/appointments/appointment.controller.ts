@@ -5,6 +5,7 @@ import type {
     CreateAppointmentInput,
     ListAppointmentsQueryInput,
     AppointmentIdParamsInput,
+    AvailableAppointmentSlotsQueryInput,
     UpdateAppointmentStatusInput,
 } from './appointment.types.js';
 
@@ -50,6 +51,27 @@ export async function listAppointmentsController(
             data: {
                 appointments,
             },
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function listAvailableAppointmentSlotsController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { clinicId } = req.params as { clinicId: string };
+        const query = res.locals.validatedQuery as AvailableAppointmentSlotsQueryInput;
+
+        const availability = await appointmentService.listAvailableSlots(clinicId, query);
+
+        res.status(200).json({
+            success: true,
+            message: 'Available appointment slots fetched successfully',
+            data: availability,
         });
     } catch (error) {
         next(error);

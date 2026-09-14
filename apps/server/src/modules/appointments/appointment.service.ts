@@ -2,6 +2,7 @@ import { AppointmentStatus, Prisma } from '../../generated/prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
 import { accessService } from '../auth/access.service.js';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
+import { timeToMinutes, type Weekday } from '../doctors/doctorAvailability.js';
 import {
     predictNoShowRisk,
     toNoShowPredictionResponse,
@@ -10,21 +11,36 @@ import type { StoredNoShowPredictionForResponse } from '../predictions/predictio
 import { queueRepository } from '../queues/queue.repository.js';
 import { queueService } from '../queues/queue.service.js';
 import { appointmentRepository } from './appointment.repository.js';
-import type { CreateAppointmentInput, ListAppointmentsQueryInput } from './appointment.types.js';
+import {
+    addMinutes,
+    buildCandidateLocalStartTimes,
+    findConflictingSchedulingAppointment,
+    minutesToTime,
+    schedulingConflictStatuses,
+    weekdayByIsoDay,
+    type SchedulingAvailabilityPeriod,
+    type SchedulingClinicSettings,
+} from './appointment.scheduling.js';
+import type {
+    AvailableAppointmentSlotsQueryInput,
+    CreateAppointmentInput,
+    ListAppointmentsQueryInput,
+} from './appointment.types.js';
 
-const conflictingAppointmentStatuses: AppointmentStatus[] = [
-    AppointmentStatus.SCHEDULED,
-    AppointmentStatus.CONFIRMED,
-    AppointmentStatus.ARRIVED,
-    AppointmentStatus.IN_QUEUE,
-    AppointmentStatus.CALLED,
-];
+const conflictingAppointmentStatuses = [...schedulingConflictStatuses] as AppointmentStatus[];
 
 const createAppointmentSlotConflictError = () =>
     new AppError(
         409,
         'APPOINTMENT_SLOT_CONFLICT',
-        'This doctor already has an appointment in this time slot.'
+        'This doctor already has an appointment that overlaps this time slot.'
+    );
+
+const createAppointmentSlotUnavailableError = () =>
+    new AppError(
+        409,
+        'APPOINTMENT_SLOT_UNAVAILABLE',
+        'Selected appointment time is not available for this doctor.'
     );
 
 const withNoShowPredictionResponse = <
@@ -42,6 +58,11 @@ async function validateAppointmentClinicOwnership(
     patientId: string
 ): Promise<{
     clinicTimezone: string;
+    clinic: SchedulingClinicSettings & {
+        id: string;
+        timezone: string;
+    };
+    doctorClinicId: string;
     patientClinicHistory: {
         totalLateArrivals: number;
         distanceFromClinicKm: unknown;
@@ -97,6 +118,8 @@ async function validateAppointmentClinicOwnership(
 
     return {
         clinicTimezone: clinic.timezone,
+        clinic,
+        doctorClinicId: doctorClinicLink.id,
         patientClinicHistory: {
             totalLateArrivals: patientClinicLink.totalLateArrivals,
             distanceFromClinicKm: patientClinicLink.distanceFromClinicKm,
@@ -104,19 +127,193 @@ async function validateAppointmentClinicOwnership(
     };
 }
 
+async function validateDoctorSchedulingContext(clinicId: string, doctorId: string) {
+    const clinic = await appointmentRepository.findClinicById(clinicId);
+
+    if (!clinic) {
+        throw new AppError(404, 'CLINIC_NOT_FOUND', 'Clinic not found');
+    }
+
+    if (!clinic.isActive) {
+        throw new AppError(400, 'CLINIC_INACTIVE', 'Clinic is inactive');
+    }
+
+    const doctor = await appointmentRepository.findDoctorById(doctorId);
+
+    if (!doctor) {
+        throw new AppError(404, 'DOCTOR_NOT_FOUND', 'Doctor not found');
+    }
+
+    const doctorClinicLink = await appointmentRepository.findActiveDoctorClinicLink(
+        clinicId,
+        doctorId
+    );
+
+    if (!doctorClinicLink) {
+        throw new AppError(
+            403,
+            'DOCTOR_NOT_LINKED_TO_CLINIC',
+            'Doctor is not linked to this clinic'
+        );
+    }
+
+    return {
+        clinic,
+        doctorClinicId: doctorClinicLink.id,
+    };
+}
+
+const getWeekdayFromIsoDay = (isoWeekday: number): Weekday => {
+    const weekday = weekdayByIsoDay[isoWeekday];
+
+    if (!weekday) {
+        throw new AppError(
+            500,
+            'APPOINTMENT_WEEKDAY_RESOLUTION_FAILED',
+            'Weekday could not be resolved'
+        );
+    }
+
+    return weekday;
+};
+
+const normalizeAvailabilityPeriods = (
+    periods: SchedulingAvailabilityPeriod[]
+): SchedulingAvailabilityPeriod[] => {
+    return periods.map((period) => ({
+        weekday: period.weekday,
+        startTime: period.startTime,
+        endTime: period.endTime,
+    }));
+};
+
+const buildLocalEndTime = (localStartTime: string, durationMinutes: number): string => {
+    return minutesToTime(timeToMinutes(localStartTime) + durationMinutes);
+};
+
+const getAvailableSlotCandidates = async ({
+    clinicId,
+    doctorId,
+    date,
+    durationMinutes,
+    clinic,
+    doctorClinicId,
+}: {
+    clinicId: string;
+    doctorId: string;
+    date: string;
+    durationMinutes: number;
+    clinic: SchedulingClinicSettings & {
+        timezone: string;
+    };
+    doctorClinicId: string;
+}) => {
+    const localDateParts = await appointmentRepository.getClinicLocalDateWeekday(date);
+
+    if (!localDateParts) {
+        return [];
+    }
+
+    const weekday = getWeekdayFromIsoDay(localDateParts.isoWeekday);
+    const availabilityPeriods = normalizeAvailabilityPeriods(
+        await appointmentRepository.findDoctorAvailabilityPeriods(doctorClinicId)
+    );
+    const localStartTimes = buildCandidateLocalStartTimes({
+        clinic,
+        weekday,
+        availabilityPeriods,
+        durationMinutes,
+    });
+    const slotInstants = await appointmentRepository.getClinicLocalDateTimeInstants(
+        date,
+        localStartTimes,
+        clinic.timezone
+    );
+    const existingAppointments =
+        await appointmentRepository.findDoctorSchedulingAppointmentsForDate(
+            clinicId,
+            doctorId,
+            date,
+            clinic.timezone,
+            conflictingAppointmentStatuses
+        );
+
+    return slotInstants
+        .filter((slot) => {
+            return !findConflictingSchedulingAppointment(
+                {
+                    scheduledAt: slot.instant,
+                    durationMinutes,
+                },
+                existingAppointments,
+                clinic.bufferMinutes
+            );
+        })
+        .map((slot) => ({
+            scheduledAt: slot.instant.toISOString(),
+            endsAt: addMinutes(slot.instant, durationMinutes).toISOString(),
+            localDate: date,
+            localStartTime: slot.localTime,
+            localEndTime: buildLocalEndTime(slot.localTime, durationMinutes),
+        }));
+};
+
+const assertRequestedAppointmentMatchesGeneratedSlot = async ({
+    scheduledAt,
+    durationMinutes,
+    clinic,
+    doctorClinicId,
+}: {
+    scheduledAt: Date;
+    durationMinutes: number;
+    clinic: SchedulingClinicSettings & {
+        timezone: string;
+    };
+    doctorClinicId: string;
+}) => {
+    const localParts = await appointmentRepository.getClinicLocalAppointmentParts(
+        scheduledAt,
+        clinic.timezone
+    );
+
+    if (!localParts || Number(localParts.seconds) !== 0) {
+        throw createAppointmentSlotUnavailableError();
+    }
+
+    const weekday = getWeekdayFromIsoDay(localParts.isoWeekday);
+    const availabilityPeriods = normalizeAvailabilityPeriods(
+        await appointmentRepository.findDoctorAvailabilityPeriods(doctorClinicId)
+    );
+    const candidateLocalStartTimes = buildCandidateLocalStartTimes({
+        clinic,
+        weekday,
+        availabilityPeriods,
+        durationMinutes,
+    });
+
+    if (!candidateLocalStartTimes.includes(localParts.localTime)) {
+        throw createAppointmentSlotUnavailableError();
+    }
+
+    return localParts;
+};
+
 export const appointmentService = {
     async createAppointment(
         clinicId: string,
         createdByUserId: string,
         input: CreateAppointmentInput
     ) {
-        const { clinicTimezone, patientClinicHistory } = await validateAppointmentClinicOwnership(
-            clinicId,
-            input.doctorId,
-            input.patientId
-        );
+        const { clinicTimezone, clinic, doctorClinicId, patientClinicHistory } =
+            await validateAppointmentClinicOwnership(clinicId, input.doctorId, input.patientId);
 
         const scheduledAt = new Date(input.scheduledAt);
+        const localAppointmentParts = await assertRequestedAppointmentMatchesGeneratedSlot({
+            scheduledAt,
+            durationMinutes: input.durationMinutes,
+            clinic,
+            doctorClinicId,
+        });
         const [patientNoShowCount, patientCompletedAppointmentCount] = await Promise.all([
             appointmentRepository.countPatientAppointmentsByStatus(clinicId, input.patientId, [
                 AppointmentStatus.NO_SHOW,
@@ -133,23 +330,25 @@ export const appointmentService = {
 
         try {
             return await appointmentRepository.runInTransaction(async (tx) => {
-                await appointmentRepository.acquireAppointmentSlotLock(
+                await appointmentRepository.acquireDoctorScheduleLock(
                     tx,
                     clinicId,
                     input.doctorId,
-                    scheduledAt
+                    localAppointmentParts.localDate
                 );
 
-                const existingDoctorAppointment =
-                    await appointmentRepository.findDoctorAppointmentAtTime(
+                const existingDoctorAppointments =
+                    await appointmentRepository.findOverlappingDoctorAppointment(
                         tx,
                         clinicId,
                         input.doctorId,
                         scheduledAt,
+                        input.durationMinutes,
+                        clinic.bufferMinutes,
                         conflictingAppointmentStatuses
                     );
 
-                if (existingDoctorAppointment) {
+                if (existingDoctorAppointments.length > 0) {
                     throw createAppointmentSlotConflictError();
                 }
 
@@ -213,6 +412,32 @@ export const appointmentService = {
 
             throw error;
         }
+    },
+
+    async listAvailableSlots(clinicId: string, query: AvailableAppointmentSlotsQueryInput) {
+        const { clinic, doctorClinicId } = await validateDoctorSchedulingContext(
+            clinicId,
+            query.doctorId
+        );
+        const slots = await getAvailableSlotCandidates({
+            clinicId,
+            doctorId: query.doctorId,
+            date: query.date,
+            durationMinutes: query.durationMinutes,
+            clinic,
+            doctorClinicId,
+        });
+
+        return {
+            clinicId,
+            doctorId: query.doctorId,
+            date: query.date,
+            timezone: clinic.timezone,
+            durationMinutes: query.durationMinutes,
+            slotDurationMinutes: clinic.slotDurationMinutes,
+            bufferMinutes: clinic.bufferMinutes,
+            slots,
+        };
     },
 
     async listAppointments(clinicId: string, filters: ListAppointmentsQueryInput) {

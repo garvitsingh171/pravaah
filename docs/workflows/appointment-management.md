@@ -10,25 +10,25 @@
 | Actor                 | Active internal `ADMIN` or `STAFF`                                                                                                                                                                                       |
 | Entry route           | `/appointments`                                                                                                                                                                                                          |
 | Frontend files        | `apps/web/src/features/appointments/AppointmentsPage.tsx`, `AppointmentBookingForm.tsx`, `appointmentApi.ts`                                                                                                             |
-| Main frontend symbols | `AppointmentsPage`, `loadAppointments`, `loadAppointmentReferences`, `handleSubmit`, `handleStatusUpdate`, `AppointmentBookingForm`, `createAppointment`, `listAppointments`, `updateAppointmentStatus`                  |
-| API endpoint          | `POST /api/clinics/:clinicId/appointments`, `GET /api/clinics/:clinicId/appointments`, `PATCH /api/appointments/:appointmentId/status`                                                                                   |
+| Main frontend symbols | `AppointmentsPage`, `loadAppointments`, `loadAppointmentReferences`, slot loading effect, `handleSubmit`, `handleStatusUpdate`, `AppointmentBookingForm`, `createAppointment`, `listAvailableAppointmentSlots`, `listAppointments`, `updateAppointmentStatus` |
+| API endpoint          | `GET /api/clinics/:clinicId/appointments/available-slots`, `POST /api/clinics/:clinicId/appointments`, `GET /api/clinics/:clinicId/appointments`, `PATCH /api/appointments/:appointmentId/status`                       |
 | Middleware            | Create/list use `authenticateRequest`, `validateRequest`, `requireClinicAccess`, `requireClinicStaffRole`; status route uses `authenticateRequest`, validation, `requireClinicStaffRole` and service-level clinic access |
 | Authentication        | Clerk token plus active internal user required                                                                                                                                                                           |
 | Authorization         | Admin and Staff both allowed                                                                                                                                                                                             |
 | Clinic scoping        | Route `clinicId` on create/list; appointment status resolves clinic through `accessService.verifyAppointmentClinicAccess`                                                                                                |
-| Validation            | `appointment.validation.ts -> createAppointmentSchema`, `listAppointmentsQuerySchema`, `updateAppointmentStatusSchema`                                                                                                   |
+| Validation            | `appointment.validation.ts -> availableAppointmentSlotsQuerySchema`, `createAppointmentSchema`, `listAppointmentsQuerySchema`, `updateAppointmentStatusSchema`                                                            |
 | Controller            | `appointment.controller.ts -> createAppointmentController`, `listAppointmentsController`, `updateAppointmentStatusController`                                                                                            |
 | Service               | `appointment.service.ts -> createAppointment`, `listAppointments`, `updateAppointmentStatus`                                                                                                                             |
 | Repository            | `appointment.repository.ts`, `queue.repository.ts`, `prediction.service.ts`                                                                                                                                              |
 | Database models       | `Clinic`, `Doctor`, `DoctorClinic`, `Patient`, `PatientClinic`, `Appointment`, `QueueEntry`, `NoShowPrediction`, `User`                                                                                                  |
 | Prisma operations     | `findUnique`, `findFirst`, `count`, `appointment.create`, `queueEntry.create`, `noShowPrediction.create`, status `updateMany`, detail `findFirst`                                                                        |
 | Transaction           | Booking uses `appointmentRepository.runInTransaction`; status update uses `prisma.$transaction`                                                                                                                          |
-| Concurrency control   | Booking takes advisory transaction locks for exact doctor slot and doctor/day queue position. Status sync uses guarded `updateMany` against final statuses                                                               |
+| Concurrency control   | Booking takes advisory transaction locks for doctor clinic-local scheduling day and doctor/day queue position. Status sync uses guarded `updateMany` against final statuses                                               |
 | State changes         | Appointment row, queue entry row, no-show prediction row, status synchronization with queue                                                                                                                              |
 | Side effects          | Booking always creates a `QueueEntry` and a `NoShowPrediction` in current code                                                                                                                                           |
-| Errors                | `APPOINTMENT_SLOT_CONFLICT`, `DOCTOR_NOT_LINKED_TO_CLINIC`, `PATIENT_NOT_LINKED_TO_CLINIC`, `APPOINTMENT_STATUS_FINAL`, `STATUS_SYNC_CONFLICT`, `QUEUE_ENTRY_NOT_FOUND`                                                  |
+| Errors                | `APPOINTMENT_SLOT_UNAVAILABLE`, `APPOINTMENT_SLOT_CONFLICT`, `DOCTOR_NOT_LINKED_TO_CLINIC`, `PATIENT_NOT_LINKED_TO_CLINIC`, `APPOINTMENT_STATUS_FINAL`, `STATUS_SYNC_CONFLICT`, `QUEUE_ENTRY_NOT_FOUND`                  |
 | Tests                 | Appointment service/controller/validation tests; `AppointmentsPage` has no dedicated test file in current tree                                                                                                           |
-| Known gaps            | No operating-hours or buffer-duration conflict validation is implemented in appointment service. Queue lifecycle enforcement is tracked separately from appointment status transitions                                |
+| Known gaps            | Booking now enforces weekly availability, clinic hours, slot duration, duration overlap, and buffer conflicts. Past-date booking remains a business-rule gap. Queue lifecycle enforcement is tracked separately from appointment status transitions |
 
 ## Appointment Booking Trace
 
@@ -43,7 +43,15 @@ listDoctors(clinicId) and listPatients(clinicId, {})
     ↓
 frontend filters active doctors and patients
     ↓
-AppointmentBookingForm renders doctor, patient, datetime, duration, reason, notes
+AppointmentBookingForm renders doctor, patient, date, duration, server-generated slot, reason, notes
+    ↓
+User selects doctor, appointment date, and duration
+    ↓
+appointmentApi.listAvailableAppointmentSlots(clinicId, { doctorId, date, durationMinutes })
+    ↓
+GET /api/clinics/:clinicId/appointments/available-slots
+    ↓
+backend computes slots from Clinic hours, DoctorAvailabilityPeriod rows, existing appointments, duration, and buffer
     ↓
 User clicks "Book appointment"
     ↓
@@ -83,13 +91,15 @@ appointmentRepository.findActiveDoctorClinicLink(clinicId, doctorId)
     ↓
 appointmentRepository.findActivePatientClinicLink(clinicId, patientId)
     ↓
+assert requested scheduledAt is one of the generated clinic-local slots
+    ↓
 countPatientAppointmentsByStatus(NO_SHOW) and countPatientAppointmentsByStatus(COMPLETED)
     ↓
 appointmentRepository.runInTransaction()
     ↓
-appointmentRepository.acquireAppointmentSlotLock(tx, clinicId, doctorId, scheduledAt)
+appointmentRepository.acquireDoctorScheduleLock(tx, clinicId, doctorId, clinicLocalDate)
     ↓
-appointmentRepository.findDoctorAppointmentAtTime(tx, clinicId, doctorId, scheduledAt, active statuses)
+appointmentRepository.findOverlappingDoctorAppointment(tx, clinicId, doctorId, scheduledAt, durationMinutes, bufferMinutes, active statuses)
     ↓
 queueRepository.findHighestQueuePosition(tx, clinicId, doctorId, scheduledAt, clinicTimezone)
     ↓
@@ -116,7 +126,8 @@ Frontend request type: `appointmentApi.ts -> CreateAppointmentRequest`.
 | ----------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------- |
 | `doctorId`        | Doctor select populated by `listDoctors`                         | UUID                                                             |
 | `patientId`       | Patient select populated by `listPatients`                       | UUID                                                             |
-| `scheduledAt`     | `datetime-local`, converted with `new Date(value).toISOString()` | Zod `datetime`                                                   |
+| `appointmentDate` | Date input used for slot discovery                               | Query `YYYY-MM-DD` for available-slot endpoint                   |
+| `scheduledAt`     | Server-generated available slot ISO datetime                     | Zod `datetime`; service verifies it still matches a generated slot |
 | `durationMinutes` | number input string converted to number                          | positive integer, default 15                                     |
 | `reason`          | optional string                                                  | optional string                                                  |
 | `notes`           | optional string                                                  | optional string                                                  |
@@ -131,16 +142,17 @@ Implemented:
 - Patient exists.
 - Active `DoctorClinic` link exists for requested clinic and doctor.
 - Active `PatientClinic` link exists for requested clinic and patient.
-- Existing doctor appointment at the exact same `scheduledAt` with active status causes `APPOINTMENT_SLOT_CONFLICT`.
+- Doctor weekly availability is read from `DoctorAvailabilityPeriod` through the active `DoctorClinic` link.
+- Requested time must be a generated clinic-local slot inside `Clinic.openingTime`/`closingTime`, doctor availability, and `Clinic.slotDurationMinutes`.
+- Existing active doctor appointments that overlap the requested duration plus `Clinic.bufferMinutes` cause `APPOINTMENT_SLOT_CONFLICT`.
 - Appointment, queue entry, and no-show prediction are written in one transaction.
 - Queue position is assigned per clinic, doctor, and clinic-local appointment date.
 - No-show risk is deterministic and generated at booking time.
 
 Not implemented in current service:
 
-- No check that scheduled time is inside `Clinic.openingTime` and `closingTime`.
-- No duration overlap conflict detection. The conflict check is exact same `scheduledAt`.
-- No `Clinic.bufferMinutes` enforcement during booking.
+- No date-specific doctor exceptions, holidays, or leave schedule.
+- No past-date rejection as a business rule.
 - No explicit active/inactive rejection for `Doctor.isActive` or `Patient.isActive` in the backend ownership check. It checks active link rows.
 
 ## Appointment Listing Trace
@@ -283,9 +295,9 @@ flowchart TD
     C --> D[Auth, clinic access, Staff role, Zod]
     D --> E[Validate clinic, doctor, patient links]
     E --> F[Transaction]
-    F --> G[Doctor-slot advisory lock]
+    F --> G[Doctor/day schedule advisory lock]
     F --> H[Doctor-day queue advisory lock]
-    G --> I[Exact scheduledAt conflict check]
+    G --> I[Duration plus buffer overlap check]
     H --> J[Highest queue position]
     I --> K[Create Appointment]
     J --> L[Create QueueEntry WAITING]
@@ -298,4 +310,4 @@ flowchart TD
 
 ## How To Explain This Workflow
 
-When Staff books an appointment, Pravaah treats the booking as the start of the operational queue plan. The backend verifies clinic ownership links, locks the exact doctor slot and doctor/day queue scope, writes the appointment, queue entry, and no-show prediction in one transaction, and returns all three to the frontend. Status changes later keep the appointment and queue entry synchronized where a queue status exists.
+When Staff books an appointment, Pravaah treats the booking as the start of the operational queue plan. The backend generates selectable slots from clinic settings, the doctor's recurring weekly availability, existing active appointments, duration, and buffer rules. Final booking validation reuses that scheduling policy, locks the doctor clinic-local day, writes the appointment, queue entry, and no-show prediction in one transaction, and returns all three to the frontend. Status changes later keep the appointment and queue entry synchronized where a queue status exists.

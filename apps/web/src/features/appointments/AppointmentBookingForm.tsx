@@ -2,10 +2,12 @@ import type { FormEvent } from 'react';
 import { FieldError } from '../../components/feedback';
 import { Button, fieldControlClassName } from '../../components/ui';
 import type { DoctorSummary, PatientSummary } from '../../types';
+import type { AvailableAppointmentSlot } from './appointmentApi';
 
 export type AppointmentBookingFormValues = {
     doctorId: string;
     patientId: string;
+    appointmentDate: string;
     scheduledAt: string;
     durationMinutes: string;
     reason: string;
@@ -21,6 +23,9 @@ type AppointmentBookingFormProps = {
     fieldErrors: AppointmentBookingFormFieldErrors;
     doctors: DoctorSummary[];
     patients: PatientSummary[];
+    availableSlots: AvailableAppointmentSlot[];
+    isLoadingSlots: boolean;
+    slotsError?: string | null;
     isSubmitting: boolean;
     isDisabled: boolean;
     onChange: (field: keyof AppointmentBookingFormValues, value: string) => void;
@@ -64,6 +69,10 @@ const getPatientOptionLabel = (patient: PatientSummary): string => {
     return phone ? `${patient.fullName} - ${phone}` : patient.fullName;
 };
 
+const getSlotOptionLabel = (slot: AvailableAppointmentSlot): string => {
+    return `${slot.localStartTime}-${slot.localEndTime}`;
+};
+
 function RequiredMark() {
     return <span className="text-[var(--color-status-danger-text)]">*</span>;
 }
@@ -73,6 +82,9 @@ function AppointmentBookingForm({
     fieldErrors,
     doctors,
     patients,
+    availableSlots,
+    isLoadingSlots,
+    slotsError,
     isSubmitting,
     isDisabled,
     onChange,
@@ -160,29 +172,25 @@ function AppointmentBookingForm({
 
             <fieldset className="rounded-lg border border-slate-200 bg-white p-4">
                 <legend className="px-1 text-sm font-semibold text-slate-950">Timing</legend>
-                <p className="mb-4 text-sm leading-6 text-slate-600">
-                    Select the intended appointment start and duration. Exact doctor/time conflicts
-                    are reported by the backend.
-                </p>
                 <div className="grid gap-5 md:grid-cols-2">
                     <label className="block text-sm font-medium text-slate-700">
-                        Appointment date and time <RequiredMark />
+                        Appointment date <RequiredMark />
                         <input
-                            className={getFieldClassName(Boolean(fieldErrors.scheduledAt))}
-                            type="datetime-local"
-                            value={values.scheduledAt}
-                            onChange={(event) => onChange('scheduledAt', event.target.value)}
+                            className={getFieldClassName(Boolean(fieldErrors.appointmentDate))}
+                            type="date"
+                            value={values.appointmentDate}
+                            onChange={(event) => onChange('appointmentDate', event.target.value)}
                             disabled={controlsDisabled}
-                            aria-invalid={Boolean(fieldErrors.scheduledAt)}
+                            aria-invalid={Boolean(fieldErrors.appointmentDate)}
                             aria-describedby={getFieldErrorDescriptionId(
-                                'scheduledAt',
+                                'appointmentDate',
                                 fieldErrors
                             )}
                             required
                         />
                         <FieldError
-                            id={getFieldErrorId('scheduledAt')}
-                            message={fieldErrors.scheduledAt}
+                            id={getFieldErrorId('appointmentDate')}
+                            message={fieldErrors.appointmentDate}
                         />
                     </label>
 
@@ -208,6 +216,49 @@ function AppointmentBookingForm({
                             id={getFieldErrorId('durationMinutes')}
                             message={fieldErrors.durationMinutes}
                         />
+                    </label>
+
+                    <label className="block text-sm font-medium text-slate-700 md:col-span-2">
+                        Available slot <RequiredMark />
+                        <select
+                            className={getFieldClassName(Boolean(fieldErrors.scheduledAt))}
+                            value={values.scheduledAt}
+                            onChange={(event) => onChange('scheduledAt', event.target.value)}
+                            disabled={
+                                controlsDisabled ||
+                                isLoadingSlots ||
+                                Boolean(slotsError) ||
+                                availableSlots.length === 0
+                            }
+                            aria-invalid={Boolean(fieldErrors.scheduledAt)}
+                            aria-describedby={getFieldErrorDescriptionId(
+                                'scheduledAt',
+                                fieldErrors
+                            )}
+                            required
+                        >
+                            <option value="">
+                                {isLoadingSlots
+                                    ? 'Loading slots...'
+                                    : availableSlots.length > 0
+                                      ? 'Select slot'
+                                      : 'No slots available'}
+                            </option>
+                            {availableSlots.map((slot) => (
+                                <option key={slot.scheduledAt} value={slot.scheduledAt}>
+                                    {getSlotOptionLabel(slot)}
+                                </option>
+                            ))}
+                        </select>
+                        <FieldError
+                            id={getFieldErrorId('scheduledAt')}
+                            message={fieldErrors.scheduledAt}
+                        />
+                        {slotsError ? (
+                            <span className="mt-1 block text-xs text-[var(--color-status-danger-text)]">
+                                {slotsError}
+                            </span>
+                        ) : null}
                     </label>
                 </div>
             </fieldset>

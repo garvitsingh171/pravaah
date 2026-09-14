@@ -676,6 +676,49 @@ Main errors:
 
 ## Appointments
 
+### Get Available Appointment Slots
+
+| Field  | Value                                                   |
+| ------ | ------------------------------------------------------- |
+| Method | GET                                                     |
+| Path   | `/api/clinics/:clinicId/appointments/available-slots`   |
+| Auth   | Required, own active clinic, Admin/Staff                |
+
+Query:
+
+- `doctorId` required UUID
+- `date` required `YYYY-MM-DD`
+- `durationMinutes` required positive integer
+
+Response summary:
+
+```txt
+data:
+  clinicId, doctorId, date, timezone
+  durationMinutes, slotDurationMinutes, bufferMinutes
+  slots[]:
+    scheduledAt ISO datetime
+    endsAt ISO datetime
+    localDate
+    localStartTime
+    localEndTime
+```
+
+Slots are generated from clinic operating hours, `Clinic.slotDurationMinutes`,
+`Clinic.bufferMinutes`, the selected doctor's recurring weekly
+`DoctorAvailabilityPeriod` rows, and existing active appointments.
+
+Main errors:
+
+- `CLINIC_NOT_FOUND`
+- `CLINIC_INACTIVE`
+- `DOCTOR_NOT_FOUND`
+- `DOCTOR_NOT_LINKED_TO_CLINIC`
+- `CLINIC_OPERATING_HOURS_INVALID`
+- `CLINIC_SLOT_DURATION_INVALID`
+- `CLINIC_BUFFER_INVALID`
+- `VALIDATION_ERROR`
+
 ### Create Appointment
 
 | Field  | Value                                    |
@@ -695,6 +738,10 @@ reason, notes optional
 bookingSource default RECEPTION; allowed RECEPTION, PHONE, WEB, WALK_IN
 ```
 
+`scheduledAt` should come from the available-slots endpoint. Creation revalidates
+that the requested time is still a generated slot and then checks active
+appointment overlaps using appointment duration plus clinic buffer.
+
 Response summary:
 
 ```txt
@@ -711,6 +758,7 @@ Main errors:
 - `PATIENT_NOT_FOUND`
 - `DOCTOR_NOT_LINKED_TO_CLINIC`
 - `PATIENT_NOT_LINKED_TO_CLINIC`
+- `APPOINTMENT_SLOT_UNAVAILABLE`
 - `APPOINTMENT_SLOT_CONFLICT`
 - `VALIDATION_ERROR`
 

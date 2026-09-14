@@ -678,7 +678,8 @@ PUT validator requires all seven weekdays exactly once, rejects invalid times,
 duplicates, and overlaps, and allows adjacent half-open intervals. The service
 checks clinic, doctor, and `DoctorClinic` ownership, then validates each period
 against `Clinic.openingTime` and `Clinic.closingTime` before transactionally
-replacing rows. Appointment booking does not consume this schedule yet.
+replacing rows. Appointment slot discovery and booking consume this schedule as
+the source of truth for recurring doctor working windows.
 
 #### Patient
 
@@ -690,11 +691,14 @@ filtering remains a documented gap.
 #### Appointment
 
 Creation verifies active clinic, doctor record, patient record, active
-`DoctorClinic`, and active `PatientClinic`. It then runs one transaction:
+`DoctorClinic`, and active `PatientClinic`. Before writing, the scheduling
+policy verifies that the requested `scheduledAt` is one of the generated slots
+for the clinic-local date, doctor availability, clinic hours, slot duration,
+appointment duration, and buffer rules. It then runs one transaction:
 
 ```txt
-acquire exact slot advisory lock
--> check active doctor exact-time conflict
+acquire doctor clinic-local day advisory lock
+-> check active doctor duration-plus-buffer overlap
 -> acquire queue position lock and read highest position
 -> create Appointment with SCHEDULED status
 -> compute deterministic NoShowPrediction
@@ -702,9 +706,10 @@ acquire exact slot advisory lock
 -> store NoShowPrediction
 ```
 
-Conflict protection is exact `scheduledAt`, not duration overlap. Current backend
-validation checks shape and enum/date formats but does not enforce clinic operating
-hours or reject past appointment times as business rules.
+Conflict protection treats the effective interval as appointment start through
+`durationMinutes + Clinic.bufferMinutes`. Current backend validation checks
+shape and enum/date formats, enforces clinic hours and recurring doctor
+availability, and still does not reject past appointment times as a business rule.
 
 #### Appointment Lifecycle
 
@@ -896,9 +901,9 @@ a Prisma `@@unique` because it is partial SQL.
 | Clinic onboarding             | `Clinic`, first Admin `User`                         | Unique constraints and transaction.                                                       | Production replay not externally verified.         |
 | Sample data                   | demo doctors/patients/appointments/queue/predictions | Repository transaction and fake data definitions.                                         | Demo-only.                                         |
 | Doctor create                 | `Doctor`, `DoctorClinic`                             | Transaction.                                                                              | Link update fields not exposed.                    |
-| Doctor availability replace   | `DoctorAvailabilityPeriod` rows for one `DoctorClinic` | Transaction after full payload and clinic-hours validation.                                | Does not enforce booking or generate slots.        |
+| Doctor availability replace   | `DoctorAvailabilityPeriod` rows for one `DoctorClinic` | Transaction after full payload and clinic-hours validation.                                | No date-specific exceptions/leave model.           |
 | Patient create/update         | `Patient`, `PatientClinic`                           | Transaction.                                                                              | Link-aware active filtering incomplete.            |
-| Appointment booking           | `Appointment`, `QueueEntry`, `NoShowPrediction`      | Advisory locks for exact slot and queue position; partial unique index.                   | No duration-overlap or clinic-hours rule.          |
+| Appointment booking           | `Appointment`, `QueueEntry`, `NoShowPrediction`      | Advisory locks for doctor clinic-local scheduling day and queue position; generated-slot validation; duration-plus-buffer overlap query. | No past-date business rejection.                   |
 | Appointment status            | `Appointment`, mapped `QueueEntry`                   | Transaction and final-state guard.                                                        | Broad non-final transitions.                       |
 | Queue status                  | `QueueEntry`, mapped `Appointment`                   | Transaction, queue lifecycle guard, exact current-status guard, and appointment lifecycle sync guard. | Route-level lifecycle coverage can be expanded.    |
 | Queue reorder                 | `QueueEntry.position` rows                           | Advisory lock by clinic/doctor/date, complete active-set validation, temporary positions. | Needs owner test/manual evidence after fix.        |
@@ -951,7 +956,7 @@ evidence commands for this issue.
 - No explicit 404 fallback middleware is registered.
 - No staff-management module exists.
 - Appointment and queue final states are protected, and strict transition graphs are enforced server-side.
-- Appointment conflict detection is exact start time only.
+- Appointment conflict detection accounts for duration plus clinic buffer.
 - Queue entries are created during booking, including future appointments.
 - `PatientClinic` counters can drift because status flows do not update every counter.
 - `NoShowPrediction` does not persist model version.

@@ -53,6 +53,31 @@ export type AppointmentListFilters = {
     status?: AppointmentStatus;
 };
 
+export type AvailableAppointmentSlot = {
+    scheduledAt: string;
+    endsAt: string;
+    localDate: string;
+    localStartTime: string;
+    localEndTime: string;
+};
+
+export type AvailableAppointmentSlotsFilters = {
+    doctorId: string;
+    date: string;
+    durationMinutes: number;
+};
+
+export type AvailableAppointmentSlotsResponseData = {
+    clinicId: string;
+    doctorId: string;
+    date: string;
+    timezone: string;
+    durationMinutes: number;
+    slotDurationMinutes: number;
+    bufferMinutes: number;
+    slots: AvailableAppointmentSlot[];
+};
+
 export type AppointmentListResponseData = {
     appointments: AppointmentListItem[];
 };
@@ -96,6 +121,24 @@ export const listAppointments = (
         },
         signal,
     });
+};
+
+export const listAvailableAppointmentSlots = (
+    clinicId: string,
+    filters: AvailableAppointmentSlotsFilters,
+    signal?: AbortSignal
+) => {
+    return apiClient.get<AvailableAppointmentSlotsResponseData>(
+        `${getAppointmentCollectionPath(clinicId)}/available-slots`,
+        {
+            query: {
+                doctorId: filters.doctorId,
+                date: filters.date,
+                durationMinutes: String(filters.durationMinutes),
+            },
+            signal,
+        }
+    );
 };
 
 export const updateAppointmentStatus = (appointmentId: string, status: AppointmentStatus) => {

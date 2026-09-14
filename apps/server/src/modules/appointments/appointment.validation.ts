@@ -69,8 +69,22 @@ export const listAppointmentsQuerySchema = z
     })
     .strict();
 
+export const availableAppointmentSlotsQuerySchema = z
+    .object({
+        doctorId: uuidSchema,
+        date: dateSchema,
+        durationMinutes: z.coerce
+            .number()
+            .int()
+            .positive('Duration minutes must be a positive number'),
+    })
+    .strict();
+
 export type ClinicIdParamsSchemaInput = z.infer<typeof clinicIdParamsSchema>;
 export type CreateAppointmentSchemaInput = z.infer<typeof createAppointmentSchema>;
 export type ListAppointmentsQuerySchemaInput = z.infer<typeof listAppointmentsQuerySchema>;
+export type AvailableAppointmentSlotsQuerySchemaInput = z.infer<
+    typeof availableAppointmentSlotsQuerySchema
+>;
 export type AppointmentIdParamsSchemaInput = z.infer<typeof appointmentIdParamsSchema>;
 export type UpdateAppointmentStatusSchemaInput = z.infer<typeof updateAppointmentStatusSchema>;

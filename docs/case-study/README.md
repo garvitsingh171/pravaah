@@ -54,7 +54,7 @@ Detailed traces live in the [Workflow Atlas](../workflows/README.md). The case-s
 - Onboarding: a signed-in Clerk identity without an internal user can create a clinic and first Admin.
 - First-run setup: the dashboard checklist reflects whether clinic settings, doctors, patients, and appointments exist.
 - Doctor/patient management: records are scoped through `DoctorClinic` and `PatientClinic`.
-- Appointment booking: validates clinic/doctor/patient membership, checks exact same-time doctor conflict, creates appointment, queue entry, and no-show prediction in a transaction.
+- Appointment booking: validates clinic/doctor/patient membership, selects server-generated doctor availability slots, checks duration-plus-buffer conflicts, creates appointment, queue entry, and no-show prediction in a transaction.
 - Queue operations: list by clinic/date, update status, sync appointment status, and reorder active entries for one doctor/date.
 - Dashboard operations: summarize the day, high-risk appointments, activity, and setup state.
 
@@ -115,12 +115,12 @@ Appointment creation does meaningful multi-record work:
 - verifies doctor exists and is linked to the clinic
 - verifies patient exists and is linked to the clinic
 - counts patient history used by risk scoring
-- takes an advisory lock for clinic/doctor/scheduled time
-- rejects exact same-time conflicts for active appointment statuses
+- takes an advisory lock for clinic/doctor/clinic-local date
+- rejects duration-plus-buffer overlaps for active appointment statuses
 - calculates the next queue position for that doctor/date
 - creates appointment, queue entry, and no-show prediction in a transaction
 
-Current limitation: opening hours, slot duration, and buffer settings exist, but booking does not enforce those rules yet.
+Current limitation: date-specific doctor exceptions, leave, holidays, and appointment rescheduling are not implemented yet.
 
 ## 11. Queue Engineering
 
