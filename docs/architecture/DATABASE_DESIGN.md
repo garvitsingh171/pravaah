@@ -68,6 +68,7 @@ Important fields:
 - `timezone`, default `Asia/Kolkata`
 - `openingTime`, `closingTime`
 - `slotDurationMinutes`, `bufferMinutes`
+- `lateArrivalGraceMinutes`, default `15`
 - `isActive`
 
 Indexes:
@@ -244,6 +245,13 @@ Important fields:
 - `status`
 - `bookingSource`
 - optional `reason`, `notes`
+- nullable arrival facts: `arrivedAt`, `arrivalOffsetMinutes`, `isLateArrival`, `lateArrivalGraceMinutes`
+
+Arrival fields are nullable for legacy and not-yet-arrived appointments. `isLateArrival = null`
+means no recorded arrival classification exists, `false` means the patient arrived and was not
+late under the snapshot grace rule, and `true` means the first arrival exceeded the stored grace
+period. `arrivalOffsetMinutes` is signed completed minutes from scheduled time to first arrival, so
+early arrivals are negative and within-grace positive arrivals keep their actual offset.
 
 Indexes:
 
@@ -265,7 +273,7 @@ SCHEDULED -> CONFIRMED -> ARRIVED -> IN_QUEUE -> CALLED -> COMPLETED
                                -> CANCELLED or NO_SHOW where staff decides
 ```
 
-The code allows several manual transitions through service rules and blocks changing final statuses to a different status.
+The code allows several manual transitions through service rules and blocks changing final statuses to a different status. First arrival is recorded once when a successful status transition reaches `ARRIVED`, `IN_QUEUE`, or `CALLED`; `COMPLETED`, `CANCELLED`, and `NO_SHOW` do not fabricate arrival facts.
 
 ### QueueEntry
 
@@ -290,12 +298,12 @@ Deletion behavior:
 QueueEntry lifecycle:
 
 ```txt
-WAITING -> ARRIVED -> CALLED -> COMPLETED
-    \         \          \
-     -> CANCELLED or NO_SHOW where staff decides
+WAITING -> ARRIVED -> WAITING -> CALLED -> COMPLETED
+    \          \          \          \
+     -> CALLED  -> CANCELLED or NO_SHOW where staff decides
 ```
 
-The appointment creation workflow currently creates a `QueueEntry` immediately, including for future appointments. Queue list APIs filter by the appointment's clinic-local date.
+The appointment creation workflow currently creates a `QueueEntry` immediately, including for future appointments, with initial status `WAITING`. That initial row supports ordering and does not by itself record `Appointment.arrivedAt`. Queue list APIs filter by the appointment's clinic-local date.
 
 Appointment rescheduling updates the existing `Appointment.scheduledAt` value in place. It does not create a replacement appointment row. The linked `QueueEntry.appointmentId` remains unchanged; if the appointment moves to another clinic-local date, that same queue row becomes part of the destination doctor/date queue and receives a destination position. The linked `NoShowPrediction.appointmentId` also remains unchanged; no prediction history or reschedule-history table is created.
 

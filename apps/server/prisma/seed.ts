@@ -20,6 +20,7 @@ import {
     sampleDoctorDefinitions,
     samplePatientDefinitions,
 } from '../src/modules/clinics/sampleData.definitions.js';
+import { calculateArrivalOutcome } from '../src/modules/appointments/appointment.arrival.js';
 import { predictNoShowRisk } from '../src/modules/predictions/prediction.service.js';
 
 const DEFAULT_DEMO_CLINIC_ID = '00000000-0000-4000-8000-000000000000';
@@ -120,6 +121,7 @@ type AppointmentSeed = {
     notes: string | null;
     bookingSource: BookingSource;
     bookedMinutesBefore: number;
+    arrivalOffsetMinutes?: number;
 };
 
 const stripSampleMarker = (notes: string): string => {
@@ -148,6 +150,7 @@ const buildAppointmentSeeds = (
             notes: 'Prefers morning appointments when available.',
             bookingSource: BookingSource.RECEPTION,
             bookedMinutesBefore: 3 * 24 * 60,
+            arrivalOffsetMinutes: -4,
         },
         {
             id: buildAppointmentId(2),
@@ -162,6 +165,7 @@ const buildAppointmentSeeds = (
             notes: 'Asked to confirm current medication list at reception.',
             bookingSource: BookingSource.PHONE,
             bookedMinutesBefore: 6 * 60,
+            arrivalOffsetMinutes: 6,
         },
         {
             id: buildAppointmentId(3),
@@ -176,6 +180,7 @@ const buildAppointmentSeeds = (
             notes: 'Front desk plans a manual confirmation before future visits.',
             bookingSource: BookingSource.RECEPTION,
             bookedMinutesBefore: 4 * 60,
+            arrivalOffsetMinutes: 22,
         },
         {
             id: buildAppointmentId(4),
@@ -190,6 +195,7 @@ const buildAppointmentSeeds = (
             notes: 'Vitals captured at arrival.',
             bookingSource: BookingSource.RECEPTION,
             bookedMinutesBefore: 5 * 24 * 60,
+            arrivalOffsetMinutes: 15,
         },
         {
             id: buildAppointmentId(5),
@@ -204,6 +210,7 @@ const buildAppointmentSeeds = (
             notes: 'Follow-up instructions shared with guardian.',
             bookingSource: BookingSource.PHONE,
             bookedMinutesBefore: 7 * 24 * 60,
+            arrivalOffsetMinutes: 3,
         },
         {
             id: buildAppointmentId(6),
@@ -218,6 +225,7 @@ const buildAppointmentSeeds = (
             notes: 'Contact details verified during check-in.',
             bookingSource: BookingSource.WALK_IN,
             bookedMinutesBefore: 12 * 60,
+            arrivalOffsetMinutes: 8,
         },
         {
             id: buildAppointmentId(7),
@@ -232,6 +240,7 @@ const buildAppointmentSeeds = (
             notes: 'Review advised if symptoms persist.',
             bookingSource: BookingSource.RECEPTION,
             bookedMinutesBefore: 4 * 24 * 60,
+            arrivalOffsetMinutes: 9,
         },
         {
             id: buildAppointmentId(8),
@@ -246,6 +255,7 @@ const buildAppointmentSeeds = (
             notes: 'Exercise plan reviewed.',
             bookingSource: BookingSource.RECEPTION,
             bookedMinutesBefore: 6 * 24 * 60,
+            arrivalOffsetMinutes: 2,
         },
         {
             id: buildAppointmentId(9),
@@ -808,6 +818,7 @@ async function main() {
         closingTime: '18:00',
         slotDurationMinutes: 15,
         bufferMinutes: 5,
+        lateArrivalGraceMinutes: 15,
         isActive: true,
     };
 
@@ -1035,6 +1046,17 @@ async function main() {
             patientCompletedAppointmentCount: completedAppointmentCount,
             distanceFromClinicKm: Number(patient.history.distanceFromClinicKm),
         });
+        const arrivedAt =
+            appointmentSeed.arrivalOffsetMinutes === undefined
+                ? null
+                : addMinutes(appointmentSeed.scheduledAt, appointmentSeed.arrivalOffsetMinutes);
+        const arrivalOutcome = arrivedAt
+            ? calculateArrivalOutcome({
+                  scheduledAt: appointmentSeed.scheduledAt,
+                  arrivedAt,
+                  graceMinutes: clinic.lateArrivalGraceMinutes,
+              })
+            : null;
 
         const appointment = await prisma.appointment.create({
             data: {
@@ -1049,6 +1071,10 @@ async function main() {
                 bookingSource: appointmentSeed.bookingSource,
                 reason: appointmentSeed.reason,
                 notes: appointmentSeed.notes,
+                arrivedAt,
+                arrivalOffsetMinutes: arrivalOutcome?.arrivalOffsetMinutes ?? null,
+                isLateArrival: arrivalOutcome?.isLateArrival ?? null,
+                lateArrivalGraceMinutes: arrivalOutcome?.lateArrivalGraceMinutes ?? null,
                 createdAt: appointmentSeed.bookedAt,
             },
         });

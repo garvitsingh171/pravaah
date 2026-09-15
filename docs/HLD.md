@@ -351,13 +351,13 @@ Model summary:
 | Model              | Purpose                            | Key fields/defaults                                                                           | Relationships and constraints                                              | Current limitation                                     |
 | ------------------ | ---------------------------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------ |
 | `User`             | Internal app user mapped to Clerk. | `clerkUserId` unique, `email` unique, `role`, `status`, optional `clinicId`.                  | Many users to one clinic with `SetNull`; indexes on clinic, role, status.  | Single-clinic access model.                            |
-| `Clinic`           | Clinic tenant and settings.        | `slug` unique, timezone, hours, slot duration, buffer, `isActive`.                            | Has users, links, appointments, queue, predictions.                        | No active-state settings update endpoint.              |
+| `Clinic`           | Clinic tenant and settings.        | `slug` unique, timezone, hours, slot duration, buffer, late-arrival grace, `isActive`.         | Has users, links, appointments, queue, predictions.                        | No active-state settings update endpoint.              |
 | `Doctor`           | Provider profile.                  | name, specialization, qualification, contact, gender, experience, `isActive`.                 | Linked to clinics through `DoctorClinic`; appointments restrict deletion.  | No login.                                             |
 | `DoctorClinic`     | Doctor-clinic join.                | `doctorId`, `clinicId`, `isActive`, optional display name and fee.                            | Unique `(doctorId, clinicId)`; cascade from doctor/clinic.                 | Link fields not exposed in current edit API.           |
 | `DoctorAvailabilityPeriod` | Recurring weekly working periods. | `doctorClinicId`, weekday, `HH:mm` start/end strings.                                 | Cascades from `DoctorClinic`; unique exact periods; indexed by weekday.    | No date-specific exception/leave model.                |
 | `Patient`          | Patient profile.                   | name, phone, optional demographics/address/emergency contact, `isActive`.                     | Linked to clinics through `PatientClinic`; appointments restrict deletion. | No login or full medical record.                       |
-| `PatientClinic`    | Clinic-specific patient history.   | total appointments/no-shows/late arrivals, last visit, notes, distance, `isActive`.           | Unique `(patientId, clinicId)`; cascade from patient/clinic.               | Some counters are not updated by all status flows.     |
-| `Appointment`      | Scheduled visit.                   | clinic, doctor, patient, creator, scheduledAt, duration, status, source, reason/notes.        | Partial unique active doctor/time index; many query indexes.               | Rescheduling keeps doctor/patient/duration fixed.      |
+| `PatientClinic`    | Clinic-specific patient history.   | total appointments/no-shows/late arrivals, last visit, notes, distance, `isActive`.           | Unique `(patientId, clinicId)`; cascade from patient/clinic.               | Some non-late counters are not updated by all status flows. |
+| `Appointment`      | Scheduled visit.                   | clinic, doctor, patient, creator, scheduledAt, duration, status, source, reason/notes, arrival snapshot. | Partial unique active doctor/time index; many query indexes.       | Rescheduling keeps doctor/patient/duration fixed.      |
 | `QueueEntry`       | Daily queue record.                | unique appointment, clinic, doctor, patient, position, status, queued/called/completed times. | Indexes by status, doctor/position, queuedAt.                              | Created during booking, including future appointments. |
 | `NoShowPrediction` | Stored deterministic risk.         | unique appointment, clinic, patient, riskLevel, score, reasons JSON.                          | Indexes by clinic and patient.                                             | No persisted model version column.                     |
 
@@ -406,6 +406,7 @@ stateDiagram-v2
     ARRIVED --> CALLED
     ARRIVED --> CANCELLED
     ARRIVED --> NO_SHOW
+    WAITING --> ARRIVED
     WAITING --> CALLED
     WAITING --> COMPLETED
     WAITING --> CANCELLED
@@ -418,7 +419,7 @@ stateDiagram-v2
     NO_SHOW --> [*]
 ```
 
-Current code enforces the queue transition policy server-side through `queue.lifecycle.ts`. `WAITING -> ARRIVED`, `CALLED -> WAITING`, and `ARRIVED -> COMPLETED` are rejected even though each individual value is a valid `QueueStatus`.
+Current code enforces the queue transition policy server-side through `queue.lifecycle.ts`. `WAITING -> ARRIVED` is the explicit queue-driven arrival action, while unsupported transitions such as `CALLED -> WAITING` and `ARRIVED -> COMPLETED` are rejected even though each individual value is a valid `QueueStatus`.
 
 ## Database Constraints And Indexes
 
@@ -655,6 +656,8 @@ flowchart TD
 
 `apps/server/src/modules/predictions/prediction.service.ts` implements deterministic starter rules.
 
+Arrival tracking feeds the same history input without changing risk math. Appointment and queue lifecycle transactions call the arrival classification policy when a successful status update reaches `ARRIVED`, `IN_QUEUE`, or `CALLED`. The appointment stores the first `arrivedAt`, signed `arrivalOffsetMinutes`, nullable `isLateArrival`, and `lateArrivalGraceMinutes` snapshot. When that first arrival is late, the same transaction atomically increments the matching `PatientClinic.totalLateArrivals`, which future prediction inputs continue to read.
+
 Inputs:
 
 - previous no-show count
@@ -825,7 +828,7 @@ Browser-based E2E testing is intentionally absent. Manual workflow checks are re
 - Broad appointment and queue transition behavior.
 - Queue reorder validation is clinic/date scoped, not doctor/date scoped.
 - Appointment conflict is exact same `scheduledAt`, not duration overlap.
-- PatientClinic counters can drift because status updates do not update every history field.
+- Non-late PatientClinic counters can drift because status updates do not update every history field.
 
 ## Future Architecture Direction
 

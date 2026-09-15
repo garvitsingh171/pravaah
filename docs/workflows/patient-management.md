@@ -132,7 +132,7 @@ PatientsPage refreshes list via loadPatients()
 - `distanceFromClinicKm`
 - `isActive`
 
-The no-show risk workflow reads `totalLateArrivals` and `distanceFromClinicKm` from `PatientClinic`, and counts completed/no-show appointments from `Appointment`. Current status update code does not automatically increment these counters.
+The no-show risk workflow reads `totalLateArrivals` and `distanceFromClinicKm` from `PatientClinic`, and counts completed/no-show appointments from `Appointment`. `totalLateArrivals` is now maintained by appointment/queue lifecycle transactions when the first recorded arrival is classified late. Normal patient create/update requests do not accept this operational counter as editable metadata.
 
 ## Privacy Boundary
 
@@ -140,4 +140,4 @@ Patients are records used by clinic-side Admin/Staff users. They are not authent
 
 ## How To Explain This Workflow
 
-Patient records are split into a shared `Patient` row and a clinic-specific `PatientClinic` row. That lets the product store clinic-local notes and attendance history separately from the base person record. The current UI supports manual create/edit/search/status filtering, while history counter maintenance is not automated yet.
+Patient records are split into a shared `Patient` row and a clinic-specific `PatientClinic` row. That lets the product store clinic-local notes and attendance history separately from the base person record. The current UI supports manual create/edit/search/status filtering, while late-arrival history follows recorded appointment arrival events instead of staff-edited counters.

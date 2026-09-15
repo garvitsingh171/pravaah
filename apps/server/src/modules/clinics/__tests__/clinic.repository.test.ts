@@ -50,6 +50,7 @@ describe('clinicRepository.findSettingsById', () => {
                 closingTime: true,
                 slotDurationMinutes: true,
                 bufferMinutes: true,
+                lateArrivalGraceMinutes: true,
                 createdAt: true,
                 updatedAt: true,
             }),
@@ -80,6 +81,7 @@ describe('clinicRepository.update', () => {
             closingTime: '18:00',
             slotDurationMinutes: 20,
             bufferMinutes: 5,
+            lateArrivalGraceMinutes: 0,
         });
 
         expect(mockClinicUpdate).toHaveBeenCalledWith({
@@ -101,6 +103,7 @@ describe('clinicRepository.update', () => {
                 closingTime: '18:00',
                 slotDurationMinutes: 20,
                 bufferMinutes: 5,
+                lateArrivalGraceMinutes: 0,
             },
             select: expect.objectContaining({
                 id: true,
@@ -119,6 +122,7 @@ describe('clinicRepository.update', () => {
                 closingTime: true,
                 slotDurationMinutes: true,
                 bufferMinutes: true,
+                lateArrivalGraceMinutes: true,
                 createdAt: true,
                 updatedAt: true,
             }),

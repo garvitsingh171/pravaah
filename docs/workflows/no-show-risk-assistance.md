@@ -49,10 +49,12 @@ It does not:
 | `bookedAt`                         | newly created `Appointment.createdAt`                            |
 | `patientNoShowCount`               | count of prior clinic appointments with status `NO_SHOW`         |
 | `patientCompletedAppointmentCount` | count of prior clinic appointments with status `COMPLETED`       |
-| `patientLateArrivalCount`          | `PatientClinic.totalLateArrivals`                                |
+| `patientLateArrivalCount`          | `PatientClinic.totalLateArrivals`, maintained from recorded appointment arrivals for new visits |
 | `distanceFromClinicKm`             | `PatientClinic.distanceFromClinicKm` converted to number or null |
 
 Dashboard backfill passes scheduled/booked/no-show/completed counts, but does not pass late-arrival count or distance.
+
+The rule math, thresholds, reasons, and `starter-rule-v1` version stay unchanged. New late-arrival behavior improves the source of `PatientClinic.totalLateArrivals`: future increments come from first arrival timestamps and clinic grace classification, while legacy aggregate baselines may remain from older/manual history. A late arrival on today's visit affects future prediction inputs through the aggregate; stored predictions are not recalculated by this workflow.
 
 ## Rule Summary
 

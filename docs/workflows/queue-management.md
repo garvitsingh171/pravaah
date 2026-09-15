@@ -110,6 +110,9 @@ optional calledAt/completedAt timestamp update
     ↓
 tx.appointment.updateMany({ exact current-status guard })
     ↓
+if synchronized appointment status is ARRIVED, IN_QUEUE, or CALLED and arrivedAt is null:
+    record first arrival snapshot and increment PatientClinic.totalLateArrivals only if late
+    ↓
 tx.queueEntry.findUniqueOrThrow({ include: queueEntryDetailsInclude })
     ↓
 QueuePage shows toast and refreshes queue
@@ -130,7 +133,7 @@ Canonical queue transition policy:
 
 | Current status | Allowed next statuses |
 | -------------- | --------------------- |
-| `WAITING`      | `CALLED`, `COMPLETED`, `CANCELLED`, `NO_SHOW` |
+| `WAITING`      | `ARRIVED`, `CALLED`, `COMPLETED`, `CANCELLED`, `NO_SHOW` |
 | `ARRIVED`      | `WAITING`, `CALLED`, `CANCELLED`, `NO_SHOW` |
 | `CALLED`       | `COMPLETED`, `CANCELLED`, `NO_SHOW` |
 | `COMPLETED`    | None |
@@ -138,6 +141,8 @@ Canonical queue transition policy:
 | `NO_SHOW`      | None |
 
 Same-status requests are treated as idempotent no-op retries: the existing queue entry is returned without rewriting queue status, appointment status, `calledAt`, or `completedAt`. This prevents a duplicate `WAITING -> WAITING` request for a booking-created queue entry from silently advancing an appointment from `SCHEDULED` to `IN_QUEUE`.
+
+`QueueEntry` rows are created during booking, so `WAITING` alone is not physical-arrival evidence. Queue-driven status changes record arrival only through the synchronized appointment state. `ARRIVED`, `IN_QUEUE`, and `CALLED` are presence-establishing appointment statuses; `CANCELLED`, `NO_SHOW`, and `COMPLETED` do not create a first-arrival timestamp by themselves. The first write to `Appointment.arrivedAt` is guarded and the late-arrival aggregate increment happens only for the transaction that wins that first-arrival write.
 
 Final queue statuses: `COMPLETED`, `CANCELLED`, `NO_SHOW`. Final entries cannot move to a different status and cannot be reordered by backend service logic. Queue status updates also cannot synchronize the linked appointment through a transition rejected by the appointment lifecycle policy.
 

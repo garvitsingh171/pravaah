@@ -1,5 +1,6 @@
 import { prisma } from '../../config/prisma.js';
 import { AppointmentStatus, Prisma, QueueStatus } from '../../generated/prisma/client.js';
+import { establishAppointmentArrivalIfNeeded } from '../appointments/appointment.arrival.repository.js';
 import { isAppointmentStatusTransitionAllowed } from '../appointments/appointment.lifecycle.js';
 import { isQueueStatusTransitionAllowed } from './queue.lifecycle.js';
 
@@ -22,6 +23,10 @@ const queueEntryDetailsInclude = {
             bookingSource: true,
             reason: true,
             notes: true,
+            arrivedAt: true,
+            arrivalOffsetMinutes: true,
+            isLateArrival: true,
+            lateArrivalGraceMinutes: true,
             noShowPrediction: {
                 select: noShowPredictionQueueSelect,
             },
@@ -99,6 +104,7 @@ type UpdateQueueEntryStatusInput = {
     status: QueueStatus;
     appointmentStatus: AppointmentStatus;
     timestampUpdates: { calledAt?: Date; completedAt?: Date };
+    eventTimestamp: Date;
 };
 
 export const queueRepository = {
@@ -245,6 +251,7 @@ export const queueRepository = {
         status,
         appointmentStatus,
         timestampUpdates,
+        eventTimestamp,
     }: UpdateQueueEntryStatusInput) {
         return prisma.$transaction(async (tx) => {
             const existingQueueEntry = await tx.queueEntry.findFirst({
@@ -254,10 +261,13 @@ export const queueRepository = {
                     clinicId,
                 },
                 select: {
+                    patientId: true,
                     status: true,
                     appointment: {
                         select: {
+                            scheduledAt: true,
                             status: true,
+                            arrivedAt: true,
                         },
                     },
                 },
@@ -338,6 +348,18 @@ export const queueRepository = {
 
             if (appointmentUpdateResult.count !== 1) {
                 throw new Error('APPOINTMENT_STATUS_SYNC_CONFLICT');
+            }
+
+            if (existingQueueEntry.appointment.arrivedAt === null) {
+                await establishAppointmentArrivalIfNeeded({
+                    tx,
+                    appointmentId,
+                    clinicId,
+                    patientId: existingQueueEntry.patientId,
+                    scheduledAt: existingQueueEntry.appointment.scheduledAt,
+                    targetStatus: appointmentStatus,
+                    arrivalTimestamp: eventTimestamp,
+                });
             }
 
             return tx.queueEntry.findUniqueOrThrow({

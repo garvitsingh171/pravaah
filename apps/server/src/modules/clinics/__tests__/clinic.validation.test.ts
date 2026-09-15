@@ -41,6 +41,22 @@ describe('clinic validation timezone rules', () => {
 
         expect(result.success).toBe(false);
     });
+
+    it('accepts zero late arrival grace minutes during clinic update', () => {
+        const result = updateClinicSchema.safeParse({
+            lateArrivalGraceMinutes: 0,
+        });
+
+        expect(result.success).toBe(true);
+    });
+
+    it('rejects negative late arrival grace minutes during clinic update', () => {
+        const result = updateClinicSchema.safeParse({
+            lateArrivalGraceMinutes: -1,
+        });
+
+        expect(result.success).toBe(false);
+    });
 });
 
 describe('clinic update validation settings surface', () => {

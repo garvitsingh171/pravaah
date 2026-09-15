@@ -8,6 +8,7 @@ import type {
     NoShowPredictionOutput,
     StoredNoShowPredictionForResponse,
 } from '../predictions/prediction.types.js';
+import { establishAppointmentArrivalIfNeeded } from './appointment.arrival.repository.js';
 import {
     finalAppointmentStatuses,
     getAllowedAppointmentCurrentStatusesForRequest,
@@ -505,7 +506,10 @@ export const appointmentRepository = {
                 select: {
                     id: true,
                     clinicId: true,
+                    patientId: true,
+                    scheduledAt: true,
                     status: true,
+                    arrivedAt: true,
                     queueEntry: {
                         select: {
                             id: true,
@@ -563,6 +567,18 @@ export const appointmentRepository = {
                     appointment: null,
                     failureReason: 'STATUS_TRANSITION_CONFLICT' as const,
                 };
+            }
+
+            if (existingAppointment.arrivedAt === null) {
+                await establishAppointmentArrivalIfNeeded({
+                    tx,
+                    appointmentId,
+                    clinicId: existingAppointment.clinicId,
+                    patientId: existingAppointment.patientId,
+                    scheduledAt: existingAppointment.scheduledAt,
+                    targetStatus: status,
+                    arrivalTimestamp: now,
+                });
             }
 
             if (queueStatus !== undefined) {

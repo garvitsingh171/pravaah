@@ -806,14 +806,18 @@ human-controlled by Admin or Staff actions.
 
 | Operation         | Starting state              | Appointment update              | Queue update                  | Timestamp              | Transaction | Patient history impact          |
 | ----------------- | --------------------------- | ------------------------------- | ----------------------------- | ---------------------- | ----------- | ------------------------------- |
-| Book appointment  | valid clinic/doctor/patient | `SCHEDULED` appointment created | `WAITING` queue entry created | `queuedAt` default     | Yes         | No automatic counter increment. |
-| Mark arrived      | non-final                   | `ARRIVED`                       | `ARRIVED`                     | none                   | Yes         | No counter update.              |
-| Add/wait in queue | non-final                   | `IN_QUEUE`                      | `WAITING`                     | none                   | Yes         | No counter update.              |
-| Call patient      | non-final                   | `CALLED`                        | `CALLED`                      | `calledAt` if empty    | Yes         | No counter update.              |
-| Complete          | non-final                   | `COMPLETED`                     | `COMPLETED`                   | `completedAt` if empty | Yes         | No current counter update.      |
-| Cancel            | non-final                   | `CANCELLED`                     | `CANCELLED`                   | updatedAt              | Yes         | No counter update.              |
-| No-show           | non-final                   | `NO_SHOW`                       | `NO_SHOW`                     | updatedAt              | Yes         | No current counter update.      |
-| Reorder           | active queue entries        | none                            | positions only                | updatedAt              | Yes         | No counter update.              |
+| Book appointment  | valid clinic/doctor/patient | `SCHEDULED` appointment created | `WAITING` queue entry created | `queuedAt` default     | Yes         | No arrival or counter increment. |
+| Mark arrived      | non-final                   | `ARRIVED`                       | `ARRIVED`                     | `arrivedAt` if first   | Yes         | Increment late count only if first arrival exceeds grace. |
+| Add/wait in queue | non-final                   | `IN_QUEUE`                      | `WAITING`                     | `arrivedAt` if first   | Yes         | Increment late count only if first arrival exceeds grace. |
+| Call patient      | non-final                   | `CALLED`                        | `CALLED`                      | `calledAt`; `arrivedAt` if first | Yes | Increment late count only if first arrival exceeds grace. |
+| Complete          | non-final                   | `COMPLETED`                     | `COMPLETED`                   | `completedAt` if empty | Yes         | Does not establish arrival by itself. |
+| Cancel            | non-final                   | `CANCELLED`                     | `CANCELLED`                   | updatedAt              | Yes         | No arrival or counter increment. |
+| No-show           | non-final                   | `NO_SHOW`                       | `NO_SHOW`                     | updatedAt              | Yes         | No arrival or counter increment. |
+| Reorder           | active queue entries        | none                            | positions only                | updatedAt              | Yes         | No arrival or counter increment. |
+
+Arrival classification is centralized in `appointment.arrival.ts`. Presence-establishing appointment statuses are `ARRIVED`, `IN_QUEUE`, and `CALLED`; `WAITING` queue rows are booking-time records and are not physical-arrival proof. The calculation uses `Math.trunc((arrivedAt - scheduledAt) / 60_000)` so the stored offset is signed completed minutes. Late classification is `arrivalOffsetMinutes > lateArrivalGraceMinutes`, with the clinic grace snapshot copied to the appointment.
+
+Both appointment-driven and queue-driven status transactions call `establishAppointmentArrivalIfNeeded`. The helper loads the clinic grace value, attempts a guarded `Appointment` update with `arrivedAt: null`, and only the transaction that wins that first write can atomically increment `PatientClinic.totalLateArrivals` for the same `(patientId, clinicId)`. Repeated transitions, retries, and later `CALLED` updates preserve the original arrival snapshot.
 
 ### Explainable No-Show Assistance
 
@@ -996,6 +1000,6 @@ evidence commands for this issue.
 - Appointment and queue final states are protected, and strict transition graphs are enforced server-side.
 - Appointment conflict detection accounts for duration plus clinic buffer.
 - Queue entries are created during booking, including future appointments.
-- `PatientClinic` counters can drift because status flows do not update every counter.
+- Non-late `PatientClinic` counters can drift because status flows do not update every counter.
 - `NoShowPrediction` does not persist model version.
 - No OpenAPI generation, pagination, audit logging, monitoring, or browser E2E suite exists.

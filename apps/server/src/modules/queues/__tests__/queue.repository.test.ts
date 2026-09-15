@@ -6,11 +6,16 @@ const mockAppointmentUpdateMany = vi.hoisted(() => vi.fn());
 const mockQueueEntryFindFirst = vi.hoisted(() => vi.fn());
 const mockQueueEntryUpdateMany = vi.hoisted(() => vi.fn());
 const mockQueueEntryFindUniqueOrThrow = vi.hoisted(() => vi.fn());
+const mockEstablishAppointmentArrivalIfNeeded = vi.hoisted(() => vi.fn());
 
 vi.mock('../../../config/prisma.js', () => ({
     prisma: {
         $transaction: mockTransaction,
     },
+}));
+
+vi.mock('../../appointments/appointment.arrival.repository.js', () => ({
+    establishAppointmentArrivalIfNeeded: mockEstablishAppointmentArrivalIfNeeded,
 }));
 
 import { queueRepository } from '../queue.repository.js';
@@ -25,6 +30,7 @@ const transactionClient = {
         findUniqueOrThrow: mockQueueEntryFindUniqueOrThrow,
     },
 };
+const eventTimestamp = new Date('2026-09-15T10:20:00.000Z');
 
 describe('queueRepository.updateQueueEntryStatus', () => {
     beforeEach(() => {
@@ -50,6 +56,7 @@ describe('queueRepository.updateQueueEntryStatus', () => {
                 status: QueueStatus.COMPLETED,
                 appointmentStatus: AppointmentStatus.COMPLETED,
                 timestampUpdates: {},
+                eventTimestamp,
             })
         ).rejects.toThrow('APPOINTMENT_STATUS_TRANSITION_INVALID');
 
@@ -69,9 +76,12 @@ describe('queueRepository.updateQueueEntryStatus', () => {
         };
 
         mockQueueEntryFindFirst.mockResolvedValue({
+            patientId: 'patient-id',
             status: QueueStatus.WAITING,
             appointment: {
+                scheduledAt: new Date('2026-09-15T10:00:00.000Z'),
                 status: AppointmentStatus.SCHEDULED,
+                arrivedAt: null,
             },
         });
         mockQueueEntryUpdateMany.mockResolvedValue({
@@ -91,6 +101,7 @@ describe('queueRepository.updateQueueEntryStatus', () => {
             status: QueueStatus.NO_SHOW,
             appointmentStatus: AppointmentStatus.NO_SHOW,
             timestampUpdates: {},
+            eventTimestamp,
         });
 
         expect(mockQueueEntryUpdateMany).toHaveBeenCalledWith(
@@ -118,6 +129,62 @@ describe('queueRepository.updateQueueEntryStatus', () => {
             })
         );
         expect(result).toBe(queueEntry);
+        expect(mockEstablishAppointmentArrivalIfNeeded).not.toHaveBeenCalled();
+    });
+
+    it('uses the shared arrival writer when queue updates establish appointment presence', async () => {
+        const scheduledAt = new Date('2026-09-15T10:00:00.000Z');
+        const queueEntry = {
+            id: 'queue-entry-id',
+            clinicId: 'clinic-id',
+            appointmentId: 'appointment-id',
+            status: QueueStatus.WAITING,
+            appointment: {
+                noShowPrediction: null,
+            },
+        };
+
+        mockQueueEntryFindFirst.mockResolvedValue({
+            patientId: 'patient-id',
+            status: QueueStatus.WAITING,
+            appointment: {
+                scheduledAt,
+                status: AppointmentStatus.SCHEDULED,
+                arrivedAt: null,
+            },
+        });
+        mockQueueEntryUpdateMany.mockResolvedValue({
+            count: 1,
+        });
+        mockAppointmentUpdateMany.mockResolvedValue({
+            count: 1,
+        });
+        mockQueueEntryFindUniqueOrThrow.mockResolvedValue(queueEntry);
+
+        await expect(
+            queueRepository.updateQueueEntryStatus({
+                queueEntryId: 'queue-entry-id',
+                appointmentId: 'appointment-id',
+                clinicId: 'clinic-id',
+                expectedQueueStatus: QueueStatus.WAITING,
+                expectedAppointmentStatus: AppointmentStatus.SCHEDULED,
+                status: QueueStatus.ARRIVED,
+                appointmentStatus: AppointmentStatus.ARRIVED,
+                timestampUpdates: {},
+                eventTimestamp,
+            })
+        ).resolves.toBe(queueEntry);
+
+        expect(mockEstablishAppointmentArrivalIfNeeded).toHaveBeenCalledWith(
+            expect.objectContaining({
+                appointmentId: 'appointment-id',
+                clinicId: 'clinic-id',
+                patientId: 'patient-id',
+                scheduledAt,
+                targetStatus: AppointmentStatus.ARRIVED,
+                arrivalTimestamp: eventTimestamp,
+            })
+        );
     });
 
     it('rejects invalid queue lifecycle transitions inside the transaction', async () => {
@@ -138,6 +205,7 @@ describe('queueRepository.updateQueueEntryStatus', () => {
                 status: QueueStatus.WAITING,
                 appointmentStatus: AppointmentStatus.IN_QUEUE,
                 timestampUpdates: {},
+                eventTimestamp,
             })
         ).rejects.toThrow('QUEUE_STATUS_TRANSITION_INVALID');
 
@@ -169,6 +237,7 @@ describe('queueRepository.updateQueueEntryStatus', () => {
                 status: QueueStatus.COMPLETED,
                 appointmentStatus: AppointmentStatus.COMPLETED,
                 timestampUpdates: {},
+                eventTimestamp,
             })
         ).rejects.toThrow('APPOINTMENT_STATUS_SYNC_CONFLICT');
     });
@@ -191,6 +260,7 @@ describe('queueRepository.updateQueueEntryStatus', () => {
                 status: QueueStatus.CANCELLED,
                 appointmentStatus: AppointmentStatus.CANCELLED,
                 timestampUpdates: {},
+                eventTimestamp,
             })
         ).rejects.toThrow('QUEUE_STATUS_UPDATE_CONFLICT');
 

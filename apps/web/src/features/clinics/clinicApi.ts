@@ -17,6 +17,7 @@ export type ClinicSettings = {
     closingTime: string;
     slotDurationMinutes: number;
     bufferMinutes: number;
+    lateArrivalGraceMinutes: number;
     createdAt: string;
     updatedAt: string;
 };
@@ -40,6 +41,7 @@ export type UpdateClinicSettingsRequest = Partial<{
     closingTime: string;
     slotDurationMinutes: number;
     bufferMinutes: number;
+    lateArrivalGraceMinutes: number;
 }>;
 
 export const getClinicSettings = (clinicId: string, signal?: AbortSignal) => {
