@@ -7,11 +7,13 @@ import {
 } from '../auth/auth.middleware.js';
 import {
     createAppointmentController,
+    listAvailableAppointmentSlotsController,
     listAppointmentsController,
     updateAppointmentStatusController,
 } from './appointment.controller.js';
 import {
     appointmentIdParamsSchema,
+    availableAppointmentSlotsQuerySchema,
     clinicIdParamsSchema,
     createAppointmentSchema,
     listAppointmentsQuerySchema,
@@ -31,6 +33,18 @@ clinicAppointmentRouter.post(
     requireClinicAccess,
     requireClinicStaffRole,
     createAppointmentController
+);
+
+clinicAppointmentRouter.get(
+    '/:clinicId/appointments/available-slots',
+    authenticateRequest,
+    validateRequest({
+        params: clinicIdParamsSchema,
+        query: availableAppointmentSlotsQuerySchema,
+    }),
+    requireClinicAccess,
+    requireClinicStaffRole,
+    listAvailableAppointmentSlotsController
 );
 
 clinicAppointmentRouter.get(

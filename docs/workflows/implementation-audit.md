@@ -10,7 +10,7 @@ Expected/documented:
 Appointment creation is expected to respect clinic opening/closing hours, slot duration, and buffer conflicts.
 
 Actual implementation:
-`appointment.service.ts -> createAppointment` validates clinic/doctor/patient ownership and exact same-time doctor conflicts. It does not enforce `Clinic.openingTime`, `closingTime`, `slotDurationMinutes`, or `bufferMinutes` during booking.
+`appointment.service.ts -> createAppointment` validates clinic/doctor/patient ownership, revalidates that `scheduledAt` is a generated slot from clinic settings and doctor weekly availability, and rejects active duration-plus-buffer doctor overlaps before booking.
 
 Evidence:
 `apps/server/src/modules/appointments/appointment.service.ts`, `appointment.repository.ts -> findDoctorAppointmentAtTime`.

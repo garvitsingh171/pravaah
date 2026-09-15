@@ -1,5 +1,9 @@
 import { prisma } from '../../config/prisma.js';
-import { AppointmentStatus, Prisma, QueueStatus } from '../../generated/prisma/client.js';
+import {
+    AppointmentStatus,
+    Prisma,
+    QueueStatus,
+} from '../../generated/prisma/client.js';
 import type {
     NoShowPredictionOutput,
     StoredNoShowPredictionForResponse,
@@ -187,11 +191,124 @@ export const appointmentRepository = {
         });
     },
 
-    acquireAppointmentSlotLock(
+    findDoctorAvailabilityPeriods(doctorClinicId: string) {
+        return prisma.doctorAvailabilityPeriod.findMany({
+            where: {
+                doctorClinicId,
+            },
+            select: {
+                weekday: true,
+                startTime: true,
+                endTime: true,
+            },
+            orderBy: [
+                {
+                    weekday: 'asc',
+                },
+                {
+                    startTime: 'asc',
+                },
+            ],
+        });
+    },
+
+    async getClinicLocalAppointmentParts(scheduledAt: Date, clinicTimezone: string) {
+        const [parts] = await prisma.$queryRaw<
+            Array<{
+                localDate: string;
+                localTime: string;
+                isoWeekday: number;
+                seconds: unknown;
+            }>
+        >`
+            SELECT
+                to_char(${scheduledAt}::timestamptz AT TIME ZONE ${clinicTimezone}, 'YYYY-MM-DD') AS "localDate",
+                to_char(${scheduledAt}::timestamptz AT TIME ZONE ${clinicTimezone}, 'HH24:MI') AS "localTime",
+                EXTRACT(ISODOW FROM ${scheduledAt}::timestamptz AT TIME ZONE ${clinicTimezone})::int AS "isoWeekday",
+                EXTRACT(SECOND FROM ${scheduledAt}::timestamptz AT TIME ZONE ${clinicTimezone}) AS "seconds"
+        `;
+
+        return parts;
+    },
+
+    async getClinicLocalDateWeekday(date: string) {
+        const [parts] = await prisma.$queryRaw<
+            Array<{
+                localDate: string;
+                isoWeekday: number;
+            }>
+        >`
+            SELECT
+                to_char(${date}::date, 'YYYY-MM-DD') AS "localDate",
+                EXTRACT(ISODOW FROM ${date}::date)::int AS "isoWeekday"
+        `;
+
+        return parts ?? null;
+    },
+
+    async getClinicLocalDateTimeInstants(
+        date: string,
+        localTimes: string[],
+        clinicTimezone: string
+    ) {
+        if (localTimes.length === 0) {
+            return [];
+        }
+
+        const localTimeValues = Prisma.join(localTimes.map((time) => Prisma.sql`(${time})`));
+
+        return prisma.$queryRaw<Array<{ localTime: string; instant: Date }>>`
+            WITH requested("localTime") AS (
+                VALUES ${localTimeValues}
+            )
+            SELECT
+                "localTime"::text AS "localTime",
+                (${date}::date + "localTime"::time) AT TIME ZONE ${clinicTimezone} AS "instant"
+            FROM requested
+            ORDER BY "localTime"::time
+        `;
+    },
+
+    async findDoctorSchedulingAppointmentsForDate(
+        clinicId: string,
+        doctorId: string,
+        date: string,
+        clinicTimezone: string,
+        statuses: AppointmentStatus[]
+    ) {
+        const dateRange = await getClinicDateRange(date, clinicTimezone);
+
+        if (!dateRange) {
+            return [];
+        }
+
+        return prisma.appointment.findMany({
+            where: {
+                clinicId,
+                doctorId,
+                scheduledAt: {
+                    gte: dateRange.start,
+                    lt: dateRange.end,
+                },
+                status: {
+                    in: statuses,
+                },
+            },
+            select: {
+                scheduledAt: true,
+                durationMinutes: true,
+            },
+            orderBy: {
+                scheduledAt: 'asc',
+            },
+        });
+    },
+
+    acquireDoctorScheduleLock(
         tx: Prisma.TransactionClient,
         clinicId: string,
         doctorId: string,
-        scheduledAt: Date
+        localDate: string
     ) {
         return tx.$queryRaw`
             SELECT pg_advisory_xact_lock(
@@ -201,7 +318,7 @@ export const appointmentRepository = {
                         ':',
                         ${doctorId},
                         ':',
-                        ${scheduledAt.toISOString()}
+                        ${localDate}
                     ),
                     0
                 )
@@ -209,23 +326,27 @@ export const appointmentRepository = {
         `;
     },
 
-    findDoctorAppointmentAtTime(
+    findOverlappingDoctorAppointment(
         tx: Prisma.TransactionClient,
         clinicId: string,
         doctorId: string,
         scheduledAt: Date,
+        durationMinutes: number,
+        bufferMinutes: number,
         statuses: AppointmentStatus[]
     ) {
-        return tx.appointment.findFirst({
-            where: {
-                clinicId,
-                doctorId,
-                scheduledAt,
-                status: {
-                    in: statuses,
-                },
-            },
-        });
+        return tx.$queryRaw<Array<{ id: string }>>`
+            SELECT "id"
+            FROM "appointments"
+            WHERE "clinicId" = ${clinicId}::uuid
+              AND "doctorId" = ${doctorId}::uuid
+              AND "status"::text IN (${Prisma.join(statuses)})
+              AND "scheduledAt" < ${new Date(
+                  scheduledAt.getTime() + (durationMinutes + bufferMinutes) * 60_000
+              )}
+              AND "scheduledAt" + (("durationMinutes" + ${bufferMinutes}) * interval '1 minute') > ${scheduledAt}
+            LIMIT 1
+        `;
     },
 
     countPatientAppointmentsByStatus(

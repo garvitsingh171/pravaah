@@ -27,7 +27,7 @@
 | State changes         | Doctor row and clinic link; frontend refetches list after edit/status changes                                                                                   |
 | Errors                | `CLINIC_NOT_FOUND`, `DOCTOR_NOT_FOUND`, `DOCTOR_NOT_LINKED_TO_CLINIC`, `VALIDATION_ERROR`, availability/clinic-hours validation errors                          |
 | Tests                 | `doctor.validation.test.ts`, `DoctorsPage.test.tsx`                                                                                                             |
-| Known gaps            | No doctor login. `DoctorClinic` has `displayName` and `consultationFee` fields, but normal doctor UI/API does not edit them. Appointment booking does not yet enforce weekly availability |
+| Known gaps            | No doctor login. `DoctorClinic` has `displayName` and `consultationFee` fields, but normal doctor UI/API does not edit them. No date-specific exception/leave model exists yet |
 
 ## Create Doctor Trace
 
@@ -186,4 +186,4 @@ re-read periods
 return normalized schedule
 ```
 
-Saving weekly availability does not cancel appointments, reschedule appointments, change queue entries, update predictions, generate slots, or enforce booking availability. Those policies remain separate appointment-slot engine work.
+Saving weekly availability does not cancel appointments, reschedule appointments, change queue entries, or update predictions. Appointment slot discovery and booking use the saved weekly periods for future slot generation and final booking validation.

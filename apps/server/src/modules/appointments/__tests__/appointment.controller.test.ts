@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockAppointmentService = vi.hoisted(() => ({
     createAppointment: vi.fn(),
+    listAvailableSlots: vi.fn(),
     listAppointments: vi.fn(),
     updateAppointmentStatus: vi.fn(),
 }));
@@ -13,6 +14,7 @@ vi.mock('../appointment.service.js', () => ({
 
 import {
     createAppointmentController,
+    listAvailableAppointmentSlotsController,
     listAppointmentsController,
     updateAppointmentStatusController,
 } from '../appointment.controller.js';
@@ -203,6 +205,74 @@ describe('listAppointmentsController', () => {
             data: {
                 appointments,
             },
+        });
+    });
+});
+
+describe('listAvailableAppointmentSlotsController', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('uses the validated slot query and returns available slots', async () => {
+        const validatedQuery = {
+            doctorId: 'doctor-id',
+            date: '2026-06-22',
+            durationMinutes: 30,
+        };
+        const availability = {
+            clinicId: 'clinic-id',
+            doctorId: 'doctor-id',
+            date: '2026-06-22',
+            timezone: 'Asia/Kolkata',
+            durationMinutes: 30,
+            slotDurationMinutes: 15,
+            bufferMinutes: 5,
+            slots: [
+                {
+                    scheduledAt: '2026-06-22T04:00:00.000Z',
+                    endsAt: '2026-06-22T04:30:00.000Z',
+                    localDate: '2026-06-22',
+                    localStartTime: '09:30',
+                    localEndTime: '10:00',
+                },
+            ],
+        };
+
+        const req = {
+            params: {
+                clinicId: 'clinic-id',
+            },
+            query: {
+                doctorId: 'raw-doctor-id',
+                date: '2026-02-30',
+                durationMinutes: '0',
+            },
+        } as unknown as Request;
+
+        const json = vi.fn();
+        const status = vi.fn(() => ({ json }));
+        const res = {
+            locals: {
+                validatedQuery,
+            },
+            status,
+        } as unknown as Response;
+        const next = vi.fn() as NextFunction;
+
+        mockAppointmentService.listAvailableSlots.mockResolvedValue(availability);
+
+        await listAvailableAppointmentSlotsController(req, res, next);
+
+        expect(mockAppointmentService.listAvailableSlots).toHaveBeenCalledWith(
+            'clinic-id',
+            validatedQuery
+        );
+        expect(status).toHaveBeenCalledWith(200);
+        expect(json).toHaveBeenCalledWith({
+            success: true,
+            message: 'Available appointment slots fetched successfully',
+            data: availability,
         });
     });
 });

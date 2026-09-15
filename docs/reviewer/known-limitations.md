@@ -12,7 +12,7 @@ This document lists verified limitations and claim boundaries for reviewer, inte
 
 ## Technical Limitations
 
-- Appointment booking checks clinic, doctor, patient membership and exact same-time doctor conflicts, but does not enforce clinic opening/closing hours, configured doctor weekly availability, slot-duration alignment, or buffer windows.
+- Appointment booking checks clinic, doctor, patient membership, configured doctor weekly availability, clinic hours, slot-duration alignment, and duration-plus-buffer conflicts. It does not yet support date-specific doctor exceptions, leave, holidays, or a rescheduling endpoint.
 - Appointment lifecycle enforcement is partial. The backend blocks changes away from final appointment states, but it does not implement a strict transition matrix for every state pair.
 - Queue status and appointment status are synchronized in transactions, but no audit log records who made each operational decision.
 - Advisory locks are used for selected booking, queue positioning, queue reorder, and sample-data scopes. They should not be described as universal race-condition protection.
@@ -51,4 +51,4 @@ This document lists verified limitations and claim boundaries for reviewer, inte
 
 ## Future Work Boundaries
 
-Future improvements may include audit logs, reminders, stricter lifecycle state machines, slot generation from doctor availability, automatic attendance counter updates, better observability, patient/doctor portals, multi-clinic memberships, E2E tests, and trained risk models. They should remain future work unless a separate implementation issue completes them.
+Future improvements may include audit logs, reminders, stricter lifecycle state machines, date-specific availability exceptions, automatic attendance counter updates, better observability, patient/doctor portals, multi-clinic memberships, E2E tests, and trained risk models. They should remain future work unless a separate implementation issue completes them.

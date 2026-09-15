@@ -70,7 +70,7 @@ Backend evidence:
 | ----------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | Clinic onboarding                   | Duplicate slug or duplicate identity      | DB unique constraints plus service re-read/replay/conflict handling                 | `auth.service.ts -> uniqueConstraintCategory`, `createClinicOnboarding` |
 | Sample data                         | Duplicate sample provisioning             | Best-effort advisory lock plus sample record count check                            | `clinic.repository.ts -> tryAcquireSampleDataProvisioningLock`          |
-| Appointment booking exact same slot | Two bookings for same doctor/time         | `pg_advisory_xact_lock` over clinic/doctor/scheduledAt and post-lock conflict check | `appointment.repository.ts -> acquireAppointmentSlotLock`               |
+| Appointment booking overlap | Two bookings for overlapping doctor time | `pg_advisory_xact_lock` over clinic/doctor/clinic-local date and post-lock duration-plus-buffer overlap check | `appointment.repository.ts -> acquireDoctorScheduleLock` |
 | Appointment booking queue position  | Two bookings get same doctor/day position | queue-scope advisory lock inside `findHighestQueuePosition`                         | `queue.repository.ts -> findHighestQueuePosition`                       |
 | Appointment/queue status sync       | Status changes while updating             | guarded `updateMany` rejects final-status races                                     | appointment and queue repositories                                      |
 | Queue reorder                       | Queue changes while moving                | advisory lock per clinic/doctor/date and inside-transaction active-set verification | `queue.repository.ts -> acquireQueueScopeLock`, `reorderQueueEntries`   |
@@ -103,7 +103,7 @@ Current frontend state is built from:
 - Backend date filters compute clinic-local day ranges with raw SQL `AT TIME ZONE`.
 - Appointment booking frontend converts `datetime-local` to ISO with `new Date(values.scheduledAt).toISOString()`.
 - Queue and dashboard "today" use frontend local date for queue requests and backend clinic-local date for dashboard defaults.
-- `Clinic.openingTime`, `closingTime`, `slotDurationMinutes`, and `bufferMinutes` exist, but appointment creation does not enforce operating hours or buffer conflicts in current code.
+- `Clinic.openingTime`, `closingTime`, `slotDurationMinutes`, and `bufferMinutes` are enforced by appointment slot discovery and final booking validation.
 
 ## Database Relationships
 

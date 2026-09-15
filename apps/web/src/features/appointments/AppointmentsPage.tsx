@@ -24,8 +24,10 @@ import AppointmentBookingForm, {
 } from './AppointmentBookingForm';
 import {
     createAppointment,
+    listAvailableAppointmentSlots,
     listAppointments,
     updateAppointmentStatus,
+    type AvailableAppointmentSlot,
     type AppointmentNoShowPrediction,
     type AppointmentListFilters,
     type AppointmentListItem,
@@ -81,6 +83,31 @@ type AppointmentListState =
           };
       };
 
+type AvailableSlotsState =
+    | {
+          status: 'idle';
+          slots: AvailableAppointmentSlot[];
+          error: null;
+      }
+    | {
+          status: 'loading';
+          slots: AvailableAppointmentSlot[];
+          error: null;
+      }
+    | {
+          status: 'success';
+          slots: AvailableAppointmentSlot[];
+          error: null;
+      }
+    | {
+          status: 'error';
+          slots: AvailableAppointmentSlot[];
+          error: {
+              message: string;
+              code?: string;
+          };
+      };
+
 type SuccessState = {
     message: string;
     scheduledAt: string;
@@ -105,6 +132,7 @@ type AppointmentListInsights = {
 const emptyFormValues: AppointmentBookingFormValues = {
     doctorId: '',
     patientId: '',
+    appointmentDate: '',
     scheduledAt: '',
     durationMinutes: '15',
     reason: '',
@@ -124,9 +152,16 @@ const emptyAppointmentListState: AppointmentListState = {
     error: null,
 };
 
+const emptyAvailableSlotsState: AvailableSlotsState = {
+    status: 'idle',
+    slots: [],
+    error: null,
+};
+
 const validationFieldMap: Partial<Record<string, keyof AppointmentBookingFormValues>> = {
     'body.doctorId': 'doctorId',
     'body.patientId': 'patientId',
+    'body.appointmentDate': 'appointmentDate',
     'body.scheduledAt': 'scheduledAt',
     'body.durationMinutes': 'durationMinutes',
     'body.reason': 'reason',
@@ -258,10 +293,38 @@ const getTodayDateInputValue = (): string => {
     return `${year}-${month}-${day}`;
 };
 
+const dateInputPattern = /^\d{4}-\d{2}-\d{2}$/;
+
+const isValidDateInputValue = (value: string): boolean => {
+    if (!dateInputPattern.test(value)) {
+        return false;
+    }
+
+    const date = new Date(`${value}T00:00:00`);
+
+    if (Number.isNaN(date.getTime())) {
+        return false;
+    }
+
+    const [year, month, day] = value.split('-').map(Number);
+
+    return (
+        date.getFullYear() === year &&
+        date.getMonth() + 1 === month &&
+        date.getDate() === day
+    );
+};
+
 const toOptionalString = (value: string): string | undefined => {
     const trimmedValue = value.trim();
 
     return trimmedValue || undefined;
+};
+
+const getPositiveIntegerValue = (value: string): number | null => {
+    const parsedValue = Number(value);
+
+    return Number.isInteger(parsedValue) && parsedValue > 0 ? parsedValue : null;
 };
 
 const validateAppointmentForm = (
@@ -277,18 +340,24 @@ const validateAppointmentForm = (
         errors.patientId = 'Select a patient before booking an appointment.';
     }
 
+    if (!values.appointmentDate) {
+        errors.appointmentDate = 'Appointment date is required.';
+    } else if (!isValidDateInputValue(values.appointmentDate)) {
+        errors.appointmentDate = 'Enter a valid appointment date.';
+    }
+
     if (!values.scheduledAt) {
-        errors.scheduledAt = 'Appointment date and time are required.';
+        errors.scheduledAt = 'Select an available appointment slot.';
     } else if (Number.isNaN(new Date(values.scheduledAt).getTime())) {
-        errors.scheduledAt = 'Enter a valid appointment date and time.';
+        errors.scheduledAt = 'Select a valid appointment slot.';
     }
 
     if (!values.durationMinutes.trim()) {
         errors.durationMinutes = 'Appointment duration is required.';
     } else {
-        const durationMinutes = Number(values.durationMinutes);
+        const durationMinutes = getPositiveIntegerValue(values.durationMinutes);
 
-        if (!Number.isInteger(durationMinutes) || durationMinutes <= 0) {
+        if (durationMinutes === null) {
             errors.durationMinutes = 'Duration minutes must be a positive whole number.';
         }
     }
@@ -931,6 +1000,8 @@ function AppointmentsPage() {
     const [fieldErrors, setFieldErrors] = useState<AppointmentBookingFormFieldErrors>({});
     const [referenceState, setReferenceState] =
         useState<AppointmentReferenceState>(emptyReferenceState);
+    const [availableSlotsState, setAvailableSlotsState] =
+        useState<AvailableSlotsState>(emptyAvailableSlotsState);
     const [formError, setFormError] = useState<string | null>(null);
     const [formErrorTitle, setFormErrorTitle] = useState('Appointment was not booked');
     const [formErrorCode, setFormErrorCode] = useState<string | undefined>();
@@ -1115,14 +1186,116 @@ function AppointmentsPage() {
         };
     }, [loadAppointmentReferences]);
 
+    useEffect(() => {
+        const durationMinutes = getPositiveIntegerValue(values.durationMinutes);
+        const canLoadSlots =
+            referenceState.status === 'success' &&
+            Boolean(values.doctorId) &&
+            Boolean(values.appointmentDate) &&
+            isValidDateInputValue(values.appointmentDate) &&
+            durationMinutes !== null;
+
+        if (!canLoadSlots || durationMinutes === null) {
+            setAvailableSlotsState(emptyAvailableSlotsState);
+            return;
+        }
+
+        const abortController = new AbortController();
+
+        setAvailableSlotsState((currentState) => ({
+            status: 'loading',
+            slots: currentState.slots,
+            error: null,
+        }));
+
+        void listAvailableAppointmentSlots(
+            clinicId,
+            {
+                doctorId: values.doctorId,
+                date: values.appointmentDate,
+                durationMinutes,
+            },
+            abortController.signal
+        )
+            .then((data) => {
+                setAvailableSlotsState({
+                    status: 'success',
+                    slots: data.slots,
+                    error: null,
+                });
+                setValues((currentValues) => {
+                    if (
+                        !currentValues.scheduledAt ||
+                        data.slots.some((slot) => slot.scheduledAt === currentValues.scheduledAt)
+                    ) {
+                        return currentValues;
+                    }
+
+                    return {
+                        ...currentValues,
+                        scheduledAt: '',
+                    };
+                });
+            })
+            .catch((error: unknown) => {
+                if (abortController.signal.aborted) {
+                    return;
+                }
+
+                if (isApiClientError(error)) {
+                    setAvailableSlotsState({
+                        status: 'error',
+                        slots: [],
+                        error: {
+                            message: error.message,
+                            code: error.code,
+                        },
+                    });
+                    return;
+                }
+
+                setAvailableSlotsState({
+                    status: 'error',
+                    slots: [],
+                    error: {
+                        message: 'Available appointment slots could not be loaded.',
+                        code: 'APPOINTMENT_SLOTS_LOAD_FAILED',
+                    },
+                });
+            });
+
+        return () => {
+            abortController.abort();
+        };
+    }, [
+        clinicId,
+        referenceState.status,
+        values.appointmentDate,
+        values.doctorId,
+        values.durationMinutes,
+    ]);
+
     const handleChange = (field: keyof AppointmentBookingFormValues, value: string) => {
+        const shouldClearSelectedSlot =
+            field === 'doctorId' || field === 'appointmentDate' || field === 'durationMinutes';
+
         setValues((currentValues) => ({
             ...currentValues,
             [field]: value,
+            scheduledAt:
+                field === 'scheduledAt'
+                    ? value
+                    : shouldClearSelectedSlot
+                      ? ''
+                      : currentValues.scheduledAt,
         }));
         setFieldErrors((currentErrors) => ({
             ...currentErrors,
             [field]: undefined,
+            scheduledAt:
+                field === 'scheduledAt' || shouldClearSelectedSlot
+                    ? undefined
+                    : currentErrors.scheduledAt,
         }));
         setFormError(null);
         setFormErrorCode(undefined);
@@ -1180,8 +1353,10 @@ function AppointmentsPage() {
                 setFormError(error.message);
                 setFormErrorTitle(
                     error.code === 'APPOINTMENT_SLOT_CONFLICT'
-                        ? 'Doctor already has an appointment at this time'
-                        : 'Appointment was not booked'
+                        ? 'Doctor already has an overlapping appointment'
+                        : error.code === 'APPOINTMENT_SLOT_UNAVAILABLE'
+                          ? 'Selected slot is no longer available'
+                          : 'Appointment was not booked'
                 );
                 setFormErrorCode(error.code);
                 setFormErrorDetails(getBackendValidationDetails(error.details));
@@ -1687,6 +1862,9 @@ function AppointmentsPage() {
                     fieldErrors={fieldErrors}
                     doctors={referenceState.doctors}
                     patients={referenceState.patients}
+                    availableSlots={availableSlotsState.slots}
+                    isLoadingSlots={availableSlotsState.status === 'loading'}
+                    slotsError={availableSlotsState.error?.message ?? null}
                     isSubmitting={isSubmitting}
                     isDisabled={!canUseForm}
                     onChange={handleChange}

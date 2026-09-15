@@ -9,8 +9,13 @@ const mockAppointmentRepository = vi.hoisted(() => ({
     findPatientById: vi.fn(),
     findActiveDoctorClinicLink: vi.fn(),
     findActivePatientClinicLink: vi.fn(),
-    acquireAppointmentSlotLock: vi.fn(),
-    findDoctorAppointmentAtTime: vi.fn(),
+    findDoctorAvailabilityPeriods: vi.fn(),
+    getClinicLocalAppointmentParts: vi.fn(),
+    acquireDoctorScheduleLock: vi.fn(),
+    findOverlappingDoctorAppointment: vi.fn(),
+    findDoctorSchedulingAppointmentsForDate: vi.fn(),
+    getClinicLocalDateWeekday: vi.fn(),
+    getClinicLocalDateTimeInstants: vi.fn(),
     countPatientAppointmentsByStatus: vi.fn(),
     runInTransaction: vi.fn(),
     createAppointment: vi.fn(),
@@ -80,6 +85,30 @@ const authenticatedUser = {
     clinicId: 'clinic-id',
 };
 
+const clinicSchedulingSettings = {
+    timezone: 'Asia/Kolkata',
+    openingTime: '09:00',
+    closingTime: '18:00',
+    slotDurationMinutes: 15,
+    bufferMinutes: 5,
+};
+
+const mockValidSchedulingPolicy = () => {
+    mockAppointmentRepository.getClinicLocalAppointmentParts.mockResolvedValue({
+        localDate: '2026-06-20',
+        localTime: '15:30',
+        isoWeekday: 6,
+        seconds: 0,
+    });
+    mockAppointmentRepository.findDoctorAvailabilityPeriods.mockResolvedValue([
+        {
+            weekday: 'SATURDAY',
+            startTime: '09:00',
+            endTime: '18:00',
+        },
+    ]);
+};
+
 describe('appointmentService.createAppointment', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -147,7 +176,7 @@ describe('appointmentService.createAppointment', () => {
         mockAppointmentRepository.findClinicById.mockResolvedValue({
             id: clinicId,
             isActive: true,
-            timezone: 'Asia/Kolkata',
+            ...clinicSchedulingSettings,
         });
 
         mockAppointmentRepository.findDoctorById.mockResolvedValue({
@@ -159,6 +188,7 @@ describe('appointmentService.createAppointment', () => {
         });
 
         mockAppointmentRepository.findActiveDoctorClinicLink.mockResolvedValue({
+            id: 'doctor-clinic-id',
             clinicId,
             doctorId: input.doctorId,
             isActive: true,
@@ -178,8 +208,9 @@ describe('appointmentService.createAppointment', () => {
             .mockResolvedValueOnce(0)
             .mockResolvedValueOnce(0);
 
-        mockAppointmentRepository.acquireAppointmentSlotLock.mockResolvedValue(undefined);
-        mockAppointmentRepository.findDoctorAppointmentAtTime.mockResolvedValue(null);
+        mockValidSchedulingPolicy();
+        mockAppointmentRepository.acquireDoctorScheduleLock.mockResolvedValue(undefined);
+        mockAppointmentRepository.findOverlappingDoctorAppointment.mockResolvedValue([]);
 
         mockQueueRepository.findHighestQueuePosition.mockResolvedValue(null);
         mockQueueService.calculateNextQueuePosition.mockReturnValue(1);
@@ -213,18 +244,20 @@ describe('appointmentService.createAppointment', () => {
             distanceFromClinicKm: null,
         });
 
-        expect(mockAppointmentRepository.acquireAppointmentSlotLock).toHaveBeenCalledWith(
+        expect(mockAppointmentRepository.acquireDoctorScheduleLock).toHaveBeenCalledWith(
             mockTx,
             clinicId,
             input.doctorId,
-            appointmentScheduledAt
+            '2026-06-20'
         );
 
-        expect(mockAppointmentRepository.findDoctorAppointmentAtTime).toHaveBeenCalledWith(
+        expect(mockAppointmentRepository.findOverlappingDoctorAppointment).toHaveBeenCalledWith(
             mockTx,
             clinicId,
             input.doctorId,
             appointmentScheduledAt,
+            input.durationMinutes,
+            clinicSchedulingSettings.bufferMinutes,
             ['SCHEDULED', 'CONFIRMED', 'ARRIVED', 'IN_QUEUE', 'CALLED']
         );
 
@@ -315,7 +348,7 @@ describe('appointmentService.createAppointment', () => {
         mockAppointmentRepository.findClinicById.mockResolvedValue({
             id: clinicId,
             isActive: true,
-            timezone: 'Asia/Kolkata',
+            ...clinicSchedulingSettings,
         });
 
         mockAppointmentRepository.findDoctorById.mockResolvedValue({
@@ -327,6 +360,7 @@ describe('appointmentService.createAppointment', () => {
         });
 
         mockAppointmentRepository.findActiveDoctorClinicLink.mockResolvedValue({
+            id: 'doctor-clinic-id',
             clinicId,
             doctorId: input.doctorId,
             isActive: true,
@@ -346,8 +380,9 @@ describe('appointmentService.createAppointment', () => {
             .mockResolvedValueOnce(2)
             .mockResolvedValueOnce(3);
 
-        mockAppointmentRepository.acquireAppointmentSlotLock.mockResolvedValue(undefined);
-        mockAppointmentRepository.findDoctorAppointmentAtTime.mockResolvedValue(null);
+        mockValidSchedulingPolicy();
+        mockAppointmentRepository.acquireDoctorScheduleLock.mockResolvedValue(undefined);
+        mockAppointmentRepository.findOverlappingDoctorAppointment.mockResolvedValue([]);
 
         mockQueueRepository.findHighestQueuePosition.mockResolvedValue(3);
         mockQueueService.calculateNextQueuePosition.mockReturnValue(4);
@@ -413,7 +448,7 @@ describe('appointmentService.createAppointment', () => {
         mockAppointmentRepository.findClinicById.mockResolvedValue({
             id: clinicId,
             isActive: true,
-            timezone: 'Asia/Kolkata',
+            ...clinicSchedulingSettings,
         });
 
         mockAppointmentRepository.findDoctorById.mockResolvedValue({
@@ -425,6 +460,7 @@ describe('appointmentService.createAppointment', () => {
         });
 
         mockAppointmentRepository.findActiveDoctorClinicLink.mockResolvedValue({
+            id: 'doctor-clinic-id',
             clinicId,
             doctorId: input.doctorId,
             isActive: true,
@@ -444,31 +480,36 @@ describe('appointmentService.createAppointment', () => {
             .mockResolvedValueOnce(0)
             .mockResolvedValueOnce(0);
 
-        mockAppointmentRepository.acquireAppointmentSlotLock.mockResolvedValue(undefined);
-        mockAppointmentRepository.findDoctorAppointmentAtTime.mockResolvedValue({
-            id: 'existing-appointment-id',
-        });
+        mockValidSchedulingPolicy();
+        mockAppointmentRepository.acquireDoctorScheduleLock.mockResolvedValue(undefined);
+        mockAppointmentRepository.findOverlappingDoctorAppointment.mockResolvedValue([
+            {
+                id: 'existing-appointment-id',
+            },
+        ]);
 
         await expect(
             appointmentService.createAppointment(clinicId, createdByUserId, input)
         ).rejects.toMatchObject({
             statusCode: 409,
             code: 'APPOINTMENT_SLOT_CONFLICT',
-            message: 'This doctor already has an appointment in this time slot.',
+            message: 'This doctor already has an appointment that overlaps this time slot.',
         });
 
-        expect(mockAppointmentRepository.acquireAppointmentSlotLock).toHaveBeenCalledWith(
+        expect(mockAppointmentRepository.acquireDoctorScheduleLock).toHaveBeenCalledWith(
             mockTx,
             clinicId,
             input.doctorId,
-            appointmentScheduledAt
+            '2026-06-20'
         );
 
-        expect(mockAppointmentRepository.findDoctorAppointmentAtTime).toHaveBeenCalledWith(
+        expect(mockAppointmentRepository.findOverlappingDoctorAppointment).toHaveBeenCalledWith(
             mockTx,
             clinicId,
             input.doctorId,
             appointmentScheduledAt,
+            input.durationMinutes,
+            clinicSchedulingSettings.bufferMinutes,
             ['SCHEDULED', 'CONFIRMED', 'ARRIVED', 'IN_QUEUE', 'CALLED']
         );
 
