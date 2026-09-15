@@ -248,7 +248,8 @@ describe('appointmentService.createAppointment', () => {
         expect(mockAppointmentRepository.acquireDoctorScheduleLock).toHaveBeenCalledWith(
             mockTx,
             clinicId,
-            input.doctorId
+            input.doctorId,
+            '2026-06-20'
         );
 
         expect(mockAppointmentRepository.findOverlappingDoctorAppointment).toHaveBeenCalledWith(
@@ -501,7 +502,8 @@ describe('appointmentService.createAppointment', () => {
         expect(mockAppointmentRepository.acquireDoctorScheduleLock).toHaveBeenCalledWith(
             mockTx,
             clinicId,
-            input.doctorId
+            input.doctorId,
+            '2026-06-20'
         );
 
         expect(mockAppointmentRepository.findOverlappingDoctorAppointment).toHaveBeenCalledWith(
@@ -624,7 +626,8 @@ describe('appointmentService.listAvailableSlots', () => {
             '2026-03-08',
             clinic.timezone,
             clinic.bufferMinutes,
-            ['SCHEDULED', 'CONFIRMED', 'ARRIVED', 'IN_QUEUE', 'CALLED']
+            ['SCHEDULED', 'CONFIRMED', 'ARRIVED', 'IN_QUEUE', 'CALLED'],
+            undefined
         );
     });
 });

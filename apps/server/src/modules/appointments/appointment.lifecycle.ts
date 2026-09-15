@@ -6,6 +6,11 @@ export const finalAppointmentStatuses: readonly AppointmentStatus[] = [
     AppointmentStatus.NO_SHOW,
 ];
 
+export const reschedulableAppointmentStatuses: readonly AppointmentStatus[] = [
+    AppointmentStatus.SCHEDULED,
+    AppointmentStatus.CONFIRMED,
+];
+
 export const appointmentStatusTransitions: Record<
     AppointmentStatus,
     readonly AppointmentStatus[]
@@ -47,6 +52,10 @@ export const appointmentStatusTransitions: Record<
 
 export function isFinalAppointmentStatus(status: AppointmentStatus): boolean {
     return finalAppointmentStatuses.includes(status);
+}
+
+export function isAppointmentReschedulable(status: AppointmentStatus): boolean {
+    return reschedulableAppointmentStatuses.includes(status);
 }
 
 export function getAllowedAppointmentNextStatuses(

@@ -49,6 +49,19 @@ export const updateAppointmentStatusSchema = z
     })
     .strict();
 
+export const rescheduleAppointmentSlotsQuerySchema = z
+    .object({
+        date: dateSchema,
+    })
+    .strict();
+
+export const rescheduleAppointmentSchema = z
+    .object({
+        scheduledAt: z.string().datetime('Invalid appointment date and time'),
+        currentScheduledAt: z.string().datetime('Invalid current appointment date and time'),
+    })
+    .strict();
+
 export const listAppointmentsQuerySchema = z
     .object({
         date: dateSchema.optional(),
@@ -88,3 +101,7 @@ export type AvailableAppointmentSlotsQuerySchemaInput = z.infer<
 >;
 export type AppointmentIdParamsSchemaInput = z.infer<typeof appointmentIdParamsSchema>;
 export type UpdateAppointmentStatusSchemaInput = z.infer<typeof updateAppointmentStatusSchema>;
+export type RescheduleAppointmentSlotsQuerySchemaInput = z.infer<
+    typeof rescheduleAppointmentSlotsQuerySchema
+>;
+export type RescheduleAppointmentSchemaInput = z.infer<typeof rescheduleAppointmentSchema>;

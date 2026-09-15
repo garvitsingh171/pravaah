@@ -7,8 +7,10 @@ import {
 } from '../auth/auth.middleware.js';
 import {
     createAppointmentController,
+    listAppointmentRescheduleSlotsController,
     listAvailableAppointmentSlotsController,
     listAppointmentsController,
+    rescheduleAppointmentController,
     updateAppointmentStatusController,
 } from './appointment.controller.js';
 import {
@@ -17,6 +19,8 @@ import {
     clinicIdParamsSchema,
     createAppointmentSchema,
     listAppointmentsQuerySchema,
+    rescheduleAppointmentSchema,
+    rescheduleAppointmentSlotsQuerySchema,
     updateAppointmentStatusSchema,
 } from './appointment.validation.js';
 
@@ -68,6 +72,28 @@ appointmentRouter.patch(
     }),
     requireClinicStaffRole,
     updateAppointmentStatusController
+);
+
+appointmentRouter.get(
+    '/appointments/:appointmentId/reschedule-slots',
+    authenticateRequest,
+    validateRequest({
+        params: appointmentIdParamsSchema,
+        query: rescheduleAppointmentSlotsQuerySchema,
+    }),
+    requireClinicStaffRole,
+    listAppointmentRescheduleSlotsController
+);
+
+appointmentRouter.patch(
+    '/appointments/:appointmentId/reschedule',
+    authenticateRequest,
+    validateRequest({
+        params: appointmentIdParamsSchema,
+        body: rescheduleAppointmentSchema,
+    }),
+    requireClinicStaffRole,
+    rescheduleAppointmentController
 );
 
 export { appointmentRouter, clinicAppointmentRouter };

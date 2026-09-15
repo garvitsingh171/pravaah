@@ -12,11 +12,18 @@ import {
     finalAppointmentStatuses,
     getAllowedAppointmentCurrentStatusesForRequest,
     isAppointmentStatusTransitionAllowed,
+    reschedulableAppointmentStatuses,
 } from './appointment.lifecycle.js';
 import type { CreateAppointmentInput, ListAppointmentsQueryInput } from './appointment.types.js';
 
-const getClinicDateRange = async (date: string, clinicTimezone: string) => {
-    const [dateRange] = await prisma.$queryRaw<Array<{ start: Date; end: Date }>>`
+type PrismaQueryable = typeof prisma | Prisma.TransactionClient;
+
+const getClinicDateRange = async (
+    client: PrismaQueryable,
+    date: string,
+    clinicTimezone: string
+) => {
+    const [dateRange] = await client.$queryRaw<Array<{ start: Date; end: Date }>>`
         SELECT
             (${date}::date::timestamp AT TIME ZONE ${clinicTimezone}) AS "start",
             ((${date}::date + 1)::timestamp AT TIME ZONE ${clinicTimezone}) AS "end"
@@ -104,8 +111,8 @@ const appointmentDetailsInclude = {
 } satisfies Prisma.AppointmentInclude;
 
 export const appointmentRepository = {
-    findClinicById(clinicId: string) {
-        return prisma.clinic.findUnique({
+    findClinicById(clinicId: string, client: PrismaQueryable = prisma) {
+        return client.clinic.findUnique({
             where: {
                 id: clinicId,
             },
@@ -122,7 +129,7 @@ export const appointmentRepository = {
         };
 
         if (filters.date !== undefined) {
-            const dateRange = await getClinicDateRange(filters.date, clinicTimezone);
+            const dateRange = await getClinicDateRange(prisma, filters.date, clinicTimezone);
 
             if (!dateRange) {
                 return [];
@@ -155,24 +162,28 @@ export const appointmentRepository = {
         });
     },
 
-    findDoctorById(doctorId: string) {
-        return prisma.doctor.findUnique({
+    findDoctorById(doctorId: string, client: PrismaQueryable = prisma) {
+        return client.doctor.findUnique({
             where: {
                 id: doctorId,
             },
         });
     },
 
-    findPatientById(patientId: string) {
-        return prisma.patient.findUnique({
+    findPatientById(patientId: string, client: PrismaQueryable = prisma) {
+        return client.patient.findUnique({
             where: {
                 id: patientId,
             },
         });
     },
 
-    findActiveDoctorClinicLink(clinicId: string, doctorId: string) {
-        return prisma.doctorClinic.findFirst({
+    findActiveDoctorClinicLink(
+        clinicId: string,
+        doctorId: string,
+        client: PrismaQueryable = prisma
+    ) {
+        return client.doctorClinic.findFirst({
             where: {
                 clinicId,
                 doctorId,
@@ -181,8 +192,12 @@ export const appointmentRepository = {
         });
     },
 
-    findActivePatientClinicLink(clinicId: string, patientId: string) {
-        return prisma.patientClinic.findFirst({
+    findActivePatientClinicLink(
+        clinicId: string,
+        patientId: string,
+        client: PrismaQueryable = prisma
+    ) {
+        return client.patientClinic.findFirst({
             where: {
                 clinicId,
                 patientId,
@@ -191,8 +206,11 @@ export const appointmentRepository = {
         });
     },
 
-    findDoctorAvailabilityPeriods(doctorClinicId: string) {
-        return prisma.doctorAvailabilityPeriod.findMany({
+    findDoctorAvailabilityPeriods(
+        doctorClinicId: string,
+        client: PrismaQueryable = prisma
+    ) {
+        return client.doctorAvailabilityPeriod.findMany({
             where: {
                 doctorClinicId,
             },
@@ -212,8 +230,12 @@ export const appointmentRepository = {
         });
     },
 
-    async getClinicLocalAppointmentParts(scheduledAt: Date, clinicTimezone: string) {
-        const [parts] = await prisma.$queryRaw<
+    async getClinicLocalAppointmentParts(
+        scheduledAt: Date,
+        clinicTimezone: string,
+        client: PrismaQueryable = prisma
+    ) {
+        const [parts] = await client.$queryRaw<
             Array<{
                 localDate: string;
                 localTime: string;
@@ -231,8 +253,8 @@ export const appointmentRepository = {
         return parts;
     },
 
-    async getClinicLocalDateWeekday(date: string) {
-        const [parts] = await prisma.$queryRaw<
+    async getClinicLocalDateWeekday(date: string, client: PrismaQueryable = prisma) {
+        const [parts] = await client.$queryRaw<
             Array<{
                 localDate: string;
                 isoWeekday: number;
@@ -290,20 +312,23 @@ export const appointmentRepository = {
         date: string,
         clinicTimezone: string,
         bufferMinutes: number,
-        statuses: AppointmentStatus[]
+        statuses: AppointmentStatus[],
+        excludeAppointmentId?: string,
+        client: PrismaQueryable = prisma
     ) {
-        const dateRange = await getClinicDateRange(date, clinicTimezone);
+        const dateRange = await getClinicDateRange(client, date, clinicTimezone);
 
         if (!dateRange) {
             return [];
         }
 
-        return prisma.$queryRaw<Array<{ scheduledAt: Date; durationMinutes: number }>>`
-            SELECT "scheduledAt", "durationMinutes"
+        return client.$queryRaw<Array<{ id: string; scheduledAt: Date; durationMinutes: number }>>`
+            SELECT "id", "scheduledAt", "durationMinutes"
             FROM "appointments"
             WHERE "clinicId" = ${clinicId}::uuid
               AND "doctorId" = ${doctorId}::uuid
               AND "status"::text IN (${Prisma.join(statuses)})
+              AND (${excludeAppointmentId ?? null}::uuid IS NULL OR "id" <> ${excludeAppointmentId ?? null}::uuid)
               AND "scheduledAt" < ${dateRange.end}
               AND "scheduledAt" + (("durationMinutes" + ${bufferMinutes}) * interval '1 minute') > ${dateRange.start}
             ORDER BY "scheduledAt" ASC
@@ -313,7 +338,8 @@ export const appointmentRepository = {
     acquireDoctorScheduleLock(
         tx: Prisma.TransactionClient,
         clinicId: string,
-        doctorId: string
+        doctorId: string,
+        clinicLocalDate?: string
     ) {
         return tx.$queryRaw`
             SELECT pg_advisory_xact_lock(
@@ -321,7 +347,11 @@ export const appointmentRepository = {
                     concat(
                         ${clinicId},
                         ':',
-                        ${doctorId}
+                        ${doctorId},
+                        CASE
+                            WHEN ${clinicLocalDate ?? null}::text IS NULL THEN ''
+                            ELSE concat(':', ${clinicLocalDate ?? null})
+                        END
                     ),
                     0
                 )
@@ -336,7 +366,8 @@ export const appointmentRepository = {
         scheduledAt: Date,
         durationMinutes: number,
         bufferMinutes: number,
-        statuses: AppointmentStatus[]
+        statuses: AppointmentStatus[],
+        excludeAppointmentId?: string
     ) {
         return tx.$queryRaw<Array<{ id: string }>>`
             SELECT "id"
@@ -344,6 +375,7 @@ export const appointmentRepository = {
             WHERE "clinicId" = ${clinicId}::uuid
               AND "doctorId" = ${doctorId}::uuid
               AND "status"::text IN (${Prisma.join(statuses)})
+              AND (${excludeAppointmentId ?? null}::uuid IS NULL OR "id" <> ${excludeAppointmentId ?? null}::uuid)
               AND "scheduledAt" < ${new Date(
                   scheduledAt.getTime() + (durationMinutes + bufferMinutes) * 60_000
               )}
@@ -375,6 +407,87 @@ export const appointmentRepository = {
             },
             include: {
                 queueEntry: true,
+            },
+        });
+    },
+
+    findAppointmentDetailsById(appointmentId: string, clinicId: string) {
+        return prisma.appointment.findFirst({
+            where: {
+                id: appointmentId,
+                clinicId,
+            },
+            include: appointmentDetailsInclude,
+        });
+    },
+
+    findAppointmentRescheduleState(
+        tx: Prisma.TransactionClient,
+        appointmentId: string,
+        clinicId: string
+    ) {
+        return tx.appointment.findFirst({
+            where: {
+                id: appointmentId,
+                clinicId,
+            },
+            select: {
+                id: true,
+                clinicId: true,
+                doctorId: true,
+                patientId: true,
+                scheduledAt: true,
+                durationMinutes: true,
+                status: true,
+                queueEntry: {
+                    select: {
+                        id: true,
+                        position: true,
+                        status: true,
+                        queuedAt: true,
+                        calledAt: true,
+                        completedAt: true,
+                    },
+                },
+            },
+        });
+    },
+
+    updateAppointmentScheduledAt(
+        tx: Prisma.TransactionClient,
+        appointmentId: string,
+        clinicId: string,
+        expectedScheduledAt: Date,
+        scheduledAt: Date
+    ) {
+        return tx.appointment.updateMany({
+            where: {
+                id: appointmentId,
+                clinicId,
+                scheduledAt: expectedScheduledAt,
+                status: {
+                    in: [...reschedulableAppointmentStatuses],
+                },
+            },
+            data: {
+                scheduledAt,
+            },
+        });
+    },
+
+    updateQueueEntryPosition(
+        tx: Prisma.TransactionClient,
+        queueEntryId: string,
+        clinicId: string,
+        position: number
+    ) {
+        return tx.queueEntry.updateMany({
+            where: {
+                id: queueEntryId,
+                clinicId,
+            },
+            data: {
+                position,
             },
         });
     },

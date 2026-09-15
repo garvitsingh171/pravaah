@@ -135,9 +135,11 @@ export const buildCandidateLocalStartTimes = ({
         const windowStartMinutes = Math.max(periodStartMinutes, clinicOpeningMinutes);
         const windowEndMinutes = Math.min(periodEndMinutes, clinicClosingMinutes);
 
+        const effectiveDurationMinutes = durationMinutes + clinic.bufferMinutes;
+
         for (
             let startMinutes = windowStartMinutes;
-            startMinutes + durationMinutes <= windowEndMinutes;
+            startMinutes + effectiveDurationMinutes <= windowEndMinutes;
             startMinutes += clinic.slotDurationMinutes
         ) {
             candidateTimes.add(minutesToTime(startMinutes));

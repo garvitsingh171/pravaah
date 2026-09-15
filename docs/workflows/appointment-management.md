@@ -4,31 +4,31 @@
 
 | Field                 | Evidence                                                                                                                                                                                                                 |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Workflow              | Book, list, filter, and update appointment status                                                                                                                                                                        |
+| Workflow              | Book, list, filter, reschedule, and update appointment status                                                                                                                                                            |
 | Product status        | Implemented                                                                                                                                                                                                              |
 | Release status        | `IMPLEMENTED_NOT_RELEASED`                                                                                                                                                                                               |
 | Actor                 | Active internal `ADMIN` or `STAFF`                                                                                                                                                                                       |
 | Entry route           | `/appointments`                                                                                                                                                                                                          |
 | Frontend files        | `apps/web/src/features/appointments/AppointmentsPage.tsx`, `AppointmentBookingForm.tsx`, `appointmentApi.ts`                                                                                                             |
-| Main frontend symbols | `AppointmentsPage`, `loadAppointments`, `loadAppointmentReferences`, slot loading effect, `handleSubmit`, `handleStatusUpdate`, `AppointmentBookingForm`, `createAppointment`, `listAvailableAppointmentSlots`, `listAppointments`, `updateAppointmentStatus` |
-| API endpoint          | `GET /api/clinics/:clinicId/appointments/available-slots`, `POST /api/clinics/:clinicId/appointments`, `GET /api/clinics/:clinicId/appointments`, `PATCH /api/appointments/:appointmentId/status`                       |
+| Main frontend symbols | `AppointmentsPage`, `loadAppointments`, `loadAppointmentReferences`, slot loading effects, `handleSubmit`, `handleStatusUpdate`, `handleConfirmReschedule`, `RescheduleAppointmentDialog`, `AppointmentBookingForm`, appointment API helpers |
+| API endpoint          | `GET /api/clinics/:clinicId/appointments/available-slots`, `POST /api/clinics/:clinicId/appointments`, `GET /api/clinics/:clinicId/appointments`, `GET /api/appointments/:appointmentId/reschedule-slots`, `PATCH /api/appointments/:appointmentId/reschedule`, `PATCH /api/appointments/:appointmentId/status` |
 | Middleware            | Create/list use `authenticateRequest`, `validateRequest`, `requireClinicAccess`, `requireClinicStaffRole`; status route uses `authenticateRequest`, validation, `requireClinicStaffRole` and service-level clinic access |
 | Authentication        | Clerk token plus active internal user required                                                                                                                                                                           |
 | Authorization         | Admin and Staff both allowed                                                                                                                                                                                             |
 | Clinic scoping        | Route `clinicId` on create/list; appointment status resolves clinic through `accessService.verifyAppointmentClinicAccess`                                                                                                |
-| Validation            | `appointment.validation.ts -> availableAppointmentSlotsQuerySchema`, `createAppointmentSchema`, `listAppointmentsQuerySchema`, `updateAppointmentStatusSchema`                                                            |
-| Controller            | `appointment.controller.ts -> createAppointmentController`, `listAppointmentsController`, `updateAppointmentStatusController`                                                                                            |
-| Service               | `appointment.service.ts -> createAppointment`, `listAppointments`, `updateAppointmentStatus`                                                                                                                             |
+| Validation            | `appointment.validation.ts -> availableAppointmentSlotsQuerySchema`, `createAppointmentSchema`, `listAppointmentsQuerySchema`, `rescheduleAppointmentSlotsQuerySchema`, `rescheduleAppointmentSchema`, `updateAppointmentStatusSchema` |
+| Controller            | `appointment.controller.ts -> create/list/reschedule/status controllers`                                                                                                                                                 |
+| Service               | `appointment.service.ts -> createAppointment`, `listAppointments`, `listRescheduleSlots`, `rescheduleAppointment`, `updateAppointmentStatus`                                                                             |
 | Repository            | `appointment.repository.ts`, `queue.repository.ts`, `prediction.service.ts`                                                                                                                                              |
 | Database models       | `Clinic`, `Doctor`, `DoctorClinic`, `Patient`, `PatientClinic`, `Appointment`, `QueueEntry`, `NoShowPrediction`, `User`                                                                                                  |
 | Prisma operations     | `findUnique`, `findFirst`, `count`, `appointment.create`, `queueEntry.create`, `noShowPrediction.create`, status `updateMany`, detail `findFirst`                                                                        |
-| Transaction           | Booking uses `appointmentRepository.runInTransaction`; status update uses `prisma.$transaction`                                                                                                                          |
-| Concurrency control   | Booking takes advisory transaction locks for doctor scheduling and doctor/day queue position. Status sync uses guarded `updateMany` against final statuses                                                                 |
-| State changes         | Appointment row, queue entry row, no-show prediction row, status synchronization with queue                                                                                                                              |
+| Transaction           | Booking and rescheduling use `appointmentRepository.runInTransaction`; status update uses `prisma.$transaction`                                                                                                          |
+| Concurrency control   | Booking and rescheduling take clinic/doctor/date advisory locks for scheduling and queue scope. Status sync uses guarded `updateMany` against final statuses                                                             |
+| State changes         | Appointment row, queue entry row, no-show prediction row, status synchronization with queue; rescheduling updates only existing `Appointment.scheduledAt` and sometimes existing `QueueEntry.position`                   |
 | Side effects          | Booking always creates a `QueueEntry` and a `NoShowPrediction` in current code                                                                                                                                           |
 | Errors                | `APPOINTMENT_SLOT_UNAVAILABLE`, `APPOINTMENT_SLOT_CONFLICT`, `DOCTOR_NOT_LINKED_TO_CLINIC`, `PATIENT_NOT_LINKED_TO_CLINIC`, `APPOINTMENT_STATUS_FINAL`, `STATUS_SYNC_CONFLICT`, `QUEUE_ENTRY_NOT_FOUND`                  |
 | Tests                 | Appointment service/controller/validation tests; `AppointmentsPage` has no dedicated test file in current tree                                                                                                           |
-| Known gaps            | Booking now enforces weekly availability, clinic hours, slot duration, duration overlap, and buffer conflicts. Past-date booking remains a business-rule gap. Queue lifecycle enforcement is tracked separately from appointment status transitions |
+| Known gaps            | Booking now enforces weekly availability, clinic hours, slot duration, duration overlap, and buffer conflicts. Past-date booking remains a business-rule gap. Rescheduling does not recalculate no-show prediction; generalized prediction refresh is deferred |
 
 ## Appointment Booking Trace
 
@@ -154,6 +154,125 @@ Not implemented in current service:
 - No date-specific doctor exceptions, holidays, or leave schedule.
 - No past-date rejection as a business rule.
 - No explicit active/inactive rejection for `Patient.isActive` in the backend ownership check. Doctor scheduling requires both `Doctor.isActive` and an active `DoctorClinic` link.
+
+## Appointment Rescheduling
+
+Rescheduling changes when the same appointment will happen. It does not create a replacement appointment, does not reset lifecycle status, does not recreate the queue entry, and does not recalculate or duplicate the no-show prediction.
+
+Eligible appointment statuses are centralized in `appointment.lifecycle.ts -> reschedulableAppointmentStatuses`:
+
+```text
+SCHEDULED
+CONFIRMED
+```
+
+Rejected statuses are:
+
+```text
+ARRIVED
+IN_QUEUE
+CALLED
+COMPLETED
+CANCELLED
+NO_SHOW
+```
+
+### Reschedule Slot Trace
+
+```text
+AppointmentsPage -> Reschedule action
+    ↓
+RescheduleAppointmentDialog displays patient, doctor, current time, and duration as read-only context
+    ↓
+User selects a destination clinic-local date
+    ↓
+appointmentApi.listAppointmentRescheduleSlots(appointmentId, date)
+    ↓
+GET /api/appointments/:appointmentId/reschedule-slots?date=YYYY-MM-DD
+    ↓
+authenticateRequest
+    ↓
+validateRequest({ params: appointmentIdParamsSchema, query: rescheduleAppointmentSlotsQuerySchema })
+    ↓
+requireClinicStaffRole
+    ↓
+accessService.verifyAppointmentClinicAccess(user, appointmentId)
+    ↓
+appointment.service.ts -> listRescheduleSlots()
+    ↓
+verify appointment is SCHEDULED or CONFIRMED
+    ↓
+derive clinicId, doctorId, durationMinutes, and current appointment ID from persisted appointment
+    ↓
+reuse canonical slot generation from clinic hours, doctor weekly availability, slot duration, duration, buffer, timezone, and scheduling conflict statuses
+    ↓
+load blocking appointments with excludeAppointmentId = current appointment ID
+    ↓
+filter the exact current scheduledAt from returned choices
+    ↓
+return data.availability with currentScheduledAt and destination slots
+```
+
+The client cannot supply `doctorId`, `durationMinutes`, `clinicId`, or an arbitrary `excludeAppointmentId` for reschedule-slot discovery. Self-exclusion is internal to the appointment-specific workflow only; other appointments still block capacity.
+
+### Reschedule Mutation Trace
+
+```text
+User selects a returned destination slot
+    ↓
+Dialog shows From and To confirmation
+    ↓
+appointmentApi.rescheduleAppointment(appointmentId, { scheduledAt, currentScheduledAt })
+    ↓
+PATCH /api/appointments/:appointmentId/reschedule
+    ↓
+authenticateRequest
+    ↓
+validateRequest({ params: appointmentIdParamsSchema, body: rescheduleAppointmentSchema })
+    ↓
+requireClinicStaffRole
+    ↓
+accessService.verifyAppointmentClinicAccess(user, appointmentId)
+    ↓
+service loads current appointment and verifies SCHEDULED or CONFIRMED
+    ↓
+persisted scheduledAt must match the user-confirmed currentScheduledAt
+    ↓
+same timestamp returns current appointment as a no-op
+    ↓
+transaction starts
+    ↓
+acquire source/destination clinicId + doctorId + clinic-local-date advisory locks in sorted order
+    ↓
+re-read appointment and linked queue entry
+    ↓
+recheck reschedulable status and pre-visit queue status
+    ↓
+recheck current scheduledAt still equals currentScheduledAt
+    ↓
+re-read clinic scheduling config and doctor weekly availability
+    ↓
+revalidate requested slot against the canonical generated slot grid
+    ↓
+check active doctor overlaps with current appointment excluded
+    ↓
+guarded update of existing Appointment.scheduledAt
+    ↓
+if clinic-local date changed, assign existing QueueEntry the next destination queue position
+    ↓
+return updated appointment using normal appointment response shape
+```
+
+Lifecycle status is preserved:
+
+```text
+SCHEDULED -> SCHEDULED
+CONFIRMED -> CONFIRMED
+```
+
+The mutation does not call the appointment lifecycle transition API. It preserves doctor, patient, duration, creator, booking source, reason, notes, `createdAt`, queue entry identity, queue status, `queuedAt`, `calledAt`, `completedAt`, and the existing no-show prediction relationship.
+
+Queue scope follows the linked appointment's clinic-local scheduled date. Same-day rescheduling preserves the queue position. Cross-day rescheduling preserves the same `QueueEntry` row but gives it the next valid position in the destination doctor/date queue. Source queue positions are not renumbered.
 
 ## Appointment Listing Trace
 

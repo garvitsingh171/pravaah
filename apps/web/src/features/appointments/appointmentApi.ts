@@ -78,6 +78,18 @@ export type AvailableAppointmentSlotsResponseData = {
     slots: AvailableAppointmentSlot[];
 };
 
+export type RescheduleAppointmentSlotsResponseData = {
+    availability: AvailableAppointmentSlotsResponseData & {
+        appointmentId: string;
+        currentScheduledAt: string;
+    };
+};
+
+export type RescheduleAppointmentRequest = {
+    scheduledAt: string;
+    currentScheduledAt: string;
+};
+
 export type AppointmentListResponseData = {
     appointments: AppointmentListItem[];
 };
@@ -93,6 +105,10 @@ export type CreateAppointmentResponseData = {
 };
 
 export type UpdateAppointmentStatusResponseData = {
+    appointment: AppointmentListItem;
+};
+
+export type RescheduleAppointmentResponseData = {
     appointment: AppointmentListItem;
 };
 
@@ -147,5 +163,31 @@ export const updateAppointmentStatus = (appointmentId: string, status: Appointme
         {
             status,
         }
+    );
+};
+
+export const listAppointmentRescheduleSlots = (
+    appointmentId: string,
+    date: string,
+    signal?: AbortSignal
+) => {
+    return apiClient.get<RescheduleAppointmentSlotsResponseData>(
+        `/appointments/${encodeURIComponent(appointmentId)}/reschedule-slots`,
+        {
+            query: {
+                date,
+            },
+            signal,
+        }
+    );
+};
+
+export const rescheduleAppointment = (
+    appointmentId: string,
+    payload: RescheduleAppointmentRequest
+) => {
+    return apiClient.patch<RescheduleAppointmentResponseData>(
+        `/appointments/${encodeURIComponent(appointmentId)}/reschedule`,
+        payload
     );
 };
