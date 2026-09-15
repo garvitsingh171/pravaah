@@ -380,6 +380,10 @@ reject missing appointment, final status conflict, invalid transition, or missin
     ↓
 tx.appointment.updateMany({ transition-aware current-status guard })
     ↓
+if target status is ARRIVED, IN_QUEUE, or CALLED and arrivedAt is null:
+    record arrivedAt, signed arrivalOffsetMinutes, isLateArrival, lateArrivalGraceMinutes
+    increment PatientClinic.totalLateArrivals atomically only when the first arrival is late
+    ↓
 optional tx.queueEntry.updateMany({ final-status guard })
     ↓
 optional calledAt/completedAt updates
@@ -392,6 +396,8 @@ Frontend replaces or removes item depending on current filter and shows toast
 ## Queue Entry Creation
 
 In current implementation, `QueueEntry` is created during appointment booking for every appointment created through `POST /api/clinics/:clinicId/appointments`. It is not created by an arrival status transition.
+
+That booking-time queue row is not itself proof of physical arrival. First arrival is recorded on the `Appointment` only after a valid lifecycle mutation reaches `ARRIVED`, `IN_QUEUE`, or `CALLED`. Lifecycle skips such as `SCHEDULED -> IN_QUEUE` and `ARRIVED -> CALLED` still preserve the first arrival fact; `CANCELLED`, `NO_SHOW`, and direct `COMPLETED` updates do not create synthetic arrival timestamps.
 
 Initial queue entry fields:
 

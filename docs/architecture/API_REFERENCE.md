@@ -343,7 +343,7 @@ data.clinic:
   phone, email
   addressLine1, addressLine2, city, state, country, pincode
   timezone, openingTime, closingTime
-  slotDurationMinutes, bufferMinutes
+  slotDurationMinutes, bufferMinutes, lateArrivalGraceMinutes
   createdAt, updatedAt
 ```
 
@@ -383,8 +383,10 @@ name
 phone, email
 addressLine1, addressLine2, city, state, country, pincode
 timezone, openingTime, closingTime
-slotDurationMinutes, bufferMinutes
+slotDurationMinutes, bufferMinutes, lateArrivalGraceMinutes
 ```
+
+`lateArrivalGraceMinutes` must be an integer greater than or equal to `0`. Future first arrivals are marked late only when their signed delay exceeds this value.
 
 Response summary:
 
@@ -784,6 +786,7 @@ Response summary:
 ```txt
 data.appointments[]
   appointment fields
+  arrival fields: arrivedAt, arrivalOffsetMinutes, isLateArrival, lateArrivalGraceMinutes
   doctor summary
   patient summary
   queueEntry summary
@@ -900,6 +903,8 @@ Response summary:
 data.appointment
 ```
 
+Clients submit only the requested status. When the valid transition reaches `ARRIVED`, `IN_QUEUE`, or `CALLED`, the backend records the first arrival timestamp, signed offset, late classification, and grace snapshot if no arrival was previously recorded. `CANCELLED`, `NO_SHOW`, and `COMPLETED` do not create arrival facts by themselves.
+
 Main errors:
 
 - `APPOINTMENT_NOT_FOUND`
@@ -907,6 +912,7 @@ Main errors:
 - `APPOINTMENT_STATUS_FINAL`
 - `APPOINTMENT_STATUS_TRANSITION_INVALID`
 - `QUEUE_ENTRY_NOT_FOUND`
+- `PATIENT_CLINIC_LINK_NOT_FOUND`
 - `STATUS_SYNC_CONFLICT`
 - `VALIDATION_ERROR`
 
@@ -929,7 +935,7 @@ Response summary:
 ```txt
 data.queueEntries[]
   queue entry fields
-  appointment summary
+  appointment summary including arrival fields
   doctor summary
   patient summary
   noShowPrediction response or null
@@ -995,6 +1001,8 @@ Response summary:
 data.queueEntry
 ```
 
+Queue status changes synchronize the linked appointment status in the same transaction. A booking-created `WAITING` queue entry does not establish arrival by itself; arrival is recorded only when the synchronized appointment status is presence-establishing.
+
 Main errors:
 
 - `QUEUE_ENTRY_NOT_FOUND`
@@ -1002,6 +1010,7 @@ Main errors:
 - `QUEUE_ENTRY_FINAL_STATUS`
 - `QUEUE_STATUS_TRANSITION_INVALID`
 - `APPOINTMENT_STATUS_TRANSITION_INVALID`
+- `PATIENT_CLINIC_LINK_NOT_FOUND`
 - `STATUS_SYNC_CONFLICT`
 - `VALIDATION_ERROR`
 

@@ -138,6 +138,7 @@ describe('authRepository.createClinicWithAdmin', () => {
             closingTime: '18:00',
             slotDurationMinutes: 15,
             bufferMinutes: 0,
+            lateArrivalGraceMinutes: 15,
         },
         admin: {
             clerkUserId: 'trusted-clerk-user-id',
@@ -205,6 +206,7 @@ describe('authRepository.createClinicWithAdmin', () => {
                 closingTime: input.clinic.closingTime,
                 slotDurationMinutes: input.clinic.slotDurationMinutes,
                 bufferMinutes: input.clinic.bufferMinutes,
+                lateArrivalGraceMinutes: input.clinic.lateArrivalGraceMinutes,
             },
             select: {
                 id: true,
@@ -249,6 +251,7 @@ describe('authRepository.createClinicWithAdmin', () => {
                 closingTime: input.clinic.closingTime,
                 slotDurationMinutes: input.clinic.slotDurationMinutes,
                 bufferMinutes: input.clinic.bufferMinutes,
+                lateArrivalGraceMinutes: input.clinic.lateArrivalGraceMinutes,
             },
         });
 

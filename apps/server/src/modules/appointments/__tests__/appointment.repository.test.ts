@@ -5,11 +5,16 @@ const mockTransaction = vi.hoisted(() => vi.fn());
 const mockAppointmentFindFirst = vi.hoisted(() => vi.fn());
 const mockAppointmentUpdateMany = vi.hoisted(() => vi.fn());
 const mockQueueEntryUpdateMany = vi.hoisted(() => vi.fn());
+const mockEstablishAppointmentArrivalIfNeeded = vi.hoisted(() => vi.fn());
 
 vi.mock('../../../config/prisma.js', () => ({
     prisma: {
         $transaction: mockTransaction,
     },
+}));
+
+vi.mock('../appointment.arrival.repository.js', () => ({
+    establishAppointmentArrivalIfNeeded: mockEstablishAppointmentArrivalIfNeeded,
 }));
 
 import { appointmentRepository } from '../appointment.repository.js';
@@ -66,7 +71,10 @@ describe('appointmentRepository.updateAppointmentStatus', () => {
             .mockResolvedValueOnce({
                 id: 'appointment-id',
                 clinicId: 'clinic-id',
+                patientId: 'patient-id',
+                scheduledAt: new Date('2026-09-15T10:00:00.000Z'),
                 status: AppointmentStatus.SCHEDULED,
+                arrivedAt: null,
                 queueEntry: {
                     id: 'queue-entry-id',
                 },
@@ -111,6 +119,16 @@ describe('appointmentRepository.updateAppointmentStatus', () => {
                 },
             })
         );
+        expect(mockEstablishAppointmentArrivalIfNeeded).toHaveBeenCalledWith(
+            expect.objectContaining({
+                appointmentId: 'appointment-id',
+                clinicId: 'clinic-id',
+                patientId: 'patient-id',
+                scheduledAt: new Date('2026-09-15T10:00:00.000Z'),
+                targetStatus: AppointmentStatus.IN_QUEUE,
+                arrivalTimestamp: expect.any(Date),
+            })
+        );
         expect(result).toEqual({
             appointment,
             failureReason: null,
@@ -129,7 +147,10 @@ describe('appointmentRepository.updateAppointmentStatus', () => {
             .mockResolvedValueOnce({
                 id: 'appointment-id',
                 clinicId: 'clinic-id',
+                patientId: 'patient-id',
+                scheduledAt: new Date('2026-09-15T10:00:00.000Z'),
                 status: AppointmentStatus.CALLED,
+                arrivedAt: new Date('2026-09-15T10:03:00.000Z'),
                 queueEntry: {
                     id: 'queue-entry-id',
                 },
@@ -159,5 +180,6 @@ describe('appointmentRepository.updateAppointmentStatus', () => {
             })
         );
         expect(result.failureReason).toBeNull();
+        expect(mockEstablishAppointmentArrivalIfNeeded).not.toHaveBeenCalled();
     });
 });

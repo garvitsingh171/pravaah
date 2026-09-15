@@ -123,6 +123,7 @@ stateDiagram-v2
     ARRIVED --> CALLED
     ARRIVED --> CANCELLED
     ARRIVED --> NO_SHOW
+    WAITING --> ARRIVED
     WAITING --> CALLED
     WAITING --> COMPLETED
     WAITING --> CANCELLED
@@ -135,7 +136,7 @@ stateDiagram-v2
     NO_SHOW --> [*]
 ```
 
-Terminal queue entries cannot move to a different status or be reordered. The backend rejects unsupported transitions such as `WAITING -> ARRIVED`, `CALLED -> WAITING`, and `ARRIVED -> COMPLETED`.
+Terminal queue entries cannot move to a different status or be reordered. `WAITING -> ARRIVED` is the explicit queue-driven arrival action; the backend rejects unsupported transitions such as `CALLED -> WAITING` and `ARRIVED -> COMPLETED`.
 
 ## Queue Reorder
 

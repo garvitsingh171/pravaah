@@ -9,6 +9,7 @@ import {
 describe('queue lifecycle policy', () => {
     it('allows the approved queue status transitions', () => {
         expect(getAllowedQueueNextStatuses(QueueStatus.WAITING)).toEqual([
+            QueueStatus.ARRIVED,
             QueueStatus.CALLED,
             QueueStatus.COMPLETED,
             QueueStatus.CANCELLED,
@@ -27,10 +28,13 @@ describe('queue lifecycle policy', () => {
         ]);
     });
 
-    it('rejects unsupported queue reversals and skips', () => {
+    it('allows waiting entries to become arrived without treating same-status waiting as arrival', () => {
         expect(isQueueStatusTransitionAllowed(QueueStatus.WAITING, QueueStatus.ARRIVED)).toBe(
-            false
+            true
         );
+    });
+
+    it('rejects unsupported queue reversals and skips', () => {
         expect(isQueueStatusTransitionAllowed(QueueStatus.CALLED, QueueStatus.WAITING)).toBe(
             false
         );

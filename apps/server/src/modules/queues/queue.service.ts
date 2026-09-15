@@ -127,10 +127,23 @@ export const queueService = {
                 status,
                 appointmentStatus: queueStatusToAppointmentStatus[status],
                 timestampUpdates,
+                eventTimestamp: now,
             });
 
             return withQueueNoShowPredictionResponse(updatedQueueEntry);
         } catch (error) {
+            if (error instanceof Error && error.message === 'PATIENT_CLINIC_LINK_NOT_FOUND') {
+                throw new AppError(
+                    409,
+                    'PATIENT_CLINIC_LINK_NOT_FOUND',
+                    'Patient-clinic link was not found while recording arrival.'
+                );
+            }
+
+            if (error instanceof Error && error.message === 'CLINIC_NOT_FOUND') {
+                throw new AppError(404, 'CLINIC_NOT_FOUND', 'Clinic not found');
+            }
+
             if (error instanceof Error && error.message === 'QUEUE_STATUS_TRANSITION_INVALID') {
                 throw new AppError(
                     409,

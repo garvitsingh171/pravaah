@@ -8,6 +8,7 @@ export const finalQueueStatuses: readonly QueueStatus[] = [
 
 export const queueStatusTransitions: Record<QueueStatus, readonly QueueStatus[]> = {
     WAITING: [
+        QueueStatus.ARRIVED,
         QueueStatus.CALLED,
         QueueStatus.COMPLETED,
         QueueStatus.CANCELLED,

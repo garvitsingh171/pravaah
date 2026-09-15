@@ -102,6 +102,7 @@ export const authRepository = {
 
                     slotDurationMinutes: input.clinic.slotDurationMinutes,
                     bufferMinutes: input.clinic.bufferMinutes,
+                    lateArrivalGraceMinutes: input.clinic.lateArrivalGraceMinutes,
                 },
                 select: {
                     id: true,
@@ -150,6 +151,7 @@ export const authRepository = {
                     closingTime: true,
                     slotDurationMinutes: true,
                     bufferMinutes: true,
+                    lateArrivalGraceMinutes: true,
                 },
             }),
             prisma.doctorClinic.count({
@@ -187,7 +189,8 @@ export const authRepository = {
                 clinic.openingTime.trim().length > 0 &&
                 clinic.closingTime.trim().length > 0 &&
                 clinic.slotDurationMinutes > 0 &&
-                clinic.bufferMinutes >= 0,
+                clinic.bufferMinutes >= 0 &&
+                clinic.lateArrivalGraceMinutes >= 0,
             hasDoctor: doctorCount > 0,
             hasPatient: patientCount > 0,
             hasAppointment: appointmentCount > 0,
