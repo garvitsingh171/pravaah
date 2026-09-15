@@ -6,6 +6,8 @@ import type {
     ListAppointmentsQueryInput,
     AppointmentIdParamsInput,
     AvailableAppointmentSlotsQueryInput,
+    RescheduleAppointmentInput,
+    RescheduleAppointmentSlotsQueryInput,
     UpdateAppointmentStatusInput,
 } from './appointment.types.js';
 
@@ -96,6 +98,60 @@ export async function updateAppointmentStatusController(
         res.status(200).json({
             success: true,
             message: 'Appointment status updated successfully',
+            data: {
+                appointment,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function listAppointmentRescheduleSlotsController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { appointmentId } = req.params as AppointmentIdParamsInput;
+        const query = res.locals.validatedQuery as RescheduleAppointmentSlotsQueryInput;
+
+        const availability = await appointmentService.listRescheduleSlots(
+            req.user,
+            appointmentId,
+            query
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'Appointment reschedule slots fetched successfully',
+            data: {
+                availability,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function rescheduleAppointmentController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { appointmentId } = req.params as AppointmentIdParamsInput;
+        const { scheduledAt } = req.body as RescheduleAppointmentInput;
+
+        const appointment = await appointmentService.rescheduleAppointment(
+            req.user,
+            appointmentId,
+            scheduledAt
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'Appointment rescheduled successfully',
             data: {
                 appointment,
             },

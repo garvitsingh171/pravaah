@@ -583,6 +583,8 @@ Prisma queries, includes/projections, raw SQL, and transaction bodies.
 | PATCH  | `/api/clinics/:clinicId/patients/:patientId`              | Admin/Staff          | params + `updatePatientSchema`     | `updatePatientController`           | `patientService.updatePatient`               | Yes                      | patient                              | not found/link/access.                            |
 | GET    | `/api/clinics/:clinicId/appointments`                     | Admin/Staff          | params + query                     | `listAppointmentsController`        | `appointmentService.listAppointments`        | No                       | appointments                         | link/date/access.                                 |
 | POST   | `/api/clinics/:clinicId/appointments`                     | Admin/Staff          | params + `createAppointmentSchema` | `createAppointmentController`       | `appointmentService.createAppointment`       | Yes                      | appointment, queue entry, prediction | slot conflict/link/validation.                    |
+| GET    | `/api/appointments/:appointmentId/reschedule-slots`       | Admin/Staff          | params + date query                | `listAppointmentRescheduleSlotsController` | `appointmentService.listRescheduleSlots` | No                       | reschedule availability              | access/eligibility/slot validation.               |
+| PATCH  | `/api/appointments/:appointmentId/reschedule`             | Admin/Staff          | params + scheduledAt body          | `rescheduleAppointmentController`   | `appointmentService.rescheduleAppointment`   | Yes                      | appointment                          | eligibility/stale/slot/queue conflict.            |
 | PATCH  | `/api/appointments/:appointmentId/status`                 | Admin/Staff          | params + status body               | `updateAppointmentStatusController` | `appointmentService.updateAppointmentStatus` | Yes                      | appointment                          | final/sync/not found/access.                      |
 | GET    | `/api/clinics/:clinicId/queue`                            | Admin/Staff          | params + query                     | `listQueueByClinicDateController`   | `queueService.listQueueByClinicDate`         | No                       | queue entries                        | access/date validation.                           |
 | PATCH  | `/api/clinics/:clinicId/queue/:queueEntryId/status`       | Admin/Staff          | params + status body               | `updateQueueStatusController`       | `queueService.updateQueueStatus`             | Yes                      | queue entry                          | final/sync/not found/access.                      |
@@ -710,6 +712,40 @@ Conflict protection treats the effective interval as appointment start through
 `durationMinutes + Clinic.bufferMinutes`. Current backend validation checks
 shape and enum/date formats, enforces clinic hours and recurring doctor
 availability, and still does not reject past appointment times as a business rule.
+
+Rescheduling is appointment-specific and allowed only while the existing
+appointment is `SCHEDULED` or `CONFIRMED`. The rule lives in
+`appointment.lifecycle.ts -> reschedulableAppointmentStatuses` and is enforced
+again during the final mutation. `GET /api/appointments/:appointmentId/reschedule-slots`
+derives clinic, doctor, duration, and the self-excluded appointment ID from the
+persisted appointment; clients only provide `date=YYYY-MM-DD`.
+
+`PATCH /api/appointments/:appointmentId/reschedule` accepts only `scheduledAt`.
+It preserves appointment ID, doctor, patient, duration, status, booking source,
+reason, notes, creator, created time, queue row identity, queue status, queue
+timestamps, and the existing prediction row. The transaction sequence is:
+
+```txt
+verify appointment access and initial eligibility
+-> no-op if requested timestamp equals current scheduledAt
+-> transaction
+-> acquire source/destination clinic+doctor+date advisory locks in sorted order
+-> re-read appointment and QueueEntry
+-> recheck SCHEDULED/CONFIRMED and pre-visit queue state
+-> re-read clinic scheduling settings and DoctorAvailabilityPeriod rows
+-> validate requested timestamp against the canonical generated-slot grid
+-> check duration-plus-buffer overlap with only the current appointment excluded
+-> guarded update Appointment.scheduledAt by id, clinic, status, and original scheduledAt
+-> for cross-date moves, update the existing QueueEntry.position to the next destination position
+-> return the updated appointment include
+```
+
+The same clinic/doctor/date advisory key is used for destination scheduling
+capacity and queue scope coordination, so booking, rescheduling, and manual queue
+reorder serialize against the same doctor/date operational scope. Cross-date
+rescheduling sorts source and destination lock scopes before acquiring them to
+avoid opposite-order deadlocks. The current appointment may be excluded from
+conflict reads; arbitrary client-selected exclusions are not exposed.
 
 #### Appointment Lifecycle
 

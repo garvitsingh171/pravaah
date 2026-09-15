@@ -4,6 +4,8 @@ import type {
     ListAppointmentsQuerySchemaInput,
     AppointmentIdParamsSchemaInput,
     AvailableAppointmentSlotsQuerySchemaInput,
+    RescheduleAppointmentSchemaInput,
+    RescheduleAppointmentSlotsQuerySchemaInput,
     UpdateAppointmentStatusSchemaInput,
 } from './appointment.validation.js';
 
@@ -18,3 +20,7 @@ export type AvailableAppointmentSlotsQueryInput = AvailableAppointmentSlotsQuery
 export type AppointmentIdParamsInput = AppointmentIdParamsSchemaInput;
 
 export type UpdateAppointmentStatusInput = UpdateAppointmentStatusSchemaInput;
+
+export type RescheduleAppointmentSlotsQueryInput = RescheduleAppointmentSlotsQuerySchemaInput;
+
+export type RescheduleAppointmentInput = RescheduleAppointmentSchemaInput;

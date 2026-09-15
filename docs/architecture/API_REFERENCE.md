@@ -800,6 +800,85 @@ Main errors:
 - `PATIENT_NOT_LINKED_TO_CLINIC`
 - `VALIDATION_ERROR`
 
+### Get Appointment Reschedule Slots
+
+| Field  | Value                                                              |
+| ------ | ------------------------------------------------------------------ |
+| Method | GET                                                                |
+| Path   | `/api/appointments/:appointmentId/reschedule-slots`                |
+| Auth   | Required, Admin/Staff, appointment's clinic must match user clinic |
+
+Query:
+
+- `date` required `YYYY-MM-DD`
+
+Response summary:
+
+```txt
+data.availability:
+  appointmentId, clinicId, doctorId, date, timezone
+  durationMinutes, slotDurationMinutes, bufferMinutes
+  currentScheduledAt
+  slots[]:
+    scheduledAt ISO datetime
+    endsAt ISO datetime
+    localDate
+    localStartTime
+    localEndTime
+```
+
+The backend derives clinic, doctor, duration, and the current appointment ID from the persisted appointment. The current appointment is excluded from conflict reads internally, but callers cannot provide an arbitrary exclusion. Returned slots omit the exact current `scheduledAt`.
+
+Main errors:
+
+- `APPOINTMENT_NOT_FOUND`
+- `CLINIC_ACCESS_DENIED`
+- `APPOINTMENT_RESCHEDULE_NOT_ALLOWED`
+- `DOCTOR_NOT_FOUND`
+- `DOCTOR_INACTIVE`
+- `DOCTOR_NOT_LINKED_TO_CLINIC`
+- `APPOINTMENT_SLOT_UNAVAILABLE`
+- `VALIDATION_ERROR`
+
+### Reschedule Appointment
+
+| Field  | Value                                                              |
+| ------ | ------------------------------------------------------------------ |
+| Method | PATCH                                                              |
+| Path   | `/api/appointments/:appointmentId/reschedule`                      |
+| Auth   | Required, Admin/Staff, appointment's clinic must match user clinic |
+
+Body:
+
+```json
+{
+    "scheduledAt": "2026-09-17T09:00:00.000Z"
+}
+```
+
+Only `scheduledAt` is accepted. Doctor, patient, clinic, duration, status, source, reason, and notes are derived from the existing appointment and are not mutable through this endpoint.
+
+Response summary:
+
+```txt
+data.appointment
+```
+
+The mutation preserves appointment identity and lifecycle status. It revalidates current status, queue state, clinic settings, doctor availability, slot grid, active overlaps, and queue destination position inside one transaction. Same-timestamp requests return the current appointment as a no-op.
+
+Main errors:
+
+- `APPOINTMENT_NOT_FOUND`
+- `CLINIC_ACCESS_DENIED`
+- `APPOINTMENT_RESCHEDULE_NOT_ALLOWED`
+- `APPOINTMENT_RESCHEDULE_CONFLICT`
+- `APPOINTMENT_SLOT_UNAVAILABLE`
+- `APPOINTMENT_SLOT_CONFLICT`
+- `QUEUE_ENTRY_NOT_FOUND`
+- `STATUS_SYNC_CONFLICT`
+- `QUEUE_REORDER_CONFLICT`
+- `VALIDATION_ERROR`
+
 ### Update Appointment Status
 
 | Field  | Value                                                              |

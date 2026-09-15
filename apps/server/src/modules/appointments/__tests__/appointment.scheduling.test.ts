@@ -29,7 +29,30 @@ describe('appointment scheduling policy', () => {
             durationMinutes: 30,
         });
 
-        expect(slots).toEqual(['09:30', '09:45', '10:00']);
+        expect(slots).toEqual(['09:30', '09:45']);
+    });
+
+    it('requires duration plus buffer to fit inside the working window', () => {
+        const slots = buildCandidateLocalStartTimes({
+            clinic: {
+                openingTime: '09:00',
+                closingTime: '13:00',
+                slotDurationMinutes: 15,
+                bufferMinutes: 15,
+            },
+            weekday: 'MONDAY',
+            availabilityPeriods: [
+                {
+                    weekday: 'MONDAY',
+                    startTime: '09:00',
+                    endTime: '13:00',
+                },
+            ],
+            durationMinutes: 30,
+        });
+
+        expect(slots).not.toContain('12:30');
+        expect(slots.at(-1)).toBe('12:15');
     });
 
     it('treats appointment duration plus clinic buffer as the effective interval', () => {

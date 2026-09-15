@@ -1,4 +1,4 @@
-import { AppointmentStatus, Prisma } from '../../generated/prisma/client.js';
+import { AppointmentStatus, Prisma, QueueStatus } from '../../generated/prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
 import { accessService } from '../auth/access.service.js';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
@@ -10,6 +10,7 @@ import {
 import type { StoredNoShowPredictionForResponse } from '../predictions/prediction.types.js';
 import { queueRepository } from '../queues/queue.repository.js';
 import { queueService } from '../queues/queue.service.js';
+import { isAppointmentReschedulable } from './appointment.lifecycle.js';
 import { appointmentRepository } from './appointment.repository.js';
 import {
     addMinutes,
@@ -25,9 +26,11 @@ import type {
     AvailableAppointmentSlotsQueryInput,
     CreateAppointmentInput,
     ListAppointmentsQueryInput,
+    RescheduleAppointmentSlotsQueryInput,
 } from './appointment.types.js';
 
 const conflictingAppointmentStatuses = [...schedulingConflictStatuses] as AppointmentStatus[];
+const reschedulePreVisitQueueStatuses: QueueStatus[] = [QueueStatus.WAITING];
 
 const createAppointmentSlotConflictError = () =>
     new AppError(
@@ -41,6 +44,20 @@ const createAppointmentSlotUnavailableError = () =>
         409,
         'APPOINTMENT_SLOT_UNAVAILABLE',
         'Selected appointment time is not available for this doctor.'
+    );
+
+const createAppointmentRescheduleNotAllowedError = () =>
+    new AppError(
+        409,
+        'APPOINTMENT_RESCHEDULE_NOT_ALLOWED',
+        'Only scheduled or confirmed appointments can be rescheduled.'
+    );
+
+const createAppointmentRescheduleConflictError = () =>
+    new AppError(
+        409,
+        'APPOINTMENT_RESCHEDULE_CONFLICT',
+        'Appointment changed while rescheduling. Please refresh and try again.'
     );
 
 const withNoShowPredictionResponse = <
@@ -171,6 +188,51 @@ async function validateDoctorSchedulingContext(clinicId: string, doctorId: strin
     };
 }
 
+async function validateDoctorSchedulingContextInTransaction(
+    tx: Prisma.TransactionClient,
+    clinicId: string,
+    doctorId: string
+) {
+    const clinic = await appointmentRepository.findClinicById(clinicId, tx);
+
+    if (!clinic) {
+        throw new AppError(404, 'CLINIC_NOT_FOUND', 'Clinic not found');
+    }
+
+    if (!clinic.isActive) {
+        throw new AppError(400, 'CLINIC_INACTIVE', 'Clinic is inactive');
+    }
+
+    const doctor = await appointmentRepository.findDoctorById(doctorId, tx);
+
+    if (!doctor) {
+        throw new AppError(404, 'DOCTOR_NOT_FOUND', 'Doctor not found');
+    }
+
+    if (!doctor.isActive) {
+        throw new AppError(400, 'DOCTOR_INACTIVE', 'Doctor is inactive');
+    }
+
+    const doctorClinicLink = await appointmentRepository.findActiveDoctorClinicLink(
+        clinicId,
+        doctorId,
+        tx
+    );
+
+    if (!doctorClinicLink) {
+        throw new AppError(
+            403,
+            'DOCTOR_NOT_LINKED_TO_CLINIC',
+            'Doctor is not linked to this clinic'
+        );
+    }
+
+    return {
+        clinic,
+        doctorClinicId: doctorClinicLink.id,
+    };
+}
+
 const getWeekdayFromIsoDay = (isoWeekday: number): Weekday => {
     const weekday = weekdayByIsoDay[isoWeekday];
 
@@ -206,6 +268,7 @@ const getAvailableSlotCandidates = async ({
     durationMinutes,
     clinic,
     doctorClinicId,
+    excludeAppointmentId,
 }: {
     clinicId: string;
     doctorId: string;
@@ -215,6 +278,7 @@ const getAvailableSlotCandidates = async ({
         timezone: string;
     };
     doctorClinicId: string;
+    excludeAppointmentId?: string;
 }) => {
     const localDateParts = await appointmentRepository.getClinicLocalDateWeekday(date);
 
@@ -244,7 +308,8 @@ const getAvailableSlotCandidates = async ({
             date,
             clinic.timezone,
             clinic.bufferMinutes,
-            conflictingAppointmentStatuses
+            conflictingAppointmentStatuses,
+            excludeAppointmentId
         );
 
     return slotInstants
@@ -275,6 +340,7 @@ const assertRequestedAppointmentMatchesGeneratedSlot = async ({
     durationMinutes,
     clinic,
     doctorClinicId,
+    client,
 }: {
     scheduledAt: Date;
     durationMinutes: number;
@@ -282,10 +348,12 @@ const assertRequestedAppointmentMatchesGeneratedSlot = async ({
         timezone: string;
     };
     doctorClinicId: string;
+    client?: Prisma.TransactionClient;
 }) => {
     const localParts = await appointmentRepository.getClinicLocalAppointmentParts(
         scheduledAt,
-        clinic.timezone
+        clinic.timezone,
+        client
     );
 
     if (!localParts || Number(localParts.seconds) !== 0) {
@@ -294,7 +362,7 @@ const assertRequestedAppointmentMatchesGeneratedSlot = async ({
 
     const weekday = getWeekdayFromIsoDay(localParts.isoWeekday);
     const availabilityPeriods = normalizeAvailabilityPeriods(
-        await appointmentRepository.findDoctorAvailabilityPeriods(doctorClinicId)
+        await appointmentRepository.findDoctorAvailabilityPeriods(doctorClinicId, client)
     );
     const candidateLocalStartTimes = buildCandidateLocalStartTimes({
         clinic,
@@ -308,6 +376,36 @@ const assertRequestedAppointmentMatchesGeneratedSlot = async ({
     }
 
     return localParts;
+};
+
+const assertAppointmentIsReschedulable = (status: AppointmentStatus): void => {
+    if (!isAppointmentReschedulable(status)) {
+        throw createAppointmentRescheduleNotAllowedError();
+    }
+};
+
+const assertRescheduleQueueState = (
+    queueEntry: { status: QueueStatus } | null | undefined
+): void => {
+    if (!queueEntry) {
+        throw new AppError(
+            409,
+            'QUEUE_ENTRY_NOT_FOUND',
+            'Linked queue entry was not found for this appointment'
+        );
+    }
+
+    if (!reschedulePreVisitQueueStatuses.includes(queueEntry.status)) {
+        throw new AppError(
+            409,
+            'STATUS_SYNC_CONFLICT',
+            'Queue state changed while rescheduling. Please refresh and try again.'
+        );
+    }
+};
+
+const isSameInstant = (first: Date, second: Date): boolean => {
+    return first.getTime() === second.getTime();
 };
 
 export const appointmentService = {
@@ -345,7 +443,8 @@ export const appointmentService = {
                 await appointmentRepository.acquireDoctorScheduleLock(
                     tx,
                     clinicId,
-                    input.doctorId
+                    input.doctorId,
+                    localAppointmentParts.localDate
                 );
 
                 const existingDoctorAppointments =
@@ -449,6 +548,293 @@ export const appointmentService = {
             bufferMinutes: clinic.bufferMinutes,
             slots,
         };
+    },
+
+    async listRescheduleSlots(
+        user: AuthenticatedUser | undefined,
+        appointmentId: string,
+        query: RescheduleAppointmentSlotsQueryInput
+    ) {
+        const appointmentAccess = await accessService.verifyAppointmentClinicAccess(
+            user,
+            appointmentId
+        );
+        const appointment = await appointmentRepository.findAppointmentById(appointmentId);
+
+        if (!appointment || appointment.clinicId !== appointmentAccess.clinicId) {
+            throw new AppError(404, 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
+        }
+
+        assertAppointmentIsReschedulable(appointment.status);
+
+        const { clinic, doctorClinicId } = await validateDoctorSchedulingContext(
+            appointment.clinicId,
+            appointment.doctorId
+        );
+        const slots = await getAvailableSlotCandidates({
+            clinicId: appointment.clinicId,
+            doctorId: appointment.doctorId,
+            date: query.date,
+            durationMinutes: appointment.durationMinutes,
+            clinic,
+            doctorClinicId,
+            excludeAppointmentId: appointment.id,
+        });
+        const currentScheduledAt = appointment.scheduledAt.toISOString();
+
+        return {
+            appointmentId: appointment.id,
+            clinicId: appointment.clinicId,
+            doctorId: appointment.doctorId,
+            date: query.date,
+            timezone: clinic.timezone,
+            durationMinutes: appointment.durationMinutes,
+            slotDurationMinutes: clinic.slotDurationMinutes,
+            bufferMinutes: clinic.bufferMinutes,
+            currentScheduledAt,
+            slots: slots.filter((slot) => slot.scheduledAt !== currentScheduledAt),
+        };
+    },
+
+    async rescheduleAppointment(
+        user: AuthenticatedUser | undefined,
+        appointmentId: string,
+        scheduledAtInput: string
+    ) {
+        const appointmentAccess = await accessService.verifyAppointmentClinicAccess(
+            user,
+            appointmentId
+        );
+        const appointment = await appointmentRepository.findAppointmentById(appointmentId);
+
+        if (!appointment || appointment.clinicId !== appointmentAccess.clinicId) {
+            throw new AppError(404, 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
+        }
+
+        assertAppointmentIsReschedulable(appointment.status);
+        assertRescheduleQueueState(appointment.queueEntry);
+
+        const requestedScheduledAt = new Date(scheduledAtInput);
+
+        if (isSameInstant(appointment.scheduledAt, requestedScheduledAt)) {
+            const currentAppointment = await appointmentRepository.findAppointmentDetailsById(
+                appointment.id,
+                appointment.clinicId
+            );
+
+            if (!currentAppointment) {
+                throw new AppError(404, 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
+            }
+
+            return withNoShowPredictionResponse(currentAppointment);
+        }
+
+        if (requestedScheduledAt.getTime() < Date.now()) {
+            throw createAppointmentSlotUnavailableError();
+        }
+
+        const { clinic, doctorClinicId } = await validateDoctorSchedulingContext(
+            appointment.clinicId,
+            appointment.doctorId
+        );
+
+        const requestedLocalParts = await assertRequestedAppointmentMatchesGeneratedSlot({
+            scheduledAt: requestedScheduledAt,
+            durationMinutes: appointment.durationMinutes,
+            clinic,
+            doctorClinicId,
+        });
+        const sourceLocalParts = await appointmentRepository.getClinicLocalAppointmentParts(
+            appointment.scheduledAt,
+            clinic.timezone
+        );
+
+        if (!sourceLocalParts) {
+            throw createAppointmentRescheduleConflictError();
+        }
+
+        return appointmentRepository.runInTransaction(async (tx) => {
+            await queueRepository.acquireQueueScopeLocks(tx, [
+                {
+                    clinicId: appointment.clinicId,
+                    doctorId: appointment.doctorId,
+                    clinicLocalDate: sourceLocalParts.localDate,
+                },
+                {
+                    clinicId: appointment.clinicId,
+                    doctorId: appointment.doctorId,
+                    clinicLocalDate: requestedLocalParts.localDate,
+                },
+            ]);
+
+            const currentAppointment = await appointmentRepository.findAppointmentRescheduleState(
+                tx,
+                appointment.id,
+                appointment.clinicId
+            );
+
+            if (!currentAppointment) {
+                throw new AppError(404, 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
+            }
+
+            assertAppointmentIsReschedulable(currentAppointment.status);
+            assertRescheduleQueueState(currentAppointment.queueEntry);
+
+            if (!isSameInstant(currentAppointment.scheduledAt, appointment.scheduledAt)) {
+                throw createAppointmentRescheduleConflictError();
+            }
+
+            const finalSchedulingContext = await validateDoctorSchedulingContextInTransaction(
+                tx,
+                currentAppointment.clinicId,
+                currentAppointment.doctorId
+            );
+            const finalRequestedLocalParts = await assertRequestedAppointmentMatchesGeneratedSlot({
+                scheduledAt: requestedScheduledAt,
+                durationMinutes: currentAppointment.durationMinutes,
+                clinic: finalSchedulingContext.clinic,
+                doctorClinicId: finalSchedulingContext.doctorClinicId,
+                client: tx,
+            });
+
+            const existingDoctorAppointments =
+                await appointmentRepository.findOverlappingDoctorAppointment(
+                    tx,
+                    currentAppointment.clinicId,
+                    currentAppointment.doctorId,
+                    requestedScheduledAt,
+                    currentAppointment.durationMinutes,
+                    finalSchedulingContext.clinic.bufferMinutes,
+                    conflictingAppointmentStatuses,
+                    currentAppointment.id
+                );
+
+            if (existingDoctorAppointments.length > 0) {
+                throw createAppointmentSlotConflictError();
+            }
+
+            const sourceDate = sourceLocalParts.localDate;
+            const destinationDate = finalRequestedLocalParts.localDate;
+            let destinationPosition = currentAppointment.queueEntry.position;
+
+            if (sourceDate !== destinationDate) {
+                const highestPosition = await queueRepository.findHighestQueuePosition(
+                    tx,
+                    currentAppointment.clinicId,
+                    currentAppointment.doctorId,
+                    requestedScheduledAt,
+                    finalSchedulingContext.clinic.timezone
+                );
+
+                destinationPosition = queueService.calculateNextQueuePosition(highestPosition);
+            }
+
+            const updateResult = await appointmentRepository.updateAppointmentScheduledAt(
+                tx,
+                currentAppointment.id,
+                currentAppointment.clinicId,
+                appointment.scheduledAt,
+                requestedScheduledAt
+            );
+
+            if (updateResult.count !== 1) {
+                throw createAppointmentRescheduleConflictError();
+            }
+
+            if (sourceDate !== destinationDate) {
+                const queueUpdateResult = await appointmentRepository.updateQueueEntryPosition(
+                    tx,
+                    currentAppointment.queueEntry.id,
+                    currentAppointment.clinicId,
+                    destinationPosition
+                );
+
+                if (queueUpdateResult.count !== 1) {
+                    throw new AppError(
+                        409,
+                        'QUEUE_REORDER_CONFLICT',
+                        'Queue changed while rescheduling. Please refresh and try again.'
+                    );
+                }
+            }
+
+            const updatedAppointment = await tx.appointment.findFirst({
+                where: {
+                    id: currentAppointment.id,
+                    clinicId: currentAppointment.clinicId,
+                },
+                include: {
+                    doctor: {
+                        select: {
+                            id: true,
+                            fullName: true,
+                            specialization: true,
+                            qualification: true,
+                            registrationNumber: true,
+                            phone: true,
+                            email: true,
+                            gender: true,
+                            experienceYears: true,
+                            isActive: true,
+                        },
+                    },
+                    patient: {
+                        select: {
+                            id: true,
+                            fullName: true,
+                            phone: true,
+                            email: true,
+                            gender: true,
+                            dateOfBirth: true,
+                            age: true,
+                            address: true,
+                            city: true,
+                            emergencyContactName: true,
+                            emergencyContactPhone: true,
+                            isActive: true,
+                        },
+                    },
+                    createdBy: {
+                        select: {
+                            id: true,
+                            fullName: true,
+                            email: true,
+                            role: true,
+                        },
+                    },
+                    queueEntry: {
+                        select: {
+                            id: true,
+                            position: true,
+                            status: true,
+                            queuedAt: true,
+                            calledAt: true,
+                            completedAt: true,
+                        },
+                    },
+                    noShowPrediction: {
+                        select: {
+                            id: true,
+                            riskLevel: true,
+                            score: true,
+                            reasons: true,
+                            createdAt: true,
+                            updatedAt: true,
+                        },
+                    },
+                },
+            });
+
+            if (!updatedAppointment) {
+                throw new AppError(
+                    500,
+                    'APPOINTMENT_RESCHEDULE_FAILED',
+                    'Appointment reschedule failed'
+                );
+            }
+
+            return withNoShowPredictionResponse(updatedAppointment);
+        });
     },
 
     async listAppointments(clinicId: string, filters: ListAppointmentsQueryInput) {

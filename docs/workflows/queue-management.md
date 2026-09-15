@@ -210,6 +210,12 @@ QueuePage merges reordered active entries into confirmed list and shows toast
 | Concurrency protection                                  | `acquireQueueScopeLock` uses `pg_advisory_xact_lock` inside transaction             |
 | Position rewrite avoids transient duplicates            | first pass writes high temporary positions, second pass writes normalized positions |
 
+## Appointment Rescheduling Interaction
+
+Appointment rescheduling preserves the existing `QueueEntry`; it does not delete and recreate queue rows. Queue membership is derived from the linked appointment's clinic-local `scheduledAt` date, so a cross-date reschedule moves the same row into the destination doctor/date operational scope.
+
+Same-day appointment rescheduling keeps the current queue position so manual ordering remains intact. Cross-date appointment rescheduling acquires the affected clinic/doctor/date advisory locks in deterministic order, keeps `status`, `queuedAt`, `calledAt`, and `completedAt` unchanged, and assigns the existing row the next valid destination position. Source date positions are not automatically renumbered.
+
 ## Queue Lifecycle Diagram
 
 ```mermaid

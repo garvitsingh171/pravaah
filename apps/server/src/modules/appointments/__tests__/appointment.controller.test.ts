@@ -5,6 +5,8 @@ const mockAppointmentService = vi.hoisted(() => ({
     createAppointment: vi.fn(),
     listAvailableSlots: vi.fn(),
     listAppointments: vi.fn(),
+    listRescheduleSlots: vi.fn(),
+    rescheduleAppointment: vi.fn(),
     updateAppointmentStatus: vi.fn(),
 }));
 
@@ -14,8 +16,10 @@ vi.mock('../appointment.service.js', () => ({
 
 import {
     createAppointmentController,
+    listAppointmentRescheduleSlotsController,
     listAvailableAppointmentSlotsController,
     listAppointmentsController,
+    rescheduleAppointmentController,
     updateAppointmentStatusController,
 } from '../appointment.controller.js';
 
@@ -273,6 +277,117 @@ describe('listAvailableAppointmentSlotsController', () => {
             success: true,
             message: 'Available appointment slots fetched successfully',
             data: availability,
+        });
+    });
+});
+
+describe('listAppointmentRescheduleSlotsController', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('uses appointment access context and returns reschedule availability', async () => {
+        const user = {
+            id: 'user-id',
+        };
+        const validatedQuery = {
+            date: '2026-09-17',
+        };
+        const availability = {
+            appointmentId: 'appointment-id',
+            clinicId: 'clinic-id',
+            doctorId: 'doctor-id',
+            date: '2026-09-17',
+            timezone: 'Asia/Kolkata',
+            durationMinutes: 30,
+            slotDurationMinutes: 15,
+            bufferMinutes: 5,
+            currentScheduledAt: '2026-09-15T04:30:00.000Z',
+            slots: [],
+        };
+        const req = {
+            params: {
+                appointmentId: 'appointment-id',
+            },
+            user,
+        } as unknown as Request;
+        const json = vi.fn();
+        const status = vi.fn(() => ({ json }));
+        const res = {
+            locals: {
+                validatedQuery,
+            },
+            status,
+        } as unknown as Response;
+        const next = vi.fn() as NextFunction;
+
+        mockAppointmentService.listRescheduleSlots.mockResolvedValue(availability);
+
+        await listAppointmentRescheduleSlotsController(req, res, next);
+
+        expect(mockAppointmentService.listRescheduleSlots).toHaveBeenCalledWith(
+            user,
+            'appointment-id',
+            validatedQuery
+        );
+        expect(status).toHaveBeenCalledWith(200);
+        expect(json).toHaveBeenCalledWith({
+            success: true,
+            message: 'Appointment reschedule slots fetched successfully',
+            data: {
+                availability,
+            },
+        });
+    });
+});
+
+describe('rescheduleAppointmentController', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('submits only the destination timestamp and returns the updated appointment', async () => {
+        const user = {
+            id: 'user-id',
+        };
+        const appointment = {
+            id: 'appointment-id',
+            clinicId: 'clinic-id',
+            status: 'CONFIRMED',
+            scheduledAt: '2026-09-17T09:00:00.000Z',
+        };
+        const req = {
+            params: {
+                appointmentId: 'appointment-id',
+            },
+            body: {
+                scheduledAt: '2026-09-17T09:00:00.000Z',
+            },
+            user,
+        } as unknown as Request;
+        const json = vi.fn();
+        const status = vi.fn(() => ({ json }));
+        const res = {
+            status,
+        } as unknown as Response;
+        const next = vi.fn() as NextFunction;
+
+        mockAppointmentService.rescheduleAppointment.mockResolvedValue(appointment);
+
+        await rescheduleAppointmentController(req, res, next);
+
+        expect(mockAppointmentService.rescheduleAppointment).toHaveBeenCalledWith(
+            user,
+            'appointment-id',
+            '2026-09-17T09:00:00.000Z'
+        );
+        expect(status).toHaveBeenCalledWith(200);
+        expect(json).toHaveBeenCalledWith({
+            success: true,
+            message: 'Appointment rescheduled successfully',
+            data: {
+                appointment,
+            },
         });
     });
 });

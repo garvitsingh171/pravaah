@@ -297,6 +297,8 @@ WAITING -> ARRIVED -> CALLED -> COMPLETED
 
 The appointment creation workflow currently creates a `QueueEntry` immediately, including for future appointments. Queue list APIs filter by the appointment's clinic-local date.
 
+Appointment rescheduling updates the existing `Appointment.scheduledAt` value in place. It does not create a replacement appointment row. The linked `QueueEntry.appointmentId` remains unchanged; if the appointment moves to another clinic-local date, that same queue row becomes part of the destination doctor/date queue and receives a destination position. The linked `NoShowPrediction.appointmentId` also remains unchanged; no prediction history or reschedule-history table is created.
+
 ### NoShowPrediction
 
 Important fields:
@@ -392,6 +394,20 @@ Appointment status updates synchronize matching queue status where applicable.
 Queue status updates synchronize matching appointment status.
 
 Both paths guard against final-status conflicts and return conflict errors when data changes mid-update.
+
+### Appointment Rescheduling
+
+`appointmentService.rescheduleAppointment` validates appointment access and eligibility, then inside one transaction:
+
+1. obtains sorted advisory locks for affected clinic/doctor/date scopes
+2. re-reads the appointment and linked queue entry
+3. revalidates `SCHEDULED` or `CONFIRMED` status and pre-visit queue state
+4. revalidates the destination against current clinic settings and doctor weekly availability
+5. checks active duration-plus-buffer conflicts while excluding only the current appointment
+6. updates the existing `Appointment.scheduledAt` with a stale-state guard
+7. updates the existing `QueueEntry.position` only for cross-date moves
+
+No schema change, migration, reschedule-history table, replacement queue row, or replacement prediction row is required.
 
 ### Dashboard Prediction Backfill
 

@@ -48,6 +48,11 @@ const queueEntryDetailsInclude = {
 } satisfies Prisma.QueueEntryInclude;
 
 type PrismaQueryable = typeof prisma | Prisma.TransactionClient;
+type QueueScope = {
+    clinicId: string;
+    doctorId: string;
+    clinicLocalDate: string;
+};
 
 const getClinicDateRange = async (
     client: PrismaQueryable,
@@ -467,6 +472,31 @@ export const queueRepository = {
                 ],
             });
         });
+    },
+
+    async acquireQueueScopeLocks(tx: Prisma.TransactionClient, scopes: QueueScope[]) {
+        const uniqueScopes = [
+            ...new Map(
+                scopes.map((scope) => [
+                    `${scope.clinicId}:${scope.doctorId}:${scope.clinicLocalDate}`,
+                    scope,
+                ])
+            ).values(),
+        ].sort((first, second) => {
+            const firstKey = `${first.clinicId}:${first.doctorId}:${first.clinicLocalDate}`;
+            const secondKey = `${second.clinicId}:${second.doctorId}:${second.clinicLocalDate}`;
+
+            return firstKey.localeCompare(secondKey);
+        });
+
+        for (const scope of uniqueScopes) {
+            await acquireQueueScopeLock(
+                tx,
+                scope.clinicId,
+                scope.doctorId,
+                scope.clinicLocalDate
+            );
+        }
     },
 
     async findHighestQueuePosition(

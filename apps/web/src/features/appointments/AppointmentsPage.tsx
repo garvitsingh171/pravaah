@@ -32,6 +32,9 @@ import {
     type AppointmentListFilters,
     type AppointmentListItem,
     type CreateAppointmentRequest,
+    listAppointmentRescheduleSlots,
+    rescheduleAppointment,
+    type RescheduleAppointmentSlotsResponseData,
 } from './appointmentApi';
 
 type BackendValidationDetail = {
@@ -112,6 +115,19 @@ type SuccessState = {
     message: string;
     scheduledAt: string;
     riskLevel?: RiskLevel;
+};
+
+type RescheduleFlowState = {
+    appointment: AppointmentListItem;
+    destinationDate: string;
+    selectedScheduledAt: string;
+    availability: RescheduleAppointmentSlotsResponseData['availability'] | null;
+    slotsState: AvailableSlotsState;
+    error: {
+        message: string;
+        code?: string;
+    } | null;
+    isSaving: boolean;
 };
 
 type StatusAction = {
@@ -239,6 +255,11 @@ const finalAppointmentStatuses: AppointmentStatus[] = [
     AppointmentStatus.NO_SHOW,
 ];
 
+const reschedulableAppointmentStatuses: AppointmentStatus[] = [
+    AppointmentStatus.SCHEDULED,
+    AppointmentStatus.CONFIRMED,
+];
+
 const appointmentLifecycleSteps = [
     {
         id: AppointmentStatus.SCHEDULED,
@@ -274,6 +295,10 @@ const appointmentLifecycleSteps = [
 
 const isFinalAppointmentStatus = (status: AppointmentStatus): boolean => {
     return finalAppointmentStatuses.includes(status);
+};
+
+const isAppointmentReschedulable = (status: AppointmentStatus): boolean => {
+    return reschedulableAppointmentStatuses.includes(status);
 };
 
 const isActiveDoctor = (doctor: DoctorSummary): boolean => {
@@ -510,6 +535,10 @@ const formatAppointmentDateTime = (value: string): string => {
 
 const formatDuration = (durationMinutes: number): string => {
     return `${durationMinutes} min`;
+};
+
+const getSlotLabel = (slot: AvailableAppointmentSlot): string => {
+    return `${slot.localStartTime}-${slot.localEndTime}`;
 };
 
 const getOptionalText = (value: string | null | undefined): string => {
@@ -978,6 +1007,187 @@ function AppointmentListInsightsStrip({ insights }: { insights: AppointmentListI
     );
 }
 
+function RescheduleAppointmentDialog({
+    state,
+    onDateChange,
+    onSlotChange,
+    onConfirm,
+    onCancel,
+}: {
+    state: RescheduleFlowState;
+    onDateChange: (value: string) => void;
+    onSlotChange: (value: string) => void;
+    onConfirm: () => void;
+    onCancel: () => void;
+}) {
+    const selectedSlot =
+        state.availability?.slots.find((slot) => slot.scheduledAt === state.selectedScheduledAt) ??
+        null;
+    const canConfirm = Boolean(selectedSlot) && !state.isSaving;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 py-6">
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="appointment-reschedule-title"
+                className="max-h-full w-full max-w-2xl overflow-y-auto rounded-lg border border-app-border bg-white p-6 shadow-xl"
+            >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-brand-foreground">
+                            Reschedule
+                        </p>
+                        <h2
+                            id="appointment-reschedule-title"
+                            className="mt-1 text-lg font-semibold text-app-text"
+                        >
+                            {state.appointment.patient.fullName}
+                        </h2>
+                        <p className="mt-2 text-sm text-app-muted">
+                            {state.appointment.doctor.fullName} ·{' '}
+                            {formatDuration(state.appointment.durationMinutes)}
+                        </p>
+                    </div>
+
+                    <StatusBadge kind="appointment" status={state.appointment.status} />
+                </div>
+
+                <dl className="mt-5 grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Patient
+                        </dt>
+                        <dd className="mt-1 text-sm font-semibold text-slate-900">
+                            {state.appointment.patient.fullName}
+                        </dd>
+                    </div>
+                    <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Doctor
+                        </dt>
+                        <dd className="mt-1 text-sm font-semibold text-slate-900">
+                            {state.appointment.doctor.fullName}
+                        </dd>
+                    </div>
+                    <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Current
+                        </dt>
+                        <dd className="mt-1 text-sm font-semibold text-slate-900">
+                            {formatAppointmentDateTime(state.appointment.scheduledAt)}
+                        </dd>
+                    </div>
+                </dl>
+
+                <div className="mt-5 grid gap-5">
+                    <label className="block text-sm font-medium text-slate-700">
+                        New date
+                        <input
+                            className={fieldControlClassName}
+                            type="date"
+                            value={state.destinationDate}
+                            onChange={(event) => onDateChange(event.target.value)}
+                            disabled={state.isSaving}
+                        />
+                    </label>
+
+                    <label className="block text-sm font-medium text-slate-700">
+                        Available destination slot
+                        <select
+                            className={fieldControlClassName}
+                            value={state.selectedScheduledAt}
+                            onChange={(event) => onSlotChange(event.target.value)}
+                            disabled={
+                                state.isSaving ||
+                                state.slotsState.status === 'loading' ||
+                                state.slotsState.status === 'error' ||
+                                state.slotsState.slots.length === 0
+                            }
+                        >
+                            <option value="">
+                                {state.slotsState.status === 'loading'
+                                    ? 'Loading slots...'
+                                    : state.slotsState.slots.length > 0
+                                      ? 'Select destination slot'
+                                      : 'No slots available'}
+                            </option>
+                            {state.slotsState.slots.map((slot) => (
+                                <option key={slot.scheduledAt} value={slot.scheduledAt}>
+                                    {getSlotLabel(slot)}
+                                </option>
+                            ))}
+                        </select>
+                        {state.availability?.timezone ? (
+                            <span className="mt-1 block text-xs text-slate-500">
+                                Clinic timezone: {state.availability.timezone}
+                            </span>
+                        ) : null}
+                    </label>
+                </div>
+
+                {state.slotsState.status === 'error' ? (
+                    <p className="mt-4 rounded-md border border-[var(--color-status-danger-border)] bg-[var(--color-status-danger-bg)] px-3 py-2 text-sm text-[var(--color-status-danger-text)]">
+                        {state.slotsState.error.message}
+                    </p>
+                ) : null}
+
+                {state.slotsState.status === 'success' && state.slotsState.slots.length === 0 ? (
+                    <p className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                        No available slots for this doctor on this date.
+                    </p>
+                ) : null}
+
+                {state.error ? (
+                    <p className="mt-4 rounded-md border border-[var(--color-status-danger-border)] bg-[var(--color-status-danger-bg)] px-3 py-2 text-sm text-[var(--color-status-danger-text)]">
+                        {state.error.message}
+                    </p>
+                ) : null}
+
+                {selectedSlot ? (
+                    <div className="mt-5 rounded-lg border border-brand-soft bg-brand-subtle p-4">
+                        <h3 className="text-sm font-semibold text-slate-900">
+                            Reschedule appointment?
+                        </h3>
+                        <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+                            <div>
+                                <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                    From
+                                </dt>
+                                <dd className="mt-1 text-sm font-semibold text-slate-900">
+                                    {formatAppointmentDateTime(state.appointment.scheduledAt)}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                    To
+                                </dt>
+                                <dd className="mt-1 text-sm font-semibold text-slate-900">
+                                    {selectedSlot.localDate} · {getSlotLabel(selectedSlot)}
+                                </dd>
+                            </div>
+                        </dl>
+                    </div>
+                ) : null}
+
+                <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                    <Button variant="outline" onClick={onCancel} disabled={state.isSaving}>
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={onConfirm}
+                        disabled={!canConfirm}
+                        isLoading={state.isSaving}
+                        loadingText="Rescheduling..."
+                    >
+                        Confirm reschedule
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function AppointmentsPage() {
     const { clinicId } = useActiveClinic();
     const { showErrorToast, showSuccessToast } = useToast();
@@ -1008,6 +1218,10 @@ function AppointmentsPage() {
     const [formErrorDetails, setFormErrorDetails] = useState<BackendValidationDetail[]>([]);
     const [successState, setSuccessState] = useState<SuccessState | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [rescheduleFlow, setRescheduleFlow] = useState<RescheduleFlowState | null>(null);
+    const [rescheduleSlotsRefreshKey, setRescheduleSlotsRefreshKey] = useState(0);
+    const activeRescheduleAppointmentId = rescheduleFlow?.appointment.id ?? null;
+    const activeRescheduleDestinationDate = rescheduleFlow?.destinationDate ?? '';
 
     const loadAppointments = useCallback(
         async (signal?: AbortSignal) => {
@@ -1275,6 +1489,140 @@ function AppointmentsPage() {
         values.durationMinutes,
     ]);
 
+    useEffect(() => {
+        if (!activeRescheduleAppointmentId) {
+            return undefined;
+        }
+
+        const canLoadSlots =
+            Boolean(activeRescheduleDestinationDate) &&
+            isValidDateInputValue(activeRescheduleDestinationDate);
+
+        if (!canLoadSlots) {
+            setRescheduleFlow((currentState) =>
+                currentState
+                    ? {
+                          ...currentState,
+                          availability: null,
+                          selectedScheduledAt: '',
+                          slotsState: emptyAvailableSlotsState,
+                      }
+                    : currentState
+            );
+            return undefined;
+        }
+
+        const abortController = new AbortController();
+        const appointmentId = activeRescheduleAppointmentId;
+        const destinationDate = activeRescheduleDestinationDate;
+
+        setRescheduleFlow((currentState) =>
+            currentState && currentState.appointment.id === appointmentId
+                ? {
+                      ...currentState,
+                      slotsState: {
+                          status: 'loading',
+                          slots: currentState.slotsState.slots,
+                          error: null,
+                      },
+                      error: null,
+                  }
+                : currentState
+        );
+
+        void listAppointmentRescheduleSlots(
+            appointmentId,
+            destinationDate,
+            abortController.signal
+        )
+            .then((data) => {
+                const slots = data.availability.slots.filter(
+                    (slot) => slot.scheduledAt !== data.availability.currentScheduledAt
+                );
+
+                setRescheduleFlow((currentState) => {
+                    if (
+                        !currentState ||
+                        currentState.appointment.id !== appointmentId ||
+                        currentState.destinationDate !== destinationDate
+                    ) {
+                        return currentState;
+                    }
+
+                    return {
+                        ...currentState,
+                        availability: {
+                            ...data.availability,
+                            slots,
+                        },
+                        selectedScheduledAt: slots.some(
+                            (slot) => slot.scheduledAt === currentState.selectedScheduledAt
+                        )
+                            ? currentState.selectedScheduledAt
+                            : '',
+                        slotsState: {
+                            status: 'success',
+                            slots,
+                            error: null,
+                        },
+                    };
+                });
+            })
+            .catch((error: unknown) => {
+                if (abortController.signal.aborted) {
+                    return;
+                }
+
+                setRescheduleFlow((currentState) => {
+                    if (
+                        !currentState ||
+                        currentState.appointment.id !== appointmentId ||
+                        currentState.destinationDate !== destinationDate
+                    ) {
+                        return currentState;
+                    }
+
+                    if (isApiClientError(error)) {
+                        return {
+                            ...currentState,
+                            availability: null,
+                            selectedScheduledAt: '',
+                            slotsState: {
+                                status: 'error',
+                                slots: [],
+                                error: {
+                                    message: error.message,
+                                    code: error.code,
+                                },
+                            },
+                        };
+                    }
+
+                    return {
+                        ...currentState,
+                        availability: null,
+                        selectedScheduledAt: '',
+                        slotsState: {
+                            status: 'error',
+                            slots: [],
+                            error: {
+                                message: 'Reschedule slots could not be loaded.',
+                                code: 'APPOINTMENT_RESCHEDULE_SLOTS_LOAD_FAILED',
+                            },
+                        },
+                    };
+                });
+            });
+
+        return () => {
+            abortController.abort();
+        };
+    }, [
+        activeRescheduleAppointmentId,
+        activeRescheduleDestinationDate,
+        rescheduleSlotsRefreshKey,
+    ]);
+
     const handleChange = (field: keyof AppointmentBookingFormValues, value: string) => {
         const shouldClearSelectedSlot =
             field === 'doctorId' || field === 'appointmentDate' || field === 'durationMinutes';
@@ -1434,6 +1782,173 @@ function AppointmentsPage() {
             showErrorToast(fallbackMessage);
         } finally {
             setUpdatingAppointmentId(null);
+        }
+    };
+
+    const handleOpenReschedule = (appointment: AppointmentListItem) => {
+        setStatusUpdateError(null);
+        setStatusUpdateMessage(null);
+        setRescheduleFlow({
+            appointment,
+            destinationDate: isValidDateInputValue(selectedDate) ? selectedDate : '',
+            selectedScheduledAt: '',
+            availability: null,
+            slotsState: emptyAvailableSlotsState,
+            error: null,
+            isSaving: false,
+        });
+    };
+
+    const handleRescheduleDateChange = (value: string) => {
+        setRescheduleFlow((currentState) =>
+            currentState
+                ? {
+                      ...currentState,
+                      destinationDate: value,
+                      selectedScheduledAt: '',
+                      availability: null,
+                      slotsState: emptyAvailableSlotsState,
+                      error: null,
+                  }
+                : currentState
+        );
+    };
+
+    const handleRescheduleSlotChange = (value: string) => {
+        setRescheduleFlow((currentState) =>
+            currentState
+                ? {
+                      ...currentState,
+                      selectedScheduledAt: value,
+                      error: null,
+                  }
+                : currentState
+        );
+    };
+
+    const refreshAppointmentsAfterReschedule = () => {
+        void loadAppointments()
+            .then((appointments) => {
+                setAppointmentListState({
+                    status: 'success',
+                    appointments,
+                    error: null,
+                });
+            })
+            .catch((error: unknown) => {
+                const errorState = getAppointmentListErrorState(error);
+
+                if (errorState?.status === 'error') {
+                    setAppointmentListState(errorState);
+                }
+            });
+    };
+
+    const handleConfirmReschedule = async () => {
+        if (!rescheduleFlow?.selectedScheduledAt) {
+            return;
+        }
+
+        const appointmentId = rescheduleFlow.appointment.id;
+        const selectedScheduledAt = rescheduleFlow.selectedScheduledAt;
+
+        setRescheduleFlow((currentState) =>
+            currentState && currentState.appointment.id === appointmentId
+                ? {
+                      ...currentState,
+                      error: null,
+                      isSaving: true,
+                  }
+                : currentState
+        );
+
+        try {
+            const data = await rescheduleAppointment(appointmentId, {
+                scheduledAt: selectedScheduledAt,
+            });
+
+            setAppointmentListState((currentState) => {
+                const appointments = currentState.appointments.map((currentAppointment) =>
+                    currentAppointment.id === data.appointment.id
+                        ? data.appointment
+                        : currentAppointment
+                );
+
+                return {
+                    ...currentState,
+                    appointments,
+                };
+            });
+            setRescheduleFlow(null);
+            setStatusUpdateMessage('Appointment rescheduled successfully.');
+            showSuccessToast('Appointment rescheduled successfully.');
+            refreshAppointmentsAfterReschedule();
+        } catch (error) {
+            if (isApiClientError(error)) {
+                if (
+                    error.code === 'APPOINTMENT_SLOT_CONFLICT' ||
+                    error.code === 'APPOINTMENT_SLOT_UNAVAILABLE'
+                ) {
+                    setRescheduleFlow((currentState) =>
+                        currentState && currentState.appointment.id === appointmentId
+                            ? {
+                                  ...currentState,
+                                  selectedScheduledAt: '',
+                                  error: {
+                                      message: error.message,
+                                      code: error.code,
+                                  },
+                                  isSaving: false,
+                              }
+                            : currentState
+                    );
+                    setRescheduleSlotsRefreshKey((currentValue) => currentValue + 1);
+                    showErrorToast(error.message);
+                    return;
+                }
+
+                if (error.code === 'APPOINTMENT_RESCHEDULE_NOT_ALLOWED') {
+                    setRescheduleFlow(null);
+                    setStatusUpdateError({
+                        message: error.message,
+                        code: error.code,
+                    });
+                    showErrorToast(error.message);
+                    refreshAppointmentsAfterReschedule();
+                    return;
+                }
+
+                setRescheduleFlow((currentState) =>
+                    currentState && currentState.appointment.id === appointmentId
+                        ? {
+                              ...currentState,
+                              error: {
+                                  message: error.message,
+                                  code: error.code,
+                              },
+                              isSaving: false,
+                          }
+                        : currentState
+                );
+                showErrorToast(error.message);
+                return;
+            }
+
+            const fallbackMessage = 'Appointment could not be rescheduled. Please try again.';
+
+            setRescheduleFlow((currentState) =>
+                currentState && currentState.appointment.id === appointmentId
+                    ? {
+                          ...currentState,
+                          error: {
+                              message: fallbackMessage,
+                              code: 'APPOINTMENT_RESCHEDULE_FAILED',
+                          },
+                          isSaving: false,
+                      }
+                    : currentState
+            );
+            showErrorToast(fallbackMessage);
         }
     };
 
@@ -1638,6 +2153,9 @@ function AppointmentsPage() {
                                     const isUpdating = updatingAppointmentId === appointment.id;
                                     const isRiskExpanded =
                                         expandedPredictionAppointmentId === appointment.id;
+                                    const canReschedule = isAppointmentReschedulable(
+                                        appointment.status
+                                    );
 
                                     return (
                                         <Fragment key={appointment.id}>
@@ -1712,43 +2230,59 @@ function AppointmentsPage() {
                                                     />
                                                 </td>
                                                 <td className="min-w-44 px-4 py-5">
-                                                    {statusActions.length > 0 ? (
-                                                        <select
-                                                            className={`${fieldControlClassName} w-40`}
-                                                            value=""
-                                                            onChange={(event) => {
-                                                                const nextStatus = event.target
-                                                                    .value as AppointmentStatus;
-
-                                                                if (nextStatus) {
-                                                                    void handleStatusUpdate(
-                                                                        appointment,
-                                                                        nextStatus
-                                                                    );
+                                                    <div className="flex flex-col gap-2">
+                                                        {canReschedule ? (
+                                                            <Button
+                                                                variant="outline"
+                                                                onClick={() =>
+                                                                    handleOpenReschedule(
+                                                                        appointment
+                                                                    )
                                                                 }
-                                                            }}
-                                                            disabled={isUpdating}
-                                                            aria-label={`Update status for ${appointment.patient.fullName}`}
-                                                        >
-                                                            <option value="">
-                                                                {isUpdating
-                                                                    ? 'Updating...'
-                                                                    : 'Update status'}
-                                                            </option>
-                                                            {statusActions.map((action) => (
-                                                                <option
-                                                                    key={action.status}
-                                                                    value={action.status}
-                                                                >
-                                                                    {action.label}
+                                                                disabled={isUpdating}
+                                                            >
+                                                                Reschedule
+                                                            </Button>
+                                                        ) : null}
+
+                                                        {statusActions.length > 0 ? (
+                                                            <select
+                                                                className={`${fieldControlClassName} w-40`}
+                                                                value=""
+                                                                onChange={(event) => {
+                                                                    const nextStatus = event.target
+                                                                        .value as AppointmentStatus;
+
+                                                                    if (nextStatus) {
+                                                                        void handleStatusUpdate(
+                                                                            appointment,
+                                                                            nextStatus
+                                                                        );
+                                                                    }
+                                                                }}
+                                                                disabled={isUpdating}
+                                                                aria-label={`Update status for ${appointment.patient.fullName}`}
+                                                            >
+                                                                <option value="">
+                                                                    {isUpdating
+                                                                        ? 'Updating...'
+                                                                        : 'Update status'}
                                                                 </option>
-                                                            ))}
-                                                        </select>
-                                                    ) : (
-                                                        <span className="text-sm text-slate-500">
-                                                            Final status
-                                                        </span>
-                                                    )}
+                                                                {statusActions.map((action) => (
+                                                                    <option
+                                                                        key={action.status}
+                                                                        value={action.status}
+                                                                    >
+                                                                        {action.label}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                        ) : (
+                                                            <span className="text-sm text-slate-500">
+                                                                Final status
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </td>
                                             </tr>
 
@@ -1871,6 +2405,16 @@ function AppointmentsPage() {
                     onSubmit={handleSubmit}
                 />
             </div>
+
+            {rescheduleFlow ? (
+                <RescheduleAppointmentDialog
+                    state={rescheduleFlow}
+                    onDateChange={handleRescheduleDateChange}
+                    onSlotChange={handleRescheduleSlotChange}
+                    onConfirm={handleConfirmReschedule}
+                    onCancel={() => setRescheduleFlow(null)}
+                />
+            ) : null}
         </section>
     );
 }

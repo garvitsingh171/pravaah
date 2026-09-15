@@ -3,6 +3,7 @@ import { AppointmentStatus } from '../../../generated/prisma/client.js';
 import {
     getAllowedAppointmentCurrentStatusesForRequest,
     getAllowedAppointmentNextStatuses,
+    isAppointmentReschedulable,
     isAppointmentStatusTransitionAllowed,
     isFinalAppointmentStatus,
 } from '../appointment.lifecycle.js';
@@ -130,5 +131,21 @@ describe('appointment lifecycle policy', () => {
             AppointmentStatus.CALLED,
             AppointmentStatus.COMPLETED,
         ]);
+    });
+
+    it('centralizes rescheduling eligibility before the active visit begins', () => {
+        expect(isAppointmentReschedulable(AppointmentStatus.SCHEDULED)).toBe(true);
+        expect(isAppointmentReschedulable(AppointmentStatus.CONFIRMED)).toBe(true);
+
+        for (const status of [
+            AppointmentStatus.ARRIVED,
+            AppointmentStatus.IN_QUEUE,
+            AppointmentStatus.CALLED,
+            AppointmentStatus.COMPLETED,
+            AppointmentStatus.CANCELLED,
+            AppointmentStatus.NO_SHOW,
+        ]) {
+            expect(isAppointmentReschedulable(status)).toBe(false);
+        }
     });
 });
