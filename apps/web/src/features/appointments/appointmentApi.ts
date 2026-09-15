@@ -87,6 +87,7 @@ export type RescheduleAppointmentSlotsResponseData = {
 
 export type RescheduleAppointmentRequest = {
     scheduledAt: string;
+    currentScheduledAt: string;
 };
 
 export type AppointmentListResponseData = {

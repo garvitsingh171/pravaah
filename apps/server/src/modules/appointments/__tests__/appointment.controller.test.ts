@@ -362,6 +362,7 @@ describe('rescheduleAppointmentController', () => {
             },
             body: {
                 scheduledAt: '2026-09-17T09:00:00.000Z',
+                currentScheduledAt: '2026-09-15T09:00:00.000Z',
             },
             user,
         } as unknown as Request;
@@ -379,7 +380,8 @@ describe('rescheduleAppointmentController', () => {
         expect(mockAppointmentService.rescheduleAppointment).toHaveBeenCalledWith(
             user,
             'appointment-id',
-            '2026-09-17T09:00:00.000Z'
+            '2026-09-17T09:00:00.000Z',
+            '2026-09-15T09:00:00.000Z'
         );
         expect(status).toHaveBeenCalledWith(200);
         expect(json).toHaveBeenCalledWith({

@@ -402,10 +402,11 @@ Both paths guard against final-status conflicts and return conflict errors when 
 1. obtains sorted advisory locks for affected clinic/doctor/date scopes
 2. re-reads the appointment and linked queue entry
 3. revalidates `SCHEDULED` or `CONFIRMED` status and pre-visit queue state
-4. revalidates the destination against current clinic settings and doctor weekly availability
-5. checks active duration-plus-buffer conflicts while excluding only the current appointment
-6. updates the existing `Appointment.scheduledAt` with a stale-state guard
-7. updates the existing `QueueEntry.position` only for cross-date moves
+4. rejects stale dialogs whose confirmed `currentScheduledAt` no longer matches the row
+5. revalidates the destination against current clinic settings and doctor weekly availability
+6. checks active duration-plus-buffer conflicts while excluding only the current appointment
+7. updates the existing `Appointment.scheduledAt` with a stale-state guard
+8. updates the existing `QueueEntry.position` only for cross-date moves
 
 No schema change, migration, reschedule-history table, replacement queue row, or replacement prediction row is required.
 

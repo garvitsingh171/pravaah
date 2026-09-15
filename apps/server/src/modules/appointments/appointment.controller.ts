@@ -141,12 +141,13 @@ export async function rescheduleAppointmentController(
 ): Promise<void> {
     try {
         const { appointmentId } = req.params as AppointmentIdParamsInput;
-        const { scheduledAt } = req.body as RescheduleAppointmentInput;
+        const { scheduledAt, currentScheduledAt } = req.body as RescheduleAppointmentInput;
 
         const appointment = await appointmentService.rescheduleAppointment(
             req.user,
             appointmentId,
-            scheduledAt
+            scheduledAt,
+            currentScheduledAt
         );
 
         res.status(200).json({

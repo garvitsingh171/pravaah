@@ -720,7 +720,8 @@ again during the final mutation. `GET /api/appointments/:appointmentId/reschedul
 derives clinic, doctor, duration, and the self-excluded appointment ID from the
 persisted appointment; clients only provide `date=YYYY-MM-DD`.
 
-`PATCH /api/appointments/:appointmentId/reschedule` accepts only `scheduledAt`.
+`PATCH /api/appointments/:appointmentId/reschedule` accepts destination
+`scheduledAt` plus the user-confirmed `currentScheduledAt` version token.
 It preserves appointment ID, doctor, patient, duration, status, booking source,
 reason, notes, creator, created time, queue row identity, queue status, queue
 timestamps, and the existing prediction row. The transaction sequence is:
@@ -732,6 +733,7 @@ verify appointment access and initial eligibility
 -> acquire source/destination clinic+doctor+date advisory locks in sorted order
 -> re-read appointment and QueueEntry
 -> recheck SCHEDULED/CONFIRMED and pre-visit queue state
+-> reject if scheduledAt no longer matches currentScheduledAt
 -> re-read clinic scheduling settings and DoctorAvailabilityPeriod rows
 -> validate requested timestamp against the canonical generated-slot grid
 -> check duration-plus-buffer overlap with only the current appointment excluded

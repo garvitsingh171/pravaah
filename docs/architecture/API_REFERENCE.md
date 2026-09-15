@@ -852,11 +852,12 @@ Body:
 
 ```json
 {
-    "scheduledAt": "2026-09-17T09:00:00.000Z"
+    "scheduledAt": "2026-09-17T09:00:00.000Z",
+    "currentScheduledAt": "2026-09-15T09:00:00.000Z"
 }
 ```
 
-Only `scheduledAt` is accepted. Doctor, patient, clinic, duration, status, source, reason, and notes are derived from the existing appointment and are not mutable through this endpoint.
+Only destination `scheduledAt` and the user-confirmed `currentScheduledAt` version are accepted. Doctor, patient, clinic, duration, status, source, reason, and notes are derived from the existing appointment and are not mutable through this endpoint.
 
 Response summary:
 
@@ -864,7 +865,7 @@ Response summary:
 data.appointment
 ```
 
-The mutation preserves appointment identity and lifecycle status. It revalidates current status, queue state, clinic settings, doctor availability, slot grid, active overlaps, and queue destination position inside one transaction. Same-timestamp requests return the current appointment as a no-op.
+The mutation preserves appointment identity and lifecycle status. It revalidates current status, queue state, clinic settings, doctor availability, slot grid, active overlaps, the confirmed current timestamp, and queue destination position inside one transaction. Same-timestamp requests return the current appointment as a no-op when `currentScheduledAt` still matches persisted state.
 
 Main errors:
 

@@ -222,7 +222,7 @@ User selects a returned destination slot
     ↓
 Dialog shows From and To confirmation
     ↓
-appointmentApi.rescheduleAppointment(appointmentId, { scheduledAt })
+appointmentApi.rescheduleAppointment(appointmentId, { scheduledAt, currentScheduledAt })
     ↓
 PATCH /api/appointments/:appointmentId/reschedule
     ↓
@@ -236,6 +236,8 @@ accessService.verifyAppointmentClinicAccess(user, appointmentId)
     ↓
 service loads current appointment and verifies SCHEDULED or CONFIRMED
     ↓
+persisted scheduledAt must match the user-confirmed currentScheduledAt
+    ↓
 same timestamp returns current appointment as a no-op
     ↓
 transaction starts
@@ -245,6 +247,8 @@ acquire source/destination clinicId + doctorId + clinic-local-date advisory lock
 re-read appointment and linked queue entry
     ↓
 recheck reschedulable status and pre-visit queue status
+    ↓
+recheck current scheduledAt still equals currentScheduledAt
     ↓
 re-read clinic scheduling config and doctor weekly availability
     ↓

@@ -58,6 +58,7 @@ export const rescheduleAppointmentSlotsQuerySchema = z
 export const rescheduleAppointmentSchema = z
     .object({
         scheduledAt: z.string().datetime('Invalid appointment date and time'),
+        currentScheduledAt: z.string().datetime('Invalid current appointment date and time'),
     })
     .strict();
 

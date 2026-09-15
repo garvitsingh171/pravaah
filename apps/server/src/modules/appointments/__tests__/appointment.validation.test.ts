@@ -70,12 +70,19 @@ describe('reschedule appointment validation', () => {
         expect(
             rescheduleAppointmentSchema.safeParse({
                 scheduledAt: '2026-09-17T09:00:00.000Z',
+                currentScheduledAt: '2026-09-15T09:00:00.000Z',
             }).success
         ).toBe(true);
         expect(
             rescheduleAppointmentSchema.safeParse({
                 scheduledAt: '2026-09-17T09:00:00.000Z',
+                currentScheduledAt: '2026-09-15T09:00:00.000Z',
                 doctorId: '11111111-1111-4111-8111-111111111111',
+            }).success
+        ).toBe(false);
+        expect(
+            rescheduleAppointmentSchema.safeParse({
+                scheduledAt: '2026-09-17T09:00:00.000Z',
             }).success
         ).toBe(false);
     });

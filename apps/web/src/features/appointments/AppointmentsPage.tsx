@@ -1845,12 +1845,13 @@ function AppointmentsPage() {
     };
 
     const handleConfirmReschedule = async () => {
-        if (!rescheduleFlow?.selectedScheduledAt) {
+        if (!rescheduleFlow?.selectedScheduledAt || !rescheduleFlow.availability) {
             return;
         }
 
         const appointmentId = rescheduleFlow.appointment.id;
         const selectedScheduledAt = rescheduleFlow.selectedScheduledAt;
+        const currentScheduledAt = rescheduleFlow.availability.currentScheduledAt;
 
         setRescheduleFlow((currentState) =>
             currentState && currentState.appointment.id === appointmentId
@@ -1865,6 +1866,7 @@ function AppointmentsPage() {
         try {
             const data = await rescheduleAppointment(appointmentId, {
                 scheduledAt: selectedScheduledAt,
+                currentScheduledAt,
             });
 
             setAppointmentListState((currentState) => {

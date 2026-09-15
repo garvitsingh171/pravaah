@@ -581,6 +581,7 @@ export const appointmentService = {
             excludeAppointmentId: appointment.id,
         });
         const currentScheduledAt = appointment.scheduledAt.toISOString();
+        const now = Date.now();
 
         return {
             appointmentId: appointment.id,
@@ -592,14 +593,19 @@ export const appointmentService = {
             slotDurationMinutes: clinic.slotDurationMinutes,
             bufferMinutes: clinic.bufferMinutes,
             currentScheduledAt,
-            slots: slots.filter((slot) => slot.scheduledAt !== currentScheduledAt),
+            slots: slots.filter(
+                (slot) =>
+                    slot.scheduledAt !== currentScheduledAt &&
+                    new Date(slot.scheduledAt).getTime() >= now
+            ),
         };
     },
 
     async rescheduleAppointment(
         user: AuthenticatedUser | undefined,
         appointmentId: string,
-        scheduledAtInput: string
+        scheduledAtInput: string,
+        currentScheduledAtInput: string
     ) {
         const appointmentAccess = await accessService.verifyAppointmentClinicAccess(
             user,
@@ -615,6 +621,11 @@ export const appointmentService = {
         assertRescheduleQueueState(appointment.queueEntry);
 
         const requestedScheduledAt = new Date(scheduledAtInput);
+        const expectedCurrentScheduledAt = new Date(currentScheduledAtInput);
+
+        if (!isSameInstant(appointment.scheduledAt, expectedCurrentScheduledAt)) {
+            throw createAppointmentRescheduleConflictError();
+        }
 
         if (isSameInstant(appointment.scheduledAt, requestedScheduledAt)) {
             const currentAppointment = await appointmentRepository.findAppointmentDetailsById(
@@ -680,7 +691,7 @@ export const appointmentService = {
             assertAppointmentIsReschedulable(currentAppointment.status);
             assertRescheduleQueueState(currentAppointment.queueEntry);
 
-            if (!isSameInstant(currentAppointment.scheduledAt, appointment.scheduledAt)) {
+            if (!isSameInstant(currentAppointment.scheduledAt, expectedCurrentScheduledAt)) {
                 throw createAppointmentRescheduleConflictError();
             }
 
@@ -733,7 +744,7 @@ export const appointmentService = {
                 tx,
                 currentAppointment.id,
                 currentAppointment.clinicId,
-                appointment.scheduledAt,
+                expectedCurrentScheduledAt,
                 requestedScheduledAt
             );
 
