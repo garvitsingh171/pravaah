@@ -23,7 +23,7 @@
 | Database models       | `Clinic`, `Doctor`, `DoctorClinic`, `Patient`, `PatientClinic`, `Appointment`, `QueueEntry`, `NoShowPrediction`, `User`                                                                                                  |
 | Prisma operations     | `findUnique`, `findFirst`, `count`, `appointment.create`, `queueEntry.create`, `noShowPrediction.create`, status `updateMany`, detail `findFirst`                                                                        |
 | Transaction           | Booking uses `appointmentRepository.runInTransaction`; status update uses `prisma.$transaction`                                                                                                                          |
-| Concurrency control   | Booking takes advisory transaction locks for doctor clinic-local scheduling day and doctor/day queue position. Status sync uses guarded `updateMany` against final statuses                                               |
+| Concurrency control   | Booking takes advisory transaction locks for doctor scheduling and doctor/day queue position. Status sync uses guarded `updateMany` against final statuses                                                                 |
 | State changes         | Appointment row, queue entry row, no-show prediction row, status synchronization with queue                                                                                                                              |
 | Side effects          | Booking always creates a `QueueEntry` and a `NoShowPrediction` in current code                                                                                                                                           |
 | Errors                | `APPOINTMENT_SLOT_UNAVAILABLE`, `APPOINTMENT_SLOT_CONFLICT`, `DOCTOR_NOT_LINKED_TO_CLINIC`, `PATIENT_NOT_LINKED_TO_CLINIC`, `APPOINTMENT_STATUS_FINAL`, `STATUS_SYNC_CONFLICT`, `QUEUE_ENTRY_NOT_FOUND`                  |
@@ -153,7 +153,7 @@ Not implemented in current service:
 
 - No date-specific doctor exceptions, holidays, or leave schedule.
 - No past-date rejection as a business rule.
-- No explicit active/inactive rejection for `Doctor.isActive` or `Patient.isActive` in the backend ownership check. It checks active link rows.
+- No explicit active/inactive rejection for `Patient.isActive` in the backend ownership check. Doctor scheduling requires both `Doctor.isActive` and an active `DoctorClinic` link.
 
 ## Appointment Listing Trace
 
