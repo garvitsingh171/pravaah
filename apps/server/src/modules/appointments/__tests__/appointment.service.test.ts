@@ -181,6 +181,7 @@ describe('appointmentService.createAppointment', () => {
 
         mockAppointmentRepository.findDoctorById.mockResolvedValue({
             id: input.doctorId,
+            isActive: true,
         });
 
         mockAppointmentRepository.findPatientById.mockResolvedValue({
@@ -247,8 +248,7 @@ describe('appointmentService.createAppointment', () => {
         expect(mockAppointmentRepository.acquireDoctorScheduleLock).toHaveBeenCalledWith(
             mockTx,
             clinicId,
-            input.doctorId,
-            '2026-06-20'
+            input.doctorId
         );
 
         expect(mockAppointmentRepository.findOverlappingDoctorAppointment).toHaveBeenCalledWith(
@@ -353,6 +353,7 @@ describe('appointmentService.createAppointment', () => {
 
         mockAppointmentRepository.findDoctorById.mockResolvedValue({
             id: input.doctorId,
+            isActive: true,
         });
 
         mockAppointmentRepository.findPatientById.mockResolvedValue({
@@ -453,6 +454,7 @@ describe('appointmentService.createAppointment', () => {
 
         mockAppointmentRepository.findDoctorById.mockResolvedValue({
             id: input.doctorId,
+            isActive: true,
         });
 
         mockAppointmentRepository.findPatientById.mockResolvedValue({
@@ -499,8 +501,7 @@ describe('appointmentService.createAppointment', () => {
         expect(mockAppointmentRepository.acquireDoctorScheduleLock).toHaveBeenCalledWith(
             mockTx,
             clinicId,
-            input.doctorId,
-            '2026-06-20'
+            input.doctorId
         );
 
         expect(mockAppointmentRepository.findOverlappingDoctorAppointment).toHaveBeenCalledWith(
@@ -516,6 +517,115 @@ describe('appointmentService.createAppointment', () => {
         expect(mockAppointmentRepository.createAppointment).not.toHaveBeenCalled();
         expect(mockQueueRepository.createQueueEntry).not.toHaveBeenCalled();
         expect(mockAppointmentRepository.createNoShowPrediction).not.toHaveBeenCalled();
+    });
+});
+
+describe('appointmentService.listAvailableSlots', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('rejects inactive doctor profiles before generating slots', async () => {
+        mockAppointmentRepository.findClinicById.mockResolvedValue({
+            id: 'clinic-id',
+            isActive: true,
+            ...clinicSchedulingSettings,
+        });
+        mockAppointmentRepository.findDoctorById.mockResolvedValue({
+            id: 'doctor-id',
+            isActive: false,
+        });
+
+        await expect(
+            appointmentService.listAvailableSlots('clinic-id', {
+                doctorId: 'doctor-id',
+                date: '2026-06-20',
+                durationMinutes: 15,
+            })
+        ).rejects.toMatchObject({
+            statusCode: 400,
+            code: 'DOCTOR_INACTIVE',
+            message: 'Doctor is inactive',
+        });
+
+        expect(mockAppointmentRepository.findActiveDoctorClinicLink).not.toHaveBeenCalled();
+        expect(mockAppointmentRepository.findDoctorAvailabilityPeriods).not.toHaveBeenCalled();
+    });
+
+    it('filters DST-normalized wall times out of the generated slot response', async () => {
+        const clinic = {
+            id: 'clinic-id',
+            isActive: true,
+            timezone: 'America/New_York',
+            openingTime: '01:00',
+            closingTime: '04:00',
+            slotDurationMinutes: 30,
+            bufferMinutes: 5,
+        };
+
+        mockAppointmentRepository.findClinicById.mockResolvedValue(clinic);
+        mockAppointmentRepository.findDoctorById.mockResolvedValue({
+            id: 'doctor-id',
+            isActive: true,
+        });
+        mockAppointmentRepository.findActiveDoctorClinicLink.mockResolvedValue({
+            id: 'doctor-clinic-id',
+            clinicId: 'clinic-id',
+            doctorId: 'doctor-id',
+            isActive: true,
+        });
+        mockAppointmentRepository.getClinicLocalDateWeekday.mockResolvedValue({
+            localDate: '2026-03-08',
+            isoWeekday: 7,
+        });
+        mockAppointmentRepository.findDoctorAvailabilityPeriods.mockResolvedValue([
+            {
+                weekday: 'SUNDAY',
+                startTime: '01:00',
+                endTime: '04:00',
+            },
+        ]);
+        mockAppointmentRepository.getClinicLocalDateTimeInstants.mockResolvedValue([
+            {
+                localTime: '02:30',
+                instant: new Date('2026-03-08T07:30:00.000Z'),
+                resolvedLocalDate: '2026-03-08',
+                resolvedLocalTime: '03:30',
+            },
+            {
+                localTime: '03:30',
+                instant: new Date('2026-03-08T07:30:00.000Z'),
+                resolvedLocalDate: '2026-03-08',
+                resolvedLocalTime: '03:30',
+            },
+        ]);
+        mockAppointmentRepository.findDoctorSchedulingAppointmentsForDate.mockResolvedValue([]);
+
+        const result = await appointmentService.listAvailableSlots('clinic-id', {
+            doctorId: 'doctor-id',
+            date: '2026-03-08',
+            durationMinutes: 30,
+        });
+
+        expect(result.slots).toEqual([
+            {
+                scheduledAt: '2026-03-08T07:30:00.000Z',
+                endsAt: '2026-03-08T08:00:00.000Z',
+                localDate: '2026-03-08',
+                localStartTime: '03:30',
+                localEndTime: '04:00',
+            },
+        ]);
+        expect(
+            mockAppointmentRepository.findDoctorSchedulingAppointmentsForDate
+        ).toHaveBeenCalledWith(
+            'clinic-id',
+            'doctor-id',
+            '2026-03-08',
+            clinic.timezone,
+            clinic.bufferMinutes,
+            ['SCHEDULED', 'CONFIRMED', 'ARRIVED', 'IN_QUEUE', 'CALLED']
+        );
     });
 });
 

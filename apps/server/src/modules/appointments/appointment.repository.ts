@@ -257,14 +257,29 @@ export const appointmentRepository = {
 
         const localTimeValues = Prisma.join(localTimes.map((time) => Prisma.sql`(${time})`));
 
-        return prisma.$queryRaw<Array<{ localTime: string; instant: Date }>>`
+        return prisma.$queryRaw<
+            Array<{
+                localTime: string;
+                instant: Date;
+                resolvedLocalDate: string;
+                resolvedLocalTime: string;
+            }>
+        >`
             WITH requested("localTime") AS (
                 VALUES ${localTimeValues}
+            ),
+            converted AS (
+                SELECT
+                    "localTime"::text AS "localTime",
+                    (${date}::date + "localTime"::time) AT TIME ZONE ${clinicTimezone} AS "instant"
+                FROM requested
             )
             SELECT
-                "localTime"::text AS "localTime",
-                (${date}::date + "localTime"::time) AT TIME ZONE ${clinicTimezone} AS "instant"
-            FROM requested
+                "localTime",
+                "instant",
+                to_char("instant" AT TIME ZONE ${clinicTimezone}, 'YYYY-MM-DD') AS "resolvedLocalDate",
+                to_char("instant" AT TIME ZONE ${clinicTimezone}, 'HH24:MI') AS "resolvedLocalTime"
+            FROM converted
             ORDER BY "localTime"::time
         `;
     },
@@ -274,6 +289,7 @@ export const appointmentRepository = {
         doctorId: string,
         date: string,
         clinicTimezone: string,
+        bufferMinutes: number,
         statuses: AppointmentStatus[]
     ) {
         const dateRange = await getClinicDateRange(date, clinicTimezone);
@@ -282,33 +298,22 @@ export const appointmentRepository = {
             return [];
         }
 
-        return prisma.appointment.findMany({
-            where: {
-                clinicId,
-                doctorId,
-                scheduledAt: {
-                    gte: dateRange.start,
-                    lt: dateRange.end,
-                },
-                status: {
-                    in: statuses,
-                },
-            },
-            select: {
-                scheduledAt: true,
-                durationMinutes: true,
-            },
-            orderBy: {
-                scheduledAt: 'asc',
-            },
-        });
+        return prisma.$queryRaw<Array<{ scheduledAt: Date; durationMinutes: number }>>`
+            SELECT "scheduledAt", "durationMinutes"
+            FROM "appointments"
+            WHERE "clinicId" = ${clinicId}::uuid
+              AND "doctorId" = ${doctorId}::uuid
+              AND "status"::text IN (${Prisma.join(statuses)})
+              AND "scheduledAt" < ${dateRange.end}
+              AND "scheduledAt" + (("durationMinutes" + ${bufferMinutes}) * interval '1 minute') > ${dateRange.start}
+            ORDER BY "scheduledAt" ASC
+        `;
     },
 
     acquireDoctorScheduleLock(
         tx: Prisma.TransactionClient,
         clinicId: string,
-        doctorId: string,
-        localDate: string
+        doctorId: string
     ) {
         return tx.$queryRaw`
             SELECT pg_advisory_xact_lock(
@@ -316,9 +321,7 @@ export const appointmentRepository = {
                     concat(
                         ${clinicId},
                         ':',
-                        ${doctorId},
-                        ':',
-                        ${localDate}
+                        ${doctorId}
                     ),
                     0
                 )

@@ -84,6 +84,10 @@ async function validateAppointmentClinicOwnership(
         throw new AppError(404, 'DOCTOR_NOT_FOUND', 'Doctor not found');
     }
 
+    if (!doctor.isActive) {
+        throw new AppError(400, 'DOCTOR_INACTIVE', 'Doctor is inactive');
+    }
+
     const patient = await appointmentRepository.findPatientById(patientId);
 
     if (!patient) {
@@ -142,6 +146,10 @@ async function validateDoctorSchedulingContext(clinicId: string, doctorId: strin
 
     if (!doctor) {
         throw new AppError(404, 'DOCTOR_NOT_FOUND', 'Doctor not found');
+    }
+
+    if (!doctor.isActive) {
+        throw new AppError(400, 'DOCTOR_INACTIVE', 'Doctor is inactive');
     }
 
     const doctorClinicLink = await appointmentRepository.findActiveDoctorClinicLink(
@@ -235,10 +243,14 @@ const getAvailableSlotCandidates = async ({
             doctorId,
             date,
             clinic.timezone,
+            clinic.bufferMinutes,
             conflictingAppointmentStatuses
         );
 
     return slotInstants
+        .filter((slot) => {
+            return slot.resolvedLocalDate === date && slot.resolvedLocalTime === slot.localTime;
+        })
         .filter((slot) => {
             return !findConflictingSchedulingAppointment(
                 {
@@ -333,8 +345,7 @@ export const appointmentService = {
                 await appointmentRepository.acquireDoctorScheduleLock(
                     tx,
                     clinicId,
-                    input.doctorId,
-                    localAppointmentParts.localDate
+                    input.doctorId
                 );
 
                 const existingDoctorAppointments =

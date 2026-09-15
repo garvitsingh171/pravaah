@@ -697,7 +697,7 @@ for the clinic-local date, doctor availability, clinic hours, slot duration,
 appointment duration, and buffer rules. It then runs one transaction:
 
 ```txt
-acquire doctor clinic-local day advisory lock
+acquire doctor scheduling advisory lock
 -> check active doctor duration-plus-buffer overlap
 -> acquire queue position lock and read highest position
 -> create Appointment with SCHEDULED status
@@ -903,7 +903,7 @@ a Prisma `@@unique` because it is partial SQL.
 | Doctor create                 | `Doctor`, `DoctorClinic`                             | Transaction.                                                                              | Link update fields not exposed.                    |
 | Doctor availability replace   | `DoctorAvailabilityPeriod` rows for one `DoctorClinic` | Transaction after full payload and clinic-hours validation.                                | No date-specific exceptions/leave model.           |
 | Patient create/update         | `Patient`, `PatientClinic`                           | Transaction.                                                                              | Link-aware active filtering incomplete.            |
-| Appointment booking           | `Appointment`, `QueueEntry`, `NoShowPrediction`      | Advisory locks for doctor clinic-local scheduling day and queue position; generated-slot validation; duration-plus-buffer overlap query. | No past-date business rejection.                   |
+| Appointment booking           | `Appointment`, `QueueEntry`, `NoShowPrediction`      | Advisory locks for doctor scheduling and queue position; generated-slot validation; duration-plus-buffer overlap query. | No past-date business rejection.                   |
 | Appointment status            | `Appointment`, mapped `QueueEntry`                   | Transaction and final-state guard.                                                        | Broad non-final transitions.                       |
 | Queue status                  | `QueueEntry`, mapped `Appointment`                   | Transaction, queue lifecycle guard, exact current-status guard, and appointment lifecycle sync guard. | Route-level lifecycle coverage can be expanded.    |
 | Queue reorder                 | `QueueEntry.position` rows                           | Advisory lock by clinic/doctor/date, complete active-set validation, temporary positions. | Needs owner test/manual evidence after fix.        |
