@@ -29,6 +29,10 @@ export type QueueAppointmentSummary = {
     bookingSource: BookingSource;
     reason?: string | null;
     notes?: string | null;
+    arrivedAt?: string | null;
+    arrivalOffsetMinutes?: number | null;
+    isLateArrival?: boolean | null;
+    lateArrivalGraceMinutes?: number | null;
 };
 
 export type QueueListItem = {

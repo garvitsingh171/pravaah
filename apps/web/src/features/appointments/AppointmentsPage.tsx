@@ -533,6 +533,26 @@ const formatAppointmentDateTime = (value: string): string => {
     }).format(date);
 };
 
+const formatAppointmentTime = (
+    value: string | null | undefined,
+    timezone?: string | null
+): string | null => {
+    if (!value) {
+        return null;
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+
+    return new Intl.DateTimeFormat('en-IN', {
+        timeStyle: 'short',
+        timeZone: timezone ?? undefined,
+    }).format(date);
+};
+
 const formatDuration = (durationMinutes: number): string => {
     return `${durationMinutes} min`;
 };
@@ -555,6 +575,56 @@ const getBookingSourceLabel = (source: BookingSource): string => {
 
     return labels[source];
 };
+
+const getArrivalClassificationLabel = (
+    appointment: Pick<
+        AppointmentListItem,
+        'arrivedAt' | 'arrivalOffsetMinutes' | 'isLateArrival'
+    >
+): string | null => {
+    if (!appointment.arrivedAt) {
+        return null;
+    }
+
+    if (appointment.isLateArrival === true) {
+        const offset = appointment.arrivalOffsetMinutes;
+
+        return typeof offset === 'number' ? `Late - ${offset} min` : 'Late';
+    }
+
+    if (appointment.isLateArrival === false) {
+        const offset = appointment.arrivalOffsetMinutes;
+
+        if (typeof offset === 'number' && offset > 0) {
+            return 'Within grace';
+        }
+
+        return 'On time';
+    }
+
+    return 'Arrival recorded';
+};
+
+function AppointmentArrivalSummary({
+    appointment,
+    timezone,
+}: {
+    appointment: AppointmentListItem;
+    timezone?: string | null;
+}) {
+    const arrivedAt = formatAppointmentTime(appointment.arrivedAt, timezone);
+    const classification = getArrivalClassificationLabel(appointment);
+
+    if (!arrivedAt || !classification) {
+        return null;
+    }
+
+    return (
+        <p className="mt-2 text-xs font-medium text-slate-600">
+            Arrived {arrivedAt} · {classification}
+        </p>
+    );
+}
 
 const getPredictionReasonMessages = (reasons: unknown[] | null | undefined): string[] => {
     if (!Array.isArray(reasons)) {
@@ -892,7 +962,13 @@ function AppointmentLifecyclePanel({ appointment }: { appointment: AppointmentLi
     );
 }
 
-function AppointmentDetailPanel({ appointment }: { appointment: AppointmentListItem }) {
+function AppointmentDetailPanel({
+    appointment,
+    timezone,
+}: {
+    appointment: AppointmentListItem;
+    timezone?: string | null;
+}) {
     const queueEntry = appointment.queueEntry;
     const patientContact = [appointment.patient.phone, appointment.patient.email]
         .filter((value): value is string => Boolean(value?.trim()))
@@ -915,6 +991,7 @@ function AppointmentDetailPanel({ appointment }: { appointment: AppointmentListI
                             {formatAppointmentDateTime(appointment.scheduledAt)} for{' '}
                             {formatDuration(appointment.durationMinutes)}
                         </p>
+                        <AppointmentArrivalSummary appointment={appointment} timezone={timezone} />
                     </div>
 
                     <StatusBadge kind="appointment" status={appointment.status} />
@@ -1189,7 +1266,9 @@ function RescheduleAppointmentDialog({
 }
 
 function AppointmentsPage() {
-    const { clinicId } = useActiveClinic();
+    const activeClinic = useActiveClinic();
+    const { clinicId } = activeClinic;
+    const clinicTimezone = activeClinic.clinic?.timezone;
     const { showErrorToast, showSuccessToast } = useToast();
     const [selectedDate, setSelectedDate] = useState(getTodayDateInputValue);
     const [selectedDoctorId, setSelectedDoctorId] = useState('');
@@ -2207,6 +2286,10 @@ function AppointmentsPage() {
                                                             Queue #{appointment.queueEntry.position}
                                                         </p>
                                                     ) : null}
+                                                    <AppointmentArrivalSummary
+                                                        appointment={appointment}
+                                                        timezone={clinicTimezone}
+                                                    />
                                                 </td>
                                                 <td className="min-w-56 px-4 py-5 text-slate-700">
                                                     <p className="font-medium text-slate-900">
@@ -2296,6 +2379,7 @@ function AppointmentsPage() {
                                                     >
                                                         <AppointmentDetailPanel
                                                             appointment={appointment}
+                                                            timezone={clinicTimezone}
                                                         />
                                                     </td>
                                                 </tr>

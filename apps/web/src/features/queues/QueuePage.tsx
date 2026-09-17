@@ -111,6 +111,7 @@ const isFinalQueueStatus = (status: QueueStatusType): boolean => {
 
 const queueStatusActionsByCurrentStatus: Record<QueueStatusType, QueueStatusAction[]> = {
     WAITING: [
+        { status: QueueStatus.ARRIVED, label: queueStatusActionLabels.ARRIVED },
         { status: QueueStatus.CALLED, label: queueStatusActionLabels.CALLED },
         { status: QueueStatus.COMPLETED, label: queueStatusActionLabels.COMPLETED },
         { status: QueueStatus.CANCELLED, label: queueStatusActionLabels.CANCELLED },
@@ -187,7 +188,10 @@ const formatDateTime = (value: string): string => {
     }).format(date);
 };
 
-const formatTime = (value: string | null | undefined): string | null => {
+const formatTime = (
+    value: string | null | undefined,
+    timezone?: string | null
+): string | null => {
     if (!value) {
         return null;
     }
@@ -200,6 +204,7 @@ const formatTime = (value: string | null | undefined): string | null => {
 
     return new Intl.DateTimeFormat('en-IN', {
         timeStyle: 'short',
+        timeZone: timezone ?? undefined,
     }).format(date);
 };
 
@@ -210,6 +215,56 @@ const getOptionalText = (value: string | number | null | undefined): string => {
 
     return String(value).trim() || 'Not added';
 };
+
+const getArrivalClassificationLabel = (
+    appointment: Pick<
+        QueueListItem['appointment'],
+        'arrivedAt' | 'arrivalOffsetMinutes' | 'isLateArrival'
+    >
+): string | null => {
+    if (!appointment.arrivedAt) {
+        return null;
+    }
+
+    if (appointment.isLateArrival === true) {
+        const offset = appointment.arrivalOffsetMinutes;
+
+        return typeof offset === 'number' ? `Late - ${offset} min` : 'Late';
+    }
+
+    if (appointment.isLateArrival === false) {
+        const offset = appointment.arrivalOffsetMinutes;
+
+        if (typeof offset === 'number' && offset > 0) {
+            return 'Within grace';
+        }
+
+        return 'On time';
+    }
+
+    return 'Arrival recorded';
+};
+
+function QueueArrivalSummary({
+    queueEntry,
+    timezone,
+}: {
+    queueEntry: QueueListItem;
+    timezone?: string | null;
+}) {
+    const arrivedAt = formatTime(queueEntry.appointment.arrivedAt, timezone);
+    const classification = getArrivalClassificationLabel(queueEntry.appointment);
+
+    if (!arrivedAt || !classification) {
+        return null;
+    }
+
+    return (
+        <p className="mt-2 text-xs font-medium text-slate-600">
+            Arrived {arrivedAt} · {classification}
+        </p>
+    );
+}
 
 const getSuggestedActions = (actions: unknown): string[] => {
     if (!Array.isArray(actions)) {
@@ -493,6 +548,7 @@ function QueueEntryCard({
     queueEntry,
     reorderingQueueEntryId,
     updatingQueueEntryId,
+    timezone,
 }: {
     activeQueueIndexesByDoctor: Map<string, Map<string, number>>;
     allActiveQueueEntries: QueueListItem[];
@@ -502,6 +558,7 @@ function QueueEntryCard({
     queueEntry: QueueListItem;
     reorderingQueueEntryId: string | null;
     updatingQueueEntryId: string | null;
+    timezone?: string | null;
 }) {
     const statusActions = getQueueStatusActions(queueEntry.status);
     const isUpdating = updatingQueueEntryId === queueEntry.id;
@@ -594,6 +651,7 @@ function QueueEntryCard({
                             <p className="mt-1 text-xs text-slate-500">
                                 {queueEntry.appointment.durationMinutes} min
                             </p>
+                            <QueueArrivalSummary queueEntry={queueEntry} timezone={timezone} />
                         </div>
                         <div className="rounded-md bg-slate-50 p-3">
                             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -653,6 +711,7 @@ function ActiveQueueBoard({
     reorderingQueueEntryId,
     todayDate,
     updatingQueueEntryId,
+    timezone,
 }: {
     activeQueueEntries: QueueListItem[];
     activeQueueIndexesByDoctor: Map<string, Map<string, number>>;
@@ -663,6 +722,7 @@ function ActiveQueueBoard({
     reorderingQueueEntryId: string | null;
     todayDate: string;
     updatingQueueEntryId: string | null;
+    timezone?: string | null;
 }) {
     const lanes = getQueueDoctorLanes(activeQueueEntries);
 
@@ -721,6 +781,7 @@ function ActiveQueueBoard({
                                     queueEntry={queueEntry}
                                     reorderingQueueEntryId={reorderingQueueEntryId}
                                     updatingQueueEntryId={updatingQueueEntryId}
+                                    timezone={timezone}
                                 />
                             ))}
                         </ol>
@@ -731,7 +792,13 @@ function ActiveQueueBoard({
     );
 }
 
-function FinalQueueEntriesSection({ finalQueueEntries }: { finalQueueEntries: QueueListItem[] }) {
+function FinalQueueEntriesSection({
+    finalQueueEntries,
+    timezone,
+}: {
+    finalQueueEntries: QueueListItem[];
+    timezone?: string | null;
+}) {
     return (
         <details className="rounded-lg bg-white shadow-[var(--shadow-soft)] ring-1 ring-slate-200">
             <summary className="cursor-pointer list-none px-4 py-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action [&::-webkit-details-marker]:hidden">
@@ -770,6 +837,7 @@ function FinalQueueEntriesSection({ finalQueueEntries }: { finalQueueEntries: Qu
                             <p className="mt-1 text-slate-500">
                                 {formatDateTime(queueEntry.appointment.scheduledAt)}
                             </p>
+                            <QueueArrivalSummary queueEntry={queueEntry} timezone={timezone} />
                         </div>
                         <div className="space-y-2">
                             <StatusBadge kind="queue" status={queueEntry.status} />
@@ -789,6 +857,7 @@ function FinalQueueEntriesSection({ finalQueueEntries }: { finalQueueEntries: Qu
 function QueuePage() {
     const activeClinic = useActiveClinic();
     const { clinicId } = activeClinic;
+    const clinicTimezone = activeClinic.clinic?.timezone;
     const { showErrorToast, showSuccessToast } = useToast();
     const todayDate = getTodayDateInputValue();
     const [selectedDoctorId, setSelectedDoctorId] = useState('');
@@ -1274,11 +1343,15 @@ function QueuePage() {
                     reorderingQueueEntryId={reorderingQueueEntryId}
                     todayDate={todayDate}
                     updatingQueueEntryId={updatingQueueEntryId}
+                    timezone={clinicTimezone}
                 />
             ) : null}
 
             {hasFilteredQueueEntries && finalQueueEntries.length > 0 ? (
-                <FinalQueueEntriesSection finalQueueEntries={finalQueueEntries} />
+                <FinalQueueEntriesSection
+                    finalQueueEntries={finalQueueEntries}
+                    timezone={clinicTimezone}
+                />
             ) : null}
         </section>
     );

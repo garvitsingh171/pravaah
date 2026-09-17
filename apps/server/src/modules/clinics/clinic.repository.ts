@@ -5,6 +5,7 @@ import {
     Prisma,
     QueueStatus,
 } from '../../generated/prisma/client.js';
+import { calculateArrivalOutcome } from '../appointments/appointment.arrival.js';
 import type { NoShowPredictionOutput } from '../predictions/prediction.types.js';
 import {
     SAMPLE_DATA_NOTE_MARKER,
@@ -36,6 +37,7 @@ type SampleAppointmentDefinition = {
     notes: string;
     bookingSource: BookingSource;
     bookedMinutesBefore: number;
+    arrivalOffsetMinutes?: number;
 };
 
 type CreatedSamplePatient = {
@@ -61,6 +63,7 @@ const sampleAppointmentDefinitions: SampleAppointmentDefinition[] = [
         notes: 'Low-risk appointment in today queue.',
         bookingSource: BookingSource.RECEPTION,
         bookedMinutesBefore: 72 * 60,
+        arrivalOffsetMinutes: -5,
     },
     {
         doctorIndex: 1,
@@ -74,6 +77,7 @@ const sampleAppointmentDefinitions: SampleAppointmentDefinition[] = [
         notes: 'Medium-risk appointment marked arrived manually.',
         bookingSource: BookingSource.PHONE,
         bookedMinutesBefore: 5 * 60,
+        arrivalOffsetMinutes: 18,
     },
     {
         doctorIndex: 2,
@@ -87,6 +91,7 @@ const sampleAppointmentDefinitions: SampleAppointmentDefinition[] = [
         notes: 'High-risk appointment currently called by staff.',
         bookingSource: BookingSource.RECEPTION,
         bookedMinutesBefore: 3 * 60,
+        arrivalOffsetMinutes: 7,
     },
     {
         doctorIndex: 0,
@@ -100,6 +105,7 @@ const sampleAppointmentDefinitions: SampleAppointmentDefinition[] = [
         notes: 'Completed queue entry.',
         bookingSource: BookingSource.RECEPTION,
         bookedMinutesBefore: 4 * 24 * 60,
+        arrivalOffsetMinutes: 2,
     },
     {
         doctorIndex: 1,
@@ -302,6 +308,7 @@ const clinicSettingsSelect = {
     closingTime: true,
     slotDurationMinutes: true,
     bufferMinutes: true,
+    lateArrivalGraceMinutes: true,
     createdAt: true,
     updatedAt: true,
 } satisfies Prisma.ClinicSelect;
@@ -352,6 +359,10 @@ export const clinicRepository = {
             updateData.bufferMinutes = data.bufferMinutes;
         }
 
+        if (data.lateArrivalGraceMinutes !== undefined) {
+            updateData.lateArrivalGraceMinutes = data.lateArrivalGraceMinutes;
+        }
+
         return prisma.clinic.update({
             where: {
                 id,
@@ -381,6 +392,7 @@ export const clinicRepository = {
                     id: true,
                     timezone: true,
                     slotDurationMinutes: true,
+                    lateArrivalGraceMinutes: true,
                 },
             });
 
@@ -508,6 +520,17 @@ export const clinicRepository = {
                     appointmentDefinition.time,
                     clinic.timezone
                 );
+                const arrivedAt =
+                    appointmentDefinition.arrivalOffsetMinutes === undefined
+                        ? null
+                        : addMinutes(scheduledAt, appointmentDefinition.arrivalOffsetMinutes);
+                const arrivalOutcome = arrivedAt
+                    ? calculateArrivalOutcome({
+                          scheduledAt,
+                          arrivedAt,
+                          graceMinutes: clinic.lateArrivalGraceMinutes,
+                      })
+                    : null;
 
                 const appointment = await tx.appointment.create({
                     data: {
@@ -521,6 +544,10 @@ export const clinicRepository = {
                         bookingSource: appointmentDefinition.bookingSource,
                         reason: appointmentDefinition.reason,
                         notes: `${SAMPLE_DATA_NOTE_MARKER} ${appointmentDefinition.notes}`,
+                        arrivedAt,
+                        arrivalOffsetMinutes: arrivalOutcome?.arrivalOffsetMinutes ?? null,
+                        isLateArrival: arrivalOutcome?.isLateArrival ?? null,
+                        lateArrivalGraceMinutes: arrivalOutcome?.lateArrivalGraceMinutes ?? null,
                     },
                     select: {
                         id: true,

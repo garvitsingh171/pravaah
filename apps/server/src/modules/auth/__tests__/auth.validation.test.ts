@@ -19,6 +19,7 @@ describe('onboardingClinicSchema', () => {
             closingTime: '18:00',
             slotDurationMinutes: 15,
             bufferMinutes: 0,
+            lateArrivalGraceMinutes: 15,
         });
     });
 
@@ -38,6 +39,7 @@ describe('onboardingClinicSchema', () => {
             closingTime: '17:30',
             slotDurationMinutes: 20,
             bufferMinutes: 5,
+            lateArrivalGraceMinutes: 0,
         };
 
         expect(onboardingClinicSchema.safeParse(input).success).toBe(true);
@@ -119,6 +121,15 @@ describe('onboardingClinicSchema', () => {
         const result = onboardingClinicSchema.safeParse({
             ...minimumClinicInput,
             bufferMinutes: -1,
+        });
+
+        expect(result.success).toBe(false);
+    });
+
+    it('rejects negative late arrival grace minutes', () => {
+        const result = onboardingClinicSchema.safeParse({
+            ...minimumClinicInput,
+            lateArrivalGraceMinutes: -1,
         });
 
         expect(result.success).toBe(false);

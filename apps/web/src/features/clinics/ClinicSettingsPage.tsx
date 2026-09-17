@@ -27,6 +27,7 @@ type ClinicSettingsFormValues = {
     closingTime: string;
     slotDurationMinutes: string;
     bufferMinutes: string;
+    lateArrivalGraceMinutes: string;
 };
 
 type ClinicSettingsFieldErrors = Partial<Record<keyof ClinicSettingsFormValues, string>>;
@@ -76,6 +77,7 @@ const validationFieldMap: Partial<Record<string, keyof ClinicSettingsFormValues>
     'body.closingTime': 'closingTime',
     'body.slotDurationMinutes': 'slotDurationMinutes',
     'body.bufferMinutes': 'bufferMinutes',
+    'body.lateArrivalGraceMinutes': 'lateArrivalGraceMinutes',
 };
 
 const toFormValues = (clinic: ClinicSettings): ClinicSettingsFormValues => ({
@@ -93,6 +95,7 @@ const toFormValues = (clinic: ClinicSettings): ClinicSettingsFormValues => ({
     closingTime: clinic.closingTime,
     slotDurationMinutes: String(clinic.slotDurationMinutes),
     bufferMinutes: String(clinic.bufferMinutes),
+    lateArrivalGraceMinutes: String(clinic.lateArrivalGraceMinutes),
 });
 
 const getFieldClassName = (hasError: boolean): string => {
@@ -237,6 +240,11 @@ const validateClinicSettingsForm = (
         errors.bufferMinutes = 'Buffer minutes must be a whole number greater than or equal to 0.';
     }
 
+    if (!hasNonNegativeIntegerShape(values.lateArrivalGraceMinutes.trim())) {
+        errors.lateArrivalGraceMinutes =
+            'Late arrival grace period must be a whole number greater than or equal to 0.';
+    }
+
     return errors;
 };
 
@@ -255,6 +263,7 @@ const toComparableValues = (values: ClinicSettingsFormValues) => ({
     closingTime: values.closingTime.trim(),
     slotDurationMinutes: Number(values.slotDurationMinutes.trim()),
     bufferMinutes: Number(values.bufferMinutes.trim()),
+    lateArrivalGraceMinutes: Number(values.lateArrivalGraceMinutes.trim()),
 });
 
 const toComparableFormValues = (values: ClinicSettingsFormValues) => ({
@@ -272,6 +281,7 @@ const toComparableFormValues = (values: ClinicSettingsFormValues) => ({
     closingTime: values.closingTime.trim(),
     slotDurationMinutes: values.slotDurationMinutes.trim(),
     bufferMinutes: values.bufferMinutes.trim(),
+    lateArrivalGraceMinutes: values.lateArrivalGraceMinutes.trim(),
 });
 
 const hasClinicSettingsChanges = (
@@ -311,6 +321,10 @@ const buildChangedSettingsPayload = (
 
     if (current.bufferMinutes !== initial.bufferMinutes) {
         payload.bufferMinutes = current.bufferMinutes;
+    }
+
+    if (current.lateArrivalGraceMinutes !== initial.lateArrivalGraceMinutes) {
+        payload.lateArrivalGraceMinutes = current.lateArrivalGraceMinutes;
     }
 
     return payload;
@@ -389,6 +403,9 @@ function ClinicSettingsSummary({ clinic }: { clinic: ClinicSettings }) {
                 </p>
                 <p className="mt-1 text-sm text-slate-500">
                     {clinic.slotDurationMinutes} min slots, {clinic.bufferMinutes} min buffer
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                    {clinic.lateArrivalGraceMinutes} min late-arrival grace
                 </p>
             </div>
             <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
@@ -876,6 +893,35 @@ function ClinicSettingsPage() {
                         inputMode="numeric"
                         onChange={handleChange}
                     />
+
+                    <label className="block text-sm font-medium text-slate-700">
+                        Late arrival grace period <RequiredMark />
+                        <input
+                            className={getFieldClassName(
+                                Boolean(fieldErrors.lateArrivalGraceMinutes)
+                            )}
+                            value={values.lateArrivalGraceMinutes}
+                            onChange={(event) =>
+                                handleChange('lateArrivalGraceMinutes', event.target.value)
+                            }
+                            disabled={isSubmitting}
+                            inputMode="numeric"
+                            aria-invalid={Boolean(fieldErrors.lateArrivalGraceMinutes)}
+                            aria-describedby={getFieldErrorDescriptionId(
+                                'lateArrivalGraceMinutes',
+                                fieldErrors
+                            )}
+                            required
+                        />
+                        <p className="mt-1 text-xs text-slate-500">
+                            Patients arriving more than this many minutes after their appointment
+                            time are marked late.
+                        </p>
+                        <FieldError
+                            id={getFieldErrorId('lateArrivalGraceMinutes')}
+                            message={fieldErrors.lateArrivalGraceMinutes}
+                        />
+                    </label>
                 </div>
 
                 <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">

@@ -54,6 +54,12 @@ export const createClinicSchema = z
             .default(15),
 
         bufferMinutes: z.number().int().min(0, 'Buffer minutes cannot be negative').default(0),
+
+        lateArrivalGraceMinutes: z
+            .number()
+            .int()
+            .min(0, 'Late arrival grace period cannot be negative')
+            .default(15),
     })
     .strict();
 
@@ -85,6 +91,12 @@ export const updateClinicSchema = z
             .optional(),
 
         bufferMinutes: z.number().int().min(0, 'Buffer minutes cannot be negative').optional(),
+
+        lateArrivalGraceMinutes: z
+            .number()
+            .int()
+            .min(0, 'Late arrival grace period cannot be negative')
+            .optional(),
     })
     .strict()
     .refine((data) => Object.keys(data).length > 0, {

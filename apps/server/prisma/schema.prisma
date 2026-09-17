@@ -74,25 +74,26 @@ enum Weekday {
 }
 
 model Clinic {
-  id                  String   @id @default(uuid()) @db.Uuid
-  name                String
-  slug                String   @unique
-  phone               String?
-  email               String?
-  addressLine1        String?
-  addressLine2        String?
-  city                String?
-  state               String?
-  country             String   @default("India")
-  pincode             String?
-  timezone            String   @default("Asia/Kolkata")
-  openingTime         String   @default("09:00")
-  closingTime         String   @default("18:00")
-  slotDurationMinutes Int      @default(15)
-  bufferMinutes       Int      @default(0)
-  isActive            Boolean  @default(true)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                      String   @id @default(uuid()) @db.Uuid
+  name                    String
+  slug                    String   @unique
+  phone                   String?
+  email                   String?
+  addressLine1            String?
+  addressLine2            String?
+  city                    String?
+  state                   String?
+  country                 String   @default("India")
+  pincode                 String?
+  timezone                String   @default("Asia/Kolkata")
+  openingTime             String   @default("09:00")
+  closingTime             String   @default("18:00")
+  slotDurationMinutes     Int      @default(15)
+  bufferMinutes           Int      @default(0)
+  lateArrivalGraceMinutes Int      @default(15)
+  isActive                Boolean  @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 
   users             User[]
   doctorClinics     DoctorClinic[]
@@ -239,19 +240,23 @@ model PatientClinic {
 }
 
 model Appointment {
-  id              String            @id @default(uuid()) @db.Uuid
-  clinicId        String            @db.Uuid
-  doctorId        String            @db.Uuid
-  patientId       String            @db.Uuid
-  createdByUserId String            @db.Uuid
-  scheduledAt     DateTime
-  durationMinutes Int               @default(15)
-  status          AppointmentStatus @default(SCHEDULED)
-  bookingSource   BookingSource     @default(RECEPTION)
-  reason          String?
-  notes           String?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  id                        String            @id @default(uuid()) @db.Uuid
+  clinicId                  String            @db.Uuid
+  doctorId                  String            @db.Uuid
+  patientId                 String            @db.Uuid
+  createdByUserId           String            @db.Uuid
+  scheduledAt               DateTime
+  durationMinutes           Int               @default(15)
+  status                    AppointmentStatus @default(SCHEDULED)
+  bookingSource             BookingSource     @default(RECEPTION)
+  reason                    String?
+  notes                     String?
+  arrivedAt                 DateTime?
+  arrivalOffsetMinutes      Int?
+  isLateArrival             Boolean?
+  lateArrivalGraceMinutes   Int?
+  createdAt                 DateTime          @default(now())
+  updatedAt                 DateTime          @updatedAt
 
   clinic           Clinic            @relation(fields: [clinicId], references: [id], onDelete: Restrict)
   doctor           Doctor            @relation(fields: [doctorId], references: [id], onDelete: Restrict)

@@ -99,6 +99,10 @@ export type AppointmentSummary = BaseEntity & {
     status: AppointmentStatus;
     bookingSource: BookingSource;
     reason?: string;
+    arrivedAt?: string | null;
+    arrivalOffsetMinutes?: number | null;
+    isLateArrival?: boolean | null;
+    lateArrivalGraceMinutes?: number | null;
 };
 
 export type AppointmentBookingNoShowPrediction = {

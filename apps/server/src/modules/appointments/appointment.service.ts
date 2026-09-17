@@ -384,9 +384,9 @@ const assertAppointmentIsReschedulable = (status: AppointmentStatus): void => {
     }
 };
 
-const assertRescheduleQueueState = (
-    queueEntry: { status: QueueStatus } | null | undefined
-): void => {
+function assertRescheduleQueueState<T extends { status: QueueStatus }>(
+    queueEntry: T | null | undefined
+): asserts queueEntry is T {
     if (!queueEntry) {
         throw new AppError(
             409,
@@ -402,7 +402,7 @@ const assertRescheduleQueueState = (
             'Queue state changed while rescheduling. Please refresh and try again.'
         );
     }
-};
+}
 
 const isSameInstant = (first: Date, second: Date): boolean => {
     return first.getTime() === second.getTime();
@@ -929,6 +929,18 @@ export const appointmentService = {
                 status
             );
         } catch (error) {
+            if (error instanceof Error && error.message === 'PATIENT_CLINIC_LINK_NOT_FOUND') {
+                throw new AppError(
+                    409,
+                    'PATIENT_CLINIC_LINK_NOT_FOUND',
+                    'Patient-clinic link was not found while recording arrival.'
+                );
+            }
+
+            if (error instanceof Error && error.message === 'CLINIC_NOT_FOUND') {
+                throw new AppError(404, 'CLINIC_NOT_FOUND', 'Clinic not found');
+            }
+
             if (error instanceof Error && error.message === 'QUEUE_STATUS_SYNC_CONFLICT') {
                 throw new AppError(
                     409,

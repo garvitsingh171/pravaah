@@ -84,6 +84,7 @@ export type CreateClinicOnboardingRequest = {
     closingTime?: string;
     slotDurationMinutes?: number;
     bufferMinutes?: number;
+    lateArrivalGraceMinutes?: number;
 };
 
 export const getOnboardingStatus = (signal?: AbortSignal) => {
