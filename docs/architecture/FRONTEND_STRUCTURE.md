@@ -90,11 +90,11 @@ The public landing, auth, and onboarding routes are outside `ProtectedAppShell`.
 
 ## Layout Structure
 
-| File                            | Responsibility                                                                         |
-| ------------------------------- | -------------------------------------------------------------------------------------- |
+| File                            | Responsibility                                                                                                                        |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | `app/AppLayout.tsx`             | Page shell with skip link, desktop/mobile navigation, Topbar, floating setup dock, route transition wrapper, and nested route outlet. |
-| `components/layout/Sidebar.tsx` | Desktop sidebar and mobile drawer navigation links from route config.                  |
-| `components/layout/Topbar.tsx`  | Current page context, clinic chip, role chip, account summary, and Clerk sign-out menu. |
+| `components/layout/Sidebar.tsx` | Desktop sidebar and mobile drawer navigation links from route config.                                                                 |
+| `components/layout/Topbar.tsx`  | Current page context, clinic chip, role chip, account summary, and Clerk sign-out menu.                                               |
 
 ## Feature Folders
 
@@ -257,13 +257,13 @@ Implemented states include:
 | Sign Up           | Clerk `SignUp`, then directs signed-in users toward clinic onboarding.                                                                                                                                                        |
 | Clinic Onboarding | Resolves onboarding status, renders first-time clinic form for `NOT_STARTED`, posts clinic bootstrap, offers optional fictional sample data after successful clinic creation, and redirects completed users to the dashboard. |
 | Landing           | Public product overview with sign-in/sign-up CTAs and a signed-in continuation CTA to onboarding.                                                                                                                             |
-| Dashboard         | Fetches summary, high-risk appointments, and today activity; setup progress is surfaced by the protected shell dock rather than the dashboard page.                                                                            |
+| Dashboard         | Fetches summary, high-risk appointments, and today activity; setup progress is surfaced by the protected shell dock rather than the dashboard page.                                                                           |
 | Doctors           | Lists doctors, local search, create link, and list-page edit workflow.                                                                                                                                                        |
 | Doctor Create     | Creates doctor through backend API.                                                                                                                                                                                           |
 | Patients          | Lists patients from `PatientClinic` API, backend search, create link, and list-page edit workflow.                                                                                                                            |
 | Patient Create    | Creates patient and clinic link through backend API.                                                                                                                                                                          |
 | Appointments      | Lists/filter appointments, books appointments, updates appointment status, shows prediction details.                                                                                                                          |
-| Queue             | Lists today's queue, filters by doctor/status, shows doctor-scoped active queue lanes, updates queue status, reorders active entries manually, and keeps final entries in a secondary review section.                          |
+| Queue             | Lists today's queue, filters by doctor/status, shows doctor-scoped active queue lanes, updates queue status, reorders active entries manually, and keeps final entries in a secondary review section.                         |
 | Clinic Settings   | Loads the active clinic settings, displays the slug read-only, and lets Admins update supported profile and operational fields.                                                                                               |
 
 ## How To Add A New Page

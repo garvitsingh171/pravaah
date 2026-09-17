@@ -11,44 +11,42 @@ export const reschedulableAppointmentStatuses: readonly AppointmentStatus[] = [
     AppointmentStatus.CONFIRMED,
 ];
 
-export const appointmentStatusTransitions: Record<
-    AppointmentStatus,
-    readonly AppointmentStatus[]
-> = {
-    SCHEDULED: [
-        AppointmentStatus.CONFIRMED,
-        AppointmentStatus.ARRIVED,
-        AppointmentStatus.IN_QUEUE,
-        AppointmentStatus.CANCELLED,
-        AppointmentStatus.NO_SHOW,
-    ],
-    CONFIRMED: [
-        AppointmentStatus.ARRIVED,
-        AppointmentStatus.IN_QUEUE,
-        AppointmentStatus.CANCELLED,
-        AppointmentStatus.NO_SHOW,
-    ],
-    ARRIVED: [
-        AppointmentStatus.IN_QUEUE,
-        AppointmentStatus.CALLED,
-        AppointmentStatus.CANCELLED,
-        AppointmentStatus.NO_SHOW,
-    ],
-    IN_QUEUE: [
-        AppointmentStatus.CALLED,
-        AppointmentStatus.COMPLETED,
-        AppointmentStatus.CANCELLED,
-        AppointmentStatus.NO_SHOW,
-    ],
-    CALLED: [
-        AppointmentStatus.COMPLETED,
-        AppointmentStatus.CANCELLED,
-        AppointmentStatus.NO_SHOW,
-    ],
-    COMPLETED: [],
-    CANCELLED: [],
-    NO_SHOW: [],
-};
+export const appointmentStatusTransitions: Record<AppointmentStatus, readonly AppointmentStatus[]> =
+    {
+        SCHEDULED: [
+            AppointmentStatus.CONFIRMED,
+            AppointmentStatus.ARRIVED,
+            AppointmentStatus.IN_QUEUE,
+            AppointmentStatus.CANCELLED,
+            AppointmentStatus.NO_SHOW,
+        ],
+        CONFIRMED: [
+            AppointmentStatus.ARRIVED,
+            AppointmentStatus.IN_QUEUE,
+            AppointmentStatus.CANCELLED,
+            AppointmentStatus.NO_SHOW,
+        ],
+        ARRIVED: [
+            AppointmentStatus.IN_QUEUE,
+            AppointmentStatus.CALLED,
+            AppointmentStatus.CANCELLED,
+            AppointmentStatus.NO_SHOW,
+        ],
+        IN_QUEUE: [
+            AppointmentStatus.CALLED,
+            AppointmentStatus.COMPLETED,
+            AppointmentStatus.CANCELLED,
+            AppointmentStatus.NO_SHOW,
+        ],
+        CALLED: [
+            AppointmentStatus.COMPLETED,
+            AppointmentStatus.CANCELLED,
+            AppointmentStatus.NO_SHOW,
+        ],
+        COMPLETED: [],
+        CANCELLED: [],
+        NO_SHOW: [],
+    };
 
 export function isFinalAppointmentStatus(status: AppointmentStatus): boolean {
     return finalAppointmentStatuses.includes(status);

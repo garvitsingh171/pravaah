@@ -26,8 +26,8 @@
 | Concurrency control   | No explicit duplicate patient lock; `PatientClinic` has `@@unique([patientId, clinicId])`, but create always creates a new `Patient`                                   |
 | State changes         | Patient row, clinic-specific notes/distance/history link; frontend refetches after edit/status changes                                                                 |
 | Errors                | `CLINIC_NOT_FOUND`, `PATIENT_NOT_FOUND`, `PATIENT_NOT_LINKED_TO_CLINIC`, `VALIDATION_ERROR`                                                                            |
-| Tests                 | `PatientsPage.test.tsx`; no dedicated backend patient service/repository tests found                                                                                   |
-| Known gaps            | No patient login. Patient history counters are not automatically updated by status workflows in current code                                                           |
+| Tests                 | `PatientsPage.test.tsx`, `patient.validation.test.ts`, `patient.statistics.repository.test.ts`                                                                         |
+| Known gaps            | No patient login or manual reconciliation workflow                                                                                                                     |
 
 ## Create Patient Trace
 
@@ -125,6 +125,7 @@ PatientsPage refreshes list via loadPatients()
 `PatientClinic` stores clinic-specific patient data:
 
 - `totalAppointments`
+- `totalCompletedVisits`
 - `totalNoShows`
 - `totalLateArrivals`
 - `lastVisitAt`
@@ -132,7 +133,9 @@ PatientsPage refreshes list via loadPatients()
 - `distanceFromClinicKm`
 - `isActive`
 
-The no-show risk workflow reads `totalLateArrivals` and `distanceFromClinicKm` from `PatientClinic`, and counts completed/no-show appointments from `Appointment`. `totalLateArrivals` is now maintained by appointment/queue lifecycle transactions when the first recorded arrival is classified late. Normal patient create/update requests do not accept this operational counter as editable metadata.
+Operational meanings are deliberately non-overlapping: `totalAppointments` counts successful bookings, `totalCompletedVisits` counts first transitions to `COMPLETED`, `totalNoShows` counts first transitions to `NO_SHOW`, `totalLateArrivals` counts late first arrivals, and `lastVisitAt` is the latest completion event time. Booking and lifecycle transactions maintain these aggregates atomically for the matching `(patientId, clinicId)` link. Normal patient create/update requests remain strict and do not accept any operational statistic as editable metadata.
+
+The no-show risk workflow still reads `totalLateArrivals` and `distanceFromClinicKm` from `PatientClinic`, while completed/no-show inputs continue to be counted from `Appointment`. The statistics feature does not change prediction sources, weights, thresholds, or stored predictions.
 
 ## Privacy Boundary
 
@@ -140,4 +143,4 @@ Patients are records used by clinic-side Admin/Staff users. They are not authent
 
 ## How To Explain This Workflow
 
-Patient records are split into a shared `Patient` row and a clinic-specific `PatientClinic` row. That lets the product store clinic-local notes and attendance history separately from the base person record. The current UI supports manual create/edit/search/status filtering, while late-arrival history follows recorded appointment arrival events instead of staff-edited counters.
+Patient records are split into a shared `Patient` row and a clinic-specific `PatientClinic` row. That lets the product store clinic-local notes and event-maintained attendance history separately from the base person record. The UI displays bookings, completed visits, no-shows, late arrivals, and last completed visit without exposing manual counter controls.

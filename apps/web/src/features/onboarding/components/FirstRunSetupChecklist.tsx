@@ -1,10 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { SetupStatusSummary } from '../onboardingApi';
-import {
-    buildSetupChecklistItems,
-    totalChecklistSteps,
-} from './setupChecklistModel';
+import { buildSetupChecklistItems, totalChecklistSteps } from './setupChecklistModel';
 
 function CompletionStatus({ completed }: { completed: boolean }) {
     return (

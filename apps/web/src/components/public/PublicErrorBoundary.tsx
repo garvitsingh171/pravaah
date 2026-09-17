@@ -110,10 +110,21 @@ class PublicErrorBoundaryInner extends Component<
                                 <rect x="218" y="150" width="84" height="52" rx="8" />
                                 <rect x="394" y="68" width="84" height="52" rx="8" />
                             </g>
-                            <g fill="#0F172A" fontFamily="Inter, sans-serif" fontSize="14" fontWeight="700">
-                                <text x="67" y="222">Start</text>
-                                <text x="236" y="182">Retry</text>
-                                <text x="415" y="100">Home</text>
+                            <g
+                                fill="#0F172A"
+                                fontFamily="Inter, sans-serif"
+                                fontSize="14"
+                                fontWeight="700"
+                            >
+                                <text x="67" y="222">
+                                    Start
+                                </text>
+                                <text x="236" y="182">
+                                    Retry
+                                </text>
+                                <text x="415" y="100">
+                                    Home
+                                </text>
                             </g>
                         </svg>
                     </div>
@@ -127,11 +138,7 @@ function PublicErrorBoundary({ children }: { children: ReactNode }) {
     const location = useLocation();
     const resetKey = `${location.pathname}${location.search}${location.hash}`;
 
-    return (
-        <PublicErrorBoundaryInner resetKey={resetKey}>
-            {children}
-        </PublicErrorBoundaryInner>
-    );
+    return <PublicErrorBoundaryInner resetKey={resetKey}>{children}</PublicErrorBoundaryInner>;
 }
 
 export default PublicErrorBoundary;

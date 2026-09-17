@@ -25,7 +25,7 @@
 | State changes         | Stored `NoShowPrediction` rows; frontend display only                                                                                                        |
 | Errors                | Prediction service does not throw domain errors; parent appointment/dashboard errors apply                                                                   |
 | Tests                 | `prediction.service.test.ts`, appointment/dashboard tests                                                                                                    |
-| Known gaps            | `PatientClinic` history counters are not automatically updated by current status workflows                                                                   |
+| Known gaps            | Stored predictions are not recalculated after later lifecycle events                                                                                         |
 
 ## Important Language
 
@@ -43,18 +43,18 @@ It does not:
 
 `predictNoShowRisk` accepts:
 
-| Input                              | Source in appointment booking                                    |
-| ---------------------------------- | ---------------------------------------------------------------- |
-| `scheduledAt`                      | newly created `Appointment.scheduledAt`                          |
-| `bookedAt`                         | newly created `Appointment.createdAt`                            |
-| `patientNoShowCount`               | count of prior clinic appointments with status `NO_SHOW`         |
-| `patientCompletedAppointmentCount` | count of prior clinic appointments with status `COMPLETED`       |
+| Input                              | Source in appointment booking                                                                   |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `scheduledAt`                      | newly created `Appointment.scheduledAt`                                                         |
+| `bookedAt`                         | newly created `Appointment.createdAt`                                                           |
+| `patientNoShowCount`               | count of prior clinic appointments with status `NO_SHOW`                                        |
+| `patientCompletedAppointmentCount` | count of prior clinic appointments with status `COMPLETED`                                      |
 | `patientLateArrivalCount`          | `PatientClinic.totalLateArrivals`, maintained from recorded appointment arrivals for new visits |
-| `distanceFromClinicKm`             | `PatientClinic.distanceFromClinicKm` converted to number or null |
+| `distanceFromClinicKm`             | `PatientClinic.distanceFromClinicKm` converted to number or null                                |
 
 Dashboard backfill passes scheduled/booked/no-show/completed counts, but does not pass late-arrival count or distance.
 
-The rule math, thresholds, reasons, and `starter-rule-v1` version stay unchanged. New late-arrival behavior improves the source of `PatientClinic.totalLateArrivals`: future increments come from first arrival timestamps and clinic grace classification, while legacy aggregate baselines may remain from older/manual history. A late arrival on today's visit affects future prediction inputs through the aggregate; stored predictions are not recalculated by this workflow.
+The rule math, thresholds, reasons, feature sources, and `starter-rule-v1` version stay unchanged. `PatientClinic` now also maintains booking, completion, no-show, and last-completed-visit aggregates, but prediction continues counting completed/no-show `Appointment` rows directly and reading only late arrivals/distance from `PatientClinic`. Stored predictions are not recalculated by attendance updates.
 
 ## Rule Summary
 

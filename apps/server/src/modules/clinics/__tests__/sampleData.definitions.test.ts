@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { predictNoShowRisk } from '../../predictions/prediction.service.js';
-import { sampleDoctorDefinitions, samplePatientDefinitions } from '../sampleData.definitions.js';
+import {
+    getSampleCompletedVisitCount,
+    sampleDoctorDefinitions,
+    samplePatientDefinitions,
+} from '../sampleData.definitions.js';
 
 const getCompletedAppointmentCount = (patientIndex: number): number => {
     const patient = samplePatientDefinitions[patientIndex];
@@ -9,7 +13,7 @@ const getCompletedAppointmentCount = (patientIndex: number): number => {
         throw new Error(`Missing sample patient at index ${patientIndex}`);
     }
 
-    return Math.max(patient.history.totalAppointments - patient.history.totalNoShows, 0);
+    return getSampleCompletedVisitCount(patient.history);
 };
 
 const predictForSamplePatient = (

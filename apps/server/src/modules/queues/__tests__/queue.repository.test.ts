@@ -3,10 +3,12 @@ import { AppointmentStatus, QueueStatus } from '../../../generated/prisma/client
 
 const mockTransaction = vi.hoisted(() => vi.fn());
 const mockAppointmentUpdateMany = vi.hoisted(() => vi.fn());
+const mockAppointmentFindFirst = vi.hoisted(() => vi.fn());
 const mockQueueEntryFindFirst = vi.hoisted(() => vi.fn());
 const mockQueueEntryUpdateMany = vi.hoisted(() => vi.fn());
 const mockQueueEntryFindUniqueOrThrow = vi.hoisted(() => vi.fn());
 const mockEstablishAppointmentArrivalIfNeeded = vi.hoisted(() => vi.fn());
+const mockApplyPatientAppointmentOutcome = vi.hoisted(() => vi.fn());
 
 vi.mock('../../../config/prisma.js', () => ({
     prisma: {
@@ -18,10 +20,15 @@ vi.mock('../../appointments/appointment.arrival.repository.js', () => ({
     establishAppointmentArrivalIfNeeded: mockEstablishAppointmentArrivalIfNeeded,
 }));
 
+vi.mock('../../patients/patient.statistics.repository.js', () => ({
+    applyPatientAppointmentOutcome: mockApplyPatientAppointmentOutcome,
+}));
+
 import { queueRepository } from '../queue.repository.js';
 
 const transactionClient = {
     appointment: {
+        findFirst: mockAppointmentFindFirst,
         updateMany: mockAppointmentUpdateMany,
     },
     queueEntry: {
@@ -130,6 +137,14 @@ describe('queueRepository.updateQueueEntryStatus', () => {
         );
         expect(result).toBe(queueEntry);
         expect(mockEstablishAppointmentArrivalIfNeeded).not.toHaveBeenCalled();
+        expect(mockApplyPatientAppointmentOutcome).toHaveBeenCalledWith({
+            tx: transactionClient,
+            clinicId: 'clinic-id',
+            patientId: 'patient-id',
+            previousStatus: AppointmentStatus.SCHEDULED,
+            newStatus: AppointmentStatus.NO_SHOW,
+            eventTimestamp,
+        });
     });
 
     it('uses the shared arrival writer when queue updates establish appointment presence', async () => {
@@ -266,5 +281,53 @@ describe('queueRepository.updateQueueEntryStatus', () => {
 
         expect(mockQueueEntryUpdateMany).not.toHaveBeenCalled();
         expect(mockAppointmentUpdateMany).not.toHaveBeenCalled();
+    });
+
+    it('does not apply outcome statistics when concurrent requests reach the same target', async () => {
+        const queueEntry = {
+            id: 'queue-entry-id',
+            status: QueueStatus.COMPLETED,
+            appointment: {
+                noShowPrediction: null,
+            },
+        };
+
+        mockQueueEntryFindFirst
+            .mockResolvedValueOnce({
+                patientId: 'patient-id',
+                status: QueueStatus.CALLED,
+                appointment: {
+                    scheduledAt: new Date('2026-09-17T10:00:00.000Z'),
+                    status: AppointmentStatus.CALLED,
+                    arrivedAt: new Date('2026-09-17T10:02:00.000Z'),
+                },
+            })
+            .mockResolvedValueOnce({
+                status: QueueStatus.COMPLETED,
+            });
+        mockAppointmentUpdateMany.mockResolvedValue({ count: 0 });
+        mockAppointmentFindFirst.mockResolvedValue({
+            status: AppointmentStatus.COMPLETED,
+        });
+        mockQueueEntryUpdateMany.mockResolvedValue({ count: 0 });
+        mockQueueEntryFindUniqueOrThrow.mockResolvedValue(queueEntry);
+
+        await expect(
+            queueRepository.updateQueueEntryStatus({
+                queueEntryId: 'queue-entry-id',
+                appointmentId: 'appointment-id',
+                clinicId: 'clinic-id',
+                expectedQueueStatus: QueueStatus.CALLED,
+                expectedAppointmentStatus: AppointmentStatus.CALLED,
+                status: QueueStatus.COMPLETED,
+                appointmentStatus: AppointmentStatus.COMPLETED,
+                timestampUpdates: {
+                    completedAt: eventTimestamp,
+                },
+                eventTimestamp,
+            })
+        ).resolves.toBe(queueEntry);
+
+        expect(mockApplyPatientAppointmentOutcome).not.toHaveBeenCalled();
     });
 });

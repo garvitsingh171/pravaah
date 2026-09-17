@@ -110,6 +110,4 @@ export const replaceDoctorAvailabilitySchema = z
         }
     });
 
-export type ReplaceDoctorAvailabilitySchemaInput = z.infer<
-    typeof replaceDoctorAvailabilitySchema
->;
+export type ReplaceDoctorAvailabilitySchemaInput = z.infer<typeof replaceDoctorAvailabilitySchema>;

@@ -3,6 +3,7 @@ import { AppError } from '../../utils/AppError.js';
 import { accessService } from '../auth/access.service.js';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
 import { timeToMinutes, type Weekday } from '../doctors/doctorAvailability.js';
+import { incrementPatientTotalAppointments } from '../patients/patient.statistics.repository.js';
 import {
     predictNoShowRisk,
     toNoShowPredictionResponse,
@@ -504,6 +505,11 @@ export const appointmentService = {
                     appointment.patientId,
                     noShowPrediction
                 );
+                await incrementPatientTotalAppointments({
+                    tx,
+                    clinicId,
+                    patientId: appointment.patientId,
+                });
                 const noShowPredictionResponse = toNoShowPredictionResponse(storedNoShowPrediction);
 
                 return {
@@ -518,6 +524,14 @@ export const appointmentService = {
         } catch (error) {
             if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
                 throw createAppointmentSlotConflictError();
+            }
+
+            if (error instanceof Error && error.message === 'PATIENT_CLINIC_LINK_NOT_FOUND') {
+                throw new AppError(
+                    409,
+                    'PATIENT_CLINIC_LINK_NOT_FOUND',
+                    'Patient-clinic link was not found while updating appointment history.'
+                );
             }
 
             throw error;
@@ -933,7 +947,7 @@ export const appointmentService = {
                 throw new AppError(
                     409,
                     'PATIENT_CLINIC_LINK_NOT_FOUND',
-                    'Patient-clinic link was not found while recording arrival.'
+                    'Patient-clinic link was not found while updating appointment history.'
                 );
             }
 

@@ -179,10 +179,16 @@ const isPatientActiveInClinic = (patient: PatientSummary): boolean => {
 
 const getVisitSummary = (patient: PatientSummary): string => {
     const totalAppointments = patient.totalAppointments ?? 0;
+    const totalCompletedVisits = patient.totalCompletedVisits ?? 0;
     const totalNoShows = patient.totalNoShows ?? 0;
     const totalLateArrivals = patient.totalLateArrivals ?? 0;
 
-    return `${totalAppointments} appointments, ${totalNoShows} no-shows, ${totalLateArrivals} late`;
+    return [
+        `${totalAppointments} appointments`,
+        `${totalCompletedVisits} completed`,
+        `${totalNoShows} no-shows`,
+        `${totalLateArrivals} late arrivals`,
+    ].join(', ');
 };
 
 const getPatientListFilters = (
@@ -681,6 +687,11 @@ function PatientListSummary({
         (totalAppointments, patient) => totalAppointments + (patient.totalAppointments ?? 0),
         0
     );
+    const completedVisitCount = patients.reduce(
+        (totalCompletedVisits, patient) =>
+            totalCompletedVisits + (patient.totalCompletedVisits ?? 0),
+        0
+    );
     const noShowCount = patients.reduce(
         (totalNoShows, patient) => totalNoShows + (patient.totalNoShows ?? 0),
         0
@@ -698,6 +709,7 @@ function PatientListSummary({
                     <Badge tone="success">{activeCount} active</Badge>
                     <Badge tone="neutral">{inactiveCount} inactive</Badge>
                     <Badge tone="brand">{appointmentCount} appointments</Badge>
+                    <Badge tone="success">{completedVisitCount} completed</Badge>
                     <Badge tone={noShowCount > 0 ? 'warning' : 'neutral'}>
                         {noShowCount} no-shows
                     </Badge>
@@ -1097,10 +1109,10 @@ function PatientsPage() {
                                                         This clinic: {getVisitSummary(patient)}
                                                     </p>
                                                     <p className="mt-1 text-slate-500">
-                                                        Last visit at this clinic:{' '}
+                                                        Last completed visit:{' '}
                                                         {patient.lastVisitAt
                                                             ? formatDate(patient.lastVisitAt)
-                                                            : 'Not added'}
+                                                            : 'No completed visits yet'}
                                                     </p>
                                                 </td>
                                                 <td className="min-w-36 px-4 py-5">

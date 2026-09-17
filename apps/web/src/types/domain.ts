@@ -84,6 +84,7 @@ export type PatientSummary = BaseEntity & {
     notes?: string | null;
     distanceFromClinicKm?: number | string | null;
     totalAppointments?: number;
+    totalCompletedVisits?: number;
     totalNoShows?: number;
     totalLateArrivals?: number;
     lastVisitAt?: string | null;

@@ -37,6 +37,7 @@ const mockAccessService = vi.hoisted(() => ({
 }));
 
 const mockPredictNoShowRisk = vi.hoisted(() => vi.fn());
+const mockIncrementPatientTotalAppointments = vi.hoisted(() => vi.fn());
 const mockToNoShowPredictionResponse = vi.hoisted(() =>
     vi.fn((prediction) => {
         if (!prediction) {
@@ -73,6 +74,10 @@ vi.mock('../../auth/access.service.js', () => ({
 vi.mock('../../predictions/prediction.service.js', () => ({
     predictNoShowRisk: mockPredictNoShowRisk,
     toNoShowPredictionResponse: mockToNoShowPredictionResponse,
+}));
+
+vi.mock('../../patients/patient.statistics.repository.js', () => ({
+    incrementPatientTotalAppointments: mockIncrementPatientTotalAppointments,
 }));
 
 import { appointmentService } from '../appointment.service.js';
@@ -269,6 +274,11 @@ describe('appointmentService.createAppointment', () => {
             input.patientId,
             noShowPrediction
         );
+        expect(mockIncrementPatientTotalAppointments).toHaveBeenCalledWith({
+            tx: mockTx,
+            clinicId,
+            patientId: input.patientId,
+        });
 
         expect(result).toEqual({
             appointment: {
@@ -519,6 +529,7 @@ describe('appointmentService.createAppointment', () => {
         expect(mockAppointmentRepository.createAppointment).not.toHaveBeenCalled();
         expect(mockQueueRepository.createQueueEntry).not.toHaveBeenCalled();
         expect(mockAppointmentRepository.createNoShowPrediction).not.toHaveBeenCalled();
+        expect(mockIncrementPatientTotalAppointments).not.toHaveBeenCalled();
     });
 });
 

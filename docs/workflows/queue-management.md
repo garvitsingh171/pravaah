@@ -2,32 +2,32 @@
 
 ## Workflow Summary
 
-| Field                 | Evidence                                                                                                                                                                                 |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Workflow              | List today's queue, update queue status, manually reorder active entries                                                                                                                 |
-| Product status        | Implemented                                                                                                                                                                              |
-| Release status        | `IMPLEMENTED_NOT_RELEASED`                                                                                                                                                               |
-| Actor                 | Active internal `ADMIN` or `STAFF`                                                                                                                                                       |
-| Entry route           | `/queue`                                                                                                                                                                                 |
-| Frontend files        | `apps/web/src/features/queues/QueuePage.tsx`, `queueApi.ts`                                                                                                                              |
-| Main frontend symbols | `QueuePage`, `loadQueue`, `refreshQueue`, `handleStatusUpdate`, `handleQueueMove`, `listTodayQueue`, `updateQueueStatus`, `reorderQueue`                                                 |
-| API endpoint          | `GET /api/clinics/:clinicId/queue?date=YYYY-MM-DD`, `PATCH /api/clinics/:clinicId/queue/:queueEntryId/status`, `PATCH /api/clinics/:clinicId/queue/reorder`                              |
-| Middleware            | `authenticateRequest`, `validateRequest`, `requireClinicAccess`, `requireClinicStaffRole`                                                                                                |
-| Authentication        | Clerk token plus active internal user required                                                                                                                                           |
-| Authorization         | Admin and Staff both allowed                                                                                                                                                             |
-| Clinic scoping        | Route `clinicId` plus service checks queue entry clinic on status/reorder                                                                                                                |
-| Validation            | `queue.validation.ts -> listQueueQuerySchema`, `updateQueueStatusBodySchema`, `reorderQueueBodySchema`                                                                                   |
-| Controller            | `queue.controller.ts -> listQueueByClinicDateController`, `updateQueueStatusController`, `reorderQueueController`                                                                        |
-| Service               | `queue.service.ts -> listQueueByClinicDate`, `updateQueueStatus`, `reorderQueue`                                                                                                         |
-| Repository            | `queue.repository.ts -> findQueueByClinicDate`, `updateQueueEntryStatus`, `reorderQueueEntries`                                                                                          |
-| Database models       | `QueueEntry`, `Appointment`, `Doctor`, `Patient`, `NoShowPrediction`, `Clinic`                                                                                                           |
-| Prisma operations     | queue `findMany`, `findUnique`, guarded `updateMany`, reorder position updates, raw date-range SQL                                                                                       |
-| Transaction           | Status update and reorder each run in `prisma.$transaction`                                                                                                                              |
-| Concurrency control   | Reorder uses PostgreSQL advisory transaction lock per clinic/doctor/date and verifies active set inside transaction                                                                      |
-| State changes         | Queue status, appointment status sync, `calledAt`, `completedAt`, queue positions                                                                                                        |
+| Field                 | Evidence                                                                                                                                                                                                                                                             |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Workflow              | List today's queue, update queue status, manually reorder active entries                                                                                                                                                                                             |
+| Product status        | Implemented                                                                                                                                                                                                                                                          |
+| Release status        | `IMPLEMENTED_NOT_RELEASED`                                                                                                                                                                                                                                           |
+| Actor                 | Active internal `ADMIN` or `STAFF`                                                                                                                                                                                                                                   |
+| Entry route           | `/queue`                                                                                                                                                                                                                                                             |
+| Frontend files        | `apps/web/src/features/queues/QueuePage.tsx`, `queueApi.ts`                                                                                                                                                                                                          |
+| Main frontend symbols | `QueuePage`, `loadQueue`, `refreshQueue`, `handleStatusUpdate`, `handleQueueMove`, `listTodayQueue`, `updateQueueStatus`, `reorderQueue`                                                                                                                             |
+| API endpoint          | `GET /api/clinics/:clinicId/queue?date=YYYY-MM-DD`, `PATCH /api/clinics/:clinicId/queue/:queueEntryId/status`, `PATCH /api/clinics/:clinicId/queue/reorder`                                                                                                          |
+| Middleware            | `authenticateRequest`, `validateRequest`, `requireClinicAccess`, `requireClinicStaffRole`                                                                                                                                                                            |
+| Authentication        | Clerk token plus active internal user required                                                                                                                                                                                                                       |
+| Authorization         | Admin and Staff both allowed                                                                                                                                                                                                                                         |
+| Clinic scoping        | Route `clinicId` plus service checks queue entry clinic on status/reorder                                                                                                                                                                                            |
+| Validation            | `queue.validation.ts -> listQueueQuerySchema`, `updateQueueStatusBodySchema`, `reorderQueueBodySchema`                                                                                                                                                               |
+| Controller            | `queue.controller.ts -> listQueueByClinicDateController`, `updateQueueStatusController`, `reorderQueueController`                                                                                                                                                    |
+| Service               | `queue.service.ts -> listQueueByClinicDate`, `updateQueueStatus`, `reorderQueue`                                                                                                                                                                                     |
+| Repository            | `queue.repository.ts -> findQueueByClinicDate`, `updateQueueEntryStatus`, `reorderQueueEntries`                                                                                                                                                                      |
+| Database models       | `QueueEntry`, `Appointment`, `Doctor`, `Patient`, `NoShowPrediction`, `Clinic`                                                                                                                                                                                       |
+| Prisma operations     | queue `findMany`, `findUnique`, guarded `updateMany`, reorder position updates, raw date-range SQL                                                                                                                                                                   |
+| Transaction           | Status update and reorder each run in `prisma.$transaction`                                                                                                                                                                                                          |
+| Concurrency control   | Reorder uses PostgreSQL advisory transaction lock per clinic/doctor/date and verifies active set inside transaction                                                                                                                                                  |
+| State changes         | Queue status, appointment status sync, `calledAt`, `completedAt`, patient outcome statistics, queue positions                                                                                                                                                        |
 | Errors                | `QUEUE_ENTRY_NOT_FOUND`, `QUEUE_ENTRY_CLINIC_MISMATCH`, `QUEUE_ENTRY_FINAL_STATUS`, `QUEUE_STATUS_TRANSITION_INVALID`, `QUEUE_SCOPE_MISMATCH`, `QUEUE_REORDER_INCOMPLETE`, `QUEUE_REORDER_CONFLICT`, `APPOINTMENT_STATUS_TRANSITION_INVALID`, `STATUS_SYNC_CONFLICT` |
-| Tests                 | `queue.service.test.ts`, `QueuePage.test.tsx`                                                                                                                                            |
-| Known gaps            | UI is fixed to today's local browser date; backend supports a `date` query/body but frontend does not expose arbitrary date selection                                                    |
+| Tests                 | `queue.service.test.ts`, `QueuePage.test.tsx`                                                                                                                                                                                                                        |
+| Known gaps            | UI is fixed to today's local browser date; backend supports a `date` query/body but frontend does not expose arbitrary date selection                                                                                                                                |
 
 ## Queue Listing Trace
 
@@ -104,14 +104,19 @@ reject stale queue or appointment state that differs from the state validated by
     ↓
 reject appointment sync states that violate the appointment lifecycle policy
     ↓
+tx.appointment.updateMany({ exact current-status guard })
+    ↓
 tx.queueEntry.updateMany({ exact current-status guard })
     ↓
 optional calledAt/completedAt timestamp update
     ↓
-tx.appointment.updateMany({ exact current-status guard })
-    ↓
 if synchronized appointment status is ARRIVED, IN_QUEUE, or CALLED and arrivedAt is null:
     record first arrival snapshot and increment PatientClinic.totalLateArrivals only if late
+    ↓
+if this transaction owns the first synchronized appointment transition to COMPLETED:
+    increment totalCompletedVisits and monotonically update lastVisitAt with completedAt's event timestamp
+if it owns the first transition to NO_SHOW:
+    increment totalNoShows
     ↓
 tx.queueEntry.findUniqueOrThrow({ include: queueEntryDetailsInclude })
     ↓
@@ -131,18 +136,20 @@ Queue to appointment status mapping:
 
 Canonical queue transition policy:
 
-| Current status | Allowed next statuses |
-| -------------- | --------------------- |
+| Current status | Allowed next statuses                                    |
+| -------------- | -------------------------------------------------------- |
 | `WAITING`      | `ARRIVED`, `CALLED`, `COMPLETED`, `CANCELLED`, `NO_SHOW` |
-| `ARRIVED`      | `WAITING`, `CALLED`, `CANCELLED`, `NO_SHOW` |
-| `CALLED`       | `COMPLETED`, `CANCELLED`, `NO_SHOW` |
-| `COMPLETED`    | None |
-| `CANCELLED`    | None |
-| `NO_SHOW`      | None |
+| `ARRIVED`      | `WAITING`, `CALLED`, `CANCELLED`, `NO_SHOW`              |
+| `CALLED`       | `COMPLETED`, `CANCELLED`, `NO_SHOW`                      |
+| `COMPLETED`    | None                                                     |
+| `CANCELLED`    | None                                                     |
+| `NO_SHOW`      | None                                                     |
 
 Same-status requests are treated as idempotent no-op retries: the existing queue entry is returned without rewriting queue status, appointment status, `calledAt`, or `completedAt`. This prevents a duplicate `WAITING -> WAITING` request for a booking-created queue entry from silently advancing an appointment from `SCHEDULED` to `IN_QUEUE`.
 
 `QueueEntry` rows are created during booking, so `WAITING` alone is not physical-arrival evidence. Queue-driven status changes record arrival only through the synchronized appointment state. `ARRIVED`, `IN_QUEUE`, and `CALLED` are presence-establishing appointment statuses; `CANCELLED`, `NO_SHOW`, and `COMPLETED` do not create a first-arrival timestamp by themselves. The first write to `Appointment.arrivedAt` is guarded and the late-arrival aggregate increment happens only for the transaction that wins that first-arrival write.
+
+Queue-driven terminal outcomes reuse the same shared patient-statistics policy as appointment-driven outcomes. The exact appointment-status compare-and-set is the authoritative event boundary, so queue retries, appointment retries, and appointment-versus-queue races cannot count the same outcome twice.
 
 Final queue statuses: `COMPLETED`, `CANCELLED`, `NO_SHOW`. Final entries cannot move to a different status and cannot be reordered by backend service logic. Queue status updates also cannot synchronize the linked appointment through a transition rejected by the appointment lifecycle policy.
 

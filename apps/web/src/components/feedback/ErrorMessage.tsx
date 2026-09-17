@@ -41,9 +41,7 @@ function ErrorMessage({
                     <p className="mt-1">{message}</p>
 
                     {code ? (
-                        <p className="mt-2 font-mono text-xs uppercase tracking-wide">
-                            {code}
-                        </p>
+                        <p className="mt-2 font-mono text-xs uppercase tracking-wide">{code}</p>
                     ) : null}
                 </div>
 

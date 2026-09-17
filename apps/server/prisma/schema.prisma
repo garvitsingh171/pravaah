@@ -220,6 +220,7 @@ model PatientClinic {
   patientId            String    @db.Uuid
   clinicId             String    @db.Uuid
   totalAppointments    Int       @default(0)
+  totalCompletedVisits Int       @default(0)
   totalNoShows         Int       @default(0)
   totalLateArrivals    Int       @default(0)
   lastVisitAt          DateTime?
@@ -240,23 +241,23 @@ model PatientClinic {
 }
 
 model Appointment {
-  id                        String            @id @default(uuid()) @db.Uuid
-  clinicId                  String            @db.Uuid
-  doctorId                  String            @db.Uuid
-  patientId                 String            @db.Uuid
-  createdByUserId           String            @db.Uuid
-  scheduledAt               DateTime
-  durationMinutes           Int               @default(15)
-  status                    AppointmentStatus @default(SCHEDULED)
-  bookingSource             BookingSource     @default(RECEPTION)
-  reason                    String?
-  notes                     String?
-  arrivedAt                 DateTime?
-  arrivalOffsetMinutes      Int?
-  isLateArrival             Boolean?
-  lateArrivalGraceMinutes   Int?
-  createdAt                 DateTime          @default(now())
-  updatedAt                 DateTime          @updatedAt
+  id                      String            @id @default(uuid()) @db.Uuid
+  clinicId                String            @db.Uuid
+  doctorId                String            @db.Uuid
+  patientId               String            @db.Uuid
+  createdByUserId         String            @db.Uuid
+  scheduledAt             DateTime
+  durationMinutes         Int               @default(15)
+  status                  AppointmentStatus @default(SCHEDULED)
+  bookingSource           BookingSource     @default(RECEPTION)
+  reason                  String?
+  notes                   String?
+  arrivedAt               DateTime?
+  arrivalOffsetMinutes    Int?
+  isLateArrival           Boolean?
+  lateArrivalGraceMinutes Int?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
 
   clinic           Clinic            @relation(fields: [clinicId], references: [id], onDelete: Restrict)
   doctor           Doctor            @relation(fields: [doctorId], references: [id], onDelete: Restrict)

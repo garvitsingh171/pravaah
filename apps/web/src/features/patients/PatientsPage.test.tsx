@@ -36,6 +36,7 @@ const patient: PatientSummary = {
     notes: 'Consistent attendance',
     distanceFromClinicKm: '2.40',
     totalAppointments: 8,
+    totalCompletedVisits: 7,
     totalNoShows: 0,
     totalLateArrivals: 0,
     lastVisitAt: '2026-01-10T00:00:00.000Z',
@@ -59,6 +60,7 @@ const patientWithNullableValues: PatientSummary = {
     notes: null,
     distanceFromClinicKm: null,
     totalAppointments: 0,
+    totalCompletedVisits: 0,
     totalNoShows: 0,
     totalLateArrivals: 0,
     lastVisitAt: null,
@@ -93,6 +95,12 @@ describe('PatientsPage edit workflow', () => {
         renderPatientsPage();
 
         expect(await screen.findByRole('button', { name: /edit riya malhotra/i })).toBeVisible();
+        expect(
+            screen.getByText(
+                'This clinic: 8 appointments, 7 completed, 0 no-shows, 0 late arrivals'
+            )
+        ).toBeVisible();
+        expect(screen.getByText(/no completed visits yet/i)).toBeVisible();
 
         await user.click(screen.getByRole('button', { name: /edit kabir sen/i }));
 
@@ -102,6 +110,7 @@ describe('PatientsPage edit workflow', () => {
         expect(screen.getByLabelText(/date of birth/i)).toHaveValue('');
         expect(screen.getByRole('button', { name: /save patient/i })).toBeDisabled();
         expect(screen.queryByLabelText(/total appointments/i)).not.toBeInTheDocument();
+        expect(screen.queryByLabelText(/total completed visits/i)).not.toBeInTheDocument();
         expect(screen.queryByLabelText(/total no-shows/i)).not.toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: /^cancel$/i }));
@@ -193,6 +202,7 @@ describe('PatientsPage edit workflow', () => {
         expect(payload).not.toHaveProperty('clinicId');
         expect(payload).not.toHaveProperty('patientClinicId');
         expect(payload).not.toHaveProperty('totalAppointments');
+        expect(payload).not.toHaveProperty('totalCompletedVisits');
         expect(payload).not.toHaveProperty('totalNoShows');
         expect(payload).not.toHaveProperty('createdAt');
         expect(await screen.findAllByText('Not added')).not.toHaveLength(0);
@@ -291,9 +301,7 @@ describe('PatientsPage edit workflow', () => {
 
         renderPatientsPage();
 
-        await user.click(
-            await screen.findByRole('button', { name: /deactivate riya malhotra/i })
-        );
+        await user.click(await screen.findByRole('button', { name: /deactivate riya malhotra/i }));
 
         expect(screen.getByRole('dialog', { name: /deactivate patient record/i })).toBeVisible();
 

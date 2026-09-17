@@ -17,9 +17,6 @@ describe('Button', () => {
     it('defaults to a non-submit button to avoid accidental form submissions', () => {
         renderWithProviders(<Button>Refresh</Button>);
 
-        expect(screen.getByRole('button', { name: /refresh/i })).toHaveAttribute(
-            'type',
-            'button'
-        );
+        expect(screen.getByRole('button', { name: /refresh/i })).toHaveAttribute('type', 'button');
     });
 });

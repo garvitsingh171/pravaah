@@ -22,7 +22,10 @@ type AppLayoutProps = {
 
 function ProtectedRouteLoadingState() {
     return (
-        <div className="rounded-lg bg-white p-4 shadow-[var(--shadow-soft)] ring-1 ring-app-border" role="status">
+        <div
+            className="rounded-lg bg-white p-4 shadow-[var(--shadow-soft)] ring-1 ring-app-border"
+            role="status"
+        >
             <LoadingState message="Loading workspace page..." />
         </div>
     );

@@ -208,6 +208,7 @@ Important fields:
 - `patientId`
 - `clinicId`
 - `totalAppointments`
+- `totalCompletedVisits`
 - `totalNoShows`
 - `totalLateArrivals`
 - `lastVisitAt`
@@ -231,6 +232,16 @@ Why `PatientClinic` exists:
 - A patient can be known to more than one clinic in the future.
 - Attendance history and distance are clinic-specific.
 - No-show scoring should use the patient's history at the current clinic, not global assumptions.
+
+Operational aggregate semantics:
+
+- `totalAppointments`: successful appointment rows created for this patient and clinic.
+- `totalCompletedVisits`: appointments that first reached terminal `COMPLETED`.
+- `totalNoShows`: appointments that first reached terminal `NO_SHOW`.
+- `totalLateArrivals`: appointments whose first arrival exceeded its stored grace snapshot.
+- `lastVisitAt`: maximum successful completion event timestamp, never scheduled or arrival time.
+
+These values are maintained by booking and exact lifecycle-transition transactions. Normal patient payloads cannot edit them. The `totalCompletedVisits` migration backfills only the new field from existing terminal `COMPLETED` appointments and preserves all existing aggregate baselines.
 
 ### Appointment
 

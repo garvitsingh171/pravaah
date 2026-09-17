@@ -70,7 +70,13 @@ function PravaahMark({ gradientId, size }: { gradientId: string; size: PravaahLo
     );
 }
 
-function PravaahWordmark({ surface, size }: { surface: PravaahLogoSurface; size: PravaahLogoSize }) {
+function PravaahWordmark({
+    surface,
+    size,
+}: {
+    surface: PravaahLogoSurface;
+    size: PravaahLogoSize;
+}) {
     return (
         <span
             className={`${wordmarkSizeClassNames[size]} font-bold leading-none tracking-normal ${

@@ -5,12 +5,7 @@ export const siteOrigin = (import.meta.env.VITE_SITE_URL ?? 'https://pravaah.gar
 export const siteName = 'Pravaah';
 export const defaultSocialImagePath = '/brand/pravaah-social-card.png';
 
-export type RouteIndexingType =
-    | 'public'
-    | 'auth'
-    | 'onboarding'
-    | 'protected'
-    | 'fallback';
+export type RouteIndexingType = 'public' | 'auth' | 'onboarding' | 'protected' | 'fallback';
 
 export type RouteMetadata = {
     path: string;

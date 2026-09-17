@@ -67,11 +67,7 @@ const getDoctorAvailabilityPath = (clinicId: string, doctorId: string): string =
     return `${getDoctorCollectionPath(clinicId)}/${encodeURIComponent(doctorId)}/availability`;
 };
 
-export const getDoctorAvailability = (
-    clinicId: string,
-    doctorId: string,
-    signal?: AbortSignal
-) => {
+export const getDoctorAvailability = (clinicId: string, doctorId: string, signal?: AbortSignal) => {
     return apiClient.get<DoctorAvailabilityResponseData>(
         getDoctorAvailabilityPath(clinicId, doctorId),
         { signal }

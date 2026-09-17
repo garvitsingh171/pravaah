@@ -2,32 +2,32 @@
 
 ## Workflow Summary
 
-| Field                 | Evidence                                                                                                                                                        |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Workflow              | List, create, edit, activate/deactivate doctor records, and manage recurring weekly availability                                                                |
-| Product status        | Implemented                                                                                                                                                     |
-| Release status        | `IMPLEMENTED_NOT_RELEASED`                                                                                                                                      |
-| Actor                 | Active internal `ADMIN` or `STAFF`                                                                                                                              |
-| Entry route           | `/doctors`, `/doctors/new`; doctor selector in `/appointments`                                                                                                  |
-| Frontend files        | `apps/web/src/features/doctors/DoctorsPage.tsx`, `DoctorCreatePage.tsx`, `DoctorForm.tsx`, `doctorApi.ts`                                                       |
-| Main frontend symbols | `DoctorsPage`, `loadDoctors`, `DoctorEditPanel`, `handleStatusActionConfirm`, `DoctorCreatePage`, `handleSubmit`, `listDoctors`, `createDoctor`, `updateDoctor` |
+| Field                 | Evidence                                                                                                                                                                                       |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Workflow              | List, create, edit, activate/deactivate doctor records, and manage recurring weekly availability                                                                                               |
+| Product status        | Implemented                                                                                                                                                                                    |
+| Release status        | `IMPLEMENTED_NOT_RELEASED`                                                                                                                                                                     |
+| Actor                 | Active internal `ADMIN` or `STAFF`                                                                                                                                                             |
+| Entry route           | `/doctors`, `/doctors/new`; doctor selector in `/appointments`                                                                                                                                 |
+| Frontend files        | `apps/web/src/features/doctors/DoctorsPage.tsx`, `DoctorCreatePage.tsx`, `DoctorForm.tsx`, `doctorApi.ts`                                                                                      |
+| Main frontend symbols | `DoctorsPage`, `loadDoctors`, `DoctorEditPanel`, `handleStatusActionConfirm`, `DoctorCreatePage`, `handleSubmit`, `listDoctors`, `createDoctor`, `updateDoctor`                                |
 | API endpoint          | `GET /api/clinics/:clinicId/doctors`, `POST /api/clinics/:clinicId/doctors`, `PATCH /api/clinics/:clinicId/doctors/:doctorId`, `GET/PUT /api/clinics/:clinicId/doctors/:doctorId/availability` |
-| Middleware            | `authenticateRequest`, `validateRequest`, `requireClinicAccess`, `requireClinicStaffRole`                                                                       |
-| Authentication        | Clerk token plus active internal user required                                                                                                                  |
-| Authorization         | Admin and Staff both allowed                                                                                                                                    |
-| Clinic scoping        | Clinic route param checked by `requireClinicAccess`; service checks `DoctorClinic` link for update                                                              |
-| Validation            | `doctor.validation.ts -> createDoctorSchema`, `updateDoctorSchema`, `replaceDoctorAvailabilitySchema`, params schemas                                           |
-| Controller            | `doctor.controller.ts -> create/list/update doctor controllers`, `getDoctorAvailabilityController`, `replaceDoctorAvailabilityController`                        |
-| Service               | `doctor.service.ts -> createDoctor`, `listDoctorsByClinic`, `updateDoctor`, `getDoctorAvailability`, `replaceDoctorAvailability`                                |
-| Repository            | `doctor.repository.ts -> createDoctorWithClinicLink`, `findDoctorLinksByClinicId`, `updateDoctor`, availability read/replace                                    |
-| Database models       | `Doctor`, `DoctorClinic`, `DoctorAvailabilityPeriod`, `Clinic`, plus appointment/queue references elsewhere                                                     |
-| Prisma operations     | `clinic.findUnique`, `doctor.create`, `doctorClinic.create/findMany`, `doctor.update`, `doctorAvailabilityPeriod.findMany/deleteMany/createMany`                 |
-| Transaction           | Create wraps `Doctor` and `DoctorClinic`; availability replacement deletes/inserts periods atomically                                                           |
-| Concurrency control   | No explicit duplicate doctor lock. `DoctorClinic` has `@@unique([doctorId, clinicId])`, but create always creates a new `Doctor`                                |
-| State changes         | Doctor row and clinic link; frontend refetches list after edit/status changes                                                                                   |
-| Errors                | `CLINIC_NOT_FOUND`, `DOCTOR_NOT_FOUND`, `DOCTOR_NOT_LINKED_TO_CLINIC`, `VALIDATION_ERROR`, availability/clinic-hours validation errors                          |
-| Tests                 | `doctor.validation.test.ts`, `DoctorsPage.test.tsx`                                                                                                             |
-| Known gaps            | No doctor login. `DoctorClinic` has `displayName` and `consultationFee` fields, but normal doctor UI/API does not edit them. No date-specific exception/leave model exists yet |
+| Middleware            | `authenticateRequest`, `validateRequest`, `requireClinicAccess`, `requireClinicStaffRole`                                                                                                      |
+| Authentication        | Clerk token plus active internal user required                                                                                                                                                 |
+| Authorization         | Admin and Staff both allowed                                                                                                                                                                   |
+| Clinic scoping        | Clinic route param checked by `requireClinicAccess`; service checks `DoctorClinic` link for update                                                                                             |
+| Validation            | `doctor.validation.ts -> createDoctorSchema`, `updateDoctorSchema`, `replaceDoctorAvailabilitySchema`, params schemas                                                                          |
+| Controller            | `doctor.controller.ts -> create/list/update doctor controllers`, `getDoctorAvailabilityController`, `replaceDoctorAvailabilityController`                                                      |
+| Service               | `doctor.service.ts -> createDoctor`, `listDoctorsByClinic`, `updateDoctor`, `getDoctorAvailability`, `replaceDoctorAvailability`                                                               |
+| Repository            | `doctor.repository.ts -> createDoctorWithClinicLink`, `findDoctorLinksByClinicId`, `updateDoctor`, availability read/replace                                                                   |
+| Database models       | `Doctor`, `DoctorClinic`, `DoctorAvailabilityPeriod`, `Clinic`, plus appointment/queue references elsewhere                                                                                    |
+| Prisma operations     | `clinic.findUnique`, `doctor.create`, `doctorClinic.create/findMany`, `doctor.update`, `doctorAvailabilityPeriod.findMany/deleteMany/createMany`                                               |
+| Transaction           | Create wraps `Doctor` and `DoctorClinic`; availability replacement deletes/inserts periods atomically                                                                                          |
+| Concurrency control   | No explicit duplicate doctor lock. `DoctorClinic` has `@@unique([doctorId, clinicId])`, but create always creates a new `Doctor`                                                               |
+| State changes         | Doctor row and clinic link; frontend refetches list after edit/status changes                                                                                                                  |
+| Errors                | `CLINIC_NOT_FOUND`, `DOCTOR_NOT_FOUND`, `DOCTOR_NOT_LINKED_TO_CLINIC`, `VALIDATION_ERROR`, availability/clinic-hours validation errors                                                         |
+| Tests                 | `doctor.validation.test.ts`, `DoctorsPage.test.tsx`                                                                                                                                            |
+| Known gaps            | No doctor login. `DoctorClinic` has `displayName` and `consultationFee` fields, but normal doctor UI/API does not edit them. No date-specific exception/leave model exists yet                 |
 
 ## Create Doctor Trace
 

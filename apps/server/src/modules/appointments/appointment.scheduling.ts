@@ -1,9 +1,5 @@
 import { AppError } from '../../utils/AppError.js';
-import {
-    isCanonicalTime,
-    timeToMinutes,
-    type Weekday,
-} from '../doctors/doctorAvailability.js';
+import { isCanonicalTime, timeToMinutes, type Weekday } from '../doctors/doctorAvailability.js';
 
 export type SchedulingClinicSettings = {
     openingTime: string;

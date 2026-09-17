@@ -210,7 +210,10 @@ function PatientCreatePage() {
         } catch (error) {
             if (isApiClientError(error)) {
                 setFieldErrors(
-                    getBackendFieldErrors<keyof PatientFormValues>(error.details, validationFieldMap)
+                    getBackendFieldErrors<keyof PatientFormValues>(
+                        error.details,
+                        validationFieldMap
+                    )
                 );
                 setFormError(error.message);
                 setFormErrorCode(error.code);

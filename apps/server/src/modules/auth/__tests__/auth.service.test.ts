@@ -260,6 +260,7 @@ const onboardingClinicInput = {
     closingTime: '18:00',
     slotDurationMinutes: 15,
     bufferMinutes: 0,
+    lateArrivalGraceMinutes: 15,
 };
 
 const trustedAdminIdentity = {

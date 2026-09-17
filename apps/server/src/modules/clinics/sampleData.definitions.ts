@@ -34,13 +34,22 @@ export type SamplePatientDefinition = {
     city: string;
     emergencyContactName: string;
     emergencyContactPhone: string;
-    history: {
-        totalAppointments: number;
-        totalNoShows: number;
-        totalLateArrivals: number;
-        distanceFromClinicKm: string;
-        notes: string;
-    };
+    history: SamplePatientHistoryDefinition;
+};
+
+export type SamplePatientHistoryDefinition = {
+    totalAppointments: number;
+    totalNoShows: number;
+    totalLateArrivals: number;
+    distanceFromClinicKm: string;
+    notes: string;
+};
+
+export const getSampleCompletedVisitCount = (
+    history: Pick<SamplePatientHistoryDefinition, 'totalAppointments' | 'totalNoShows'>
+): number => {
+    // Fictional prior-history baselines model every non-no-show appointment as completed.
+    return Math.max(history.totalAppointments - history.totalNoShows, 0);
 };
 
 export const sampleDoctorDefinitions: SampleDoctorDefinition[] = [

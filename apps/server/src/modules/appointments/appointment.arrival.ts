@@ -26,9 +26,7 @@ export function calculateArrivalOutcome({
     graceMinutes: number;
 }): ArrivalOutcome {
     // Truncation preserves signed completed minutes without exaggerating early arrivals.
-    const arrivalOffsetMinutes = Math.trunc(
-        (arrivedAt.getTime() - scheduledAt.getTime()) / 60_000
-    );
+    const arrivalOffsetMinutes = Math.trunc((arrivedAt.getTime() - scheduledAt.getTime()) / 60_000);
 
     return {
         arrivalOffsetMinutes,
