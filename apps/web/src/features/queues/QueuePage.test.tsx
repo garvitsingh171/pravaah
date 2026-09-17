@@ -304,4 +304,34 @@ describe('QueuePage manual reorder controls', () => {
             QueueStatus.CALLED
         );
     });
+
+    it('only offers Mark arrived while the appointment can transition to arrived', async () => {
+        const user = userEvent.setup();
+        const confirmedEntry = {
+            ...firstEntry,
+            appointment: {
+                ...firstEntry.appointment,
+                status: AppointmentStatus.CONFIRMED,
+            },
+        };
+
+        mockListTodayQueue
+            .mockResolvedValueOnce({
+                queueEntries: [firstEntry],
+            })
+            .mockResolvedValueOnce({
+                queueEntries: [confirmedEntry],
+            });
+
+        renderQueuePage();
+
+        expect(await screen.findByRole('button', { name: /call patient/i })).toBeVisible();
+        expect(screen.queryByRole('button', { name: /mark arrived/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('option', { name: /mark arrived/i })).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: /^refresh$/i }));
+
+        expect(await screen.findByRole('button', { name: /mark arrived/i })).toBeVisible();
+        expect(screen.getByRole('option', { name: /mark arrived/i })).toBeInTheDocument();
+    });
 });
