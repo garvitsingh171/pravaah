@@ -16,8 +16,11 @@ import {
 } from '../../components/ui';
 import { isApiClientError } from '../../lib';
 import { appRoutePaths } from '../../routes/dashboardRoutes';
-import { QueueStatus } from '../../types';
-import type { QueueStatus as QueueStatusType } from '../../types';
+import { AppointmentStatus, QueueStatus } from '../../types';
+import type {
+    AppointmentStatus as AppointmentStatusType,
+    QueueStatus as QueueStatusType,
+} from '../../types';
 import { listTodayQueue, reorderQueue, updateQueueStatus, type QueueListItem } from './queueApi';
 
 type QueueListState =
@@ -132,6 +135,11 @@ const queueStatusActionsByCurrentStatus: Record<QueueStatusType, QueueStatusActi
     CANCELLED: [],
     NO_SHOW: [],
 };
+
+const queueArrivalSourceAppointmentStatuses: readonly AppointmentStatusType[] = [
+    AppointmentStatus.SCHEDULED,
+    AppointmentStatus.CONFIRMED,
+];
 
 const getTodayDateInputValue = (): string => {
     const today = new Date();
@@ -276,8 +284,14 @@ const getSuggestedActions = (actions: unknown): string[] => {
     });
 };
 
-const getQueueStatusActions = (currentStatus: QueueStatusType): QueueStatusAction[] => {
-    return queueStatusActionsByCurrentStatus[currentStatus];
+const getQueueStatusActions = (queueEntry: QueueListItem): QueueStatusAction[] => {
+    return queueStatusActionsByCurrentStatus[queueEntry.status].filter((action) => {
+        if (action.status !== QueueStatus.ARRIVED) {
+            return true;
+        }
+
+        return queueArrivalSourceAppointmentStatuses.includes(queueEntry.appointment.status);
+    });
 };
 
 const getUniqueQueueDoctors = (queueEntries: QueueListItem[]) => {
@@ -560,7 +574,7 @@ function QueueEntryCard({
     updatingQueueEntryId: string | null;
     timezone?: string | null;
 }) {
-    const statusActions = getQueueStatusActions(queueEntry.status);
+    const statusActions = getQueueStatusActions(queueEntry);
     const isUpdating = updatingQueueEntryId === queueEntry.id;
     const isMoving = reorderingQueueEntryId === queueEntry.id;
     const isWaiting = queueEntry.status === QueueStatus.WAITING;
