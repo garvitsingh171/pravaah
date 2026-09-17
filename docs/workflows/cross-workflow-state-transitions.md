@@ -66,15 +66,15 @@ Backend evidence:
 
 ## Concurrency Inventory
 
-| Workflow                            | Risk                                      | Protection                                                                          | Evidence                                                                |
-| ----------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Clinic onboarding                   | Duplicate slug or duplicate identity      | DB unique constraints plus service re-read/replay/conflict handling                 | `auth.service.ts -> uniqueConstraintCategory`, `createClinicOnboarding` |
-| Sample data                         | Duplicate sample provisioning             | Best-effort advisory lock plus sample record count check                            | `clinic.repository.ts -> tryAcquireSampleDataProvisioningLock`          |
-| Appointment booking overlap | Two bookings for overlapping doctor time | `pg_advisory_xact_lock` over clinic/doctor and post-lock duration-plus-buffer overlap check | `appointment.repository.ts -> acquireDoctorScheduleLock` |
-| Appointment booking queue position  | Two bookings get same doctor/day position | queue-scope advisory lock inside `findHighestQueuePosition`                         | `queue.repository.ts -> findHighestQueuePosition`                       |
-| Appointment/queue status sync       | Status changes while updating             | guarded `updateMany` rejects final-status races                                     | appointment and queue repositories                                      |
-| Queue reorder                       | Queue changes while moving                | advisory lock per clinic/doctor/date and inside-transaction active-set verification | `queue.repository.ts -> acquireQueueScopeLock`, `reorderQueueEntries`   |
-| Dashboard prediction backfill       | Two reads create same prediction          | `NoShowPrediction.appointmentId @unique` and `createMany({ skipDuplicates: true })` | Prisma schema and `dashboard.repository.ts`                             |
+| Workflow                           | Risk                                      | Protection                                                                                  | Evidence                                                                |
+| ---------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Clinic onboarding                  | Duplicate slug or duplicate identity      | DB unique constraints plus service re-read/replay/conflict handling                         | `auth.service.ts -> uniqueConstraintCategory`, `createClinicOnboarding` |
+| Sample data                        | Duplicate sample provisioning             | Best-effort advisory lock plus sample record count check                                    | `clinic.repository.ts -> tryAcquireSampleDataProvisioningLock`          |
+| Appointment booking overlap        | Two bookings for overlapping doctor time  | `pg_advisory_xact_lock` over clinic/doctor and post-lock duration-plus-buffer overlap check | `appointment.repository.ts -> acquireDoctorScheduleLock`                |
+| Appointment booking queue position | Two bookings get same doctor/day position | queue-scope advisory lock inside `findHighestQueuePosition`                                 | `queue.repository.ts -> findHighestQueuePosition`                       |
+| Appointment/queue status sync      | Status changes while updating             | guarded `updateMany` rejects final-status races                                             | appointment and queue repositories                                      |
+| Queue reorder                      | Queue changes while moving                | advisory lock per clinic/doctor/date and inside-transaction active-set verification         | `queue.repository.ts -> acquireQueueScopeLock`, `reorderQueueEntries`   |
+| Dashboard prediction backfill      | Two reads create same prediction          | `NoShowPrediction.appointmentId @unique` and `createMany({ skipDuplicates: true })`         | Prisma schema and `dashboard.repository.ts`                             |
 
 ## Clinic Isolation Patterns
 

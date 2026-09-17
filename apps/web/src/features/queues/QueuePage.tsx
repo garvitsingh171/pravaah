@@ -196,10 +196,7 @@ const formatDateTime = (value: string): string => {
     }).format(date);
 };
 
-const formatTime = (
-    value: string | null | undefined,
-    timezone?: string | null
-): string | null => {
+const formatTime = (value: string | null | undefined, timezone?: string | null): string | null => {
     if (!value) {
         return null;
     }
@@ -1204,9 +1201,7 @@ function QueuePage() {
                                       ?.fullName
                                 : 'All doctors'}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                            Manual doctor-scoped order.
-                        </p>
+                        <p className="mt-1 text-xs text-slate-500">Manual doctor-scoped order.</p>
                     </div>
                 </div>
             </div>
@@ -1349,7 +1344,9 @@ function QueuePage() {
                     activeQueueEntries={activeQueueEntries}
                     activeQueueIndexesByDoctor={activeQueueIndexesByDoctor}
                     allActiveQueueEntries={allActiveQueueEntries}
-                    handleQueueMove={(queueEntry, offset) => void handleQueueMove(queueEntry, offset)}
+                    handleQueueMove={(queueEntry, offset) =>
+                        void handleQueueMove(queueEntry, offset)
+                    }
                     handleStatusUpdate={(queueEntry, nextStatus) =>
                         void handleStatusUpdate(queueEntry, nextStatus)
                     }

@@ -6,6 +6,7 @@ const mockAppointmentFindFirst = vi.hoisted(() => vi.fn());
 const mockAppointmentUpdateMany = vi.hoisted(() => vi.fn());
 const mockQueueEntryUpdateMany = vi.hoisted(() => vi.fn());
 const mockEstablishAppointmentArrivalIfNeeded = vi.hoisted(() => vi.fn());
+const mockApplyPatientAppointmentOutcome = vi.hoisted(() => vi.fn());
 
 vi.mock('../../../config/prisma.js', () => ({
     prisma: {
@@ -15,6 +16,10 @@ vi.mock('../../../config/prisma.js', () => ({
 
 vi.mock('../appointment.arrival.repository.js', () => ({
     establishAppointmentArrivalIfNeeded: mockEstablishAppointmentArrivalIfNeeded,
+}));
+
+vi.mock('../../patients/patient.statistics.repository.js', () => ({
+    applyPatientAppointmentOutcome: mockApplyPatientAppointmentOutcome,
 }));
 
 import { appointmentRepository } from '../appointment.repository.js';
@@ -59,7 +64,7 @@ describe('appointmentRepository.updateAppointmentStatus', () => {
         expect(mockQueueEntryUpdateMany).not.toHaveBeenCalled();
     });
 
-    it('allows skip-forward transitions and guards writes by allowed current statuses', async () => {
+    it('allows skip-forward transitions and guards writes by the exact current status', async () => {
         const appointment = {
             id: 'appointment-id',
             clinicId: 'clinic-id',
@@ -98,14 +103,7 @@ describe('appointmentRepository.updateAppointmentStatus', () => {
                 where: expect.objectContaining({
                     id: 'appointment-id',
                     clinicId: 'clinic-id',
-                    status: {
-                        in: [
-                            AppointmentStatus.SCHEDULED,
-                            AppointmentStatus.CONFIRMED,
-                            AppointmentStatus.ARRIVED,
-                            AppointmentStatus.IN_QUEUE,
-                        ],
-                    },
+                    status: AppointmentStatus.SCHEDULED,
                 }),
                 data: {
                     status: AppointmentStatus.IN_QUEUE,
@@ -133,6 +131,15 @@ describe('appointmentRepository.updateAppointmentStatus', () => {
             appointment,
             failureReason: null,
         });
+        expect(mockApplyPatientAppointmentOutcome).toHaveBeenCalledWith(
+            expect.objectContaining({
+                clinicId: 'clinic-id',
+                patientId: 'patient-id',
+                previousStatus: AppointmentStatus.SCHEDULED,
+                newStatus: AppointmentStatus.IN_QUEUE,
+                eventTimestamp: expect.any(Date),
+            })
+        );
     });
 
     it('preserves same-status retry support without overwriting called timestamps', async () => {
@@ -156,9 +163,6 @@ describe('appointmentRepository.updateAppointmentStatus', () => {
                 },
             })
             .mockResolvedValueOnce(appointment);
-        mockAppointmentUpdateMany.mockResolvedValue({
-            count: 1,
-        });
         mockQueueEntryUpdateMany.mockResolvedValue({
             count: 1,
         });
@@ -180,6 +184,48 @@ describe('appointmentRepository.updateAppointmentStatus', () => {
             })
         );
         expect(result.failureReason).toBeNull();
+        expect(mockAppointmentUpdateMany).not.toHaveBeenCalled();
         expect(mockEstablishAppointmentArrivalIfNeeded).not.toHaveBeenCalled();
+        expect(mockApplyPatientAppointmentOutcome).not.toHaveBeenCalled();
+    });
+
+    it('does not apply completion statistics when a concurrent request already reached completed', async () => {
+        const appointment = {
+            id: 'appointment-id',
+            clinicId: 'clinic-id',
+            status: AppointmentStatus.COMPLETED,
+            noShowPrediction: null,
+        };
+
+        mockAppointmentFindFirst
+            .mockResolvedValueOnce({
+                id: 'appointment-id',
+                clinicId: 'clinic-id',
+                patientId: 'patient-id',
+                scheduledAt: new Date('2026-09-17T10:00:00.000Z'),
+                status: AppointmentStatus.CALLED,
+                arrivedAt: new Date('2026-09-17T10:03:00.000Z'),
+                queueEntry: {
+                    id: 'queue-entry-id',
+                },
+            })
+            .mockResolvedValueOnce({
+                status: AppointmentStatus.COMPLETED,
+            })
+            .mockResolvedValueOnce(appointment);
+        mockAppointmentUpdateMany.mockResolvedValue({ count: 0 });
+        mockQueueEntryUpdateMany.mockResolvedValue({ count: 1 });
+
+        const result = await appointmentRepository.updateAppointmentStatus(
+            'appointment-id',
+            'clinic-id',
+            AppointmentStatus.COMPLETED
+        );
+
+        expect(result).toEqual({
+            appointment,
+            failureReason: null,
+        });
+        expect(mockApplyPatientAppointmentOutcome).not.toHaveBeenCalled();
     });
 });

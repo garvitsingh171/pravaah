@@ -48,13 +48,7 @@ function AuthWorkflowPreview() {
     );
 }
 
-function AuthPageLayout({
-    children,
-    description,
-    eyebrow,
-    footer,
-    title,
-}: AuthPageLayoutProps) {
+function AuthPageLayout({ children, description, eyebrow, footer, title }: AuthPageLayoutProps) {
     return (
         <main className="min-h-screen bg-app-background px-4 py-8 text-app-text">
             <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-6xl flex-col justify-center gap-8 lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(320px,1fr)] lg:items-center">

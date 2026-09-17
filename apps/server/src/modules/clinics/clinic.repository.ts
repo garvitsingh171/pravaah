@@ -6,6 +6,10 @@ import {
     QueueStatus,
 } from '../../generated/prisma/client.js';
 import { calculateArrivalOutcome } from '../appointments/appointment.arrival.js';
+import {
+    applyPatientAppointmentOutcome,
+    incrementPatientTotalAppointments,
+} from '../patients/patient.statistics.repository.js';
 import type { NoShowPredictionOutput } from '../predictions/prediction.types.js';
 import {
     SAMPLE_DATA_NOTE_MARKER,
@@ -15,6 +19,7 @@ import {
     getClinicDateLabel,
     getClinicDateTime,
     getClinicTodayParts,
+    getSampleCompletedVisitCount,
     sampleDoctorDefinitions,
     samplePatientDefinitions,
 } from './sampleData.definitions.js';
@@ -488,6 +493,7 @@ export const clinicRepository = {
                             create: {
                                 clinicId: clinic.id,
                                 totalAppointments: patient.history.totalAppointments,
+                                totalCompletedVisits: getSampleCompletedVisitCount(patient.history),
                                 totalNoShows: patient.history.totalNoShows,
                                 totalLateArrivals: patient.history.totalLateArrivals,
                                 distanceFromClinicKm: patient.history.distanceFromClinicKm,
@@ -556,10 +562,7 @@ export const clinicRepository = {
                     },
                 });
 
-                const completedAppointmentCount = Math.max(
-                    patient.history.totalAppointments - patient.history.totalNoShows,
-                    0
-                );
+                const completedAppointmentCount = getSampleCompletedVisitCount(patient.history);
                 const prediction = predictNoShowRisk({
                     scheduledAt,
                     bookedAt: addMinutes(scheduledAt, -appointmentDefinition.bookedMinutesBefore),
@@ -583,6 +586,33 @@ export const clinicRepository = {
                     },
                 });
 
+                await incrementPatientTotalAppointments({
+                    tx,
+                    clinicId: clinic.id,
+                    patientId: patient.id,
+                });
+
+                if (arrivalOutcome?.isLateArrival) {
+                    await tx.patientClinic.update({
+                        where: {
+                            patientId_clinicId: {
+                                patientId: patient.id,
+                                clinicId: clinic.id,
+                            },
+                        },
+                        data: {
+                            totalLateArrivals: {
+                                increment: 1,
+                            },
+                        },
+                    });
+                }
+
+                const completedAt =
+                    appointmentDefinition.status === AppointmentStatus.COMPLETED
+                        ? addMinutes(scheduledAt, 20)
+                        : null;
+
                 if (
                     appointmentDefinition.queueStatus !== null &&
                     appointmentDefinition.queuePosition !== null
@@ -603,9 +633,29 @@ export const clinicRepository = {
                                     : null,
                             completedAt:
                                 appointmentDefinition.queueStatus === QueueStatus.COMPLETED
-                                    ? addMinutes(scheduledAt, 20)
+                                    ? completedAt
                                     : null,
                         },
+                    });
+                }
+
+                if (completedAt) {
+                    await applyPatientAppointmentOutcome({
+                        tx,
+                        clinicId: clinic.id,
+                        patientId: patient.id,
+                        previousStatus: AppointmentStatus.SCHEDULED,
+                        newStatus: AppointmentStatus.COMPLETED,
+                        eventTimestamp: completedAt,
+                    });
+                } else if (appointmentDefinition.status === AppointmentStatus.NO_SHOW) {
+                    await applyPatientAppointmentOutcome({
+                        tx,
+                        clinicId: clinic.id,
+                        patientId: patient.id,
+                        previousStatus: AppointmentStatus.SCHEDULED,
+                        newStatus: AppointmentStatus.NO_SHOW,
+                        eventTimestamp: scheduledAt,
                     });
                 }
             }

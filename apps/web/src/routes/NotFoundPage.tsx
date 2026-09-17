@@ -71,17 +71,35 @@ function NotFoundPage() {
                             <rect x="202" y="140" width="88" height="56" rx="8" />
                             <rect x="374" y="116" width="88" height="56" rx="8" />
                         </g>
-                        <circle cx="456" cy="72" r="28" fill="#FEF2F2" stroke="#FECACA" strokeWidth="3" />
+                        <circle
+                            cx="456"
+                            cy="72"
+                            r="28"
+                            fill="#FEF2F2"
+                            stroke="#FECACA"
+                            strokeWidth="3"
+                        />
                         <path
                             d="m445 61 22 22M467 61l-22 22"
                             stroke="#B91C1C"
                             strokeWidth="5"
                             strokeLinecap="round"
                         />
-                        <g fill="#0F172A" fontFamily="Inter, sans-serif" fontSize="14" fontWeight="700">
-                            <text x="61" y="211">Home</text>
-                            <text x="219" y="174">Flow</text>
-                            <text x="397" y="150">404</text>
+                        <g
+                            fill="#0F172A"
+                            fontFamily="Inter, sans-serif"
+                            fontSize="14"
+                            fontWeight="700"
+                        >
+                            <text x="61" y="211">
+                                Home
+                            </text>
+                            <text x="219" y="174">
+                                Flow
+                            </text>
+                            <text x="397" y="150">
+                                404
+                            </text>
                         </g>
                     </svg>
                 </div>

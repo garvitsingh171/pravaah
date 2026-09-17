@@ -26,9 +26,8 @@ const upsertMeta = (selector: string, attributes: Record<string, string>) => {
 };
 
 const upsertCanonical = (href: string | null) => {
-    const existingCanonicals = document.head.querySelectorAll<HTMLLinkElement>(
-        'link[rel="canonical"]'
-    );
+    const existingCanonicals =
+        document.head.querySelectorAll<HTMLLinkElement>('link[rel="canonical"]');
 
     existingCanonicals.forEach((canonical, index) => {
         if (href && index === 0) {
@@ -53,7 +52,9 @@ const upsertCanonical = (href: string | null) => {
 
 const replaceStructuredData = (json: unknown | null) => {
     document.head
-        .querySelectorAll<HTMLScriptElement>(`script[type="application/ld+json"][${managedAttribute}]`)
+        .querySelectorAll<HTMLScriptElement>(
+            `script[type="application/ld+json"][${managedAttribute}]`
+        )
         .forEach((script) => script.remove());
 
     if (!json) {

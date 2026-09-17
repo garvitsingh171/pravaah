@@ -109,7 +109,7 @@ const productivityItems = [
     {
         role: 'Reception and Staff',
         description:
-            'See today\'s appointments, update arrival and appointment status, manage queue movement, and spend less time reconstructing the clinic day.',
+            "See today's appointments, update arrival and appointment status, manage queue movement, and spend less time reconstructing the clinic day.",
     },
     {
         role: 'Clinic Admin and Owner',
@@ -130,7 +130,8 @@ const workflowSteps = [
         description:
             'Create the clinic workspace, operating details, and first Admin account during onboarding.',
         validates: 'Clinic and first Admin are created through the protected onboarding flow.',
-        humanControl: 'The clinic controls setup details and remains responsible for operational use.',
+        humanControl:
+            'The clinic controls setup details and remains responsible for operational use.',
         previewTitle: 'Clinic setup',
         previewItems: ['Clinic profile', 'Operating hours', 'Admin user', 'Sample data option'],
     },
@@ -159,7 +160,8 @@ const workflowSteps = [
         status: 'Risk assistance',
         description:
             'See Low, Medium, or High no-show risk with reasons that staff can inspect before choosing a follow-up action.',
-        validates: 'Risk is deterministic, stored, and shown in appointment, queue, and dashboard views.',
+        validates:
+            'Risk is deterministic, stored, and shown in appointment, queue, and dashboard views.',
         humanControl: 'Decision support, not decision replacement.',
         previewTitle: 'Reasons visible',
         previewItems: ['Risk level', 'Score', 'Reasons', 'Suggested staff actions'],
@@ -179,7 +181,8 @@ const workflowSteps = [
         status: 'Waiting, called, completed',
         description:
             'Track patient progression, manually reorder active queue entries where supported, and close visits cleanly.',
-        validates: 'Queue reorder requests are checked by the backend for clinic, doctor, date, and active entries.',
+        validates:
+            'Queue reorder requests are checked by the backend for clinic, doctor, date, and active entries.',
         humanControl: 'The system does not silently reorder the queue.',
         previewTitle: 'Queue board',
         previewItems: ['Waiting', 'Called', 'Completed', 'Manual reorder'],
@@ -225,7 +228,7 @@ const capabilityItems = [
     {
         title: 'Operational dashboard',
         description:
-            'Give clinic teams a quick view of appointments, queue activity, risk priorities, and the current day\'s operational status.',
+            "Give clinic teams a quick view of appointments, queue activity, risk priorities, and the current day's operational status.",
     },
 ];
 
@@ -302,23 +305,19 @@ const roadmapItems = [
 const faqItems = [
     {
         question: 'Is Pravaah only appointment booking software?',
-        answer:
-            'No. Appointment booking is part of the workflow, but Pravaah is positioned around clinic flow: appointments, arrival status, live queue work, dashboard visibility, and explainable no-show assistance.',
+        answer: 'No. Appointment booking is part of the workflow, but Pravaah is positioned around clinic flow: appointments, arrival status, live queue work, dashboard visibility, and explainable no-show assistance.',
     },
     {
         question: 'Does Pravaah replace doctors or clinical judgment?',
-        answer:
-            'No. Pravaah handles clinic operations. It does not diagnose patients, make treatment decisions, or replace medical judgment.',
+        answer: 'No. Pravaah handles clinic operations. It does not diagnose patients, make treatment decisions, or replace medical judgment.',
     },
     {
         question: 'Does Pravaah automatically predict and cancel no-shows?',
-        answer:
-            'No. Current no-show assistance is deterministic and explainable. It shows risk context and reasons so staff can prioritize follow-up while keeping the final decision with the clinic.',
+        answer: 'No. Current no-show assistance is deterministic and explainable. It shows risk context and reasons so staff can prioritize follow-up while keeping the final decision with the clinic.',
     },
     {
         question: 'Who can use the current product?',
-        answer:
-            'The current product is for authenticated Admin and Staff users. Doctors and patients are managed as records today and do not have their own portals in the current product.',
+        answer: 'The current product is for authenticated Admin and Staff users. Doctors and patients are managed as records today and do not have their own portals in the current product.',
     },
 ];
 
@@ -457,9 +456,7 @@ function HeroFlowPreview() {
                         <p className="text-xs font-semibold uppercase tracking-wide text-brand">
                             Today at Pravaah Family Clinic
                         </p>
-                        <h2 className="mt-1 text-lg font-bold text-white">
-                            Clinic flow dashboard
-                        </h2>
+                        <h2 className="mt-1 text-lg font-bold text-white">Clinic flow dashboard</h2>
                     </div>
                     <Badge
                         tone="brand"
@@ -600,9 +597,7 @@ function WorkflowTour() {
 
                 <div className="mt-5 grid gap-4 lg:grid-cols-2">
                     <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
-                        <p className="text-sm font-bold text-slate-950">
-                            What stays connected
-                        </p>
+                        <p className="text-sm font-bold text-slate-950">What stays connected</p>
                         <p className="mt-2 text-sm leading-6 text-slate-600">
                             {activeStep.validates}
                         </p>

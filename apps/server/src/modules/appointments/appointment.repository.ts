@@ -1,17 +1,14 @@
 import { prisma } from '../../config/prisma.js';
-import {
-    AppointmentStatus,
-    Prisma,
-    QueueStatus,
-} from '../../generated/prisma/client.js';
+import { AppointmentStatus, Prisma, QueueStatus } from '../../generated/prisma/client.js';
 import type {
     NoShowPredictionOutput,
     StoredNoShowPredictionForResponse,
 } from '../predictions/prediction.types.js';
+import { applyPatientAppointmentOutcome } from '../patients/patient.statistics.repository.js';
+import { isPresenceEstablishingAppointmentStatus } from './appointment.arrival.js';
 import { establishAppointmentArrivalIfNeeded } from './appointment.arrival.repository.js';
 import {
     finalAppointmentStatuses,
-    getAllowedAppointmentCurrentStatusesForRequest,
     isAppointmentStatusTransitionAllowed,
     reschedulableAppointmentStatuses,
 } from './appointment.lifecycle.js';
@@ -207,10 +204,7 @@ export const appointmentRepository = {
         });
     },
 
-    findDoctorAvailabilityPeriods(
-        doctorClinicId: string,
-        client: PrismaQueryable = prisma
-    ) {
+    findDoctorAvailabilityPeriods(doctorClinicId: string, client: PrismaQueryable = prisma) {
         return client.doctorAvailabilityPeriod.findMany({
             where: {
                 doctorClinicId,
@@ -549,27 +543,46 @@ export const appointmentRepository = {
                 };
             }
 
-            const updateResult = await tx.appointment.updateMany({
-                where: {
-                    id: appointmentId,
-                    clinicId,
-                    status: {
-                        in: getAllowedAppointmentCurrentStatusesForRequest(status),
-                    },
-                },
-                data: {
-                    status,
-                },
-            });
+            let didTransition = false;
 
-            if (updateResult.count !== 1) {
-                return {
-                    appointment: null,
-                    failureReason: 'STATUS_TRANSITION_CONFLICT' as const,
-                };
+            if (existingAppointment.status !== status) {
+                const updateResult = await tx.appointment.updateMany({
+                    where: {
+                        id: appointmentId,
+                        clinicId,
+                        status: existingAppointment.status,
+                    },
+                    data: {
+                        status,
+                    },
+                });
+
+                if (updateResult.count === 1) {
+                    didTransition = true;
+                } else {
+                    const concurrentAppointment = await tx.appointment.findFirst({
+                        where: {
+                            id: appointmentId,
+                            clinicId,
+                        },
+                        select: {
+                            status: true,
+                        },
+                    });
+
+                    if (concurrentAppointment?.status !== status) {
+                        return {
+                            appointment: null,
+                            failureReason: 'STATUS_TRANSITION_CONFLICT' as const,
+                        };
+                    }
+                }
             }
 
-            if (existingAppointment.arrivedAt === null) {
+            if (
+                existingAppointment.arrivedAt === null &&
+                isPresenceEstablishingAppointmentStatus(status)
+            ) {
                 await establishAppointmentArrivalIfNeeded({
                     tx,
                     appointmentId,
@@ -631,6 +644,17 @@ export const appointmentRepository = {
                         },
                     });
                 }
+            }
+
+            if (didTransition) {
+                await applyPatientAppointmentOutcome({
+                    tx,
+                    clinicId: existingAppointment.clinicId,
+                    patientId: existingAppointment.patientId,
+                    previousStatus: existingAppointment.status,
+                    newStatus: status,
+                    eventTimestamp: now,
+                });
             }
 
             const appointment = await tx.appointment.findFirst({

@@ -1,0 +1,5 @@
+-- RenameIndex
+ALTER INDEX "doctor_availability_periods_doctorClinicId_weekday_startTime_en" RENAME TO "doctor_availability_periods_doctorClinicId_weekday_startTim_key";
+
+-- RenameIndex
+ALTER INDEX "doctor_availability_periods_doctorClinicId_weekday_startTime_id" RENAME TO "doctor_availability_periods_doctorClinicId_weekday_startTim_idx";

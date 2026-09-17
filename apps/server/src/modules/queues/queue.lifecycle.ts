@@ -14,12 +14,7 @@ export const queueStatusTransitions: Record<QueueStatus, readonly QueueStatus[]>
         QueueStatus.CANCELLED,
         QueueStatus.NO_SHOW,
     ],
-    ARRIVED: [
-        QueueStatus.WAITING,
-        QueueStatus.CALLED,
-        QueueStatus.CANCELLED,
-        QueueStatus.NO_SHOW,
-    ],
+    ARRIVED: [QueueStatus.WAITING, QueueStatus.CALLED, QueueStatus.CANCELLED, QueueStatus.NO_SHOW],
     CALLED: [QueueStatus.COMPLETED, QueueStatus.CANCELLED, QueueStatus.NO_SHOW],
     COMPLETED: [],
     CANCELLED: [],

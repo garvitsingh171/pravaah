@@ -55,15 +55,15 @@ describe('availableAppointmentSlotsQuerySchema', () => {
 
 describe('reschedule appointment validation', () => {
     it('accepts only canonical destination dates for reschedule slot lookup', () => {
-        expect(rescheduleAppointmentSlotsQuerySchema.safeParse({ date: '2026-09-17' }).success).toBe(
-            true
-        );
-        expect(rescheduleAppointmentSlotsQuerySchema.safeParse({ date: '17/09/2026' }).success).toBe(
-            false
-        );
-        expect(rescheduleAppointmentSlotsQuerySchema.safeParse({ date: '2026-02-30' }).success).toBe(
-            false
-        );
+        expect(
+            rescheduleAppointmentSlotsQuerySchema.safeParse({ date: '2026-09-17' }).success
+        ).toBe(true);
+        expect(
+            rescheduleAppointmentSlotsQuerySchema.safeParse({ date: '17/09/2026' }).success
+        ).toBe(false);
+        expect(
+            rescheduleAppointmentSlotsQuerySchema.safeParse({ date: '2026-02-30' }).success
+        ).toBe(false);
     });
 
     it('accepts only scheduledAt in the reschedule mutation body', () => {

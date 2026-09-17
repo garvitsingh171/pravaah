@@ -196,7 +196,8 @@ function FloatingSetupDock({ clinicId, state, onRetry }: FloatingSetupDockProps)
         null
     );
     const [hasSeenVisibleIncompleteSetup, setHasSeenVisibleIncompleteSetup] = useState(
-        () => Boolean(state.setup) && !isSetupComplete(state.setup) && !readSessionDismissal(clinicId)
+        () =>
+            Boolean(state.setup) && !isSetupComplete(state.setup) && !readSessionDismissal(clinicId)
     );
     const items = useMemo(
         () => (state.setup ? buildSetupChecklistItems(state.setup) : []),
@@ -248,7 +249,7 @@ function FloatingSetupDock({ clinicId, state, onRetry }: FloatingSetupDockProps)
             ? 'Setup status needs attention'
             : state.status === 'loading'
               ? 'Checking progress'
-              : nextIncompleteItem?.title ?? 'Continue setup';
+              : (nextIncompleteItem?.title ?? 'Continue setup');
 
     return (
         <section

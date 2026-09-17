@@ -7,7 +7,10 @@ vi.mock('../../../config/prisma.js', () => ({
     prisma: mockPrisma,
 }));
 
-import { appointmentRouter, clinicAppointmentRouter } from '../../appointments/appointment.routes.js';
+import {
+    appointmentRouter,
+    clinicAppointmentRouter,
+} from '../../appointments/appointment.routes.js';
 import { clinicRouter } from '../../clinics/clinic.routes.js';
 import { dashboardRouter } from '../../dashboard/dashboard.routes.js';
 import { doctorRouter } from '../../doctors/doctor.routes.js';

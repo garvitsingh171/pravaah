@@ -29,13 +29,13 @@ This register tracks mandatory concepts from the repository-available Project Sc
 
 ## Product Implementation Gaps That May Affect Mandatory Explanations
 
-| Area                  | Current evidence                                                                   | Risk                                                          | Action                                                     |
-| --------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------- |
-| Appointment lifecycle | Strict appointment transitions are enforced server-side.                           | Route-level coverage can still expand.                        | Explain service/repository lifecycle guards honestly.      |
-| Queue lifecycle       | Strict queue transitions are enforced server-side.                                 | Route-level coverage can still expand.                        | Explain service/repository lifecycle guards honestly.      |
-| Patient active filter | `Patient.isActive` filtering exists; `PatientClinic.isActive` filter gap recorded. | Active/inactive explanation can become inaccurate.            | Mention link-aware filter gap if asked.                    |
-| Backend lint          | Server `lint` script is placeholder.                                               | Do not claim full lint gate.                                  | Configure backend lint later.                              |
-| Deployment            | Docs/config exist; live URLs and deployed SHAs missing.                            | Do not claim deployed production unless owner provides proof. | Record deployment evidence.                                |
+| Area                  | Current evidence                                                                   | Risk                                                          | Action                                                |
+| --------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------- | ----------------------------------------------------- |
+| Appointment lifecycle | Strict appointment transitions are enforced server-side.                           | Route-level coverage can still expand.                        | Explain service/repository lifecycle guards honestly. |
+| Queue lifecycle       | Strict queue transitions are enforced server-side.                                 | Route-level coverage can still expand.                        | Explain service/repository lifecycle guards honestly. |
+| Patient active filter | `Patient.isActive` filtering exists; `PatientClinic.isActive` filter gap recorded. | Active/inactive explanation can become inaccurate.            | Mention link-aware filter gap if asked.               |
+| Backend lint          | Server `lint` script is placeholder.                                               | Do not claim full lint gate.                                  | Configure backend lint later.                         |
+| Deployment            | Docs/config exist; live URLs and deployed SHAs missing.                            | Do not claim deployed production unless owner provides proof. | Record deployment evidence.                           |
 
 ## Recommended Interview Framing
 

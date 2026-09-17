@@ -1,7 +1,9 @@
 import { prisma } from '../../config/prisma.js';
 import { AppointmentStatus, Prisma, QueueStatus } from '../../generated/prisma/client.js';
+import { isPresenceEstablishingAppointmentStatus } from '../appointments/appointment.arrival.js';
 import { establishAppointmentArrivalIfNeeded } from '../appointments/appointment.arrival.repository.js';
 import { isAppointmentStatusTransitionAllowed } from '../appointments/appointment.lifecycle.js';
+import { applyPatientAppointmentOutcome } from '../patients/patient.statistics.repository.js';
 import { isQueueStatusTransitionAllowed } from './queue.lifecycle.js';
 
 const noShowPredictionQueueSelect = {
@@ -294,6 +296,39 @@ export const queueRepository = {
                 throw new Error('APPOINTMENT_STATUS_TRANSITION_INVALID');
             }
 
+            let didAppointmentTransition = false;
+
+            if (existingQueueEntry.appointment.status !== appointmentStatus) {
+                const appointmentUpdateResult = await tx.appointment.updateMany({
+                    where: {
+                        id: appointmentId,
+                        clinicId,
+                        status: existingQueueEntry.appointment.status,
+                    },
+                    data: {
+                        status: appointmentStatus,
+                    },
+                });
+
+                if (appointmentUpdateResult.count === 1) {
+                    didAppointmentTransition = true;
+                } else {
+                    const concurrentAppointment = await tx.appointment.findFirst({
+                        where: {
+                            id: appointmentId,
+                            clinicId,
+                        },
+                        select: {
+                            status: true,
+                        },
+                    });
+
+                    if (concurrentAppointment?.status !== appointmentStatus) {
+                        throw new Error('APPOINTMENT_STATUS_SYNC_CONFLICT');
+                    }
+                }
+            }
+
             const queueUpdateResult = await tx.queueEntry.updateMany({
                 where: {
                     id: queueEntryId,
@@ -306,7 +341,20 @@ export const queueRepository = {
             });
 
             if (queueUpdateResult.count !== 1) {
-                throw new Error('QUEUE_STATUS_UPDATE_CONFLICT');
+                const concurrentQueueEntry = await tx.queueEntry.findFirst({
+                    where: {
+                        id: queueEntryId,
+                        appointmentId,
+                        clinicId,
+                    },
+                    select: {
+                        status: true,
+                    },
+                });
+
+                if (concurrentQueueEntry?.status !== status) {
+                    throw new Error('QUEUE_STATUS_UPDATE_CONFLICT');
+                }
             }
 
             if (timestampUpdates.calledAt !== undefined) {
@@ -335,22 +383,10 @@ export const queueRepository = {
                 });
             }
 
-            const appointmentUpdateResult = await tx.appointment.updateMany({
-                where: {
-                    id: appointmentId,
-                    clinicId,
-                    status: expectedAppointmentStatus,
-                },
-                data: {
-                    status: appointmentStatus,
-                },
-            });
-
-            if (appointmentUpdateResult.count !== 1) {
-                throw new Error('APPOINTMENT_STATUS_SYNC_CONFLICT');
-            }
-
-            if (existingQueueEntry.appointment.arrivedAt === null) {
+            if (
+                existingQueueEntry.appointment.arrivedAt === null &&
+                isPresenceEstablishingAppointmentStatus(appointmentStatus)
+            ) {
                 await establishAppointmentArrivalIfNeeded({
                     tx,
                     appointmentId,
@@ -359,6 +395,17 @@ export const queueRepository = {
                     scheduledAt: existingQueueEntry.appointment.scheduledAt,
                     targetStatus: appointmentStatus,
                     arrivalTimestamp: eventTimestamp,
+                });
+            }
+
+            if (didAppointmentTransition) {
+                await applyPatientAppointmentOutcome({
+                    tx,
+                    clinicId,
+                    patientId: existingQueueEntry.patientId,
+                    previousStatus: existingQueueEntry.appointment.status,
+                    newStatus: appointmentStatus,
+                    eventTimestamp,
                 });
             }
 
@@ -424,7 +471,9 @@ export const queueRepository = {
 
             if (
                 activeQueueEntries.length !== queueEntryIds.length ||
-                activeQueueEntries.some((queueEntry) => !requestedQueueEntryIds.has(queueEntry.id)) ||
+                activeQueueEntries.some(
+                    (queueEntry) => !requestedQueueEntryIds.has(queueEntry.id)
+                ) ||
                 queueEntryIds.some((queueEntryId) => !activeQueueEntryIds.has(queueEntryId))
             ) {
                 throw new Error('QUEUE_REORDER_CONFLICT');
@@ -512,12 +561,7 @@ export const queueRepository = {
         });
 
         for (const scope of uniqueScopes) {
-            await acquireQueueScopeLock(
-                tx,
-                scope.clinicId,
-                scope.doctorId,
-                scope.clinicLocalDate
-            );
+            await acquireQueueScopeLock(tx, scope.clinicId, scope.doctorId, scope.clinicLocalDate);
         }
     },
 

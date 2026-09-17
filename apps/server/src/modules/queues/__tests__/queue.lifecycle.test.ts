@@ -29,27 +29,19 @@ describe('queue lifecycle policy', () => {
     });
 
     it('allows waiting entries to become arrived without treating same-status waiting as arrival', () => {
-        expect(isQueueStatusTransitionAllowed(QueueStatus.WAITING, QueueStatus.ARRIVED)).toBe(
-            true
-        );
+        expect(isQueueStatusTransitionAllowed(QueueStatus.WAITING, QueueStatus.ARRIVED)).toBe(true);
     });
 
     it('rejects unsupported queue reversals and skips', () => {
-        expect(isQueueStatusTransitionAllowed(QueueStatus.CALLED, QueueStatus.WAITING)).toBe(
-            false
-        );
-        expect(isQueueStatusTransitionAllowed(QueueStatus.CALLED, QueueStatus.ARRIVED)).toBe(
-            false
-        );
+        expect(isQueueStatusTransitionAllowed(QueueStatus.CALLED, QueueStatus.WAITING)).toBe(false);
+        expect(isQueueStatusTransitionAllowed(QueueStatus.CALLED, QueueStatus.ARRIVED)).toBe(false);
         expect(isQueueStatusTransitionAllowed(QueueStatus.ARRIVED, QueueStatus.COMPLETED)).toBe(
             false
         );
     });
 
     it('keeps same-status requests idempotent while terminal statuses remain final', () => {
-        expect(isQueueStatusTransitionAllowed(QueueStatus.WAITING, QueueStatus.WAITING)).toBe(
-            true
-        );
+        expect(isQueueStatusTransitionAllowed(QueueStatus.WAITING, QueueStatus.WAITING)).toBe(true);
         expect(isQueueStatusTransitionAllowed(QueueStatus.COMPLETED, QueueStatus.COMPLETED)).toBe(
             true
         );

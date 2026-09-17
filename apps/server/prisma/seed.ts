@@ -17,6 +17,7 @@ import {
     getClinicDateLabel,
     getClinicDateTime,
     getClinicTodayParts,
+    getSampleCompletedVisitCount,
     sampleDoctorDefinitions,
     samplePatientDefinitions,
 } from '../src/modules/clinics/sampleData.definitions.js';
@@ -970,8 +971,10 @@ async function main() {
             },
             update: {
                 totalAppointments: patient.history.totalAppointments,
+                totalCompletedVisits: getSampleCompletedVisitCount(patient.history),
                 totalNoShows: patient.history.totalNoShows,
                 totalLateArrivals: patient.history.totalLateArrivals,
+                lastVisitAt: null,
                 distanceFromClinicKm: patient.history.distanceFromClinicKm,
                 notes: stripSampleMarker(patient.history.notes),
                 isActive: true,
@@ -980,6 +983,7 @@ async function main() {
                 patientId: patient.id,
                 clinicId: clinic.id,
                 totalAppointments: patient.history.totalAppointments,
+                totalCompletedVisits: getSampleCompletedVisitCount(patient.history),
                 totalNoShows: patient.history.totalNoShows,
                 totalLateArrivals: patient.history.totalLateArrivals,
                 distanceFromClinicKm: patient.history.distanceFromClinicKm,
@@ -1034,10 +1038,7 @@ async function main() {
             throw new Error(`Seed doctor not found for appointment ${appointmentSeed.id}`);
         }
 
-        const completedAppointmentCount = Math.max(
-            patient.history.totalAppointments - patient.history.totalNoShows,
-            0
-        );
+        const completedAppointmentCount = getSampleCompletedVisitCount(patient.history);
         const noShowPrediction = predictNoShowRisk({
             scheduledAt: appointmentSeed.scheduledAt,
             bookedAt: appointmentSeed.bookedAt,
@@ -1091,6 +1092,46 @@ async function main() {
             },
         });
 
+        await prisma.patientClinic.update({
+            where: {
+                patientId_clinicId: {
+                    patientId: patient.id,
+                    clinicId: clinic.id,
+                },
+            },
+            data: {
+                totalAppointments: {
+                    increment: 1,
+                },
+                ...(arrivalOutcome?.isLateArrival
+                    ? {
+                          totalLateArrivals: {
+                              increment: 1,
+                          },
+                      }
+                    : {}),
+                ...(appointmentSeed.status === AppointmentStatus.COMPLETED
+                    ? {
+                          totalCompletedVisits: {
+                              increment: 1,
+                          },
+                      }
+                    : {}),
+                ...(appointmentSeed.status === AppointmentStatus.NO_SHOW
+                    ? {
+                          totalNoShows: {
+                              increment: 1,
+                          },
+                      }
+                    : {}),
+            },
+        });
+
+        const completedAt =
+            appointmentSeed.status === AppointmentStatus.COMPLETED
+                ? addMinutes(appointment.scheduledAt, 20)
+                : null;
+
         if (appointmentSeed.queueStatus !== null && appointmentSeed.position !== null) {
             await prisma.queueEntry.create({
                 data: {
@@ -1107,9 +1148,29 @@ async function main() {
                             ? addMinutes(appointment.scheduledAt, 5)
                             : null,
                     completedAt:
-                        appointmentSeed.queueStatus === QueueStatus.COMPLETED
-                            ? addMinutes(appointment.scheduledAt, 20)
-                            : null,
+                        appointmentSeed.queueStatus === QueueStatus.COMPLETED ? completedAt : null,
+                },
+            });
+        }
+
+        if (completedAt) {
+            await prisma.patientClinic.updateMany({
+                where: {
+                    clinicId: clinic.id,
+                    patientId: patient.id,
+                    OR: [
+                        {
+                            lastVisitAt: null,
+                        },
+                        {
+                            lastVisitAt: {
+                                lt: completedAt,
+                            },
+                        },
+                    ],
+                },
+                data: {
+                    lastVisitAt: completedAt,
                 },
             });
         }

@@ -126,11 +126,9 @@ describe('appointment lifecycle policy', () => {
             AppointmentStatus.CONFIRMED,
             AppointmentStatus.ARRIVED,
         ]);
-        expect(getAllowedAppointmentCurrentStatusesForRequest(AppointmentStatus.COMPLETED)).toEqual([
-            AppointmentStatus.IN_QUEUE,
-            AppointmentStatus.CALLED,
-            AppointmentStatus.COMPLETED,
-        ]);
+        expect(getAllowedAppointmentCurrentStatusesForRequest(AppointmentStatus.COMPLETED)).toEqual(
+            [AppointmentStatus.IN_QUEUE, AppointmentStatus.CALLED, AppointmentStatus.COMPLETED]
+        );
     });
 
     it('centralizes rescheduling eligibility before the active visit begins', () => {

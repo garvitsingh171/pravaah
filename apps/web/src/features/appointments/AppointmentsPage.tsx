@@ -333,11 +333,7 @@ const isValidDateInputValue = (value: string): boolean => {
 
     const [year, month, day] = value.split('-').map(Number);
 
-    return (
-        date.getFullYear() === year &&
-        date.getMonth() + 1 === month &&
-        date.getDate() === day
-    );
+    return date.getFullYear() === year && date.getMonth() + 1 === month && date.getDate() === day;
 };
 
 const toOptionalString = (value: string): string | undefined => {
@@ -577,10 +573,7 @@ const getBookingSourceLabel = (source: BookingSource): string => {
 };
 
 const getArrivalClassificationLabel = (
-    appointment: Pick<
-        AppointmentListItem,
-        'arrivedAt' | 'arrivalOffsetMinutes' | 'isLateArrival'
-    >
+    appointment: Pick<AppointmentListItem, 'arrivedAt' | 'arrivalOffsetMinutes' | 'isLateArrival'>
 ): string | null => {
     if (!appointment.arrivedAt) {
         return null;
@@ -1609,11 +1602,7 @@ function AppointmentsPage() {
                 : currentState
         );
 
-        void listAppointmentRescheduleSlots(
-            appointmentId,
-            destinationDate,
-            abortController.signal
-        )
+        void listAppointmentRescheduleSlots(appointmentId, destinationDate, abortController.signal)
             .then((data) => {
                 const slots = data.availability.slots.filter(
                     (slot) => slot.scheduledAt !== data.availability.currentScheduledAt
@@ -1696,11 +1685,7 @@ function AppointmentsPage() {
         return () => {
             abortController.abort();
         };
-    }, [
-        activeRescheduleAppointmentId,
-        activeRescheduleDestinationDate,
-        rescheduleSlotsRefreshKey,
-    ]);
+    }, [activeRescheduleAppointmentId, activeRescheduleDestinationDate, rescheduleSlotsRefreshKey]);
 
     const handleChange = (field: keyof AppointmentBookingFormValues, value: string) => {
         const shouldClearSelectedSlot =

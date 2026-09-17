@@ -45,6 +45,7 @@ type PatientClinicListItem = {
     patientId: string;
     clinicId: string;
     totalAppointments: number;
+    totalCompletedVisits: number;
     totalNoShows: number;
     totalLateArrivals: number;
     lastVisitAt?: string | null;
@@ -81,6 +82,7 @@ const toPatientSummary = (patientLink: PatientClinicListItem): PatientSummary =>
         notes: patientLink.notes,
         distanceFromClinicKm: patientLink.distanceFromClinicKm,
         totalAppointments: patientLink.totalAppointments,
+        totalCompletedVisits: patientLink.totalCompletedVisits,
         totalNoShows: patientLink.totalNoShows,
         totalLateArrivals: patientLink.totalLateArrivals,
         lastVisitAt: patientLink.lastVisitAt,
@@ -97,8 +99,7 @@ export const listPatients = async (
         {
             query: {
                 search: filters.search,
-                isActive:
-                    filters.isActive === undefined ? undefined : String(filters.isActive),
+                isActive: filters.isActive === undefined ? undefined : String(filters.isActive),
             },
             signal,
         }

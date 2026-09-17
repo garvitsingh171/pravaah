@@ -4,10 +4,7 @@ import { accessService } from '../auth/access.service.js';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
 import { toNoShowPredictionResponse } from '../predictions/prediction.service.js';
 import type { StoredNoShowPredictionForResponse } from '../predictions/prediction.types.js';
-import {
-    isFinalQueueStatus,
-    isQueueStatusTransitionAllowed,
-} from './queue.lifecycle.js';
+import { isFinalQueueStatus, isQueueStatusTransitionAllowed } from './queue.lifecycle.js';
 import { queueRepository } from './queue.repository.js';
 
 const activeQueueStatuses: QueueStatus[] = [
@@ -136,7 +133,7 @@ export const queueService = {
                 throw new AppError(
                     409,
                     'PATIENT_CLINIC_LINK_NOT_FOUND',
-                    'Patient-clinic link was not found while recording arrival.'
+                    'Patient-clinic link was not found while updating appointment history.'
                 );
             }
 

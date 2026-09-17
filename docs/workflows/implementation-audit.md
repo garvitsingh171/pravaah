@@ -44,16 +44,16 @@ Expected/documented:
 Patient attendance history appears as part of no-show risk and clinic-specific patient data.
 
 Actual implementation:
-`PatientClinic.totalLateArrivals` is maintained by appointment/queue lifecycle transactions when a first recorded arrival is classified late. `PatientClinic.totalAppointments`, `totalNoShows`, and `lastVisitAt` still exist and are read, but are not yet maintained by all lifecycle workflows.
+`PatientClinic.totalAppointments` increments in the booking transaction. Exact first transitions to `COMPLETED` increment `totalCompletedVisits` and monotonically advance `lastVisitAt`; exact first transitions to `NO_SHOW` increment `totalNoShows`. `totalLateArrivals` remains maintained by the guarded first-arrival path. Appointment-driven and queue-driven outcomes use the same transactional policy.
 
 Evidence:
-`apps/server/prisma/schema.prisma -> Appointment, PatientClinic`; `appointment.arrival.ts`; `appointment.arrival.repository.ts`; `appointment.repository.ts -> updateAppointmentStatus`; `queue.repository.ts -> updateQueueEntryStatus`.
+`apps/server/prisma/schema.prisma -> Appointment, PatientClinic`; `patient.statistics.repository.ts`; `appointment.arrival.repository.ts`; `appointment.service.ts -> createAppointment`; `appointment.repository.ts -> updateAppointmentStatus`; `queue.repository.ts -> updateQueueEntryStatus`.
 
 Resolution:
-Atlas records late-arrival history as event-derived operational data. Other attendance counters remain stored/read but are not fully automated here.
+Atlas records clinic-specific patient statistics as event-derived operational data and keeps normal patient create/update validation read-only for these fields.
 
 Remaining gap:
-Separate issue needed for full appointment/no-show/last-visit history maintenance.
+No reconciliation/admin-correction workflow is included; that remains separate scope.
 
 ## B. Code Exists But Documentation Was Too Shallow
 

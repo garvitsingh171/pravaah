@@ -647,6 +647,11 @@ Response summary:
 ```txt
 data.patients[]
   PatientClinic item including nested patient
+  totalAppointments
+  totalCompletedVisits
+  totalNoShows
+  totalLateArrivals
+  lastVisitAt
 ```
 
 Main errors:
@@ -668,6 +673,7 @@ Body summary:
 - any create-patient field plus nullable optional fields and `isActive`
 - at least one field required
 - `notes` and `distanceFromClinicKm` update `PatientClinic`
+- operational statistics are response-only and rejected by strict create/update validation
 
 Main errors:
 
@@ -680,11 +686,11 @@ Main errors:
 
 ### Get Available Appointment Slots
 
-| Field  | Value                                                   |
-| ------ | ------------------------------------------------------- |
-| Method | GET                                                     |
-| Path   | `/api/clinics/:clinicId/appointments/available-slots`   |
-| Auth   | Required, own active clinic, Admin/Staff                |
+| Field  | Value                                                 |
+| ------ | ----------------------------------------------------- |
+| Method | GET                                                   |
+| Path   | `/api/clinics/:clinicId/appointments/available-slots` |
+| Auth   | Required, own active clinic, Admin/Staff              |
 
 Query:
 

@@ -125,7 +125,10 @@ function stubDesktopBreakpoint({ matches = false } = {}) {
         dispatchEvent: vi.fn(),
     } as unknown as MediaQueryList;
 
-    vi.stubGlobal('matchMedia', vi.fn(() => mediaQueryList));
+    vi.stubGlobal(
+        'matchMedia',
+        vi.fn(() => mediaQueryList)
+    );
 
     return {
         triggerDesktopBreakpoint: () => {
@@ -326,9 +329,7 @@ describe('ProtectedAppShell', () => {
             await screen.findByRole('heading', { name: /protected dashboard/i })
         ).toBeInTheDocument();
 
-        expect(
-            screen.getByRole('region', { name: /clinic setup assistant/i })
-        ).toBeInTheDocument();
+        expect(screen.getByRole('region', { name: /clinic setup assistant/i })).toBeInTheDocument();
 
         expect(screen.getByText('0 of 4 complete')).toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: /view details/i }));
@@ -344,9 +345,9 @@ describe('ProtectedAppShell', () => {
                 screen.queryByRole('region', { name: /clinic setup assistant/i })
             ).not.toBeInTheDocument();
         });
-        expect(window.sessionStorage.getItem(`pravaah:setup-assistant-dismissed:${testClinicId}`)).toBe(
-            'true'
-        );
+        expect(
+            window.sessionStorage.getItem(`pravaah:setup-assistant-dismissed:${testClinicId}`)
+        ).toBe('true');
         expect(mockGetOnboardingStatus).toHaveBeenCalledTimes(1);
     });
 
@@ -366,7 +367,9 @@ describe('ProtectedAppShell', () => {
         expect(
             screen.queryByRole('region', { name: /clinic setup assistant/i })
         ).not.toBeInTheDocument();
-        expect(screen.queryByRole('status', { name: /clinic setup complete/i })).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('status', { name: /clinic setup complete/i })
+        ).not.toBeInTheDocument();
     });
 
     it('briefly acknowledges setup when visible incomplete progress becomes complete', async () => {

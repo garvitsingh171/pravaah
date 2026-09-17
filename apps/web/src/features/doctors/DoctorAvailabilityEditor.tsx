@@ -242,16 +242,6 @@ function DoctorAvailabilityEditor({
 
     const loadAvailability = useCallback(
         (signal?: AbortSignal) => {
-            setAvailabilityState({
-                status: 'loading',
-                timezone: null,
-                days: getEmptyDays(),
-                error: null,
-            });
-            setPeriodErrors({});
-            setValidationMessages([]);
-            setSaveError(null);
-
             void getDoctorAvailability(clinicId, doctorId, signal)
                 .then((data) => {
                     setAvailabilityState({
@@ -293,6 +283,19 @@ function DoctorAvailabilityEditor({
         },
         [clinicId, doctorId]
     );
+
+    const handleRetry = () => {
+        setAvailabilityState({
+            status: 'loading',
+            timezone: null,
+            days: getEmptyDays(),
+            error: null,
+        });
+        setPeriodErrors({});
+        setValidationMessages([]);
+        setSaveError(null);
+        loadAvailability();
+    };
 
     useEffect(() => {
         const abortController = new AbortController();
@@ -463,7 +466,7 @@ function DoctorAvailabilityEditor({
                 message={availabilityState.error.message}
                 code={availabilityState.error.code}
                 details={availabilityState.error.details}
-                onRetry={() => loadAvailability()}
+                onRetry={handleRetry}
             />
         );
     }
