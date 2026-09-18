@@ -87,10 +87,6 @@ export const appointmentActivityRepository = {
         didTransition,
         arrivalResult,
     }: RecordAppointmentTransitionActivitiesInput): Promise<void> {
-        if (!didTransition) {
-            return;
-        }
-
         if (arrivalResult.wasEstablished && arrivalResult.outcome) {
             await createAppointmentActivity(tx, {
                 appointmentId,
@@ -104,6 +100,10 @@ export const appointmentActivityRepository = {
                     outcome: arrivalResult.outcome,
                 }),
             });
+        }
+
+        if (!didTransition) {
+            return;
         }
 
         const statusActivityType = getAppointmentActivityTypeForStatus(newStatus);

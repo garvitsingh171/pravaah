@@ -34,6 +34,47 @@ describe('appointmentActivityRepository.recordAppointmentTransitionActivities', 
         expect(createActivity).not.toHaveBeenCalled();
     });
 
+    it('records an independently established arrival without a status transition', async () => {
+        const eventTimestamp = new Date('2026-09-18T10:18:00.000Z');
+
+        await appointmentActivityRepository.recordAppointmentTransitionActivities({
+            tx,
+            appointmentId: 'appointment-id',
+            clinicId: 'clinic-id',
+            actorUserId: 'actor-id',
+            previousStatus: AppointmentStatus.IN_QUEUE,
+            newStatus: AppointmentStatus.IN_QUEUE,
+            eventTimestamp,
+            didTransition: false,
+            arrivalResult: {
+                wasEstablished: true,
+                outcome: {
+                    arrivalOffsetMinutes: 18,
+                    isLateArrival: true,
+                    lateArrivalGraceMinutes: 15,
+                },
+            },
+        });
+
+        expect(createActivity).toHaveBeenCalledTimes(1);
+        expect(createActivity).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    actorUserId: 'actor-id',
+                    type: AppointmentActivityType.PATIENT_ARRIVED,
+                    occurredAt: eventTimestamp,
+                    metadata: {
+                        fromStatus: AppointmentStatus.IN_QUEUE,
+                        toStatus: AppointmentStatus.IN_QUEUE,
+                        arrivalOffsetMinutes: 18,
+                        isLateArrival: true,
+                        lateArrivalGraceMinutes: 15,
+                    },
+                }),
+            })
+        );
+    });
+
     it('records first arrival before entered-queue for a controlled lifecycle skip', async () => {
         const eventTimestamp = new Date('2026-09-18T10:18:00.000Z');
 
