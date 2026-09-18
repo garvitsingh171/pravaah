@@ -7,6 +7,7 @@ const mockAppointmentUpdateMany = vi.hoisted(() => vi.fn());
 const mockQueueEntryUpdateMany = vi.hoisted(() => vi.fn());
 const mockEstablishAppointmentArrivalIfNeeded = vi.hoisted(() => vi.fn());
 const mockApplyPatientAppointmentOutcome = vi.hoisted(() => vi.fn());
+const mockRecordAppointmentTransitionActivities = vi.hoisted(() => vi.fn());
 
 vi.mock('../../../config/prisma.js', () => ({
     prisma: {
@@ -20,6 +21,12 @@ vi.mock('../appointment.arrival.repository.js', () => ({
 
 vi.mock('../../patients/patient.statistics.repository.js', () => ({
     applyPatientAppointmentOutcome: mockApplyPatientAppointmentOutcome,
+}));
+
+vi.mock('../appointment.activity.repository.js', () => ({
+    appointmentActivityRepository: {
+        recordAppointmentTransitionActivities: mockRecordAppointmentTransitionActivities,
+    },
 }));
 
 import { appointmentRepository } from '../appointment.repository.js';
@@ -53,6 +60,7 @@ describe('appointmentRepository.updateAppointmentStatus', () => {
         const result = await appointmentRepository.updateAppointmentStatus(
             'appointment-id',
             'clinic-id',
+            'actor-id',
             AppointmentStatus.CONFIRMED
         );
 
@@ -88,6 +96,14 @@ describe('appointmentRepository.updateAppointmentStatus', () => {
         mockAppointmentUpdateMany.mockResolvedValue({
             count: 1,
         });
+        mockEstablishAppointmentArrivalIfNeeded.mockResolvedValue({
+            wasEstablished: true,
+            outcome: {
+                arrivalOffsetMinutes: 20,
+                isLateArrival: true,
+                lateArrivalGraceMinutes: 15,
+            },
+        });
         mockQueueEntryUpdateMany.mockResolvedValue({
             count: 1,
         });
@@ -95,6 +111,7 @@ describe('appointmentRepository.updateAppointmentStatus', () => {
         const result = await appointmentRepository.updateAppointmentStatus(
             'appointment-id',
             'clinic-id',
+            'actor-id',
             AppointmentStatus.IN_QUEUE
         );
 
@@ -140,6 +157,20 @@ describe('appointmentRepository.updateAppointmentStatus', () => {
                 eventTimestamp: expect.any(Date),
             })
         );
+        expect(mockRecordAppointmentTransitionActivities).toHaveBeenCalledWith(
+            expect.objectContaining({
+                actorUserId: 'actor-id',
+                didTransition: true,
+                arrivalResult: {
+                    wasEstablished: true,
+                    outcome: {
+                        arrivalOffsetMinutes: 20,
+                        isLateArrival: true,
+                        lateArrivalGraceMinutes: 15,
+                    },
+                },
+            })
+        );
     });
 
     it('preserves same-status retry support without overwriting called timestamps', async () => {
@@ -170,6 +201,7 @@ describe('appointmentRepository.updateAppointmentStatus', () => {
         const result = await appointmentRepository.updateAppointmentStatus(
             'appointment-id',
             'clinic-id',
+            'actor-id',
             AppointmentStatus.CALLED
         );
 
@@ -187,6 +219,12 @@ describe('appointmentRepository.updateAppointmentStatus', () => {
         expect(mockAppointmentUpdateMany).not.toHaveBeenCalled();
         expect(mockEstablishAppointmentArrivalIfNeeded).not.toHaveBeenCalled();
         expect(mockApplyPatientAppointmentOutcome).not.toHaveBeenCalled();
+        expect(mockRecordAppointmentTransitionActivities).toHaveBeenCalledWith(
+            expect.objectContaining({
+                actorUserId: 'actor-id',
+                didTransition: false,
+            })
+        );
     });
 
     it('does not apply completion statistics when a concurrent request already reached completed', async () => {
@@ -219,6 +257,7 @@ describe('appointmentRepository.updateAppointmentStatus', () => {
         const result = await appointmentRepository.updateAppointmentStatus(
             'appointment-id',
             'clinic-id',
+            'actor-id',
             AppointmentStatus.COMPLETED
         );
 
@@ -227,5 +266,11 @@ describe('appointmentRepository.updateAppointmentStatus', () => {
             failureReason: null,
         });
         expect(mockApplyPatientAppointmentOutcome).not.toHaveBeenCalled();
+        expect(mockRecordAppointmentTransitionActivities).toHaveBeenCalledWith(
+            expect.objectContaining({
+                actorUserId: 'actor-id',
+                didTransition: false,
+            })
+        );
     });
 });

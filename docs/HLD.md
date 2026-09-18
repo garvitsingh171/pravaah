@@ -271,17 +271,17 @@ HTTP request
 
 Module responsibilities:
 
-| Module         | Purpose                                            | Routes                                                                        | Key model(s)                                    | Important transactions/errors                                                                         |
-| -------------- | -------------------------------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `health`       | Health check.                                      | `GET /api/health`                                                             | None                                            | No auth.                                                                                              |
-| `auth`         | Current user, onboarding status, clinic bootstrap. | `/api/auth/me`, `/onboarding-status`, `/onboarding/clinic`                    | `User`, `Clinic`                                | Clinic/Admin transaction; provisioning conflicts.                                                     |
-| `clinics`      | Settings and sample data.                          | `/api/clinics`, `/:clinicId`, `/:clinicId/sample-data`                        | `Clinic`, all sample models                     | Standalone create disabled; sample data transaction/advisory lock.                                    |
-| `doctors`      | Doctor create/list/update.                         | `/api/clinics/:clinicId/doctors`                                              | `Doctor`, `DoctorClinic`                        | Create transaction.                                                                                   |
-| `patients`     | Patient create/list/update.                        | `/api/clinics/:clinicId/patients`                                             | `Patient`, `PatientClinic`                      | Create/update transactions.                                                                           |
-| `appointments` | Booking, listing, rescheduling, status updates.    | `/api/clinics/:clinicId/appointments`, `/api/appointments/:appointmentId/...` | `Appointment`, `QueueEntry`, `NoShowPrediction` | Slot lock, conflict check, appointment/queue/prediction transaction, guarded reschedule, status sync. |
-| `queues`       | Queue listing, status, reorder.                    | `/api/clinics/:clinicId/queue`                                                | `QueueEntry`, `Appointment`                     | Status sync transaction, reorder transaction.                                                         |
-| `dashboard`    | Summary, high-risk, activity.                      | `/api/clinics/:clinicId/dashboard/...`                                        | `Appointment`, `QueueEntry`, `NoShowPrediction` | Prediction backfill.                                                                                  |
-| `predictions`  | Deterministic risk scoring service.                | No standalone route                                                           | `NoShowPrediction`                              | Called by appointment/dashboard services.                                                             |
+| Module         | Purpose                                                               | Routes                                                                        | Key model(s)                                                           | Important transactions/errors                                                                                  |
+| -------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `health`       | Health check.                                                         | `GET /api/health`                                                             | None                                                                   | No auth.                                                                                                       |
+| `auth`         | Current user, onboarding status, clinic bootstrap.                    | `/api/auth/me`, `/onboarding-status`, `/onboarding/clinic`                    | `User`, `Clinic`                                                       | Clinic/Admin transaction; provisioning conflicts.                                                              |
+| `clinics`      | Settings and sample data.                                             | `/api/clinics`, `/:clinicId`, `/:clinicId/sample-data`                        | `Clinic`, all sample models                                            | Standalone create disabled; sample data transaction/advisory lock.                                             |
+| `doctors`      | Doctor create/list/update.                                            | `/api/clinics/:clinicId/doctors`                                              | `Doctor`, `DoctorClinic`                                               | Create transaction.                                                                                            |
+| `patients`     | Patient create/list/update.                                           | `/api/clinics/:clinicId/patients`                                             | `Patient`, `PatientClinic`                                             | Create/update transactions.                                                                                    |
+| `appointments` | Booking, listing, rescheduling, status updates, operational activity. | `/api/clinics/:clinicId/appointments`, `/api/appointments/:appointmentId/...` | `Appointment`, `AppointmentActivity`, `QueueEntry`, `NoShowPrediction` | Slot lock, conflict check, appointment/queue/prediction/activity transaction, guarded reschedule, status sync. |
+| `queues`       | Queue listing, status, reorder.                                       | `/api/clinics/:clinicId/queue`                                                | `QueueEntry`, `Appointment`                                            | Status sync transaction, reorder transaction.                                                                  |
+| `dashboard`    | Summary, high-risk, activity.                                         | `/api/clinics/:clinicId/dashboard/...`                                        | `Appointment`, `QueueEntry`, `NoShowPrediction`                        | Prediction backfill.                                                                                           |
+| `predictions`  | Deterministic risk scoring service.                                   | No standalone route                                                           | `NoShowPrediction`                                                     | Called by appointment/dashboard services.                                                                      |
 
 Route layer composes path, method, middleware, validation, and controller binding. Controllers read validated input, call services, return `{ success, message, data }`, and pass errors to `next`. Services own business rules and expected `AppError`s. Repositories own Prisma reads/writes, transactions, includes, and projections.
 
@@ -340,6 +340,9 @@ erDiagram
     Doctor ||--o{ Appointment : attends
     Patient ||--o{ Appointment : books
     User ||--o{ Appointment : creates
+    Appointment ||--o{ AppointmentActivity : records
+    Clinic ||--o{ AppointmentActivity : owns
+    User ||--o{ AppointmentActivity : performs
     Appointment ||--o| QueueEntry : has
     Appointment ||--o| NoShowPrediction : has
     Clinic ||--o{ QueueEntry : owns
@@ -358,6 +361,7 @@ Model summary:
 | `Patient`                  | Patient profile.                   | name, phone, optional demographics/address/emergency contact, `isActive`.                                      | Linked to clinics through `PatientClinic`; appointments restrict deletion. | No login or full medical record.                       |
 | `PatientClinic`            | Clinic-specific patient history.   | total appointments/completed visits/no-shows/late arrivals, last completed visit, notes, distance, `isActive`. | Unique `(patientId, clinicId)`; cascade from patient/clinic.               | No reconciliation/admin-correction workflow.           |
 | `Appointment`              | Scheduled visit.                   | clinic, doctor, patient, creator, scheduledAt, duration, status, source, reason/notes, arrival snapshot.       | Partial unique active doctor/time index; many query indexes.               | Rescheduling keeps doctor/patient/duration fixed.      |
+| `AppointmentActivity`      | Append-only operational event.     | appointment, clinic, optional actor, explicit type, occurredAt, structured metadata.                           | Restrict appointment/clinic deletion; actor `SetNull`; chronology indexes. | Legacy appointments may have partial/no history.       |
 | `QueueEntry`               | Daily queue record.                | unique appointment, clinic, doctor, patient, position, status, queued/called/completed times.                  | Indexes by status, doctor/position, queuedAt.                              | Created during booking, including future appointments. |
 | `NoShowPrediction`         | Stored deterministic risk.         | unique appointment, clinic, patient, riskLevel, score, reasons JSON.                                           | Indexes by clinic and patient.                                             | No persisted model version column.                     |
 
@@ -436,7 +440,7 @@ Key protections:
 - partial unique appointment index on `(clinicId, doctorId, scheduledAt)` for active appointment statuses
 - indexes for clinic, status, role, doctor/date, patient/date, queue status, queue position, queued time, prediction clinic/patient
 
-Foreign-key behavior includes cascade for doctor/patient clinic links and restrict behavior for operational history such as appointments, queue entries, and predictions. Active flags are soft-deactivation fields, not hard-delete mechanisms.
+Foreign-key behavior includes cascade for doctor/patient clinic links and restrict behavior for operational records such as appointments, appointment activities, queue entries, and predictions. Activity actors use `SetNull`, and active flags are soft-deactivation fields rather than hard-delete mechanisms.
 
 ## API Architecture And Catalog
 
@@ -697,7 +701,7 @@ Storage: `NoShowPrediction` stores appointment, clinic, patient, risk level, sco
 - Request shapes are validated by Zod.
 - Seed/sample data must be fictional.
 - `.env` files are ignored; examples contain placeholders.
-- Known gaps: no formal audit logging, no advanced monitoring, no penetration test evidence, no field-level privacy model beyond current route scoping.
+- Known gaps: no global security/compliance audit logging beyond appointment operational activity, no advanced monitoring, no penetration test evidence, and no field-level privacy model beyond current route scoping.
 
 ## Deployment Architecture
 
@@ -788,7 +792,7 @@ Not implemented:
 - tracing
 - alerts
 - Sentry or analytics integration
-- audit log for appointment/queue changes
+- global security/configuration audit logging; appointment operational activity is implemented separately
 
 ## Performance And Scalability
 
@@ -825,13 +829,13 @@ Browser-based E2E testing is intentionally absent. Manual workflow checks are re
 - No notifications or reminder integrations.
 - No trained ML.
 - Limited prediction inputs and no stored model version field.
-- Limited observability and no audit log.
+- Limited observability and no global security/configuration audit log; appointment operational activity is preserved.
 - No browser E2E suite.
 - Deployment verification gaps.
 - Broad appointment and queue transition behavior.
 - Queue reorder validation is clinic/date scoped, not doctor/date scoped.
 - Appointment conflict is exact same `scheduledAt`, not duration overlap.
-- PatientClinic attendance aggregates are event-maintained; reconciliation and audit-event history remain future work.
+- PatientClinic attendance aggregates are event-maintained; reconciliation/admin correction remains future work, while appointment operational history is append-only.
 
 ## Future Architecture Direction
 
@@ -842,7 +846,7 @@ Future work should stay separate from current implementation:
 - stricter appointment/queue transition tables
 - doctor-scoped queue reorder validation
 - notifications and reminder logs
-- audit logs
+- broader security/configuration audit logs beyond appointment operational activity
 - prediction history and versioned scoring
 - trained model only after enough safe historical data
 - patient portal
@@ -853,17 +857,24 @@ Future work should stay separate from current implementation:
 
 ## PRD-To-HLD Traceability
 
-| PRD requirement | HLD component                               | Frontend area          | Backend module       | Database model                                  | API                           | Test evidence      | Status                           |
-| --------------- | ------------------------------------------- | ---------------------- | -------------------- | ----------------------------------------------- | ----------------------------- | ------------------ | -------------------------------- |
-| PR-AUTH-001     | Authentication architecture                 | `ApiAuthProvider`      | `auth` middleware    | `User`                                          | protected endpoints           | auth tests         | Implemented but not yet released |
-| PR-AUTH-003     | Authorization architecture                  | `ProtectedAppShell`    | `access.service.ts`  | `User`, `Clinic`                                | clinic-scoped routes          | access tests       | Implemented but not yet released |
-| PR-ONB-002      | Onboarding exception and transaction design | `ClinicOnboardingPage` | `auth`               | `Clinic`, `User`                                | `/api/auth/onboarding/clinic` | onboarding tests   | Implemented but not yet released |
-| PR-CLINIC-001   | API catalog and data architecture           | `ClinicSettingsPage`   | `clinics`            | `Clinic`                                        | `/api/clinics/:clinicId`      | clinic tests       | Implemented but not yet released |
-| PR-DOC-001      | Transaction design                          | doctor feature         | `doctors`            | `Doctor`, `DoctorClinic`                        | doctor routes                 | doctor tests       | Implemented but not yet released |
-| PR-PAT-001      | Transaction design                          | patient feature        | `patients`           | `Patient`, `PatientClinic`                      | patient routes                | patient tests      | Implemented but not yet released |
-| PR-PAT-003      | Known limitations                           | `PatientsPage`         | `patients`           | `Patient`, `PatientClinic`                      | patient list                  | patient page tests | Under development                |
-| PR-APT-001      | Appointment sequence and transaction design | `AppointmentsPage`     | `appointments`       | `Appointment`, `QueueEntry`, `NoShowPrediction` | appointment routes            | appointment tests  | Implemented but not yet released |
-| PR-APT-005      | State models and limitations                | appointment feature    | `appointments`       | `Appointment`, `QueueEntry`                     | status endpoint               | status tests       | Planned                          |
-| PR-QUEUE-003    | Queue reorder sequence/concurrency          | `QueuePage`            | `queues`             | `QueueEntry`                                    | queue reorder                 | queue tests        | Implemented but not yet released |
-| PR-RISK-001     | No-show risk architecture                   | risk badges/panels     | `predictions`        | `NoShowPrediction`                              | included responses            | prediction tests   | Implemented but not yet released |
-| PR-PUBLIC-001   | Frontend architecture                       | public/auth routes     | auth onboarding APIs | N/A                                             | public routes                 | app route tests    | Implemented but not yet released |
+| PRD requirement | HLD component                               | Frontend area               | Backend module           | Database model                                  | API                           | Test evidence      | Status                           |
+| --------------- | ------------------------------------------- | --------------------------- | ------------------------ | ----------------------------------------------- | ----------------------------- | ------------------ | -------------------------------- |
+| PR-AUTH-001     | Authentication architecture                 | `ApiAuthProvider`           | `auth` middleware        | `User`                                          | protected endpoints           | auth tests         | Implemented but not yet released |
+| PR-AUTH-003     | Authorization architecture                  | `ProtectedAppShell`         | `access.service.ts`      | `User`, `Clinic`                                | clinic-scoped routes          | access tests       | Implemented but not yet released |
+| PR-ONB-002      | Onboarding exception and transaction design | `ClinicOnboardingPage`      | `auth`                   | `Clinic`, `User`                                | `/api/auth/onboarding/clinic` | onboarding tests   | Implemented but not yet released |
+| PR-CLINIC-001   | API catalog and data architecture           | `ClinicSettingsPage`        | `clinics`                | `Clinic`                                        | `/api/clinics/:clinicId`      | clinic tests       | Implemented but not yet released |
+| PR-DOC-001      | Transaction design                          | doctor feature              | `doctors`                | `Doctor`, `DoctorClinic`                        | doctor routes                 | doctor tests       | Implemented but not yet released |
+| PR-PAT-001      | Transaction design                          | patient feature             | `patients`               | `Patient`, `PatientClinic`                      | patient routes                | patient tests      | Implemented but not yet released |
+| PR-PAT-003      | Known limitations                           | `PatientsPage`              | `patients`               | `Patient`, `PatientClinic`                      | patient list                  | patient page tests | Under development                |
+| PR-APT-001      | Appointment sequence and transaction design | `AppointmentsPage`          | `appointments`           | `Appointment`, `QueueEntry`, `NoShowPrediction` | appointment routes            | appointment tests  | Implemented but not yet released |
+| PR-APT-006      | Transactional operational timeline          | appointment activity dialog | `appointments`, `queues` | `AppointmentActivity`                           | appointment activity route    | activity tests     | Implemented but not yet released |
+| PR-APT-005      | State models and limitations                | appointment feature         | `appointments`           | `Appointment`, `QueueEntry`                     | status endpoint               | status tests       | Planned                          |
+| PR-QUEUE-003    | Queue reorder sequence/concurrency          | `QueuePage`                 | `queues`                 | `QueueEntry`                                    | queue reorder                 | queue tests        | Implemented but not yet released |
+| PR-RISK-001     | No-show risk architecture                   | risk badges/panels          | `predictions`            | `NoShowPrediction`                              | included responses            | prediction tests   | Implemented but not yet released |
+| PR-PUBLIC-001   | Frontend architecture                       | public/auth routes          | auth onboarding APIs     | N/A                                             | public routes                 | app route tests    | Implemented but not yet released |
+
+## Appointment Activity Architecture
+
+The authoritative booking, appointment-status, queue-status, or reschedule transaction performs its operational mutation and then inserts the matching `AppointmentActivity` before one commit. Activity never validates transitions or reconstructs current state; appointment and queue lifecycle modules remain authoritative. Guarded transition ownership prevents retry/race duplicates, while the shared arrival writer's result owns `PATIENT_ARRIVED`.
+
+The read path authenticates active Admin/Staff, resolves appointment clinic access, selects clinic-scoped activity plus minimal actor identity, and returns stable chronological history. The frontend loads it independently in an appointment dialog, uses the active clinic timezone, and tolerates absent/unknown metadata and legacy empty timelines.

@@ -9,6 +9,7 @@ const mockQueueEntryUpdateMany = vi.hoisted(() => vi.fn());
 const mockQueueEntryFindUniqueOrThrow = vi.hoisted(() => vi.fn());
 const mockEstablishAppointmentArrivalIfNeeded = vi.hoisted(() => vi.fn());
 const mockApplyPatientAppointmentOutcome = vi.hoisted(() => vi.fn());
+const mockRecordAppointmentTransitionActivities = vi.hoisted(() => vi.fn());
 
 vi.mock('../../../config/prisma.js', () => ({
     prisma: {
@@ -22,6 +23,12 @@ vi.mock('../../appointments/appointment.arrival.repository.js', () => ({
 
 vi.mock('../../patients/patient.statistics.repository.js', () => ({
     applyPatientAppointmentOutcome: mockApplyPatientAppointmentOutcome,
+}));
+
+vi.mock('../../appointments/appointment.activity.repository.js', () => ({
+    appointmentActivityRepository: {
+        recordAppointmentTransitionActivities: mockRecordAppointmentTransitionActivities,
+    },
 }));
 
 import { queueRepository } from '../queue.repository.js';
@@ -64,6 +71,7 @@ describe('queueRepository.updateQueueEntryStatus', () => {
                 appointmentStatus: AppointmentStatus.COMPLETED,
                 timestampUpdates: {},
                 eventTimestamp,
+                actorUserId: 'actor-id',
             })
         ).rejects.toThrow('APPOINTMENT_STATUS_TRANSITION_INVALID');
 
@@ -109,6 +117,7 @@ describe('queueRepository.updateQueueEntryStatus', () => {
             appointmentStatus: AppointmentStatus.NO_SHOW,
             timestampUpdates: {},
             eventTimestamp,
+            actorUserId: 'actor-id',
         });
 
         expect(mockQueueEntryUpdateMany).toHaveBeenCalledWith(
@@ -187,6 +196,7 @@ describe('queueRepository.updateQueueEntryStatus', () => {
                 appointmentStatus: AppointmentStatus.ARRIVED,
                 timestampUpdates: {},
                 eventTimestamp,
+                actorUserId: 'actor-id',
             })
         ).resolves.toBe(queueEntry);
 
@@ -221,6 +231,7 @@ describe('queueRepository.updateQueueEntryStatus', () => {
                 appointmentStatus: AppointmentStatus.IN_QUEUE,
                 timestampUpdates: {},
                 eventTimestamp,
+                actorUserId: 'actor-id',
             })
         ).rejects.toThrow('QUEUE_STATUS_TRANSITION_INVALID');
 
@@ -253,6 +264,7 @@ describe('queueRepository.updateQueueEntryStatus', () => {
                 appointmentStatus: AppointmentStatus.COMPLETED,
                 timestampUpdates: {},
                 eventTimestamp,
+                actorUserId: 'actor-id',
             })
         ).rejects.toThrow('APPOINTMENT_STATUS_SYNC_CONFLICT');
     });
@@ -276,6 +288,7 @@ describe('queueRepository.updateQueueEntryStatus', () => {
                 appointmentStatus: AppointmentStatus.CANCELLED,
                 timestampUpdates: {},
                 eventTimestamp,
+                actorUserId: 'actor-id',
             })
         ).rejects.toThrow('QUEUE_STATUS_UPDATE_CONFLICT');
 
@@ -325,9 +338,16 @@ describe('queueRepository.updateQueueEntryStatus', () => {
                     completedAt: eventTimestamp,
                 },
                 eventTimestamp,
+                actorUserId: 'actor-id',
             })
         ).resolves.toBe(queueEntry);
 
         expect(mockApplyPatientAppointmentOutcome).not.toHaveBeenCalled();
+        expect(mockRecordAppointmentTransitionActivities).toHaveBeenCalledWith(
+            expect.objectContaining({
+                actorUserId: 'actor-id',
+                didTransition: false,
+            })
+        );
     });
 });

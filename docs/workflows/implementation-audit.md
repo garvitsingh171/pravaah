@@ -179,3 +179,17 @@ README and docs index now link to this atlas as the detailed implementation trac
 
 Remaining gap:
 Avoid copying full atlas content back into PRD/HLD/LLD; keep links synchronized.
+
+## H. Appointment Operational History
+
+Previous gap:
+Committed appointment status and reschedule events did not have an actor-aware operational history.
+
+Current implementation:
+`AppointmentActivity` preserves creation, first-arrival, real lifecycle-transition, and successful reschedule events. Inserts occur inside the booking, appointment-status, queue-status, or reschedule transaction that owns the operational mutation. Same-status retries and losing concurrent requests do not create events. The read-only appointment activity endpoint is clinic-authorized, and the appointments UI renders loading, empty, error, and timeline states in clinic timezone.
+
+Evidence:
+`appointment.activity.ts`, `appointment.activity.repository.ts`, appointment and queue repositories/services, `GET /api/appointments/:appointmentId/activities`, and `AppointmentActivityDialog.tsx`.
+
+Legacy limitation:
+The schema migration is intentionally not a backfill. Appointments created before this feature may have no activity until a new real event occurs; this is preferred to fabricated history.

@@ -3,13 +3,16 @@ import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import { PrismaPg } from '@prisma/adapter-pg';
 import {
+    AppointmentActivityType,
     AppointmentStatus,
     BookingSource,
+    type Prisma,
     PrismaClient,
     QueueStatus,
     UserRole,
     UserStatus,
 } from '../src/generated/prisma/client.js';
+import { buildAppointmentCreatedActivityMetadata } from '../src/modules/appointments/appointment.activity.js';
 import {
     SAMPLE_DATA_NOTE_MARKER,
     addClinicDays,
@@ -997,6 +1000,13 @@ async function main() {
     const appointmentSeedIds = appointmentSeeds.map((appointmentSeed) => appointmentSeed.id);
 
     const cleanupSummary = await prisma.$transaction(async (tx) => {
+        const deletedAppointmentActivities = await tx.appointmentActivity.deleteMany({
+            where: {
+                appointmentId: {
+                    in: appointmentSeedIds,
+                },
+            },
+        });
         const deletedNoShowPredictions = await tx.noShowPrediction.deleteMany({
             where: {
                 appointmentId: {
@@ -1023,6 +1033,7 @@ async function main() {
             appointments: deletedAppointments.count,
             queueEntries: deletedQueueEntries.count,
             noShowPredictions: deletedNoShowPredictions.count,
+            appointmentActivities: deletedAppointmentActivities.count,
         };
     });
 
@@ -1077,6 +1088,22 @@ async function main() {
                 isLateArrival: arrivalOutcome?.isLateArrival ?? null,
                 lateArrivalGraceMinutes: arrivalOutcome?.lateArrivalGraceMinutes ?? null,
                 createdAt: appointmentSeed.bookedAt,
+            },
+        });
+
+        await prisma.appointmentActivity.create({
+            data: {
+                appointmentId: appointment.id,
+                clinicId: appointment.clinicId,
+                actorUserId: adminUser.id,
+                type: AppointmentActivityType.APPOINTMENT_CREATED,
+                occurredAt: appointment.createdAt,
+                metadata: buildAppointmentCreatedActivityMetadata({
+                    scheduledAt: appointment.scheduledAt,
+                    bookingSource: appointment.bookingSource,
+                    doctorId: appointment.doctorId,
+                    patientId: appointment.patientId,
+                }) as Prisma.InputJsonObject,
             },
         });
 
@@ -1211,7 +1238,7 @@ async function main() {
     console.log(`- futureAppointments: ${futureAppointmentCount}`);
     console.log(`- todayQueueEntries: ${todayQueueEntryCount}`);
     console.log(
-        `- refreshedOldSeedRows: ${cleanupSummary.appointments} appointments, ${cleanupSummary.queueEntries} queue entries, ${cleanupSummary.noShowPredictions} predictions`
+        `- refreshedOldSeedRows: ${cleanupSummary.appointments} appointments, ${cleanupSummary.queueEntries} queue entries, ${cleanupSummary.noShowPredictions} predictions, ${cleanupSummary.appointmentActivities} activities`
     );
     console.log('');
     console.log('Next local web setup:');

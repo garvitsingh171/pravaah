@@ -31,31 +31,33 @@ The generated Prisma client lives in `apps/server/src/generated/prisma` and is i
 
 ## Enums
 
-| Enum                | Values                                                                                         |
-| ------------------- | ---------------------------------------------------------------------------------------------- |
-| `UserRole`          | `ADMIN`, `STAFF`                                                                               |
-| `UserStatus`        | `INVITED`, `ACTIVE`, `SUSPENDED`                                                               |
-| `Gender`            | `MALE`, `FEMALE`, `OTHER`, `PREFER_NOT_TO_SAY`                                                 |
-| `AppointmentStatus` | `SCHEDULED`, `CONFIRMED`, `ARRIVED`, `IN_QUEUE`, `CALLED`, `COMPLETED`, `CANCELLED`, `NO_SHOW` |
-| `QueueStatus`       | `WAITING`, `ARRIVED`, `CALLED`, `COMPLETED`, `CANCELLED`, `NO_SHOW`                            |
-| `RiskLevel`         | `LOW`, `MEDIUM`, `HIGH`                                                                        |
-| `BookingSource`     | `RECEPTION`, `PHONE`, `WEB`, `WALK_IN`                                                         |
-| `Weekday`           | `MONDAY`, `TUESDAY`, `WEDNESDAY`, `THURSDAY`, `FRIDAY`, `SATURDAY`, `SUNDAY`                   |
+| Enum                      | Values                                                                                                                                                                                                   |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `UserRole`                | `ADMIN`, `STAFF`                                                                                                                                                                                         |
+| `UserStatus`              | `INVITED`, `ACTIVE`, `SUSPENDED`                                                                                                                                                                         |
+| `Gender`                  | `MALE`, `FEMALE`, `OTHER`, `PREFER_NOT_TO_SAY`                                                                                                                                                           |
+| `AppointmentStatus`       | `SCHEDULED`, `CONFIRMED`, `ARRIVED`, `IN_QUEUE`, `CALLED`, `COMPLETED`, `CANCELLED`, `NO_SHOW`                                                                                                           |
+| `AppointmentActivityType` | `APPOINTMENT_CREATED`, `APPOINTMENT_CONFIRMED`, `PATIENT_ARRIVED`, `ENTERED_QUEUE`, `PATIENT_CALLED`, `APPOINTMENT_COMPLETED`, `APPOINTMENT_CANCELLED`, `APPOINTMENT_NO_SHOW`, `APPOINTMENT_RESCHEDULED` |
+| `QueueStatus`             | `WAITING`, `ARRIVED`, `CALLED`, `COMPLETED`, `CANCELLED`, `NO_SHOW`                                                                                                                                      |
+| `RiskLevel`               | `LOW`, `MEDIUM`, `HIGH`                                                                                                                                                                                  |
+| `BookingSource`           | `RECEPTION`, `PHONE`, `WEB`, `WALK_IN`                                                                                                                                                                   |
+| `Weekday`                 | `MONDAY`, `TUESDAY`, `WEDNESDAY`, `THURSDAY`, `FRIDAY`, `SATURDAY`, `SUNDAY`                                                                                                                             |
 
 ## Models Overview
 
-| Model                      | Table                         | Purpose                                                   |
-| -------------------------- | ----------------------------- | --------------------------------------------------------- |
-| `Clinic`                   | `clinics`                     | Operational clinic boundary and settings.                 |
-| `User`                     | `users`                       | Internal app user mapped to Clerk identity.               |
-| `Doctor`                   | `doctors`                     | Doctor record; does not log in.                           |
-| `DoctorClinic`             | `doctor_clinics`              | Join table linking doctors to clinics.                    |
-| `DoctorAvailabilityPeriod` | `doctor_availability_periods` | Clinic-specific recurring weekly doctor working periods.  |
-| `Patient`                  | `patients`                    | Patient record; does not log in.                          |
-| `PatientClinic`            | `patient_clinics`             | Join table with clinic-specific patient history.          |
-| `Appointment`              | `appointments`                | Scheduled visit for clinic, doctor, patient, and creator. |
-| `QueueEntry`               | `queue_entries`               | Daily queue position/status for an appointment.           |
-| `NoShowPrediction`         | `no_show_predictions`         | Stored rule-based no-show risk result for an appointment. |
+| Model                      | Table                         | Purpose                                                       |
+| -------------------------- | ----------------------------- | ------------------------------------------------------------- |
+| `Clinic`                   | `clinics`                     | Operational clinic boundary and settings.                     |
+| `User`                     | `users`                       | Internal app user mapped to Clerk identity.                   |
+| `Doctor`                   | `doctors`                     | Doctor record; does not log in.                               |
+| `DoctorClinic`             | `doctor_clinics`              | Join table linking doctors to clinics.                        |
+| `DoctorAvailabilityPeriod` | `doctor_availability_periods` | Clinic-specific recurring weekly doctor working periods.      |
+| `Patient`                  | `patients`                    | Patient record; does not log in.                              |
+| `PatientClinic`            | `patient_clinics`             | Join table with clinic-specific patient history.              |
+| `Appointment`              | `appointments`                | Scheduled visit for clinic, doctor, patient, and creator.     |
+| `AppointmentActivity`      | `appointment_activities`      | Append-only committed operational history for an appointment. |
+| `QueueEntry`               | `queue_entries`               | Daily queue position/status for an appointment.               |
+| `NoShowPrediction`         | `no_show_predictions`         | Stored rule-based no-show risk result for an appointment.     |
 
 ## Important Fields And Constraints
 
@@ -80,7 +82,7 @@ Deletion behavior:
 
 - Users set `clinicId` to null on clinic deletion.
 - `DoctorClinic` and `PatientClinic` cascade from clinic.
-- Appointments, queue entries, and predictions restrict deletion.
+- Appointments, appointment activities, queue entries, and predictions restrict deletion.
 
 ### User
 
@@ -487,7 +489,7 @@ The seed uses placeholder contact data. Never replace it with real patient data.
 ## Future Schema Improvements
 
 - `ClinicMember` or `UserClinic` for multi-clinic user access
-- audit logs for appointment/queue changes
+- broader security/configuration audit logging beyond the implemented appointment operational timeline
 - appointment slot generation, date-specific overrides, leave, and holiday schedule models
 - pagination-friendly indexes for large lists
 - no-show prediction version/history table
@@ -502,3 +504,11 @@ The seed uses placeholder contact data. Never replace it with real patient data.
 - Do not hard-delete operational records without checking history and foreign keys.
 - Do not add patient/doctor auth tables during the MVP or v0.2 without a product decision.
 - Do not add an `Onboarding` table during v0.2 documentation work.
+
+## AppointmentActivity
+
+`AppointmentActivityType` contains explicit business events: `APPOINTMENT_CREATED`, `APPOINTMENT_CONFIRMED`, `PATIENT_ARRIVED`, `ENTERED_QUEUE`, `PATIENT_CALLED`, `APPOINTMENT_COMPLETED`, `APPOINTMENT_CANCELLED`, `APPOINTMENT_NO_SHOW`, and `APPOINTMENT_RESCHEDULED`.
+
+`AppointmentActivity` maps to `appointment_activities` and stores `id`, required `appointmentId`, required first-class `clinicId`, nullable `actorUserId`, `type`, operational `occurredAt`, optional structured JSON `metadata`, and persistence `createdAt`. It has indexes on `(appointmentId, occurredAt)` and `(clinicId, occurredAt)`. Appointment and clinic deletion are restricted; actor deletion uses `SetNull`. Reverse relations are `Appointment.activities`, `Clinic.appointmentActivities`, and `User.appointmentActivities`, separate from `User.createdAppointments`.
+
+Application behavior is append-only: domain transactions insert rows and the timeline endpoint selects them; there are no update/delete APIs. Metadata contains event facts rather than prose or duplicated core columns, and embedded dates are ISO strings. The migration creates only the enum, table, indexes, and foreign keys; it does not synthesize legacy activity.

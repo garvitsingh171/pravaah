@@ -63,6 +63,18 @@ enum BookingSource {
   WALK_IN
 }
 
+enum AppointmentActivityType {
+  APPOINTMENT_CREATED
+  APPOINTMENT_CONFIRMED
+  PATIENT_ARRIVED
+  ENTERED_QUEUE
+  PATIENT_CALLED
+  APPOINTMENT_COMPLETED
+  APPOINTMENT_CANCELLED
+  APPOINTMENT_NO_SHOW
+  APPOINTMENT_RESCHEDULED
+}
+
 enum Weekday {
   MONDAY
   TUESDAY
@@ -95,12 +107,13 @@ model Clinic {
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 
-  users             User[]
-  doctorClinics     DoctorClinic[]
-  patientClinics    PatientClinic[]
-  appointments      Appointment[]
-  queueEntries      QueueEntry[]
-  noShowPredictions NoShowPrediction[]
+  users                 User[]
+  doctorClinics         DoctorClinic[]
+  patientClinics        PatientClinic[]
+  appointments          Appointment[]
+  queueEntries          QueueEntry[]
+  noShowPredictions     NoShowPrediction[]
+  appointmentActivities AppointmentActivity[]
 
   @@index([isActive])
   @@index([city])
@@ -119,8 +132,9 @@ model User {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
-  clinic              Clinic?       @relation(fields: [clinicId], references: [id], onDelete: SetNull)
-  createdAppointments Appointment[] @relation("AppointmentCreatedBy")
+  clinic                Clinic?               @relation(fields: [clinicId], references: [id], onDelete: SetNull)
+  createdAppointments   Appointment[]         @relation("AppointmentCreatedBy")
+  appointmentActivities AppointmentActivity[] @relation("AppointmentActivityActor")
 
   @@index([clinicId])
   @@index([role])
@@ -259,18 +273,38 @@ model Appointment {
   createdAt               DateTime          @default(now())
   updatedAt               DateTime          @updatedAt
 
-  clinic           Clinic            @relation(fields: [clinicId], references: [id], onDelete: Restrict)
-  doctor           Doctor            @relation(fields: [doctorId], references: [id], onDelete: Restrict)
-  patient          Patient           @relation(fields: [patientId], references: [id], onDelete: Restrict)
-  createdBy        User              @relation("AppointmentCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  clinic           Clinic                @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  doctor           Doctor                @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+  patient          Patient               @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  createdBy        User                  @relation("AppointmentCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
   queueEntry       QueueEntry?
   noShowPrediction NoShowPrediction?
+  activities       AppointmentActivity[]
 
   @@index([clinicId, scheduledAt])
   @@index([clinicId, doctorId, scheduledAt])
   @@index([clinicId, patientId, scheduledAt])
   @@index([clinicId, status])
   @@map("appointments")
+}
+
+model AppointmentActivity {
+  id            String                  @id @default(uuid()) @db.Uuid
+  appointmentId String                  @db.Uuid
+  clinicId      String                  @db.Uuid
+  actorUserId   String?                 @db.Uuid
+  type          AppointmentActivityType
+  occurredAt    DateTime
+  metadata      Json?
+  createdAt     DateTime                @default(now())
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Restrict)
+  clinic      Clinic      @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  actor       User?       @relation("AppointmentActivityActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([appointmentId, occurredAt])
+  @@index([clinicId, occurredAt])
+  @@map("appointment_activities")
 }
 
 model QueueEntry {

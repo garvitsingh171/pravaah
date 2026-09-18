@@ -67,6 +67,7 @@ export const queueService = {
         queueEntryId: string,
         status: QueueStatus
     ) {
+        const authenticatedUser = accessService.requireClinicStaff(user);
         await accessService.verifyClinicAccess(user, clinicId);
 
         const queueEntry = await queueRepository.findQueueEntryById(queueEntryId);
@@ -125,6 +126,7 @@ export const queueService = {
                 appointmentStatus: queueStatusToAppointmentStatus[status],
                 timestampUpdates,
                 eventTimestamp: now,
+                actorUserId: authenticatedUser.id,
             });
 
             return withQueueNoShowPredictionResponse(updatedQueueEntry);

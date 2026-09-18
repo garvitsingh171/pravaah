@@ -54,6 +54,21 @@ export const BookingSource = {
 
 export type BookingSource = (typeof BookingSource)[keyof typeof BookingSource];
 
+export const AppointmentActivityType = {
+    APPOINTMENT_CREATED: 'APPOINTMENT_CREATED',
+    APPOINTMENT_CONFIRMED: 'APPOINTMENT_CONFIRMED',
+    PATIENT_ARRIVED: 'PATIENT_ARRIVED',
+    ENTERED_QUEUE: 'ENTERED_QUEUE',
+    PATIENT_CALLED: 'PATIENT_CALLED',
+    APPOINTMENT_COMPLETED: 'APPOINTMENT_COMPLETED',
+    APPOINTMENT_CANCELLED: 'APPOINTMENT_CANCELLED',
+    APPOINTMENT_NO_SHOW: 'APPOINTMENT_NO_SHOW',
+    APPOINTMENT_RESCHEDULED: 'APPOINTMENT_RESCHEDULED',
+} as const;
+
+export type AppointmentActivityType =
+    (typeof AppointmentActivityType)[keyof typeof AppointmentActivityType];
+
 export const Gender = {
     MALE: 'MALE',
     FEMALE: 'FEMALE',

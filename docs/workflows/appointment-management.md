@@ -447,3 +447,11 @@ flowchart TD
 ## How To Explain This Workflow
 
 When Staff books an appointment, Pravaah treats the booking as the start of the operational queue plan. The backend generates selectable slots from clinic settings, the doctor's recurring weekly availability, existing active appointments, duration, and buffer rules. Final booking validation reuses that scheduling policy, locks the doctor clinic-local day, writes the appointment, queue entry, and no-show prediction in one transaction, and returns all three to the frontend. Status changes later keep the appointment and queue entry synchronized where a queue status exists.
+
+## Appointment Operational Activity
+
+`Appointment` remains the current operational state. `AppointmentActivity` is an append-only record of meaningful committed appointment events. New bookings insert `APPOINTMENT_CREATED` in the booking transaction with the trusted creator, `Appointment.createdAt`, and structured scheduling/source identifiers.
+
+Status history is gated by the existing guarded `didTransition` result. A successful first transition maps to one explicit activity (`APPOINTMENT_CONFIRMED`, `ENTERED_QUEUE`, `PATIENT_CALLED`, `APPOINTMENT_COMPLETED`, `APPOINTMENT_CANCELLED`, or `APPOINTMENT_NO_SHOW`); a same-status retry or a concurrent request that did not own the appointment update writes no status activity. `PATIENT_ARRIVED` is independently owned by `establishAppointmentArrivalIfNeeded(...).wasEstablished`, and stores that helper's persisted offset, late flag, and grace snapshot. A same-status request that repairs a missing legacy arrival therefore records that real arrival without inventing a status transition. A skip from confirmed to in-queue can commit `PATIENT_ARRIVED` followed by `ENTERED_QUEUE` at one event timestamp without inventing intermediate states.
+
+Successful reschedules insert `APPOINTMENT_RESCHEDULED` in the guarded scheduling transaction with authoritative previous/new ISO timestamps and the current authenticated operator. Exact same-time requests and all failed/stale/conflicting reschedules insert nothing. Staff open the read-only timeline from the appointment list; legacy appointments can correctly show an empty or partial history because no historical events are fabricated.

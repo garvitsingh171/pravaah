@@ -1,4 +1,9 @@
-import { AppointmentStatus, Prisma, QueueStatus } from '../../generated/prisma/client.js';
+import {
+    AppointmentActivityType,
+    AppointmentStatus,
+    Prisma,
+    QueueStatus,
+} from '../../generated/prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
 import { accessService } from '../auth/access.service.js';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
@@ -11,6 +16,12 @@ import {
 import type { StoredNoShowPredictionForResponse } from '../predictions/prediction.types.js';
 import { queueRepository } from '../queues/queue.repository.js';
 import { queueService } from '../queues/queue.service.js';
+import { appointmentActivityRepository } from './appointment.activity.repository.js';
+import {
+    buildAppointmentCreatedActivityMetadata,
+    buildAppointmentRescheduledActivityMetadata,
+    compareAppointmentActivities,
+} from './appointment.activity.js';
 import { isAppointmentReschedulable } from './appointment.lifecycle.js';
 import { appointmentRepository } from './appointment.repository.js';
 import {
@@ -510,6 +521,19 @@ export const appointmentService = {
                     clinicId,
                     patientId: appointment.patientId,
                 });
+                await appointmentActivityRepository.createAppointmentActivity(tx, {
+                    appointmentId: appointment.id,
+                    clinicId: appointment.clinicId,
+                    actorUserId: createdByUserId,
+                    type: AppointmentActivityType.APPOINTMENT_CREATED,
+                    occurredAt: appointment.createdAt,
+                    metadata: buildAppointmentCreatedActivityMetadata({
+                        scheduledAt: appointment.scheduledAt,
+                        bookingSource: appointment.bookingSource,
+                        doctorId: appointment.doctorId,
+                        patientId: appointment.patientId,
+                    }),
+                });
                 const noShowPredictionResponse = toNoShowPredictionResponse(storedNoShowPrediction);
 
                 return {
@@ -621,6 +645,7 @@ export const appointmentService = {
         scheduledAtInput: string,
         currentScheduledAtInput: string
     ) {
+        const authenticatedUser = accessService.requireClinicStaff(user);
         const appointmentAccess = await accessService.verifyAppointmentClinicAccess(
             user,
             appointmentId
@@ -783,6 +808,20 @@ export const appointmentService = {
                 }
             }
 
+            const rescheduleTimestamp = new Date();
+
+            await appointmentActivityRepository.createAppointmentActivity(tx, {
+                appointmentId: currentAppointment.id,
+                clinicId: currentAppointment.clinicId,
+                actorUserId: authenticatedUser.id,
+                type: AppointmentActivityType.APPOINTMENT_RESCHEDULED,
+                occurredAt: rescheduleTimestamp,
+                metadata: buildAppointmentRescheduledActivityMetadata(
+                    currentAppointment.scheduledAt,
+                    requestedScheduledAt
+                ),
+            });
+
             const updatedAppointment = await tx.appointment.findFirst({
                 where: {
                     id: currentAppointment.id,
@@ -929,6 +968,7 @@ export const appointmentService = {
         appointmentId: string,
         status: AppointmentStatus
     ) {
+        const authenticatedUser = accessService.requireClinicStaff(user);
         const appointmentAccess = await accessService.verifyAppointmentClinicAccess(
             user,
             appointmentId
@@ -940,6 +980,7 @@ export const appointmentService = {
             result = await appointmentRepository.updateAppointmentStatus(
                 appointmentId,
                 appointmentAccess.clinicId,
+                authenticatedUser.id,
                 status
             );
         } catch (error) {
@@ -1011,5 +1052,27 @@ export const appointmentService = {
         }
 
         return withNoShowPredictionResponse(result.appointment);
+    },
+
+    async listAppointmentActivities(user: AuthenticatedUser | undefined, appointmentId: string) {
+        accessService.requireClinicStaff(user);
+        const appointmentAccess = await accessService.verifyAppointmentClinicAccess(
+            user,
+            appointmentId
+        );
+        const activities = await appointmentActivityRepository.findAppointmentActivities(
+            appointmentId,
+            appointmentAccess.clinicId
+        );
+
+        return [...activities]
+            .sort(compareAppointmentActivities)
+            .map(({ id, type, occurredAt, metadata, actor }) => ({
+                id,
+                type,
+                occurredAt,
+                metadata,
+                actor,
+            }));
     },
 };

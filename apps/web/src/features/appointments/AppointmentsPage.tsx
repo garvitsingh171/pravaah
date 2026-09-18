@@ -22,6 +22,7 @@ import AppointmentBookingForm, {
     type AppointmentBookingFormFieldErrors,
     type AppointmentBookingFormValues,
 } from './AppointmentBookingForm';
+import AppointmentActivityDialog from './AppointmentActivityDialog';
 import {
     createAppointment,
     listAvailableAppointmentSlots,
@@ -1291,6 +1292,9 @@ function AppointmentsPage() {
     const [successState, setSuccessState] = useState<SuccessState | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [rescheduleFlow, setRescheduleFlow] = useState<RescheduleFlowState | null>(null);
+    const [activityAppointment, setActivityAppointment] = useState<AppointmentListItem | null>(
+        null
+    );
     const [rescheduleSlotsRefreshKey, setRescheduleSlotsRefreshKey] = useState(0);
     const activeRescheduleAppointmentId = rescheduleFlow?.appointment.id ?? null;
     const activeRescheduleDestinationDate = rescheduleFlow?.destinationDate ?? '';
@@ -2301,6 +2305,17 @@ function AppointmentsPage() {
                                                 </td>
                                                 <td className="min-w-44 px-4 py-5">
                                                     <div className="flex flex-col gap-2">
+                                                        <Button
+                                                            variant="outline"
+                                                            onClick={() =>
+                                                                setActivityAppointment(appointment)
+                                                            }
+                                                            disabled={isUpdating}
+                                                            aria-label={`View activity for ${appointment.patient.fullName}`}
+                                                        >
+                                                            View activity
+                                                        </Button>
+
                                                         {canReschedule ? (
                                                             <Button
                                                                 variant="outline"
@@ -2484,6 +2499,14 @@ function AppointmentsPage() {
                     onSlotChange={handleRescheduleSlotChange}
                     onConfirm={handleConfirmReschedule}
                     onCancel={() => setRescheduleFlow(null)}
+                />
+            ) : null}
+
+            {activityAppointment ? (
+                <AppointmentActivityDialog
+                    appointment={activityAppointment}
+                    timezone={clinicTimezone}
+                    onClose={() => setActivityAppointment(null)}
                 />
             ) : null}
         </section>

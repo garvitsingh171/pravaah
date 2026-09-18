@@ -1111,6 +1111,36 @@ Main errors:
 - `CLINIC_NOT_FOUND`
 - `CLINIC_INACTIVE`
 
+## Get Appointment Activities
+
+| Method | Path                                          | Auth                        |
+| ------ | --------------------------------------------- | --------------------------- |
+| GET    | `/api/appointments/:appointmentId/activities` | Active internal Admin/Staff |
+
+The service validates the UUID path parameter, verifies appointment clinic access with the shared appointment-access policy, and queries by both `appointmentId` and the resolved `clinicId`. Cross-clinic requests are rejected using appointment access behavior. This endpoint is read-only; there is no client activity mutation API.
+
+Response envelope:
+
+```text
+success
+message
+data.activities[]
+  id
+  type
+  occurredAt
+  actor
+    id
+    fullName
+    role
+  metadata
+```
+
+`actor` is nullable so activity survives physical user deletion and suspended actors remain readable. Metadata is structured per event: creation includes scheduled time/source/doctor/patient IDs; status events include `fromStatus`/`toStatus`; first arrival adds the persisted arrival offset/late/grace snapshot; reschedule includes previous/new scheduled timestamps. Results are chronological and deterministic (`occurredAt`, logical same-time event order, `createdAt`, `id`), so arrival renders before the queue/called event produced by the same transaction.
+
+Activity types are `APPOINTMENT_CREATED`, `APPOINTMENT_CONFIRMED`, `PATIENT_ARRIVED`, `ENTERED_QUEUE`, `PATIENT_CALLED`, `APPOINTMENT_COMPLETED`, `APPOINTMENT_CANCELLED`, `APPOINTMENT_NO_SHOW`, and `APPOINTMENT_RESCHEDULED`.
+
+Main errors include `AUTHENTICATION_REQUIRED`, `USER_NOT_ACTIVE`, `CLINIC_STAFF_REQUIRED`, `APPOINTMENT_NOT_FOUND`, `CLINIC_ACCESS_DENIED`, `CLINIC_NOT_FOUND`, and `CLINIC_INACTIVE`.
+
 ## Root Welcome
 
 | Method | Path | Auth | Summary                                   |

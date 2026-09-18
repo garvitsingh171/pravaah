@@ -130,6 +130,12 @@ describe('protected application route authentication regression', () => {
             'patch',
             '/appointments/:appointmentId/status',
         ],
+        [
+            'appointment activity list',
+            appointmentRouter,
+            'get',
+            '/appointments/:appointmentId/activities',
+        ],
         ['queue list', queueRouter, 'get', '/:clinicId/queue'],
         ['queue reorder', queueRouter, 'patch', '/:clinicId/queue/reorder'],
         ['queue status update', queueRouter, 'patch', '/:clinicId/queue/:queueEntryId/status'],

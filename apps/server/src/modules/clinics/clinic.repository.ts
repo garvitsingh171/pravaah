@@ -1,10 +1,12 @@
 import { prisma } from '../../config/prisma.js';
 import {
+    AppointmentActivityType,
     AppointmentStatus,
     BookingSource,
     Prisma,
     QueueStatus,
 } from '../../generated/prisma/client.js';
+import { buildAppointmentCreatedActivityMetadata } from '../appointments/appointment.activity.js';
 import { calculateArrivalOutcome } from '../appointments/appointment.arrival.js';
 import {
     applyPatientAppointmentOutcome,
@@ -537,6 +539,10 @@ export const clinicRepository = {
                           graceMinutes: clinic.lateArrivalGraceMinutes,
                       })
                     : null;
+                const bookedAt = addMinutes(
+                    scheduledAt,
+                    -appointmentDefinition.bookedMinutesBefore
+                );
 
                 const appointment = await tx.appointment.create({
                     data: {
@@ -554,18 +560,39 @@ export const clinicRepository = {
                         arrivalOffsetMinutes: arrivalOutcome?.arrivalOffsetMinutes ?? null,
                         isLateArrival: arrivalOutcome?.isLateArrival ?? null,
                         lateArrivalGraceMinutes: arrivalOutcome?.lateArrivalGraceMinutes ?? null,
+                        createdAt: bookedAt,
                     },
                     select: {
                         id: true,
+                        clinicId: true,
+                        doctorId: true,
                         patientId: true,
                         scheduledAt: true,
+                        bookingSource: true,
+                        createdAt: true,
+                    },
+                });
+
+                await tx.appointmentActivity.create({
+                    data: {
+                        appointmentId: appointment.id,
+                        clinicId: appointment.clinicId,
+                        actorUserId: input.createdByUserId,
+                        type: AppointmentActivityType.APPOINTMENT_CREATED,
+                        occurredAt: appointment.createdAt,
+                        metadata: buildAppointmentCreatedActivityMetadata({
+                            scheduledAt: appointment.scheduledAt,
+                            bookingSource: appointment.bookingSource,
+                            doctorId: appointment.doctorId,
+                            patientId: appointment.patientId,
+                        }) as Prisma.InputJsonObject,
                     },
                 });
 
                 const completedAppointmentCount = getSampleCompletedVisitCount(patient.history);
                 const prediction = predictNoShowRisk({
                     scheduledAt,
-                    bookedAt: addMinutes(scheduledAt, -appointmentDefinition.bookedMinutesBefore),
+                    bookedAt,
                     patientNoShowCount: patient.history.totalNoShows,
                     patientLateArrivalCount: patient.history.totalLateArrivals,
                     patientCompletedAppointmentCount: completedAppointmentCount,

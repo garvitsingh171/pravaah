@@ -5,6 +5,7 @@ const mockAppointmentService = vi.hoisted(() => ({
     createAppointment: vi.fn(),
     listAvailableSlots: vi.fn(),
     listAppointments: vi.fn(),
+    listAppointmentActivities: vi.fn(),
     listRescheduleSlots: vi.fn(),
     rescheduleAppointment: vi.fn(),
     updateAppointmentStatus: vi.fn(),
@@ -16,12 +17,55 @@ vi.mock('../appointment.service.js', () => ({
 
 import {
     createAppointmentController,
+    listAppointmentActivitiesController,
     listAppointmentRescheduleSlotsController,
     listAvailableAppointmentSlotsController,
     listAppointmentsController,
     rescheduleAppointmentController,
     updateAppointmentStatusController,
 } from '../appointment.controller.js';
+
+describe('listAppointmentActivitiesController', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('returns the read-only activity collection for the authenticated user', async () => {
+        const user = { id: 'user-id' };
+        const activities = [
+            {
+                id: 'activity-id',
+                type: 'APPOINTMENT_CREATED',
+                occurredAt: new Date('2026-09-18T10:00:00.000Z'),
+                actor: { id: 'user-id', fullName: 'Clinic Admin', role: 'ADMIN' },
+                metadata: { scheduledAt: '2026-09-19T10:00:00.000Z' },
+            },
+        ];
+        const req = {
+            params: { appointmentId: 'appointment-id' },
+            user,
+        } as unknown as Request;
+        const json = vi.fn();
+        const status = vi.fn(() => ({ json }));
+        const res = { status } as unknown as Response;
+        const next = vi.fn() as NextFunction;
+
+        mockAppointmentService.listAppointmentActivities.mockResolvedValue(activities);
+
+        await listAppointmentActivitiesController(req, res, next);
+
+        expect(mockAppointmentService.listAppointmentActivities).toHaveBeenCalledWith(
+            user,
+            'appointment-id'
+        );
+        expect(status).toHaveBeenCalledWith(200);
+        expect(json).toHaveBeenCalledWith({
+            success: true,
+            message: 'Appointment activities fetched successfully',
+            data: { activities },
+        });
+    });
+});
 
 describe('createAppointmentController', () => {
     beforeEach(() => {
