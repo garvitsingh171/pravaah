@@ -21,7 +21,17 @@ import type {
     AppointmentStatus as AppointmentStatusType,
     QueueStatus as QueueStatusType,
 } from '../../types';
-import { listTodayQueue, reorderQueue, updateQueueStatus, type QueueListItem } from './queueApi';
+import TerminalAppointmentReasonDialog, {
+    type TerminalAppointmentReasonSubmission,
+} from '../appointments/TerminalAppointmentReasonDialog';
+import { getTerminalReasonDisplay } from '../appointments/terminalAppointmentReasons';
+import {
+    listTodayQueue,
+    reorderQueue,
+    updateQueueStatus,
+    type QueueListItem,
+    type UpdateQueueStatusRequest,
+} from './queueApi';
 
 type QueueListState =
     | {
@@ -46,6 +56,13 @@ type QueueListState =
 type QueueStatusAction = {
     status: QueueStatusType;
     label: string;
+};
+
+type QueueTerminalReasonFlowState = {
+    queueEntry: QueueListItem;
+    mode: 'cancellation' | 'no-show';
+    error: string | null;
+    isSubmitting: boolean;
 };
 
 const emptyQueueListState: QueueListState = {
@@ -828,38 +845,54 @@ function FinalQueueEntriesSection({
                 </div>
             </summary>
             <div className="divide-y divide-slate-200 border-t border-slate-200">
-                {finalQueueEntries.map((queueEntry) => (
-                    <article
-                        key={queueEntry.id}
-                        className="grid gap-4 px-4 py-4 text-sm md:grid-cols-[1fr_1fr_1fr_auto]"
-                    >
-                        <div>
-                            <p className="font-semibold text-slate-900">
-                                {queueEntry.patient.fullName}
-                            </p>
-                            <p className="mt-1 text-slate-500">
-                                Historical position {queueEntry.position}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="font-semibold text-slate-900">
-                                {queueEntry.doctor.fullName}
-                            </p>
-                            <p className="mt-1 text-slate-500">
-                                {formatDateTime(queueEntry.appointment.scheduledAt)}
-                            </p>
-                            <QueueArrivalSummary queueEntry={queueEntry} timezone={timezone} />
-                        </div>
-                        <div className="space-y-2">
-                            <StatusBadge kind="queue" status={queueEntry.status} />
-                            <p className="text-slate-500">
-                                Appointment:{' '}
-                                {getAppointmentStatusLabel(queueEntry.appointment.status)}
-                            </p>
-                        </div>
-                        <p className="font-medium text-slate-500">Reorder unavailable</p>
-                    </article>
-                ))}
+                {finalQueueEntries.map((queueEntry) => {
+                    const terminalReason = getTerminalReasonDisplay(queueEntry.appointment);
+
+                    return (
+                        <article
+                            key={queueEntry.id}
+                            className="grid gap-4 px-4 py-4 text-sm md:grid-cols-[1fr_1fr_1fr_auto]"
+                        >
+                            <div>
+                                <p className="font-semibold text-slate-900">
+                                    {queueEntry.patient.fullName}
+                                </p>
+                                <p className="mt-1 text-slate-500">
+                                    Historical position {queueEntry.position}
+                                </p>
+                            </div>
+                            <div>
+                                <p className="font-semibold text-slate-900">
+                                    {queueEntry.doctor.fullName}
+                                </p>
+                                <p className="mt-1 text-slate-500">
+                                    {formatDateTime(queueEntry.appointment.scheduledAt)}
+                                </p>
+                                <QueueArrivalSummary queueEntry={queueEntry} timezone={timezone} />
+                            </div>
+                            <div className="space-y-2">
+                                <StatusBadge kind="queue" status={queueEntry.status} />
+                                <p className="text-slate-500">
+                                    Appointment:{' '}
+                                    {getAppointmentStatusLabel(queueEntry.appointment.status)}
+                                </p>
+                                {terminalReason ? (
+                                    <div className="text-slate-600">
+                                        <p className="font-semibold text-slate-800">
+                                            {terminalReason.label}
+                                        </p>
+                                        {terminalReason.note ? (
+                                            <p className="mt-1 text-xs leading-5">
+                                                {terminalReason.note}
+                                            </p>
+                                        ) : null}
+                                    </div>
+                                ) : null}
+                            </div>
+                            <p className="font-medium text-slate-500">Reorder unavailable</p>
+                        </article>
+                    );
+                })}
             </div>
         </details>
     );
@@ -886,6 +919,8 @@ function QueuePage() {
         code?: string;
     } | null>(null);
     const [reorderMessage, setReorderMessage] = useState<string | null>(null);
+    const [terminalReasonFlow, setTerminalReasonFlow] =
+        useState<QueueTerminalReasonFlowState | null>(null);
 
     const loadQueue = useCallback(
         async (signal?: AbortSignal) => {
@@ -957,6 +992,23 @@ function QueuePage() {
             return;
         }
 
+        if (nextStatus === QueueStatus.CANCELLED || nextStatus === QueueStatus.NO_SHOW) {
+            setTerminalReasonFlow({
+                queueEntry,
+                mode: nextStatus === QueueStatus.CANCELLED ? 'cancellation' : 'no-show',
+                error: null,
+                isSubmitting: false,
+            });
+            return;
+        }
+
+        await persistQueueStatusUpdate(queueEntry, { status: nextStatus });
+    };
+
+    const persistQueueStatusUpdate = async (
+        queueEntry: QueueListItem,
+        payload: UpdateQueueStatusRequest
+    ): Promise<string | null> => {
         setUpdatingQueueEntryId(queueEntry.id);
         setStatusUpdateError(null);
         setStatusUpdateMessage(null);
@@ -964,7 +1016,7 @@ function QueuePage() {
         setReorderMessage(null);
 
         try {
-            const data = await updateQueueStatus(clinicId, queueEntry.id, nextStatus);
+            const data = await updateQueueStatus(clinicId, queueEntry.id, payload);
 
             setStatusUpdateMessage(
                 `${queueEntry.patient.fullName} is now ${getQueueStatusLabelLower(
@@ -975,6 +1027,7 @@ function QueuePage() {
                 `Queue status updated to ${getQueueStatusLabelLower(data.queueEntry.status)}.`
             );
             refreshQueue();
+            return null;
         } catch (error) {
             if (isApiClientError(error)) {
                 setStatusUpdateError({
@@ -982,7 +1035,7 @@ function QueuePage() {
                     code: error.code,
                 });
                 showErrorToast(error.message);
-                return;
+                return error.message;
             }
 
             const fallbackMessage = 'Queue status could not be updated. Please try again.';
@@ -992,8 +1045,41 @@ function QueuePage() {
                 code: 'QUEUE_STATUS_UPDATE_FAILED',
             });
             showErrorToast(fallbackMessage);
+            return fallbackMessage;
         } finally {
             setUpdatingQueueEntryId(null);
+        }
+    };
+
+    const handleTerminalReasonSubmit = async (submission: TerminalAppointmentReasonSubmission) => {
+        if (!terminalReasonFlow) {
+            return;
+        }
+
+        const payload: UpdateQueueStatusRequest =
+            submission.mode === 'cancellation'
+                ? {
+                      status: QueueStatus.CANCELLED,
+                      cancellationReason: submission.cancellationReason,
+                      cancellationNote: submission.cancellationNote,
+                  }
+                : {
+                      status: QueueStatus.NO_SHOW,
+                      noShowReason: submission.noShowReason,
+                      noShowNote: submission.noShowNote,
+                  };
+
+        setTerminalReasonFlow((current) =>
+            current ? { ...current, error: null, isSubmitting: true } : current
+        );
+        const errorMessage = await persistQueueStatusUpdate(terminalReasonFlow.queueEntry, payload);
+
+        if (!errorMessage) {
+            setTerminalReasonFlow(null);
+        } else {
+            setTerminalReasonFlow((current) =>
+                current ? { ...current, error: errorMessage, isSubmitting: false } : current
+            );
         }
     };
 
@@ -1362,6 +1448,21 @@ function QueuePage() {
                 <FinalQueueEntriesSection
                     finalQueueEntries={finalQueueEntries}
                     timezone={clinicTimezone}
+                />
+            ) : null}
+
+            {terminalReasonFlow ? (
+                <TerminalAppointmentReasonDialog
+                    mode={terminalReasonFlow.mode}
+                    patientName={terminalReasonFlow.queueEntry.patient.fullName}
+                    doctorName={terminalReasonFlow.queueEntry.doctor.fullName}
+                    scheduledAtLabel={formatDateTime(
+                        terminalReasonFlow.queueEntry.appointment.scheduledAt
+                    )}
+                    isSubmitting={terminalReasonFlow.isSubmitting}
+                    error={terminalReasonFlow.error}
+                    onClose={() => setTerminalReasonFlow(null)}
+                    onSubmit={(submission) => void handleTerminalReasonSubmit(submission)}
                 />
             ) : null}
         </section>

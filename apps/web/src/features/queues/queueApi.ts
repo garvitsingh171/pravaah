@@ -1,11 +1,13 @@
 import { apiClient } from '../../lib';
-import type {
-    AppointmentStatus,
-    BookingSource,
-    DoctorSummary,
-    PatientSummary,
+import {
     QueueStatus,
-    RiskLevel,
+    type AppointmentCancellationReason,
+    type AppointmentNoShowReason,
+    type AppointmentStatus,
+    type BookingSource,
+    type DoctorSummary,
+    type PatientSummary,
+    type RiskLevel,
 } from '../../types';
 
 export type QueueNoShowPrediction = {
@@ -29,6 +31,10 @@ export type QueueAppointmentSummary = {
     bookingSource: BookingSource;
     reason?: string | null;
     notes?: string | null;
+    cancellationReason?: AppointmentCancellationReason | null;
+    cancellationNote?: string | null;
+    noShowReason?: AppointmentNoShowReason | null;
+    noShowNote?: string | null;
     arrivedAt?: string | null;
     arrivalOffsetMinutes?: number | null;
     isLateArrival?: boolean | null;
@@ -67,6 +73,25 @@ export type ReorderQueueRequest = {
     queueEntryIds: string[];
 };
 
+export type UpdateQueueStatusRequest =
+    | {
+          status: typeof QueueStatus.CANCELLED;
+          cancellationReason: AppointmentCancellationReason;
+          cancellationNote?: string;
+      }
+    | {
+          status: typeof QueueStatus.NO_SHOW;
+          noShowReason: AppointmentNoShowReason;
+          noShowNote?: string;
+      }
+    | {
+          status:
+              | typeof QueueStatus.WAITING
+              | typeof QueueStatus.ARRIVED
+              | typeof QueueStatus.CALLED
+              | typeof QueueStatus.COMPLETED;
+      };
+
 export type ReorderQueueResponseData = {
     queueEntries: QueueListItem[];
 };
@@ -84,12 +109,14 @@ export const listTodayQueue = (clinicId: string, date: string, signal?: AbortSig
     });
 };
 
-export const updateQueueStatus = (clinicId: string, queueEntryId: string, status: QueueStatus) => {
+export const updateQueueStatus = (
+    clinicId: string,
+    queueEntryId: string,
+    payload: UpdateQueueStatusRequest
+) => {
     return apiClient.patch<UpdateQueueStatusResponseData>(
         `${getQueueCollectionPath(clinicId)}/${encodeURIComponent(queueEntryId)}/status`,
-        {
-            status,
-        }
+        payload
     );
 };
 

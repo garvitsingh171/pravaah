@@ -14,7 +14,12 @@ import {
     isAppointmentStatusTransitionAllowed,
     reschedulableAppointmentStatuses,
 } from './appointment.lifecycle.js';
-import type { CreateAppointmentInput, ListAppointmentsQueryInput } from './appointment.types.js';
+import type {
+    CreateAppointmentInput,
+    ListAppointmentsQueryInput,
+    UpdateAppointmentStatusInput,
+} from './appointment.types.js';
+import type { AppointmentTerminalReasonContext } from './appointment.terminal-reason.js';
 
 type PrismaQueryable = typeof prisma | Prisma.TransactionClient;
 
@@ -493,8 +498,9 @@ export const appointmentRepository = {
         appointmentId: string,
         clinicId: string,
         actorUserId: string,
-        status: AppointmentStatus
+        statusUpdate: UpdateAppointmentStatusInput
     ) {
+        const status = statusUpdate.status as AppointmentStatus;
         const queueStatus = appointmentStatusToQueueStatus[status];
         const now = new Date();
 
@@ -563,9 +569,20 @@ export const appointmentRepository = {
                         clinicId,
                         status: existingAppointment.status,
                     },
-                    data: {
-                        status,
-                    },
+                    data:
+                        statusUpdate.status === 'CANCELLED'
+                            ? {
+                                  status,
+                                  cancellationReason: statusUpdate.cancellationReason,
+                                  cancellationNote: statusUpdate.cancellationNote ?? null,
+                              }
+                            : statusUpdate.status === 'NO_SHOW'
+                              ? {
+                                    status,
+                                    noShowReason: statusUpdate.noShowReason,
+                                    noShowNote: statusUpdate.noShowNote ?? null,
+                                }
+                              : { status },
                 });
 
                 if (updateResult.count === 1) {
@@ -678,6 +695,18 @@ export const appointmentRepository = {
                 eventTimestamp: now,
                 didTransition,
                 arrivalResult,
+                terminalReason:
+                    statusUpdate.status === 'CANCELLED'
+                        ? ({
+                              cancellationReason: statusUpdate.cancellationReason,
+                              cancellationNote: statusUpdate.cancellationNote ?? null,
+                          } satisfies AppointmentTerminalReasonContext)
+                        : statusUpdate.status === 'NO_SHOW'
+                          ? ({
+                                noShowReason: statusUpdate.noShowReason,
+                                noShowNote: statusUpdate.noShowNote ?? null,
+                            } satisfies AppointmentTerminalReasonContext)
+                          : null,
             });
 
             const appointment = await tx.appointment.findFirst({

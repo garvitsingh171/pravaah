@@ -6,6 +6,7 @@ import { toNoShowPredictionResponse } from '../predictions/prediction.service.js
 import type { StoredNoShowPredictionForResponse } from '../predictions/prediction.types.js';
 import { isFinalQueueStatus, isQueueStatusTransitionAllowed } from './queue.lifecycle.js';
 import { queueRepository } from './queue.repository.js';
+import type { UpdateQueueStatusBodyInput } from './queue.types.js';
 
 const activeQueueStatuses: QueueStatus[] = [
     QueueStatus.ARRIVED,
@@ -65,8 +66,9 @@ export const queueService = {
         user: AuthenticatedUser | undefined,
         clinicId: string,
         queueEntryId: string,
-        status: QueueStatus
+        statusUpdate: UpdateQueueStatusBodyInput
     ) {
+        const status = statusUpdate.status as QueueStatus;
         const authenticatedUser = accessService.requireClinicStaff(user);
         await accessService.verifyClinicAccess(user, clinicId);
 
@@ -127,6 +129,18 @@ export const queueService = {
                 timestampUpdates,
                 eventTimestamp: now,
                 actorUserId: authenticatedUser.id,
+                terminalReason:
+                    statusUpdate.status === 'CANCELLED'
+                        ? {
+                              cancellationReason: statusUpdate.cancellationReason,
+                              cancellationNote: statusUpdate.cancellationNote ?? null,
+                          }
+                        : statusUpdate.status === 'NO_SHOW'
+                          ? {
+                                noShowReason: statusUpdate.noShowReason,
+                                noShowNote: statusUpdate.noShowNote ?? null,
+                            }
+                          : null,
             });
 
             return withQueueNoShowPredictionResponse(updatedQueueEntry);

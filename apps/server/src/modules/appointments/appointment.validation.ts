@@ -1,5 +1,9 @@
 import { z } from 'zod';
 import { calendarDateRegex, isValidCalendarDate } from '../../utils/dateValidation.js';
+import {
+    appointmentCancellationReasonValues,
+    appointmentNoShowReasonValues,
+} from './appointment.terminal-reason.js';
 
 const uuidSchema = z
     .string()
@@ -34,20 +38,44 @@ export const createAppointmentSchema = z
     })
     .strict();
 
-export const updateAppointmentStatusSchema = z
-    .object({
-        status: z.enum([
-            'SCHEDULED',
-            'CONFIRMED',
-            'ARRIVED',
-            'IN_QUEUE',
-            'CALLED',
-            'COMPLETED',
-            'CANCELLED',
-            'NO_SHOW',
-        ]),
-    })
-    .strict();
+export const terminalAppointmentNoteSchema = z
+    .string()
+    .trim()
+    .max(500, 'Terminal outcome note must be 500 characters or fewer')
+    .transform((note) => note || undefined)
+    .optional();
+
+export const cancellationReasonSchema = z.enum(appointmentCancellationReasonValues);
+export const noShowReasonSchema = z.enum(appointmentNoShowReasonValues);
+
+export const updateAppointmentStatusSchema = z.discriminatedUnion('status', [
+    z
+        .object({
+            status: z.literal('CANCELLED'),
+            cancellationReason: cancellationReasonSchema,
+            cancellationNote: terminalAppointmentNoteSchema,
+        })
+        .strict(),
+    z
+        .object({
+            status: z.literal('NO_SHOW'),
+            noShowReason: noShowReasonSchema,
+            noShowNote: terminalAppointmentNoteSchema,
+        })
+        .strict(),
+    z
+        .object({
+            status: z.enum([
+                'SCHEDULED',
+                'CONFIRMED',
+                'ARRIVED',
+                'IN_QUEUE',
+                'CALLED',
+                'COMPLETED',
+            ]),
+        })
+        .strict(),
+]);
 
 export const rescheduleAppointmentSlotsQuerySchema = z
     .object({

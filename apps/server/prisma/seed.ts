@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import { PrismaPg } from '@prisma/adapter-pg';
 import {
     AppointmentActivityType,
+    AppointmentCancellationReason,
+    AppointmentNoShowReason,
     AppointmentStatus,
     BookingSource,
     type Prisma,
@@ -12,7 +14,11 @@ import {
     UserRole,
     UserStatus,
 } from '../src/generated/prisma/client.js';
-import { buildAppointmentCreatedActivityMetadata } from '../src/modules/appointments/appointment.activity.js';
+import {
+    buildAppointmentCancelledActivityMetadata,
+    buildAppointmentCreatedActivityMetadata,
+    buildAppointmentNoShowActivityMetadata,
+} from '../src/modules/appointments/appointment.activity.js';
 import {
     SAMPLE_DATA_NOTE_MARKER,
     addClinicDays,
@@ -126,6 +132,10 @@ type AppointmentSeed = {
     bookingSource: BookingSource;
     bookedMinutesBefore: number;
     arrivalOffsetMinutes?: number;
+    cancellationReason?: AppointmentCancellationReason;
+    cancellationNote?: string;
+    noShowReason?: AppointmentNoShowReason;
+    noShowNote?: string;
 };
 
 const stripSampleMarker = (notes: string): string => {
@@ -274,6 +284,8 @@ const buildAppointmentSeeds = (
             notes: 'Marked after front-desk follow-up window.',
             bookingSource: BookingSource.PHONE,
             bookedMinutesBefore: 3 * 60,
+            noShowReason: AppointmentNoShowReason.UNKNOWN,
+            noShowNote: 'Reception attempted to call twice.',
         },
         {
             id: buildAppointmentId(10),
@@ -288,6 +300,8 @@ const buildAppointmentSeeds = (
             notes: 'Patient requested a later date.',
             bookingSource: BookingSource.PHONE,
             bookedMinutesBefore: 2 * 24 * 60,
+            cancellationReason: AppointmentCancellationReason.PATIENT_REQUEST,
+            cancellationNote: 'Patient called reception to request a later date.',
         },
         {
             id: buildAppointmentId(11),
@@ -1083,6 +1097,10 @@ async function main() {
                 bookingSource: appointmentSeed.bookingSource,
                 reason: appointmentSeed.reason,
                 notes: appointmentSeed.notes,
+                cancellationReason: appointmentSeed.cancellationReason ?? null,
+                cancellationNote: appointmentSeed.cancellationNote ?? null,
+                noShowReason: appointmentSeed.noShowReason ?? null,
+                noShowNote: appointmentSeed.noShowNote ?? null,
                 arrivedAt,
                 arrivalOffsetMinutes: arrivalOutcome?.arrivalOffsetMinutes ?? null,
                 isLateArrival: arrivalOutcome?.isLateArrival ?? null,
@@ -1106,6 +1124,42 @@ async function main() {
                 }) as Prisma.InputJsonObject,
             },
         });
+
+        if (appointmentSeed.cancellationReason) {
+            await prisma.appointmentActivity.create({
+                data: {
+                    appointmentId: appointment.id,
+                    clinicId: appointment.clinicId,
+                    actorUserId: adminUser.id,
+                    type: AppointmentActivityType.APPOINTMENT_CANCELLED,
+                    occurredAt: addMinutes(appointment.scheduledAt, -30),
+                    metadata: buildAppointmentCancelledActivityMetadata({
+                        fromStatus: AppointmentStatus.CONFIRMED,
+                        toStatus: AppointmentStatus.CANCELLED,
+                        cancellationReason: appointmentSeed.cancellationReason,
+                        cancellationNote: appointmentSeed.cancellationNote ?? null,
+                    }) as Prisma.InputJsonObject,
+                },
+            });
+        }
+
+        if (appointmentSeed.noShowReason) {
+            await prisma.appointmentActivity.create({
+                data: {
+                    appointmentId: appointment.id,
+                    clinicId: appointment.clinicId,
+                    actorUserId: adminUser.id,
+                    type: AppointmentActivityType.APPOINTMENT_NO_SHOW,
+                    occurredAt: addMinutes(appointment.scheduledAt, 30),
+                    metadata: buildAppointmentNoShowActivityMetadata({
+                        fromStatus: AppointmentStatus.CONFIRMED,
+                        toStatus: AppointmentStatus.NO_SHOW,
+                        noShowReason: appointmentSeed.noShowReason,
+                        noShowNote: appointmentSeed.noShowNote ?? null,
+                    }) as Prisma.InputJsonObject,
+                },
+            });
+        }
 
         await prisma.noShowPrediction.create({
             data: {

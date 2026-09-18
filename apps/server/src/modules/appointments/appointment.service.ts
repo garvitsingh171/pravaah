@@ -39,6 +39,7 @@ import type {
     CreateAppointmentInput,
     ListAppointmentsQueryInput,
     RescheduleAppointmentSlotsQueryInput,
+    UpdateAppointmentStatusInput,
 } from './appointment.types.js';
 
 const conflictingAppointmentStatuses = [...schedulingConflictStatuses] as AppointmentStatus[];
@@ -966,7 +967,7 @@ export const appointmentService = {
     async updateAppointmentStatus(
         user: AuthenticatedUser | undefined,
         appointmentId: string,
-        status: AppointmentStatus
+        statusUpdate: UpdateAppointmentStatusInput
     ) {
         const authenticatedUser = accessService.requireClinicStaff(user);
         const appointmentAccess = await accessService.verifyAppointmentClinicAccess(
@@ -981,7 +982,7 @@ export const appointmentService = {
                 appointmentId,
                 appointmentAccess.clinicId,
                 authenticatedUser.id,
-                status
+                statusUpdate
             );
         } catch (error) {
             if (error instanceof Error && error.message === 'PATIENT_CLINIC_LINK_NOT_FOUND') {

@@ -1,7 +1,9 @@
 import { apiClient } from '../../lib';
 import {
     AppointmentActivityType,
-    type AppointmentStatus,
+    AppointmentStatus,
+    type AppointmentCancellationReason,
+    type AppointmentNoShowReason,
     type AppointmentSummary,
     type BookingSource,
     type DoctorSummary,
@@ -92,6 +94,27 @@ export type RescheduleAppointmentRequest = {
     currentScheduledAt: string;
 };
 
+export type UpdateAppointmentStatusRequest =
+    | {
+          status: typeof AppointmentStatus.CANCELLED;
+          cancellationReason: AppointmentCancellationReason;
+          cancellationNote?: string;
+      }
+    | {
+          status: typeof AppointmentStatus.NO_SHOW;
+          noShowReason: AppointmentNoShowReason;
+          noShowNote?: string;
+      }
+    | {
+          status:
+              | typeof AppointmentStatus.SCHEDULED
+              | typeof AppointmentStatus.CONFIRMED
+              | typeof AppointmentStatus.ARRIVED
+              | typeof AppointmentStatus.IN_QUEUE
+              | typeof AppointmentStatus.CALLED
+              | typeof AppointmentStatus.COMPLETED;
+      };
+
 export type AppointmentListResponseData = {
     appointments: AppointmentListItem[];
 };
@@ -132,6 +155,16 @@ type AppointmentStatusActivityMetadata = {
     toStatus: AppointmentStatus;
 };
 
+type AppointmentCancelledActivityMetadata = AppointmentStatusActivityMetadata & {
+    cancellationReason?: AppointmentCancellationReason | null;
+    cancellationNote?: string | null;
+};
+
+type AppointmentNoShowActivityMetadata = AppointmentStatusActivityMetadata & {
+    noShowReason?: AppointmentNoShowReason | null;
+    noShowNote?: string | null;
+};
+
 type PatientArrivedActivityMetadata = AppointmentStatusActivityMetadata & {
     arrivalOffsetMinutes: number;
     isLateArrival: boolean;
@@ -150,8 +183,8 @@ type AppointmentActivityMetadataByType = {
     ENTERED_QUEUE: AppointmentStatusActivityMetadata;
     PATIENT_CALLED: AppointmentStatusActivityMetadata;
     APPOINTMENT_COMPLETED: AppointmentStatusActivityMetadata;
-    APPOINTMENT_CANCELLED: AppointmentStatusActivityMetadata;
-    APPOINTMENT_NO_SHOW: AppointmentStatusActivityMetadata;
+    APPOINTMENT_CANCELLED: AppointmentCancelledActivityMetadata;
+    APPOINTMENT_NO_SHOW: AppointmentNoShowActivityMetadata;
     APPOINTMENT_RESCHEDULED: AppointmentRescheduledActivityMetadata;
 };
 
@@ -217,12 +250,13 @@ export const listAvailableAppointmentSlots = (
     );
 };
 
-export const updateAppointmentStatus = (appointmentId: string, status: AppointmentStatus) => {
+export const updateAppointmentStatus = (
+    appointmentId: string,
+    payload: UpdateAppointmentStatusRequest
+) => {
     return apiClient.patch<UpdateAppointmentStatusResponseData>(
         `/appointments/${encodeURIComponent(appointmentId)}/status`,
-        {
-            status,
-        }
+        payload
     );
 };
 

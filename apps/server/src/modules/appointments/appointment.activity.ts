@@ -1,5 +1,7 @@
 import {
     AppointmentActivityType,
+    type AppointmentCancellationReason,
+    type AppointmentNoShowReason,
     AppointmentStatus,
     type BookingSource,
 } from '../../generated/prisma/client.js';
@@ -19,6 +21,16 @@ export type AppointmentStatusActivityMetadata = {
 
 export type PatientArrivedActivityMetadata = AppointmentStatusActivityMetadata & ArrivalOutcome;
 
+export type AppointmentCancelledActivityMetadata = AppointmentStatusActivityMetadata & {
+    cancellationReason: AppointmentCancellationReason;
+    cancellationNote: string | null;
+};
+
+export type AppointmentNoShowActivityMetadata = AppointmentStatusActivityMetadata & {
+    noShowReason: AppointmentNoShowReason;
+    noShowNote: string | null;
+};
+
 export type AppointmentRescheduledActivityMetadata = {
     previousScheduledAt: string;
     newScheduledAt: string;
@@ -27,6 +39,8 @@ export type AppointmentRescheduledActivityMetadata = {
 export type AppointmentActivityMetadata =
     | AppointmentCreatedActivityMetadata
     | AppointmentStatusActivityMetadata
+    | AppointmentCancelledActivityMetadata
+    | AppointmentNoShowActivityMetadata
     | PatientArrivedActivityMetadata
     | AppointmentRescheduledActivityMetadata;
 
@@ -73,6 +87,30 @@ export function buildAppointmentStatusActivityMetadata(
         fromStatus,
         toStatus,
     };
+}
+
+export function buildAppointmentCancelledActivityMetadata({
+    fromStatus,
+    toStatus,
+    cancellationReason,
+    cancellationNote,
+}: AppointmentStatusActivityMetadata & {
+    cancellationReason: AppointmentCancellationReason;
+    cancellationNote: string | null;
+}): AppointmentCancelledActivityMetadata {
+    return { fromStatus, toStatus, cancellationReason, cancellationNote };
+}
+
+export function buildAppointmentNoShowActivityMetadata({
+    fromStatus,
+    toStatus,
+    noShowReason,
+    noShowNote,
+}: AppointmentStatusActivityMetadata & {
+    noShowReason: AppointmentNoShowReason;
+    noShowNote: string | null;
+}): AppointmentNoShowActivityMetadata {
+    return { fromStatus, toStatus, noShowReason, noShowNote };
 }
 
 export function buildPatientArrivedActivityMetadata({

@@ -709,11 +709,9 @@ describe('appointmentService.updateAppointmentStatus', () => {
         });
 
         await expect(
-            appointmentService.updateAppointmentStatus(
-                authenticatedUser,
-                'appointment-id',
-                AppointmentStatus.COMPLETED
-            )
+            appointmentService.updateAppointmentStatus(authenticatedUser, 'appointment-id', {
+                status: AppointmentStatus.COMPLETED,
+            })
         ).resolves.toEqual({
             id: 'appointment-id',
             clinicId: 'clinic-id',
@@ -728,7 +726,7 @@ describe('appointmentService.updateAppointmentStatus', () => {
             'appointment-id',
             'clinic-id',
             'user-id',
-            AppointmentStatus.COMPLETED
+            { status: AppointmentStatus.COMPLETED }
         );
     });
 
@@ -743,11 +741,9 @@ describe('appointmentService.updateAppointmentStatus', () => {
         });
 
         await expect(
-            appointmentService.updateAppointmentStatus(
-                authenticatedUser,
-                'appointment-id',
-                AppointmentStatus.CONFIRMED
-            )
+            appointmentService.updateAppointmentStatus(authenticatedUser, 'appointment-id', {
+                status: AppointmentStatus.CONFIRMED,
+            })
         ).rejects.toMatchObject({
             statusCode: 409,
             code: 'APPOINTMENT_STATUS_TRANSITION_INVALID',
@@ -766,11 +762,9 @@ describe('appointmentService.updateAppointmentStatus', () => {
         });
 
         await expect(
-            appointmentService.updateAppointmentStatus(
-                authenticatedUser,
-                'appointment-id',
-                AppointmentStatus.ARRIVED
-            )
+            appointmentService.updateAppointmentStatus(authenticatedUser, 'appointment-id', {
+                status: AppointmentStatus.ARRIVED,
+            })
         ).rejects.toMatchObject({
             statusCode: 409,
             code: 'APPOINTMENT_STATUS_FINAL',
@@ -783,11 +777,9 @@ describe('appointmentService.updateAppointmentStatus', () => {
         );
 
         await expect(
-            appointmentService.updateAppointmentStatus(
-                authenticatedUser,
-                'appointment-id',
-                AppointmentStatus.COMPLETED
-            )
+            appointmentService.updateAppointmentStatus(authenticatedUser, 'appointment-id', {
+                status: AppointmentStatus.COMPLETED,
+            })
         ).rejects.toThrow('CLINIC_ACCESS_DENIED');
 
         expect(mockAppointmentRepository.updateAppointmentStatus).not.toHaveBeenCalled();

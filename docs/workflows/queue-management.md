@@ -260,3 +260,9 @@ The queue is created when appointments are booked. Staff can then change queue s
 Queue actions do not create a second queue-history stream. When a queue transaction successfully owns its synchronized appointment update, `didAppointmentTransition` permits the corresponding `AppointmentActivity` insert in that same transaction. If the appointment update is a same-target retry or another transaction already owns it, no duplicate activity is written.
 
 The queue action's authenticated Admin/Staff user is the activity actor. The queue `eventTimestamp` is reused for arrival/called/completed operational timestamps, patient outcome aggregates, and appointment activity. If a queue action first establishes presence, the shared arrival helper produces `PATIENT_ARRIVED`; the actual target event is then added only when it is another committed fact. There is no `QueueActivity` table.
+
+## Queue Terminal Reasons
+
+Queue-driven `CANCELLED` and `NO_SHOW` actions use the same structured reason vocabulary, optional 500-character note, and reason dialog as appointment actions. The request reaches the existing queue transaction, where `didAppointmentTransition` remains authoritative. A winning guarded appointment update writes the terminal status and matching reason together, then synchronizes `QueueEntry`, patient statistics, and the existing appointment activity before commit. Any failure rolls back the whole unit.
+
+Reasons are stored only on `Appointment`; `QueueEntry` has no reason columns. Queue appointment summaries explicitly select the four reason fields so final queue entries can display them. Queue and appointment API races therefore converge on one appointment-owned reason.

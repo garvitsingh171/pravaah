@@ -29,6 +29,7 @@ describe('appointmentActivityRepository.recordAppointmentTransitionActivities', 
             eventTimestamp: new Date('2026-09-18T10:00:00.000Z'),
             didTransition: false,
             arrivalResult: { wasEstablished: false, outcome: null },
+            terminalReason: null,
         });
 
         expect(createActivity).not.toHaveBeenCalled();
@@ -54,6 +55,7 @@ describe('appointmentActivityRepository.recordAppointmentTransitionActivities', 
                     lateArrivalGraceMinutes: 15,
                 },
             },
+            terminalReason: null,
         });
 
         expect(createActivity).toHaveBeenCalledTimes(1);
@@ -95,6 +97,7 @@ describe('appointmentActivityRepository.recordAppointmentTransitionActivities', 
                     lateArrivalGraceMinutes: 15,
                 },
             },
+            terminalReason: null,
         });
 
         expect(createActivity).toHaveBeenNthCalledWith(
@@ -136,8 +139,68 @@ describe('appointmentActivityRepository.recordAppointmentTransitionActivities', 
             eventTimestamp: new Date('2026-09-18T10:00:00.000Z'),
             didTransition: true,
             arrivalResult: { wasEstablished: false, outcome: null },
+            terminalReason: null,
         });
 
         expect(createActivity).not.toHaveBeenCalled();
+    });
+
+    it('enriches the single cancellation activity with the winning reason context', async () => {
+        await appointmentActivityRepository.recordAppointmentTransitionActivities({
+            tx,
+            appointmentId: 'appointment-id',
+            clinicId: 'clinic-id',
+            actorUserId: 'actor-id',
+            previousStatus: AppointmentStatus.CONFIRMED,
+            newStatus: AppointmentStatus.CANCELLED,
+            eventTimestamp: new Date('2026-09-18T10:00:00.000Z'),
+            didTransition: true,
+            arrivalResult: { wasEstablished: false, outcome: null },
+            terminalReason: {
+                cancellationReason: 'PATIENT_REQUEST',
+                cancellationNote: 'Patient called reception.',
+            },
+        });
+
+        expect(createActivity).toHaveBeenCalledTimes(1);
+        expect(createActivity).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    type: AppointmentActivityType.APPOINTMENT_CANCELLED,
+                    actorUserId: 'actor-id',
+                    metadata: {
+                        fromStatus: AppointmentStatus.CONFIRMED,
+                        toStatus: AppointmentStatus.CANCELLED,
+                        cancellationReason: 'PATIENT_REQUEST',
+                        cancellationNote: 'Patient called reception.',
+                    },
+                }),
+            })
+        );
+    });
+
+    it('enriches the single no-show activity with an explicit UNKNOWN reason', async () => {
+        await appointmentActivityRepository.recordAppointmentTransitionActivities({
+            tx,
+            appointmentId: 'appointment-id',
+            clinicId: 'clinic-id',
+            actorUserId: 'actor-id',
+            previousStatus: AppointmentStatus.CONFIRMED,
+            newStatus: AppointmentStatus.NO_SHOW,
+            eventTimestamp: new Date('2026-09-18T10:00:00.000Z'),
+            didTransition: true,
+            arrivalResult: { wasEstablished: false, outcome: null },
+            terminalReason: { noShowReason: 'UNKNOWN', noShowNote: null },
+        });
+
+        expect(createActivity).toHaveBeenCalledTimes(1);
+        expect(createActivity).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    type: AppointmentActivityType.APPOINTMENT_NO_SHOW,
+                    metadata: expect.objectContaining({ noShowReason: 'UNKNOWN' }),
+                }),
+            })
+        );
     });
 });
