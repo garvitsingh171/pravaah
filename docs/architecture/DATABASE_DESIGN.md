@@ -258,7 +258,15 @@ Important fields:
 - `status`
 - `bookingSource`
 - optional `reason`, `notes`
+- nullable `cancellationReason AppointmentCancellationReason` and `cancellationNote`
+- nullable `noShowReason AppointmentNoShowReason` and `noShowNote`
 - nullable arrival facts: `arrivedAt`, `arrivalOffsetMinutes`, `isLateArrival`, `lateArrivalGraceMinutes`
+
+`AppointmentCancellationReason` contains `PATIENT_REQUEST`, `PATIENT_ILLNESS`, `PATIENT_EMERGENCY`, `DOCTOR_UNAVAILABLE`, `CLINIC_REQUEST`, `SCHEDULING_CONFLICT`, `TRANSPORTATION_ISSUE`, `DUPLICATE_BOOKING`, `RESCHEDULED_ELSEWHERE`, and `OTHER`.
+
+`AppointmentNoShowReason` contains `FORGOT_APPOINTMENT`, `UNREACHABLE`, `TRANSPORTATION_ISSUE`, `PATIENT_EMERGENCY`, `SCHEDULING_MISUNDERSTANDING`, `NO_CONFIRMATION`, `OTHER`, and `UNKNOWN`.
+
+All four fields remain nullable for legacy rows. Null means Pravaah did not capture a historical reason; no-show `UNKNOWN` means staff explicitly recorded that the cause was unknown. The migration performs no backfill. `Appointment.reason` continues to mean visit purpose, and `QueueEntry` stores no terminal reason.
 
 Arrival fields are nullable for legacy and not-yet-arrived appointments. `isLateArrival = null`
 means no recorded arrival classification exists, `false` means the patient arrived and was not
@@ -510,5 +518,7 @@ The seed uses placeholder contact data. Never replace it with real patient data.
 `AppointmentActivityType` contains explicit business events: `APPOINTMENT_CREATED`, `APPOINTMENT_CONFIRMED`, `PATIENT_ARRIVED`, `ENTERED_QUEUE`, `PATIENT_CALLED`, `APPOINTMENT_COMPLETED`, `APPOINTMENT_CANCELLED`, `APPOINTMENT_NO_SHOW`, and `APPOINTMENT_RESCHEDULED`.
 
 `AppointmentActivity` maps to `appointment_activities` and stores `id`, required `appointmentId`, required first-class `clinicId`, nullable `actorUserId`, `type`, operational `occurredAt`, optional structured JSON `metadata`, and persistence `createdAt`. It has indexes on `(appointmentId, occurredAt)` and `(clinicId, occurredAt)`. Appointment and clinic deletion are restricted; actor deletion uses `SetNull`. Reverse relations are `Appointment.activities`, `Clinic.appointmentActivities`, and `User.appointmentActivities`, separate from `User.createdAppointments`.
+
+The existing `APPOINTMENT_CANCELLED` and `APPOINTMENT_NO_SHOW` rows carry terminal reason context in metadata for new events. The database migration does not alter historical JSON; missing keys remain a truthful legacy state rather than being fabricated as `UNKNOWN`.
 
 Application behavior is append-only: domain transactions insert rows and the timeline endpoint selects them; there are no update/delete APIs. Metadata contains event facts rather than prose or duplicated core columns, and embedded dates are ISO strings. The migration creates only the enum, table, indexes, and foreign keys; it does not synthesize legacy activity.

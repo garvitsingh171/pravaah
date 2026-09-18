@@ -1,5 +1,10 @@
 import { z } from 'zod';
 import { calendarDateRegex, isValidCalendarDate } from '../../utils/dateValidation.js';
+import {
+    cancellationReasonSchema,
+    noShowReasonSchema,
+    terminalAppointmentNoteSchema,
+} from '../appointments/appointment.validation.js';
 
 const uuidSchema = z
     .string()
@@ -25,11 +30,27 @@ export const listQueueQuerySchema = z
     })
     .strict();
 
-export const updateQueueStatusBodySchema = z
-    .object({
-        status: z.enum(['ARRIVED', 'WAITING', 'CALLED', 'COMPLETED', 'CANCELLED', 'NO_SHOW']),
-    })
-    .strict();
+export const updateQueueStatusBodySchema = z.discriminatedUnion('status', [
+    z
+        .object({
+            status: z.literal('CANCELLED'),
+            cancellationReason: cancellationReasonSchema,
+            cancellationNote: terminalAppointmentNoteSchema,
+        })
+        .strict(),
+    z
+        .object({
+            status: z.literal('NO_SHOW'),
+            noShowReason: noShowReasonSchema,
+            noShowNote: terminalAppointmentNoteSchema,
+        })
+        .strict(),
+    z
+        .object({
+            status: z.enum(['ARRIVED', 'WAITING', 'CALLED', 'COMPLETED']),
+        })
+        .strict(),
+]);
 
 export const reorderQueueBodySchema = z
     .object({

@@ -820,6 +820,16 @@ Arrival classification is centralized in `appointment.arrival.ts`. Presence-esta
 
 Both appointment-driven and queue-driven status transactions call `establishAppointmentArrivalIfNeeded`. The helper loads the clinic grace value, attempts a guarded `Appointment` update with `arrivedAt: null`, and only the transaction that wins that first write can atomically increment `PatientClinic.totalLateArrivals` for the same `(patientId, clinicId)`. Repeated transitions, retries, and later `CALLED` updates preserve the original arrival snapshot.
 
+#### Terminal Reason Capture
+
+`AppointmentCancellationReason` and `AppointmentNoShowReason` are separate Prisma enums. `Appointment` owns nullable `cancellationReason`, `cancellationNote`, `noShowReason`, and `noShowNote`; the pre-existing `reason` remains the appointment purpose. Null is valid legacy/not-captured state, while no-show `UNKNOWN` is an explicit staff selection.
+
+Appointment and queue status bodies are strict discriminated unions. `CANCELLED` requires only the cancellation reason family, `NO_SHOW` requires only the no-show family, and non-terminal statuses reject both families. Optional notes are trimmed and capped at 500 characters. Controllers pass the complete validated union; actor ID continues to come from authenticated backend context.
+
+Both repositories add the applicable reason fields directly to the exact-current-status guarded appointment `updateMany`. `didTransition`/`didAppointmentTransition` gates statistics and the existing terminal activity insert, so duplicate terminal requests, competing terminal outcomes, completion races, and appointment-vs-queue races cannot overwrite the winner's reason. `APPOINTMENT_CANCELLED` metadata is `{ fromStatus, toStatus, cancellationReason, cancellationNote }`; `APPOINTMENT_NO_SHOW` metadata is `{ fromStatus, toStatus, noShowReason, noShowNote }`. Old metadata without reason keys remains readable.
+
+The appointments and queue UIs reuse `TerminalAppointmentReasonDialog` for the structured selector and optional note. New terminal rows show the saved label/note; legacy null rows show `Reason not recorded`. No correction workflow or terminal undo is implemented.
+
 Booking and terminal outcomes use `patient.statistics.repository.ts`. A successful booking increments `totalAppointments` in the appointment/queue/prediction transaction. Status persistence compares against the exact previously read appointment status. Only `updateMany(... status: expectedStatus).count === 1` owns a transition event; a zero-row result is re-read and classified as a same-target retry or a conflicting transition. The owner of `COMPLETED` atomically increments `totalCompletedVisits` and conditionally sets `lastVisitAt` only when null or older than the shared completion timestamp. The owner of `NO_SHOW` atomically increments `totalNoShows`. Appointment and queue API races therefore converge on one authoritative appointment transition.
 
 ### Explainable No-Show Assistance

@@ -747,6 +747,34 @@ reason, notes optional
 bookingSource default RECEPTION; allowed RECEPTION, PHONE, WEB, WALK_IN
 ```
 
+### Terminal appointment status reason contract
+
+`PATCH /api/appointments/:appointmentId/status` accepts a discriminated body:
+
+```json
+{
+    "status": "CANCELLED",
+    "cancellationReason": "PATIENT_REQUEST",
+    "cancellationNote": "Patient called reception."
+}
+```
+
+```json
+{
+    "status": "NO_SHOW",
+    "noShowReason": "UNKNOWN",
+    "noShowNote": "Reception attempted to call twice."
+}
+```
+
+```json
+{ "status": "COMPLETED" }
+```
+
+Cancellation fields are rejected for no-show and normal statuses; no-show fields are rejected for cancellation and normal statuses. Notes are optional, trimmed, and limited to 500 characters. Appointment responses expose `cancellationReason`, `cancellationNote`, `noShowReason`, and `noShowNote` as nullable scalars.
+
+`PATCH /api/clinics/:clinicId/queue/:queueEntryId/status` uses the same conditional fields and enum vocabulary for `CANCELLED` and `NO_SHOW`; normal queue statuses remain status-only. The authenticated user is never accepted in the body. Both routes store terminal context only when their existing guarded appointment transition wins.
+
 `scheduledAt` should come from the available-slots endpoint. Creation revalidates
 that the requested time is still a generated slot and then checks active
 appointment overlaps using appointment duration plus clinic buffer.
@@ -1138,6 +1166,8 @@ data.activities[]
 `actor` is nullable so activity survives physical user deletion and suspended actors remain readable. Metadata is structured per event: creation includes scheduled time/source/doctor/patient IDs; status events include `fromStatus`/`toStatus`; first arrival adds the persisted arrival offset/late/grace snapshot; reschedule includes previous/new scheduled timestamps. Results are chronological and deterministic (`occurredAt`, logical same-time event order, `createdAt`, `id`), so arrival renders before the queue/called event produced by the same transaction.
 
 Activity types are `APPOINTMENT_CREATED`, `APPOINTMENT_CONFIRMED`, `PATIENT_ARRIVED`, `ENTERED_QUEUE`, `PATIENT_CALLED`, `APPOINTMENT_COMPLETED`, `APPOINTMENT_CANCELLED`, `APPOINTMENT_NO_SHOW`, and `APPOINTMENT_RESCHEDULED`.
+
+New cancellation activity metadata includes `fromStatus`, `toStatus`, `cancellationReason`, and nullable `cancellationNote`. New no-show activity metadata includes `fromStatus`, `toStatus`, `noShowReason`, and nullable `noShowNote`. Historical terminal activities may contain only `fromStatus`/`toStatus`; clients must treat missing reason keys as “Reason not recorded.” No extra reason activity type is emitted.
 
 Main errors include `AUTHENTICATION_REQUIRED`, `USER_NOT_ACTIVE`, `CLINIC_STAFF_REQUIRED`, `APPOINTMENT_NOT_FOUND`, `CLINIC_ACCESS_DENIED`, `CLINIC_NOT_FOUND`, and `CLINIC_INACTIVE`.
 

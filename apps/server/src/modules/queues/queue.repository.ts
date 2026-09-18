@@ -5,6 +5,7 @@ import { establishAppointmentArrivalIfNeeded } from '../appointments/appointment
 import type { EstablishAppointmentArrivalResult } from '../appointments/appointment.arrival.repository.js';
 import { appointmentActivityRepository } from '../appointments/appointment.activity.repository.js';
 import { isAppointmentStatusTransitionAllowed } from '../appointments/appointment.lifecycle.js';
+import type { AppointmentTerminalReasonContext } from '../appointments/appointment.terminal-reason.js';
 import { applyPatientAppointmentOutcome } from '../patients/patient.statistics.repository.js';
 import { isQueueStatusTransitionAllowed } from './queue.lifecycle.js';
 
@@ -27,6 +28,10 @@ const queueEntryDetailsInclude = {
             bookingSource: true,
             reason: true,
             notes: true,
+            cancellationReason: true,
+            cancellationNote: true,
+            noShowReason: true,
+            noShowNote: true,
             arrivedAt: true,
             arrivalOffsetMinutes: true,
             isLateArrival: true,
@@ -110,6 +115,7 @@ type UpdateQueueEntryStatusInput = {
     timestampUpdates: { calledAt?: Date; completedAt?: Date };
     eventTimestamp: Date;
     actorUserId: string;
+    terminalReason: AppointmentTerminalReasonContext;
 };
 
 export const queueRepository = {
@@ -258,6 +264,7 @@ export const queueRepository = {
         timestampUpdates,
         eventTimestamp,
         actorUserId,
+        terminalReason,
     }: UpdateQueueEntryStatusInput) {
         return prisma.$transaction(async (tx) => {
             const existingQueueEntry = await tx.queueEntry.findFirst({
@@ -313,9 +320,24 @@ export const queueRepository = {
                         clinicId,
                         status: existingQueueEntry.appointment.status,
                     },
-                    data: {
-                        status: appointmentStatus,
-                    },
+                    data:
+                        appointmentStatus === AppointmentStatus.CANCELLED &&
+                        terminalReason &&
+                        'cancellationReason' in terminalReason
+                            ? {
+                                  status: appointmentStatus,
+                                  cancellationReason: terminalReason.cancellationReason,
+                                  cancellationNote: terminalReason.cancellationNote,
+                              }
+                            : appointmentStatus === AppointmentStatus.NO_SHOW &&
+                                terminalReason &&
+                                'noShowReason' in terminalReason
+                              ? {
+                                    status: appointmentStatus,
+                                    noShowReason: terminalReason.noShowReason,
+                                    noShowNote: terminalReason.noShowNote,
+                                }
+                              : { status: appointmentStatus },
                 });
 
                 if (appointmentUpdateResult.count === 1) {
@@ -427,6 +449,7 @@ export const queueRepository = {
                 eventTimestamp,
                 didTransition: didAppointmentTransition,
                 arrivalResult,
+                terminalReason,
             });
 
             return tx.queueEntry.findUniqueOrThrow({

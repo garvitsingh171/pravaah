@@ -41,6 +41,30 @@ enum AppointmentStatus {
   NO_SHOW
 }
 
+enum AppointmentCancellationReason {
+  PATIENT_REQUEST
+  PATIENT_ILLNESS
+  PATIENT_EMERGENCY
+  DOCTOR_UNAVAILABLE
+  CLINIC_REQUEST
+  SCHEDULING_CONFLICT
+  TRANSPORTATION_ISSUE
+  DUPLICATE_BOOKING
+  RESCHEDULED_ELSEWHERE
+  OTHER
+}
+
+enum AppointmentNoShowReason {
+  FORGOT_APPOINTMENT
+  UNREACHABLE
+  TRANSPORTATION_ISSUE
+  PATIENT_EMERGENCY
+  SCHEDULING_MISUNDERSTANDING
+  NO_CONFIRMATION
+  OTHER
+  UNKNOWN
+}
+
 enum QueueStatus {
   WAITING
   ARRIVED
@@ -255,23 +279,27 @@ model PatientClinic {
 }
 
 model Appointment {
-  id                      String            @id @default(uuid()) @db.Uuid
-  clinicId                String            @db.Uuid
-  doctorId                String            @db.Uuid
-  patientId               String            @db.Uuid
-  createdByUserId         String            @db.Uuid
+  id                      String                         @id @default(uuid()) @db.Uuid
+  clinicId                String                         @db.Uuid
+  doctorId                String                         @db.Uuid
+  patientId               String                         @db.Uuid
+  createdByUserId         String                         @db.Uuid
   scheduledAt             DateTime
-  durationMinutes         Int               @default(15)
-  status                  AppointmentStatus @default(SCHEDULED)
-  bookingSource           BookingSource     @default(RECEPTION)
+  durationMinutes         Int                            @default(15)
+  status                  AppointmentStatus              @default(SCHEDULED)
+  bookingSource           BookingSource                  @default(RECEPTION)
   reason                  String?
   notes                   String?
+  cancellationReason      AppointmentCancellationReason?
+  cancellationNote        String?
+  noShowReason            AppointmentNoShowReason?
+  noShowNote              String?
   arrivedAt               DateTime?
   arrivalOffsetMinutes    Int?
   isLateArrival           Boolean?
   lateArrivalGraceMinutes Int?
-  createdAt               DateTime          @default(now())
-  updatedAt               DateTime          @updatedAt
+  createdAt               DateTime                       @default(now())
+  updatedAt               DateTime                       @updatedAt
 
   clinic           Clinic                @relation(fields: [clinicId], references: [id], onDelete: Restrict)
   doctor           Doctor                @relation(fields: [doctorId], references: [id], onDelete: Restrict)

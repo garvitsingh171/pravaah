@@ -127,4 +127,39 @@ describe('AppointmentActivityDialog', () => {
         ).toBeVisible();
         expect(mockListAppointmentActivities).toHaveBeenCalledTimes(2);
     });
+
+    it('renders terminal reason metadata and keeps legacy terminal activity readable', async () => {
+        mockListAppointmentActivities.mockResolvedValueOnce({
+            activities: [
+                {
+                    id: 'cancelled-id',
+                    type: AppointmentActivityType.APPOINTMENT_CANCELLED,
+                    occurredAt: '2026-09-18T10:00:00.000Z',
+                    actor: { id: 'actor-id', fullName: 'Reception Staff', role: 'STAFF' },
+                    metadata: {
+                        fromStatus: AppointmentStatus.CONFIRMED,
+                        toStatus: AppointmentStatus.CANCELLED,
+                        cancellationReason: 'PATIENT_REQUEST',
+                        cancellationNote: 'Patient called reception.',
+                    },
+                },
+                {
+                    id: 'legacy-no-show-id',
+                    type: AppointmentActivityType.APPOINTMENT_NO_SHOW,
+                    occurredAt: '2026-09-18T11:00:00.000Z',
+                    actor: null,
+                    metadata: {
+                        fromStatus: AppointmentStatus.CONFIRMED,
+                        toStatus: AppointmentStatus.NO_SHOW,
+                    },
+                },
+            ],
+        });
+
+        render(<AppointmentActivityDialog appointment={appointment} onClose={vi.fn()} />);
+
+        expect(await screen.findByText('Patient requested cancellation')).toBeInTheDocument();
+        expect(screen.getByText('Patient called reception.')).toBeInTheDocument();
+        expect(screen.getByText('Reason not recorded')).toBeInTheDocument();
+    });
 });

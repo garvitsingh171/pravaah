@@ -1,5 +1,7 @@
 import type {
     AppointmentStatus,
+    AppointmentCancellationReason,
+    AppointmentNoShowReason,
     BookingSource,
     Gender,
     QueueStatus,
@@ -100,6 +102,10 @@ export type AppointmentSummary = BaseEntity & {
     status: AppointmentStatus;
     bookingSource: BookingSource;
     reason?: string;
+    cancellationReason?: AppointmentCancellationReason | null;
+    cancellationNote?: string | null;
+    noShowReason?: AppointmentNoShowReason | null;
+    noShowNote?: string | null;
     arrivedAt?: string | null;
     arrivalOffsetMinutes?: number | null;
     isLateArrival?: boolean | null;

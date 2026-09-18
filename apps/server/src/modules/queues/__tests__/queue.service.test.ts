@@ -199,12 +199,9 @@ describe('queueService.updateQueueStatus', () => {
         );
 
         await expect(
-            queueService.updateQueueStatus(
-                authenticatedUser,
-                'clinic-id',
-                'queue-entry-id',
-                QueueStatus.COMPLETED
-            )
+            queueService.updateQueueStatus(authenticatedUser, 'clinic-id', 'queue-entry-id', {
+                status: QueueStatus.COMPLETED,
+            })
         ).rejects.toMatchObject({
             statusCode: 409,
             code: 'APPOINTMENT_STATUS_TRANSITION_INVALID',
@@ -220,12 +217,9 @@ describe('queueService.updateQueueStatus', () => {
         );
 
         await expect(
-            queueService.updateQueueStatus(
-                authenticatedUser,
-                'clinic-id',
-                'queue-entry-id',
-                QueueStatus.WAITING
-            )
+            queueService.updateQueueStatus(authenticatedUser, 'clinic-id', 'queue-entry-id', {
+                status: QueueStatus.WAITING,
+            })
         ).rejects.toMatchObject({
             statusCode: 409,
             code: 'QUEUE_STATUS_TRANSITION_INVALID',
@@ -252,12 +246,36 @@ describe('queueService.updateQueueStatus', () => {
             authenticatedUser,
             'clinic-id',
             'queue-entry-id',
-            QueueStatus.WAITING
+            { status: QueueStatus.WAITING }
         );
 
         expect(mockQueueRepository.updateQueueEntryStatus).not.toHaveBeenCalled();
         expect(result.status).toBe(QueueStatus.WAITING);
         expect(result.appointment.status).toBe(AppointmentStatus.SCHEDULED);
+    });
+
+    it('does not let a same-status no-show retry replace the recorded reason', async () => {
+        const queueEntry = createQueueEntry({ status: QueueStatus.NO_SHOW });
+
+        mockQueueRepository.findQueueEntryById.mockResolvedValue({
+            ...queueEntry,
+            appointment: {
+                ...queueEntry.appointment,
+                status: AppointmentStatus.NO_SHOW,
+                noShowReason: 'FORGOT_APPOINTMENT',
+                noShowNote: null,
+            },
+        });
+
+        const result = await queueService.updateQueueStatus(
+            authenticatedUser,
+            'clinic-id',
+            'queue-entry-id',
+            { status: QueueStatus.NO_SHOW, noShowReason: 'UNKNOWN' }
+        );
+
+        expect(mockQueueRepository.updateQueueEntryStatus).not.toHaveBeenCalled();
+        expect(result.appointment.noShowReason).toBe('FORGOT_APPOINTMENT');
     });
 
     it('passes the current authenticated queue operator as the activity actor', async () => {
@@ -274,12 +292,9 @@ describe('queueService.updateQueueStatus', () => {
         mockQueueRepository.findQueueEntryById.mockResolvedValue(queueEntry);
         mockQueueRepository.updateQueueEntryStatus.mockResolvedValue(updatedQueueEntry);
 
-        await queueService.updateQueueStatus(
-            authenticatedUser,
-            'clinic-id',
-            'queue-entry-id',
-            QueueStatus.CALLED
-        );
+        await queueService.updateQueueStatus(authenticatedUser, 'clinic-id', 'queue-entry-id', {
+            status: QueueStatus.CALLED,
+        });
 
         expect(mockQueueRepository.updateQueueEntryStatus).toHaveBeenCalledWith(
             expect.objectContaining({

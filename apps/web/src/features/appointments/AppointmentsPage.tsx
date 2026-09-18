@@ -23,6 +23,10 @@ import AppointmentBookingForm, {
     type AppointmentBookingFormValues,
 } from './AppointmentBookingForm';
 import AppointmentActivityDialog from './AppointmentActivityDialog';
+import TerminalAppointmentReasonDialog, {
+    type TerminalAppointmentReasonSubmission,
+} from './TerminalAppointmentReasonDialog';
+import { getTerminalReasonDisplay } from './terminalAppointmentReasons';
 import {
     createAppointment,
     listAvailableAppointmentSlots,
@@ -36,6 +40,7 @@ import {
     listAppointmentRescheduleSlots,
     rescheduleAppointment,
     type RescheduleAppointmentSlotsResponseData,
+    type UpdateAppointmentStatusRequest,
 } from './appointmentApi';
 
 type BackendValidationDetail = {
@@ -129,6 +134,13 @@ type RescheduleFlowState = {
         code?: string;
     } | null;
     isSaving: boolean;
+};
+
+type TerminalReasonFlowState = {
+    appointment: AppointmentListItem;
+    mode: 'cancellation' | 'no-show';
+    error: string | null;
+    isSubmitting: boolean;
 };
 
 type StatusAction = {
@@ -967,6 +979,7 @@ function AppointmentDetailPanel({
     const patientContact = [appointment.patient.phone, appointment.patient.email]
         .filter((value): value is string => Boolean(value?.trim()))
         .join(' / ');
+    const terminalReason = getTerminalReasonDisplay(appointment);
 
     return (
         <div className="space-y-4">
@@ -1044,6 +1057,22 @@ function AppointmentDetailPanel({
                         </p>
                     </div>
                 </div>
+
+                {terminalReason ? (
+                    <div className="mt-5 rounded-md border border-slate-200 bg-slate-50 p-3">
+                        <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Terminal outcome reason
+                        </h4>
+                        <p className="mt-1 text-sm font-semibold text-slate-900">
+                            {terminalReason.label}
+                        </p>
+                        {terminalReason.note ? (
+                            <p className="mt-1 text-sm leading-6 text-slate-600">
+                                {terminalReason.note}
+                            </p>
+                        ) : null}
+                    </div>
+                ) : null}
             </div>
 
             <PredictionDetailPanel appointment={appointment} />
@@ -1293,6 +1322,9 @@ function AppointmentsPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [rescheduleFlow, setRescheduleFlow] = useState<RescheduleFlowState | null>(null);
     const [activityAppointment, setActivityAppointment] = useState<AppointmentListItem | null>(
+        null
+    );
+    const [terminalReasonFlow, setTerminalReasonFlow] = useState<TerminalReasonFlowState | null>(
         null
     );
     const [rescheduleSlotsRefreshKey, setRescheduleSlotsRefreshKey] = useState(0);
@@ -1798,12 +1830,32 @@ function AppointmentsPage() {
             return;
         }
 
+        if (
+            nextStatus === AppointmentStatus.CANCELLED ||
+            nextStatus === AppointmentStatus.NO_SHOW
+        ) {
+            setTerminalReasonFlow({
+                appointment,
+                mode: nextStatus === AppointmentStatus.CANCELLED ? 'cancellation' : 'no-show',
+                error: null,
+                isSubmitting: false,
+            });
+            return;
+        }
+
+        await persistStatusUpdate(appointment, { status: nextStatus });
+    };
+
+    const persistStatusUpdate = async (
+        appointment: AppointmentListItem,
+        payload: UpdateAppointmentStatusRequest
+    ): Promise<string | null> => {
         setUpdatingAppointmentId(appointment.id);
         setStatusUpdateError(null);
         setStatusUpdateMessage(null);
 
         try {
-            const data = await updateAppointmentStatus(appointment.id, nextStatus);
+            const data = await updateAppointmentStatus(appointment.id, payload);
 
             setAppointmentListState((currentState) => {
                 const shouldKeepAppointment =
@@ -1831,6 +1883,7 @@ function AppointmentsPage() {
                     data.appointment.status
                 )}.`
             );
+            return null;
         } catch (error) {
             if (isApiClientError(error)) {
                 setStatusUpdateError({
@@ -1838,7 +1891,7 @@ function AppointmentsPage() {
                     code: error.code,
                 });
                 showErrorToast(error.message);
-                return;
+                return error.message;
             }
 
             const fallbackMessage = 'Appointment status could not be updated. Please try again.';
@@ -1848,8 +1901,43 @@ function AppointmentsPage() {
                 code: 'APPOINTMENT_STATUS_UPDATE_FAILED',
             });
             showErrorToast(fallbackMessage);
+            return fallbackMessage;
         } finally {
             setUpdatingAppointmentId(null);
+        }
+    };
+
+    const handleTerminalReasonSubmit = async (submission: TerminalAppointmentReasonSubmission) => {
+        if (!terminalReasonFlow) {
+            return;
+        }
+
+        const { appointment } = terminalReasonFlow;
+        const payload: UpdateAppointmentStatusRequest =
+            submission.mode === 'cancellation'
+                ? {
+                      status: AppointmentStatus.CANCELLED,
+                      cancellationReason: submission.cancellationReason,
+                      cancellationNote: submission.cancellationNote,
+                  }
+                : {
+                      status: AppointmentStatus.NO_SHOW,
+                      noShowReason: submission.noShowReason,
+                      noShowNote: submission.noShowNote,
+                  };
+
+        setTerminalReasonFlow((current) =>
+            current ? { ...current, error: null, isSubmitting: true } : current
+        );
+
+        const errorMessage = await persistStatusUpdate(appointment, payload);
+
+        if (!errorMessage) {
+            setTerminalReasonFlow(null);
+        } else {
+            setTerminalReasonFlow((current) =>
+                current ? { ...current, error: errorMessage, isSubmitting: false } : current
+            );
         }
     };
 
@@ -2226,6 +2314,7 @@ function AppointmentsPage() {
                                     const canReschedule = isAppointmentReschedulable(
                                         appointment.status
                                     );
+                                    const terminalReason = getTerminalReasonDisplay(appointment);
 
                                     return (
                                         <Fragment key={appointment.id}>
@@ -2288,6 +2377,18 @@ function AppointmentsPage() {
                                                         <p className="mt-2 max-w-xs text-xs leading-5 text-slate-500">
                                                             {appointment.notes}
                                                         </p>
+                                                    ) : null}
+                                                    {terminalReason ? (
+                                                        <div className="mt-3 border-t border-slate-200 pt-3">
+                                                            <p className="text-xs font-semibold text-slate-700">
+                                                                {terminalReason.label}
+                                                            </p>
+                                                            {terminalReason.note ? (
+                                                                <p className="mt-1 max-w-xs text-xs leading-5 text-slate-500">
+                                                                    {terminalReason.note}
+                                                                </p>
+                                                            ) : null}
+                                                        </div>
                                                     ) : null}
                                                 </td>
                                                 <td className="min-w-48 px-4 py-5">
@@ -2507,6 +2608,21 @@ function AppointmentsPage() {
                     appointment={activityAppointment}
                     timezone={clinicTimezone}
                     onClose={() => setActivityAppointment(null)}
+                />
+            ) : null}
+
+            {terminalReasonFlow ? (
+                <TerminalAppointmentReasonDialog
+                    mode={terminalReasonFlow.mode}
+                    patientName={terminalReasonFlow.appointment.patient.fullName}
+                    doctorName={terminalReasonFlow.appointment.doctor.fullName}
+                    scheduledAtLabel={formatAppointmentDateTime(
+                        terminalReasonFlow.appointment.scheduledAt
+                    )}
+                    isSubmitting={terminalReasonFlow.isSubmitting}
+                    error={terminalReasonFlow.error}
+                    onClose={() => setTerminalReasonFlow(null)}
+                    onSubmit={(submission) => void handleTerminalReasonSubmit(submission)}
                 />
             ) : null}
         </section>

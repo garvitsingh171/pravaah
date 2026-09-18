@@ -193,3 +193,14 @@ Evidence:
 
 Legacy limitation:
 The schema migration is intentionally not a backfill. Appointments created before this feature may have no activity until a new real event occurs; this is preferred to fabricated history.
+
+## I. Structured Cancellation And No-Show Reasons
+
+Previous gap:
+Terminal appointment states recorded what happened but did not preserve a bounded operational reason.
+
+Current implementation:
+Appointment and queue terminal actions require separate cancellation/no-show enum values plus an optional note. The winning guarded appointment transition stores that context atomically and enriches the existing terminal activity with the authenticated actor. Legacy database fields and activity metadata stay null/absent; `UNKNOWN` is reserved for an explicit staff selection on a new no-show. Prediction rules, patient counting semantics, and the appointment-purpose `reason` field are unchanged.
+
+Evidence:
+`appointment.terminal-reason.ts`, conditional appointment/queue Zod schemas, guarded appointment writes in both repositories, `TerminalAppointmentReasonDialog.tsx`, terminal display/timeline rendering, and the #259 migration.

@@ -5,7 +5,10 @@ import {
 } from '../../generated/prisma/client.js';
 import { prisma } from '../../config/prisma.js';
 import type { EstablishAppointmentArrivalResult } from './appointment.arrival.repository.js';
+import type { AppointmentTerminalReasonContext } from './appointment.terminal-reason.js';
 import {
+    buildAppointmentCancelledActivityMetadata,
+    buildAppointmentNoShowActivityMetadata,
     buildAppointmentStatusActivityMetadata,
     buildPatientArrivedActivityMetadata,
     getAppointmentActivityTypeForStatus,
@@ -31,6 +34,7 @@ type RecordAppointmentTransitionActivitiesInput = {
     eventTimestamp: Date;
     didTransition: boolean;
     arrivalResult: EstablishAppointmentArrivalResult;
+    terminalReason: AppointmentTerminalReasonContext;
 };
 
 const createAppointmentActivity = (
@@ -86,6 +90,7 @@ export const appointmentActivityRepository = {
         eventTimestamp,
         didTransition,
         arrivalResult,
+        terminalReason,
     }: RecordAppointmentTransitionActivitiesInput): Promise<void> {
         if (arrivalResult.wasEstablished && arrivalResult.outcome) {
             await createAppointmentActivity(tx, {
@@ -116,13 +121,41 @@ export const appointmentActivityRepository = {
             return;
         }
 
+        let metadata: AppointmentActivityMetadata;
+
+        if (newStatus === 'CANCELLED') {
+            if (!terminalReason || !('cancellationReason' in terminalReason)) {
+                throw new Error('TERMINAL_REASON_CONTEXT_MISSING');
+            }
+
+            metadata = buildAppointmentCancelledActivityMetadata({
+                fromStatus: previousStatus,
+                toStatus: newStatus,
+                cancellationReason: terminalReason.cancellationReason,
+                cancellationNote: terminalReason.cancellationNote,
+            });
+        } else if (newStatus === 'NO_SHOW') {
+            if (!terminalReason || !('noShowReason' in terminalReason)) {
+                throw new Error('TERMINAL_REASON_CONTEXT_MISSING');
+            }
+
+            metadata = buildAppointmentNoShowActivityMetadata({
+                fromStatus: previousStatus,
+                toStatus: newStatus,
+                noShowReason: terminalReason.noShowReason,
+                noShowNote: terminalReason.noShowNote,
+            });
+        } else {
+            metadata = buildAppointmentStatusActivityMetadata(previousStatus, newStatus);
+        }
+
         await createAppointmentActivity(tx, {
             appointmentId,
             clinicId,
             actorUserId,
             type: statusActivityType,
             occurredAt: eventTimestamp,
-            metadata: buildAppointmentStatusActivityMetadata(previousStatus, newStatus),
+            metadata,
         });
     },
 };

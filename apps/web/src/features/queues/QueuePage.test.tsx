@@ -301,7 +301,48 @@ describe('QueuePage manual reorder controls', () => {
         expect(mockUpdateQueueStatus).toHaveBeenCalledWith(
             adminActiveClinic.clinicId,
             secondEntry.id,
-            QueueStatus.CALLED
+            { status: QueueStatus.CALLED }
+        );
+    });
+
+    it('captures a structured cancellation reason before a queue terminal update', async () => {
+        const user = userEvent.setup();
+        mockListTodayQueue.mockResolvedValue({ queueEntries: [firstEntry] });
+        mockUpdateQueueStatus.mockResolvedValue({
+            queueEntry: {
+                ...firstEntry,
+                status: QueueStatus.CANCELLED,
+                appointment: {
+                    ...firstEntry.appointment,
+                    status: AppointmentStatus.CANCELLED,
+                    cancellationReason: 'PATIENT_REQUEST',
+                    cancellationNote: 'Patient called reception.',
+                },
+            },
+        });
+
+        renderQueuePage();
+
+        await user.selectOptions(
+            await screen.findByRole('combobox', {
+                name: new RegExp(`update queue status for ${firstEntry.patient.fullName}`, 'i'),
+            }),
+            QueueStatus.CANCELLED
+        );
+        expect(screen.getByRole('dialog', { name: 'Cancel appointment' })).toBeInTheDocument();
+
+        await user.selectOptions(screen.getByLabelText('Cancellation reason'), 'PATIENT_REQUEST');
+        await user.type(screen.getByLabelText('Optional staff note'), 'Patient called reception.');
+        await user.click(screen.getByRole('button', { name: 'Cancel appointment' }));
+
+        expect(mockUpdateQueueStatus).toHaveBeenCalledWith(
+            adminActiveClinic.clinicId,
+            firstEntry.id,
+            {
+                status: QueueStatus.CANCELLED,
+                cancellationReason: 'PATIENT_REQUEST',
+                cancellationNote: 'Patient called reception.',
+            }
         );
     });
 

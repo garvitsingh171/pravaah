@@ -477,7 +477,7 @@ describe('updateAppointmentStatusController', () => {
         expect(mockAppointmentService.updateAppointmentStatus).toHaveBeenCalledWith(
             user,
             'appointment-id',
-            'ARRIVED'
+            { status: 'ARRIVED' }
         );
         expect(status).toHaveBeenCalledWith(200);
         expect(json).toHaveBeenCalledWith({

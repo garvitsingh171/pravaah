@@ -1,5 +1,4 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { AppointmentStatus } from '../../generated/prisma/client.js';
 import { appointmentService } from './appointment.service.js';
 import type {
     CreateAppointmentInput,
@@ -87,12 +86,12 @@ export async function updateAppointmentStatusController(
 ): Promise<void> {
     try {
         const { appointmentId } = req.params as AppointmentIdParamsInput;
-        const { status } = req.body as UpdateAppointmentStatusInput;
+        const statusUpdate = req.body as UpdateAppointmentStatusInput;
 
         const appointment = await appointmentService.updateAppointmentStatus(
             req.user,
             appointmentId,
-            status as AppointmentStatus
+            statusUpdate
         );
 
         res.status(200).json({

@@ -72,6 +72,7 @@ describe('queueRepository.updateQueueEntryStatus', () => {
                 timestampUpdates: {},
                 eventTimestamp,
                 actorUserId: 'actor-id',
+                terminalReason: null,
             })
         ).rejects.toThrow('APPOINTMENT_STATUS_TRANSITION_INVALID');
 
@@ -118,6 +119,7 @@ describe('queueRepository.updateQueueEntryStatus', () => {
             timestampUpdates: {},
             eventTimestamp,
             actorUserId: 'actor-id',
+            terminalReason: { noShowReason: 'UNKNOWN', noShowNote: null },
         });
 
         expect(mockQueueEntryUpdateMany).toHaveBeenCalledWith(
@@ -141,6 +143,8 @@ describe('queueRepository.updateQueueEntryStatus', () => {
                 }),
                 data: {
                     status: AppointmentStatus.NO_SHOW,
+                    noShowReason: 'UNKNOWN',
+                    noShowNote: null,
                 },
             })
         );
@@ -154,6 +158,12 @@ describe('queueRepository.updateQueueEntryStatus', () => {
             newStatus: AppointmentStatus.NO_SHOW,
             eventTimestamp,
         });
+        expect(mockRecordAppointmentTransitionActivities).toHaveBeenCalledWith(
+            expect.objectContaining({
+                didTransition: true,
+                terminalReason: { noShowReason: 'UNKNOWN', noShowNote: null },
+            })
+        );
     });
 
     it('uses the shared arrival writer when queue updates establish appointment presence', async () => {
@@ -197,6 +207,7 @@ describe('queueRepository.updateQueueEntryStatus', () => {
                 timestampUpdates: {},
                 eventTimestamp,
                 actorUserId: 'actor-id',
+                terminalReason: null,
             })
         ).resolves.toBe(queueEntry);
 
@@ -232,6 +243,7 @@ describe('queueRepository.updateQueueEntryStatus', () => {
                 timestampUpdates: {},
                 eventTimestamp,
                 actorUserId: 'actor-id',
+                terminalReason: null,
             })
         ).rejects.toThrow('QUEUE_STATUS_TRANSITION_INVALID');
 
@@ -265,6 +277,7 @@ describe('queueRepository.updateQueueEntryStatus', () => {
                 timestampUpdates: {},
                 eventTimestamp,
                 actorUserId: 'actor-id',
+                terminalReason: null,
             })
         ).rejects.toThrow('APPOINTMENT_STATUS_SYNC_CONFLICT');
     });
@@ -289,6 +302,7 @@ describe('queueRepository.updateQueueEntryStatus', () => {
                 timestampUpdates: {},
                 eventTimestamp,
                 actorUserId: 'actor-id',
+                terminalReason: null,
             })
         ).rejects.toThrow('QUEUE_STATUS_UPDATE_CONFLICT');
 
@@ -339,6 +353,7 @@ describe('queueRepository.updateQueueEntryStatus', () => {
                 },
                 eventTimestamp,
                 actorUserId: 'actor-id',
+                terminalReason: null,
             })
         ).resolves.toBe(queueEntry);
 

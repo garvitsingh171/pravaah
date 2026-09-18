@@ -7,6 +7,8 @@ import {
     type AppointmentActivity,
     type AppointmentListItem,
 } from './appointmentApi';
+import { cancellationReasonLabels, noShowReasonLabels } from './terminalAppointmentReasons';
+import type { AppointmentCancellationReason, AppointmentNoShowReason } from '../../types';
 
 type ActivityState =
     | { status: 'loading'; activities: AppointmentActivity[]; message: null }
@@ -150,6 +152,35 @@ function ActivityMetadata({
                 {scheduledAt && sourceLabel ? ' · ' : ''}
                 {sourceLabel ? `Booked via ${sourceLabel}` : ''}
             </p>
+        );
+    }
+
+    if (
+        activity.type === AppointmentActivityType.APPOINTMENT_CANCELLED ||
+        activity.type === AppointmentActivityType.APPOINTMENT_NO_SHOW
+    ) {
+        if (!isRecord(metadata)) {
+            return <p className="mt-1 text-sm text-slate-600">Reason not recorded</p>;
+        }
+
+        const isCancellation = activity.type === AppointmentActivityType.APPOINTMENT_CANCELLED;
+        const reason = getString(
+            isCancellation ? metadata.cancellationReason : metadata.noShowReason
+        );
+        const note = getString(isCancellation ? metadata.cancellationNote : metadata.noShowNote);
+        const label = isCancellation
+            ? reason && reason in cancellationReasonLabels
+                ? cancellationReasonLabels[reason as AppointmentCancellationReason]
+                : 'Reason not recorded'
+            : reason && reason in noShowReasonLabels
+              ? noShowReasonLabels[reason as AppointmentNoShowReason]
+              : 'Reason not recorded';
+
+        return (
+            <div className="mt-1 text-sm text-slate-600">
+                <p className="font-medium">{label}</p>
+                {note ? <p className="mt-1 leading-5">{note}</p> : null}
+            </div>
         );
     }
 

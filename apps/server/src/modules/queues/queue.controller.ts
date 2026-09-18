@@ -38,13 +38,13 @@ export async function updateQueueStatusController(
 ): Promise<void> {
     try {
         const { clinicId, queueEntryId } = req.params as QueueStatusUpdateParamsInput;
-        const { status } = req.body as UpdateQueueStatusBodyInput;
+        const statusUpdate = req.body as UpdateQueueStatusBodyInput;
 
         const queueEntry = await queueService.updateQueueStatus(
             req.user,
             clinicId,
             queueEntryId,
-            status
+            statusUpdate
         );
 
         res.status(200).json({

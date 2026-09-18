@@ -4,7 +4,54 @@ import {
     listAppointmentsQuerySchema,
     rescheduleAppointmentSchema,
     rescheduleAppointmentSlotsQuerySchema,
+    updateAppointmentStatusSchema,
 } from '../appointment.validation.js';
+
+describe('updateAppointmentStatusSchema', () => {
+    it('keeps normal status requests status-only', () => {
+        expect(updateAppointmentStatusSchema.safeParse({ status: 'CONFIRMED' }).success).toBe(true);
+    });
+
+    it('accepts cancellation and no-show payloads with their matching structured reasons', () => {
+        expect(
+            updateAppointmentStatusSchema.safeParse({
+                status: 'CANCELLED',
+                cancellationReason: 'PATIENT_REQUEST',
+                cancellationNote: '  Patient called reception.  ',
+            })
+        ).toMatchObject({
+            success: true,
+            data: { cancellationNote: 'Patient called reception.' },
+        });
+        expect(
+            updateAppointmentStatusSchema.safeParse({
+                status: 'NO_SHOW',
+                noShowReason: 'UNKNOWN',
+                noShowNote: '   ',
+            })
+        ).toMatchObject({ success: true, data: { noShowNote: undefined } });
+    });
+
+    it.each([
+        { status: 'CANCELLED' },
+        { status: 'CANCELLED', noShowReason: 'UNKNOWN' },
+        { status: 'NO_SHOW' },
+        { status: 'NO_SHOW', cancellationReason: 'PATIENT_REQUEST' },
+        { status: 'COMPLETED', cancellationReason: 'PATIENT_REQUEST' },
+    ])('rejects invalid conditional status payload %#', (payload) => {
+        expect(updateAppointmentStatusSchema.safeParse(payload).success).toBe(false);
+    });
+
+    it('rejects terminal notes longer than 500 characters', () => {
+        expect(
+            updateAppointmentStatusSchema.safeParse({
+                status: 'NO_SHOW',
+                noShowReason: 'UNKNOWN',
+                noShowNote: 'x'.repeat(501),
+            }).success
+        ).toBe(false);
+    });
+});
 
 describe('listAppointmentsQuerySchema', () => {
     it('rejects invalid calendar dates', () => {

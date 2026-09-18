@@ -26,6 +26,36 @@ export const AppointmentStatus = {
 
 export type AppointmentStatus = (typeof AppointmentStatus)[keyof typeof AppointmentStatus];
 
+export const AppointmentCancellationReason = {
+    PATIENT_REQUEST: 'PATIENT_REQUEST',
+    PATIENT_ILLNESS: 'PATIENT_ILLNESS',
+    PATIENT_EMERGENCY: 'PATIENT_EMERGENCY',
+    DOCTOR_UNAVAILABLE: 'DOCTOR_UNAVAILABLE',
+    CLINIC_REQUEST: 'CLINIC_REQUEST',
+    SCHEDULING_CONFLICT: 'SCHEDULING_CONFLICT',
+    TRANSPORTATION_ISSUE: 'TRANSPORTATION_ISSUE',
+    DUPLICATE_BOOKING: 'DUPLICATE_BOOKING',
+    RESCHEDULED_ELSEWHERE: 'RESCHEDULED_ELSEWHERE',
+    OTHER: 'OTHER',
+} as const;
+
+export type AppointmentCancellationReason =
+    (typeof AppointmentCancellationReason)[keyof typeof AppointmentCancellationReason];
+
+export const AppointmentNoShowReason = {
+    FORGOT_APPOINTMENT: 'FORGOT_APPOINTMENT',
+    UNREACHABLE: 'UNREACHABLE',
+    TRANSPORTATION_ISSUE: 'TRANSPORTATION_ISSUE',
+    PATIENT_EMERGENCY: 'PATIENT_EMERGENCY',
+    SCHEDULING_MISUNDERSTANDING: 'SCHEDULING_MISUNDERSTANDING',
+    NO_CONFIRMATION: 'NO_CONFIRMATION',
+    OTHER: 'OTHER',
+    UNKNOWN: 'UNKNOWN',
+} as const;
+
+export type AppointmentNoShowReason =
+    (typeof AppointmentNoShowReason)[keyof typeof AppointmentNoShowReason];
+
 export const QueueStatus = {
     WAITING: 'WAITING',
     ARRIVED: 'ARRIVED',
