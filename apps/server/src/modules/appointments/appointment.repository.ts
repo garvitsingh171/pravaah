@@ -7,6 +7,8 @@ import type {
 import { applyPatientAppointmentOutcome } from '../patients/patient.statistics.repository.js';
 import { isPresenceEstablishingAppointmentStatus } from './appointment.arrival.js';
 import { establishAppointmentArrivalIfNeeded } from './appointment.arrival.repository.js';
+import type { EstablishAppointmentArrivalResult } from './appointment.arrival.repository.js';
+import { appointmentActivityRepository } from './appointment.activity.repository.js';
 import {
     finalAppointmentStatuses,
     isAppointmentStatusTransitionAllowed,
@@ -487,7 +489,12 @@ export const appointmentRepository = {
         });
     },
 
-    updateAppointmentStatus(appointmentId: string, clinicId: string, status: AppointmentStatus) {
+    updateAppointmentStatus(
+        appointmentId: string,
+        clinicId: string,
+        actorUserId: string,
+        status: AppointmentStatus
+    ) {
         const queueStatus = appointmentStatusToQueueStatus[status];
         const now = new Date();
 
@@ -544,6 +551,10 @@ export const appointmentRepository = {
             }
 
             let didTransition = false;
+            let arrivalResult: EstablishAppointmentArrivalResult = {
+                wasEstablished: false,
+                outcome: null,
+            };
 
             if (existingAppointment.status !== status) {
                 const updateResult = await tx.appointment.updateMany({
@@ -583,7 +594,7 @@ export const appointmentRepository = {
                 existingAppointment.arrivedAt === null &&
                 isPresenceEstablishingAppointmentStatus(status)
             ) {
-                await establishAppointmentArrivalIfNeeded({
+                arrivalResult = await establishAppointmentArrivalIfNeeded({
                     tx,
                     appointmentId,
                     clinicId: existingAppointment.clinicId,
@@ -656,6 +667,18 @@ export const appointmentRepository = {
                     eventTimestamp: now,
                 });
             }
+
+            await appointmentActivityRepository.recordAppointmentTransitionActivities({
+                tx,
+                appointmentId,
+                clinicId: existingAppointment.clinicId,
+                actorUserId,
+                previousStatus: existingAppointment.status,
+                newStatus: status,
+                eventTimestamp: now,
+                didTransition,
+                arrivalResult,
+            });
 
             const appointment = await tx.appointment.findFirst({
                 where: {

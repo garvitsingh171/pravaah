@@ -161,3 +161,27 @@ export async function rescheduleAppointmentController(
         next(error);
     }
 }
+
+export async function listAppointmentActivitiesController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { appointmentId } = req.params as AppointmentIdParamsInput;
+        const activities = await appointmentService.listAppointmentActivities(
+            req.user,
+            appointmentId
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'Appointment activities fetched successfully',
+            data: {
+                activities,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+}

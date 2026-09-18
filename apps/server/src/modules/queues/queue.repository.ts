@@ -2,6 +2,8 @@ import { prisma } from '../../config/prisma.js';
 import { AppointmentStatus, Prisma, QueueStatus } from '../../generated/prisma/client.js';
 import { isPresenceEstablishingAppointmentStatus } from '../appointments/appointment.arrival.js';
 import { establishAppointmentArrivalIfNeeded } from '../appointments/appointment.arrival.repository.js';
+import type { EstablishAppointmentArrivalResult } from '../appointments/appointment.arrival.repository.js';
+import { appointmentActivityRepository } from '../appointments/appointment.activity.repository.js';
 import { isAppointmentStatusTransitionAllowed } from '../appointments/appointment.lifecycle.js';
 import { applyPatientAppointmentOutcome } from '../patients/patient.statistics.repository.js';
 import { isQueueStatusTransitionAllowed } from './queue.lifecycle.js';
@@ -107,6 +109,7 @@ type UpdateQueueEntryStatusInput = {
     appointmentStatus: AppointmentStatus;
     timestampUpdates: { calledAt?: Date; completedAt?: Date };
     eventTimestamp: Date;
+    actorUserId: string;
 };
 
 export const queueRepository = {
@@ -254,6 +257,7 @@ export const queueRepository = {
         appointmentStatus,
         timestampUpdates,
         eventTimestamp,
+        actorUserId,
     }: UpdateQueueEntryStatusInput) {
         return prisma.$transaction(async (tx) => {
             const existingQueueEntry = await tx.queueEntry.findFirst({
@@ -297,6 +301,10 @@ export const queueRepository = {
             }
 
             let didAppointmentTransition = false;
+            let arrivalResult: EstablishAppointmentArrivalResult = {
+                wasEstablished: false,
+                outcome: null,
+            };
 
             if (existingQueueEntry.appointment.status !== appointmentStatus) {
                 const appointmentUpdateResult = await tx.appointment.updateMany({
@@ -387,7 +395,7 @@ export const queueRepository = {
                 existingQueueEntry.appointment.arrivedAt === null &&
                 isPresenceEstablishingAppointmentStatus(appointmentStatus)
             ) {
-                await establishAppointmentArrivalIfNeeded({
+                arrivalResult = await establishAppointmentArrivalIfNeeded({
                     tx,
                     appointmentId,
                     clinicId,
@@ -408,6 +416,18 @@ export const queueRepository = {
                     eventTimestamp,
                 });
             }
+
+            await appointmentActivityRepository.recordAppointmentTransitionActivities({
+                tx,
+                appointmentId,
+                clinicId,
+                actorUserId,
+                previousStatus: existingQueueEntry.appointment.status,
+                newStatus: appointmentStatus,
+                eventTimestamp,
+                didTransition: didAppointmentTransition,
+                arrivalResult,
+            });
 
             return tx.queueEntry.findUniqueOrThrow({
                 where: {

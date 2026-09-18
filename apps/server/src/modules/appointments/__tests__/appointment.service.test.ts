@@ -1,7 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AppointmentStatus, UserRole, UserStatus } from '../../../generated/prisma/client.js';
+import {
+    AppointmentActivityType,
+    AppointmentStatus,
+    UserRole,
+    UserStatus,
+} from '../../../generated/prisma/client.js';
 
-const mockTx = {};
+const mockTransactionAppointmentFindFirst = vi.hoisted(() => vi.fn());
+const mockTx = {
+    appointment: {
+        findFirst: mockTransactionAppointmentFindFirst,
+    },
+};
 
 const mockAppointmentRepository = vi.hoisted(() => ({
     findClinicById: vi.fn(),
@@ -21,11 +31,17 @@ const mockAppointmentRepository = vi.hoisted(() => ({
     createAppointment: vi.fn(),
     createNoShowPrediction: vi.fn(),
     updateAppointmentStatus: vi.fn(),
+    findAppointmentById: vi.fn(),
+    findAppointmentDetailsById: vi.fn(),
+    findAppointmentRescheduleState: vi.fn(),
+    updateAppointmentScheduledAt: vi.fn(),
+    updateQueueEntryPosition: vi.fn(),
 }));
 
 const mockQueueRepository = vi.hoisted(() => ({
     findHighestQueuePosition: vi.fn(),
     createQueueEntry: vi.fn(),
+    acquireQueueScopeLocks: vi.fn(),
 }));
 
 const mockQueueService = vi.hoisted(() => ({
@@ -34,6 +50,12 @@ const mockQueueService = vi.hoisted(() => ({
 
 const mockAccessService = vi.hoisted(() => ({
     verifyAppointmentClinicAccess: vi.fn(),
+    requireClinicStaff: vi.fn(),
+}));
+
+const mockAppointmentActivityRepository = vi.hoisted(() => ({
+    createAppointmentActivity: vi.fn(),
+    findAppointmentActivities: vi.fn(),
 }));
 
 const mockPredictNoShowRisk = vi.hoisted(() => vi.fn());
@@ -69,6 +91,10 @@ vi.mock('../../queues/queue.service.js', () => ({
 
 vi.mock('../../auth/access.service.js', () => ({
     accessService: mockAccessService,
+}));
+
+vi.mock('../appointment.activity.repository.js', () => ({
+    appointmentActivityRepository: mockAppointmentActivityRepository,
 }));
 
 vi.mock('../../predictions/prediction.service.js', () => ({
@@ -117,6 +143,7 @@ const mockValidSchedulingPolicy = () => {
 describe('appointmentService.createAppointment', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockAccessService.requireClinicStaff.mockReturnValue(authenticatedUser);
 
         mockAppointmentRepository.runInTransaction.mockImplementation(async (operation) => {
             return operation(mockTx);
@@ -147,6 +174,7 @@ describe('appointmentService.createAppointment', () => {
             patientId: input.patientId,
             scheduledAt: appointmentScheduledAt,
             createdAt: appointmentCreatedAt,
+            bookingSource: input.bookingSource,
         };
 
         const noShowPrediction = {
@@ -265,6 +293,21 @@ describe('appointmentService.createAppointment', () => {
             input.durationMinutes,
             clinicSchedulingSettings.bufferMinutes,
             ['SCHEDULED', 'CONFIRMED', 'ARRIVED', 'IN_QUEUE', 'CALLED']
+        );
+        expect(mockAppointmentActivityRepository.createAppointmentActivity).toHaveBeenCalledWith(
+            mockTx,
+            expect.objectContaining({
+                appointmentId: appointment.id,
+                clinicId,
+                actorUserId: createdByUserId,
+                occurredAt: appointmentCreatedAt,
+                metadata: {
+                    scheduledAt: appointmentScheduledAt.toISOString(),
+                    bookingSource: 'RECEPTION',
+                    doctorId: input.doctorId,
+                    patientId: input.patientId,
+                },
+            })
         );
 
         expect(mockAppointmentRepository.createNoShowPrediction).toHaveBeenCalledWith(
@@ -646,6 +689,7 @@ describe('appointmentService.listAvailableSlots', () => {
 describe('appointmentService.updateAppointmentStatus', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockAccessService.requireClinicStaff.mockReturnValue(authenticatedUser);
     });
 
     it('updates appointment status using the clinic verified from access checks', async () => {
@@ -683,6 +727,7 @@ describe('appointmentService.updateAppointmentStatus', () => {
         expect(mockAppointmentRepository.updateAppointmentStatus).toHaveBeenCalledWith(
             'appointment-id',
             'clinic-id',
+            'user-id',
             AppointmentStatus.COMPLETED
         );
     });
@@ -746,5 +791,140 @@ describe('appointmentService.updateAppointmentStatus', () => {
         ).rejects.toThrow('CLINIC_ACCESS_DENIED');
 
         expect(mockAppointmentRepository.updateAppointmentStatus).not.toHaveBeenCalled();
+    });
+});
+
+describe('appointmentService.rescheduleAppointment', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockAccessService.requireClinicStaff.mockReturnValue(authenticatedUser);
+        mockAccessService.verifyAppointmentClinicAccess.mockResolvedValue({
+            id: 'appointment-id',
+            clinicId: 'clinic-id',
+        });
+        mockAppointmentRepository.runInTransaction.mockImplementation(async (operation) => {
+            return operation(mockTx);
+        });
+    });
+
+    it('records the authenticated actor and authoritative old/new times in the transaction', async () => {
+        const currentScheduledAt = new Date('2099-09-18T04:30:00.000Z');
+        const requestedScheduledAt = new Date('2099-09-18T05:30:00.000Z');
+        const queueEntry = { id: 'queue-entry-id', position: 1, status: 'WAITING' };
+        const currentAppointment = {
+            id: 'appointment-id',
+            clinicId: 'clinic-id',
+            doctorId: 'doctor-id',
+            patientId: 'patient-id',
+            scheduledAt: currentScheduledAt,
+            durationMinutes: 15,
+            status: AppointmentStatus.SCHEDULED,
+            queueEntry,
+        };
+        const updatedAppointment = {
+            ...currentAppointment,
+            scheduledAt: requestedScheduledAt,
+            noShowPrediction: null,
+        };
+
+        mockAppointmentRepository.findAppointmentById.mockResolvedValue(currentAppointment);
+        mockAppointmentRepository.findClinicById.mockResolvedValue({
+            id: 'clinic-id',
+            isActive: true,
+            ...clinicSchedulingSettings,
+        });
+        mockAppointmentRepository.findDoctorById.mockResolvedValue({
+            id: 'doctor-id',
+            isActive: true,
+        });
+        mockAppointmentRepository.findActiveDoctorClinicLink.mockResolvedValue({
+            id: 'doctor-clinic-id',
+            isActive: true,
+        });
+        mockAppointmentRepository.getClinicLocalAppointmentParts.mockResolvedValue({
+            localDate: '2099-09-18',
+            localTime: '11:00',
+            isoWeekday: 5,
+            seconds: 0,
+        });
+        mockAppointmentRepository.findDoctorAvailabilityPeriods.mockResolvedValue([
+            { weekday: 'FRIDAY', startTime: '09:00', endTime: '18:00' },
+        ]);
+        mockAppointmentRepository.findAppointmentRescheduleState.mockResolvedValue(
+            currentAppointment
+        );
+        mockAppointmentRepository.findOverlappingDoctorAppointment.mockResolvedValue([]);
+        mockAppointmentRepository.updateAppointmentScheduledAt.mockResolvedValue({ count: 1 });
+        mockTransactionAppointmentFindFirst.mockResolvedValue(updatedAppointment);
+
+        await appointmentService.rescheduleAppointment(
+            authenticatedUser,
+            'appointment-id',
+            requestedScheduledAt.toISOString(),
+            currentScheduledAt.toISOString()
+        );
+
+        expect(mockAppointmentActivityRepository.createAppointmentActivity).toHaveBeenCalledWith(
+            mockTx,
+            expect.objectContaining({
+                appointmentId: 'appointment-id',
+                clinicId: 'clinic-id',
+                actorUserId: 'user-id',
+                metadata: {
+                    previousScheduledAt: currentScheduledAt.toISOString(),
+                    newScheduledAt: requestedScheduledAt.toISOString(),
+                },
+            })
+        );
+    });
+});
+
+describe('appointmentService.listAppointmentActivities', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockAccessService.requireClinicStaff.mockReturnValue(authenticatedUser);
+        mockAccessService.verifyAppointmentClinicAccess.mockResolvedValue({
+            id: 'appointment-id',
+            clinicId: 'clinic-id',
+        });
+    });
+
+    it('uses appointment access and returns logical arrival-first ordering', async () => {
+        const occurredAt = new Date('2026-09-18T10:18:00.000Z');
+        const createdAt = new Date('2026-09-18T10:18:01.000Z');
+
+        mockAppointmentActivityRepository.findAppointmentActivities.mockResolvedValue([
+            {
+                id: 'entered-queue-id',
+                type: AppointmentActivityType.ENTERED_QUEUE,
+                occurredAt,
+                createdAt,
+                metadata: { fromStatus: 'CONFIRMED', toStatus: 'IN_QUEUE' },
+                actor: { id: 'user-id', fullName: 'Clinic Admin', role: UserRole.ADMIN },
+            },
+            {
+                id: 'arrival-id',
+                type: AppointmentActivityType.PATIENT_ARRIVED,
+                occurredAt,
+                createdAt,
+                metadata: { arrivalOffsetMinutes: 18, isLateArrival: true },
+                actor: { id: 'user-id', fullName: 'Clinic Admin', role: UserRole.ADMIN },
+            },
+        ]);
+
+        const activities = await appointmentService.listAppointmentActivities(
+            authenticatedUser,
+            'appointment-id'
+        );
+
+        expect(mockAppointmentActivityRepository.findAppointmentActivities).toHaveBeenCalledWith(
+            'appointment-id',
+            'clinic-id'
+        );
+        expect(activities.map((activity) => activity.type)).toEqual([
+            AppointmentActivityType.PATIENT_ARRIVED,
+            AppointmentActivityType.ENTERED_QUEUE,
+        ]);
+        expect(activities[0]).not.toHaveProperty('createdAt');
     });
 });

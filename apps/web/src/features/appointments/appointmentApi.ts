@@ -1,12 +1,14 @@
 import { apiClient } from '../../lib';
-import type {
-    AppointmentStatus,
-    AppointmentSummary,
-    BookingSource,
-    DoctorSummary,
-    PatientSummary,
-    QueueEntrySummary,
-    RiskLevel,
+import {
+    AppointmentActivityType,
+    type AppointmentStatus,
+    type AppointmentSummary,
+    type BookingSource,
+    type DoctorSummary,
+    type PatientSummary,
+    type QueueEntrySummary,
+    type RiskLevel,
+    type UserRole,
 } from '../../types';
 
 export type CreateAppointmentRequest = {
@@ -112,6 +114,64 @@ export type RescheduleAppointmentResponseData = {
     appointment: AppointmentListItem;
 };
 
+type AppointmentActivityActor = {
+    id: string;
+    fullName: string;
+    role: UserRole;
+};
+
+type AppointmentCreatedActivityMetadata = {
+    scheduledAt: string;
+    bookingSource: BookingSource;
+    doctorId: string;
+    patientId: string;
+};
+
+type AppointmentStatusActivityMetadata = {
+    fromStatus: AppointmentStatus;
+    toStatus: AppointmentStatus;
+};
+
+type PatientArrivedActivityMetadata = AppointmentStatusActivityMetadata & {
+    arrivalOffsetMinutes: number;
+    isLateArrival: boolean;
+    lateArrivalGraceMinutes: number;
+};
+
+type AppointmentRescheduledActivityMetadata = {
+    previousScheduledAt: string;
+    newScheduledAt: string;
+};
+
+type AppointmentActivityMetadataByType = {
+    APPOINTMENT_CREATED: AppointmentCreatedActivityMetadata;
+    APPOINTMENT_CONFIRMED: AppointmentStatusActivityMetadata;
+    PATIENT_ARRIVED: PatientArrivedActivityMetadata;
+    ENTERED_QUEUE: AppointmentStatusActivityMetadata;
+    PATIENT_CALLED: AppointmentStatusActivityMetadata;
+    APPOINTMENT_COMPLETED: AppointmentStatusActivityMetadata;
+    APPOINTMENT_CANCELLED: AppointmentStatusActivityMetadata;
+    APPOINTMENT_NO_SHOW: AppointmentStatusActivityMetadata;
+    APPOINTMENT_RESCHEDULED: AppointmentRescheduledActivityMetadata;
+};
+
+type AppointmentActivityBase = {
+    id: string;
+    occurredAt: string;
+    actor: AppointmentActivityActor | null;
+};
+
+export type AppointmentActivity = {
+    [Type in AppointmentActivityType]: AppointmentActivityBase & {
+        type: Type;
+        metadata: AppointmentActivityMetadataByType[Type] | null;
+    };
+}[AppointmentActivityType];
+
+export type AppointmentActivitiesResponseData = {
+    activities: AppointmentActivity[];
+};
+
 const getAppointmentCollectionPath = (clinicId: string): string => {
     return `/clinics/${encodeURIComponent(clinicId)}/appointments`;
 };
@@ -189,5 +249,12 @@ export const rescheduleAppointment = (
     return apiClient.patch<RescheduleAppointmentResponseData>(
         `/appointments/${encodeURIComponent(appointmentId)}/reschedule`,
         payload
+    );
+};
+
+export const listAppointmentActivities = (appointmentId: string, signal?: AbortSignal) => {
+    return apiClient.get<AppointmentActivitiesResponseData>(
+        `/appointments/${encodeURIComponent(appointmentId)}/activities`,
+        { signal }
     );
 };

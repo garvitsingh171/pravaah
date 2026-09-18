@@ -7,6 +7,7 @@ import {
 } from '../auth/auth.middleware.js';
 import {
     createAppointmentController,
+    listAppointmentActivitiesController,
     listAppointmentRescheduleSlotsController,
     listAvailableAppointmentSlotsController,
     listAppointmentsController,
@@ -72,6 +73,16 @@ appointmentRouter.patch(
     }),
     requireClinicStaffRole,
     updateAppointmentStatusController
+);
+
+appointmentRouter.get(
+    '/appointments/:appointmentId/activities',
+    authenticateRequest,
+    validateRequest({
+        params: appointmentIdParamsSchema,
+    }),
+    requireClinicStaffRole,
+    listAppointmentActivitiesController
 );
 
 appointmentRouter.get(

@@ -144,3 +144,5 @@ Patients are records used by clinic-side Admin/Staff users. They are not authent
 ## How To Explain This Workflow
 
 Patient records are split into a shared `Patient` row and a clinic-specific `PatientClinic` row. That lets the product store clinic-local notes and event-maintained attendance history separately from the base person record. The UI displays bookings, completed visits, no-shows, late arrivals, and last completed visit without exposing manual counter controls.
+
+`AppointmentActivity` does not replace these aggregates. Timeline rows answer what happened to one appointment and who performed the action; `PatientClinic` remains the efficient clinic-scoped source for appointment, completion, no-show, late-arrival, and last-visit statistics. Patient APIs never derive these counters by scanning timeline rows, and activity insertion does not change prediction inputs or recalculation behavior.

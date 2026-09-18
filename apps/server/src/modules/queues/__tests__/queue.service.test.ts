@@ -13,6 +13,7 @@ const mockQueueRepository = vi.hoisted(() => ({
 
 const mockAccessService = vi.hoisted(() => ({
     verifyClinicAccess: vi.fn(),
+    requireClinicStaff: vi.fn(),
 }));
 
 vi.mock('../queue.repository.js', () => ({
@@ -183,6 +184,7 @@ describe('queueService.listQueueByClinicDate', () => {
 describe('queueService.updateQueueStatus', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockAccessService.requireClinicStaff.mockReturnValue(authenticatedUser);
         mockAccessService.verifyClinicAccess.mockResolvedValue({
             id: 'clinic-id',
             isActive: true,
@@ -256,6 +258,36 @@ describe('queueService.updateQueueStatus', () => {
         expect(mockQueueRepository.updateQueueEntryStatus).not.toHaveBeenCalled();
         expect(result.status).toBe(QueueStatus.WAITING);
         expect(result.appointment.status).toBe(AppointmentStatus.SCHEDULED);
+    });
+
+    it('passes the current authenticated queue operator as the activity actor', async () => {
+        const queueEntry = createQueueEntry({ status: QueueStatus.WAITING });
+        const updatedQueueEntry = {
+            ...queueEntry,
+            status: QueueStatus.CALLED,
+            appointment: {
+                ...queueEntry.appointment,
+                status: AppointmentStatus.CALLED,
+            },
+        };
+
+        mockQueueRepository.findQueueEntryById.mockResolvedValue(queueEntry);
+        mockQueueRepository.updateQueueEntryStatus.mockResolvedValue(updatedQueueEntry);
+
+        await queueService.updateQueueStatus(
+            authenticatedUser,
+            'clinic-id',
+            'queue-entry-id',
+            QueueStatus.CALLED
+        );
+
+        expect(mockQueueRepository.updateQueueEntryStatus).toHaveBeenCalledWith(
+            expect.objectContaining({
+                actorUserId: authenticatedUser.id,
+                appointmentStatus: AppointmentStatus.CALLED,
+                eventTimestamp: expect.any(Date),
+            })
+        );
     });
 });
 

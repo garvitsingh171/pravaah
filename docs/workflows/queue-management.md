@@ -254,3 +254,9 @@ The queue status graph is centralized in `queue.lifecycle.ts` and enforced by th
 ## How To Explain This Workflow
 
 The queue is created when appointments are booked. Staff can then change queue status through the enforced queue lifecycle or manually reorder active entries. Queue status updates synchronize the linked appointment inside the same transaction, subject to appointment lifecycle rules. Reorder is conservative: it only works within one doctor/date queue, requires the complete active set, locks that scope, rechecks it, and rewrites positions atomically.
+
+## Queue-Driven Appointment Activity
+
+Queue actions do not create a second queue-history stream. When a queue transaction successfully owns its synchronized appointment update, `didAppointmentTransition` permits the corresponding `AppointmentActivity` insert in that same transaction. If the appointment update is a same-target retry or another transaction already owns it, no duplicate activity is written.
+
+The queue action's authenticated Admin/Staff user is the activity actor. The queue `eventTimestamp` is reused for arrival/called/completed operational timestamps, patient outcome aggregates, and appointment activity. If a queue action first establishes presence, the shared arrival helper produces `PATIENT_ARRIVED`; the actual target event is then added only when it is another committed fact. There is no `QueueActivity` table.
