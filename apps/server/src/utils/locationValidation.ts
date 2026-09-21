@@ -46,6 +46,22 @@ export const countryWithDefaultIndia = z.preprocess(
         .default('India')
 );
 
+export const getIndiaPincodeValidationMessage = (
+    country: string | null | undefined,
+    pincode: string | null | undefined
+): string | undefined => {
+    if (
+        country?.trim().toLowerCase() === 'india' &&
+        pincode !== undefined &&
+        pincode !== null &&
+        !/^\d{6}$/.test(pincode)
+    ) {
+        return 'Indian pincodes must contain exactly 6 digits';
+    }
+
+    return undefined;
+};
+
 export const refineIndiaPincode = (
     data: {
         country?: string | null | undefined;
@@ -53,16 +69,13 @@ export const refineIndiaPincode = (
     },
     context: z.RefinementCtx
 ): void => {
-    if (
-        data.country?.trim().toLowerCase() === 'india' &&
-        data.pincode !== undefined &&
-        data.pincode !== null &&
-        !/^\d{6}$/.test(data.pincode)
-    ) {
+    const message = getIndiaPincodeValidationMessage(data.country, data.pincode);
+
+    if (message) {
         context.addIssue({
             code: z.ZodIssueCode.custom,
             path: ['pincode'],
-            message: 'Indian pincodes must contain exactly 6 digits',
+            message,
         });
     }
 };

@@ -486,6 +486,7 @@ export const clinicRepository = {
                         email: patient.email,
                         gender: patient.gender,
                         age: patient.age,
+                        address: patient.addressLine1,
                         addressLine1: patient.addressLine1,
                         addressLine2: patient.addressLine2 ?? null,
                         city: patient.city,

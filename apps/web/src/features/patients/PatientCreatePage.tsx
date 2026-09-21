@@ -184,7 +184,9 @@ const toCreatePatientRequest = (values: PatientFormValues): CreatePatientRequest
 };
 
 const hasMeaningfulPatientValues = (values: PatientFormValues): boolean => {
-    return Object.values(values).some((value) => value.trim().length > 0);
+    return (Object.keys(values) as Array<keyof PatientFormValues>).some(
+        (field) => values[field].trim() !== emptyFormValues[field].trim()
+    );
 };
 
 function PatientCreatePage() {
