@@ -151,3 +151,10 @@ flowchart LR
 ## How To Explain This Workflow
 
 Risk assistance is a transparent rules engine. It turns clinic-local history and appointment timing into a stored score, reasons, and suggested staff actions. The result is advisory context for humans, not an automated decision.
+
+## Geocoding Boundary
+
+Geoapify-derived coordinates are not an input to no-show risk. Existing
+`PatientClinic.distanceFromClinicKm` behavior, thresholds, scores, reasons,
+versions, and prediction timing remain unchanged. Prediction never calls
+Geoapify or calculates distance.

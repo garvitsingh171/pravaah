@@ -33,3 +33,13 @@ Migrations:
 - [add queue entry model](../../apps/server/prisma/migrations/20260607050107_add_queue_entry_model/migration.sql)
 - [add active doctor slot unique index](../../apps/server/prisma/migrations/20260612120303_add_active_doctor_slot_unique_index/migration.sql)
 - [add no-show prediction model](../../apps/server/prisma/migrations/20260623000000_add_no_show_prediction_model/migration.sql)
+
+## Geoapify Geocoding Evidence (#265)
+
+- Provider client: [geoapify.client.ts](../../apps/server/src/integrations/geoapify/geoapify.client.ts)
+- Canonical address and SHA-256 source fingerprint:
+  [location.ts](../../apps/server/src/utils/location.ts)
+- Conditional persistence: Clinic/Patient services and repositories
+- Offline provider mapping/timeout tests:
+  [geoapify.client.test.ts](../../apps/server/src/integrations/geoapify/geoapify.client.test.ts)
+- Migration intentionally awaits owner review as `add_geoapify_geocoding`.

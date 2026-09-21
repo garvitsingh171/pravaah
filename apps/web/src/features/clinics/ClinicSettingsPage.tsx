@@ -6,6 +6,7 @@ import { Badge, Button, PageHeader, fieldControlClassName } from '../../componen
 import { isApiClientError } from '../../lib';
 import {
     getClinicSettings,
+    retryClinicGeocoding,
     updateClinicSettings,
     type ClinicSettings,
     type UpdateClinicSettingsRequest,
@@ -61,6 +62,20 @@ const fieldBaseClass = fieldControlClassName;
 
 const timeShape = /^([01]\d|2[0-3]):[0-5]\d$/;
 const emailShape = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const getLocationLookupStatus = (
+    status: ClinicSettings['geocodingStatus']
+): { label: string; tone: 'success' | 'danger' | 'neutral' } => {
+    if (status === 'GEOCODED') {
+        return { label: 'Location found', tone: 'success' };
+    }
+
+    if (status === 'FAILED') {
+        return { label: 'Location lookup failed', tone: 'danger' };
+    }
+
+    return { label: 'Location not looked up', tone: 'neutral' };
+};
 
 const validationFieldMap: Partial<Record<string, keyof ClinicSettingsFormValues>> = {
     'body.name': 'name',
@@ -441,6 +456,7 @@ function ClinicSettingsPage() {
     const [formErrorDetails, setFormErrorDetails] = useState<BackendValidationDetail[]>([]);
     const [statusMessage, setStatusMessage] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isRetryingGeocoding, setIsRetryingGeocoding] = useState(false);
 
     const loadSettings = useCallback(
         (signal?: AbortSignal) => {
@@ -631,6 +647,38 @@ function ClinicSettingsPage() {
         void handleSubmit();
     };
 
+    const handleGeocodingRetry = async () => {
+        if (isRetryingGeocoding) {
+            return;
+        }
+
+        setIsRetryingGeocoding(true);
+        setFormError(null);
+        setFormErrorCode(undefined);
+        setFormErrorDetails([]);
+
+        try {
+            const { clinic } = await retryClinicGeocoding(clinicId);
+            const nextValues = toFormValues(clinic);
+
+            setState({ status: 'ready', clinic, error: null });
+            setInitialValues(nextValues);
+            setValues(nextValues);
+            setStatusMessage('Location lookup completed successfully.');
+            showSuccessToast('Location lookup completed successfully.');
+        } catch (error) {
+            const message = isApiClientError(error)
+                ? error.message
+                : 'Location lookup could not be completed. Please try again.';
+
+            setFormError(message);
+            setFormErrorCode(isApiClientError(error) ? error.code : 'LOCATION_LOOKUP_FAILED');
+            showErrorToast(message);
+        } finally {
+            setIsRetryingGeocoding(false);
+        }
+    };
+
     if (!isAdmin) {
         return (
             <section className="mx-auto max-w-2xl">
@@ -706,6 +754,36 @@ function ClinicSettingsPage() {
             ) : null}
 
             <ClinicSettingsSummary clinic={state.clinic} />
+
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4">
+                <div>
+                    <p className="text-sm font-semibold text-slate-900">Location lookup</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                        Uses the saved structured address; no map is shown or stored in the form.
+                    </p>
+                </div>
+                <div className="flex items-center gap-3">
+                    {(() => {
+                        const lookupStatus = getLocationLookupStatus(
+                            state.clinic.geocodingStatus
+                        );
+
+                        return <Badge tone={lookupStatus.tone}>{lookupStatus.label}</Badge>;
+                    })()}
+                    {state.clinic.geocodingStatus === 'FAILED' ? (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => void handleGeocodingRetry()}
+                            isLoading={isRetryingGeocoding}
+                            loadingText="Retrying..."
+                            disabled={isSubmitting}
+                        >
+                            Retry location lookup
+                        </Button>
+                    ) : null}
+                </div>
+            </div>
 
             <form
                 className="space-y-6 rounded-lg border border-slate-200 bg-white p-6 md:p-8"

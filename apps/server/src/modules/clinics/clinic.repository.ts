@@ -31,6 +31,7 @@ import type {
     UpdateClinicInput,
 } from './clinic.types.js';
 import { isSupportedClinicTimezone } from './clinicTimezone.js';
+import type { GeocodingResult } from '../../integrations/geoapify/geoapify.types.js';
 
 type SampleAppointmentDefinition = {
     doctorIndex: number;
@@ -310,6 +311,15 @@ const clinicSettingsSelect = {
     state: true,
     country: true,
     pincode: true,
+    latitude: true,
+    longitude: true,
+    geocodingStatus: true,
+    geocodingProvider: true,
+    geocodingConfidence: true,
+    geocodingResultType: true,
+    geocodingMatchType: true,
+    geocodedAddress: true,
+    geocodedAt: true,
     timezone: true,
     openingTime: true,
     closingTime: true,
@@ -319,6 +329,24 @@ const clinicSettingsSelect = {
     createdAt: true,
     updatedAt: true,
 } satisfies Prisma.ClinicSelect;
+
+type GeocodingInvalidation = {
+    sourceHash: string;
+};
+
+const geocodingInvalidationData = (sourceHash: string) => ({
+    latitude: null,
+    longitude: null,
+    geocodingStatus: 'NOT_GEOCODED' as const,
+    geocodingProvider: null,
+    geocodingConfidence: null,
+    geocodingResultType: null,
+    geocodingMatchType: null,
+    geocodingPlaceId: null,
+    geocodedAddress: null,
+    geocodedAt: null,
+    geocodingSourceHash: sourceHash,
+});
 
 export const clinicRepository = {
     findById(id: string) {
@@ -338,7 +366,7 @@ export const clinicRepository = {
         });
     },
 
-    update(id: string, data: UpdateClinicInput) {
+    update(id: string, data: UpdateClinicInput, geocodingInvalidation?: GeocodingInvalidation) {
         const updateData: Prisma.ClinicUpdateInput = {};
 
         if (data.name !== undefined) updateData.name = data.name;
@@ -370,12 +398,57 @@ export const clinicRepository = {
             updateData.lateArrivalGraceMinutes = data.lateArrivalGraceMinutes;
         }
 
+        if (geocodingInvalidation) {
+            Object.assign(updateData, geocodingInvalidationData(geocodingInvalidation.sourceHash));
+        }
+
         return prisma.clinic.update({
             where: {
                 id,
             },
             data: updateData,
             select: clinicSettingsSelect,
+        });
+    },
+
+    prepareGeocoding(id: string, sourceHash: string) {
+        return prisma.clinic.update({
+            where: { id },
+            data: geocodingInvalidationData(sourceHash),
+            select: clinicSettingsSelect,
+        });
+    },
+
+    saveGeocodingResultIfCurrent(id: string, sourceHash: string, result: GeocodingResult) {
+        return prisma.clinic.updateMany({
+            where: {
+                id,
+                geocodingSourceHash: sourceHash,
+            },
+            data: {
+                latitude: result.latitude,
+                longitude: result.longitude,
+                geocodingStatus: 'GEOCODED',
+                geocodingProvider: 'GEOAPIFY',
+                geocodingConfidence: result.confidence,
+                geocodingResultType: result.resultType,
+                geocodingMatchType: result.matchType,
+                geocodingPlaceId: result.placeId,
+                geocodedAddress: result.formattedAddress,
+                geocodedAt: new Date(),
+            },
+        });
+    },
+
+    markGeocodingFailedIfCurrent(id: string, sourceHash: string) {
+        return prisma.clinic.updateMany({
+            where: {
+                id,
+                geocodingSourceHash: sourceHash,
+            },
+            data: {
+                geocodingStatus: 'FAILED',
+            },
         });
     },
 

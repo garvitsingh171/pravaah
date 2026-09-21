@@ -1273,3 +1273,21 @@ Response:
     "message": "Welcome to the Pravaah API"
 }
 ```
+
+## Geoapify Location Lookup
+
+Normal Clinic and Patient create/update bodies remain strict and reject
+client-supplied coordinates, provider/status metadata, formatted addresses, and
+source hashes. Safe response metadata is `latitude`, `longitude`,
+`geocodingStatus`, `geocodingProvider`, `geocodingConfidence`,
+`geocodingResultType`, `geocodedAddress`, and `geocodedAt`.
+
+| Method | Path | Auth | Body |
+| --- | --- | --- | --- |
+| POST | `/api/clinics/:clinicId/geocode` | Active same-clinic Admin | Strict empty object `{}` |
+| POST | `/api/clinics/:clinicId/patients/:patientId/geocode` | Active same-clinic Admin/Staff and linked patient | Strict empty object `{}` |
+
+Retries use only the stored structured address. Incomplete data returns
+`LOCATION_ADDRESS_INCOMPLETE`; missing server configuration returns
+`GEOAPIFY_NOT_CONFIGURED`; provider failure returns
+`GEOAPIFY_GEOCODING_FAILED`. GET/list endpoints never contact the provider.

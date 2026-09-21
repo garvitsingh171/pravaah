@@ -1,10 +1,10 @@
 export type StructuredAddress = {
-    addressLine1?: string | null;
-    addressLine2?: string | null;
-    city?: string | null;
-    state?: string | null;
-    pincode?: string | null;
-    country?: string | null;
+    addressLine1?: string | null | undefined;
+    addressLine2?: string | null | undefined;
+    city?: string | null | undefined;
+    state?: string | null | undefined;
+    pincode?: string | null | undefined;
+    country?: string | null | undefined;
 };
 
 const getAddressComponents = (address: StructuredAddress): string[] => {
@@ -43,3 +43,12 @@ export const hasGeocodableAddress = (address: StructuredAddress): boolean => {
         (component) => typeof component === 'string' && component.trim().length > 0
     );
 };
+
+/**
+ * Identifies the exact normalized address version used for a geocoding attempt.
+ * It is a concurrency fingerprint, not a secret or an authorization mechanism.
+ */
+export const createGeocodingSourceHash = (address: StructuredAddress): string => {
+    return createHash('sha256').update(buildCanonicalAddress(address)).digest('hex');
+};
+import { createHash } from 'node:crypto';

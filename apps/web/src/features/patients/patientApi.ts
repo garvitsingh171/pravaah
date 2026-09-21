@@ -132,3 +132,10 @@ export const updatePatient = (
         payload
     );
 };
+
+export const retryPatientGeocoding = (clinicId: string, patientId: string) => {
+    return apiClient.post<UpdatePatientResponseData>(
+        `${getPatientCollectionPath(clinicId)}/${encodeURIComponent(patientId)}/geocode`,
+        {}
+    );
+};

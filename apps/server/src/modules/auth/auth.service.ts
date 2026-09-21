@@ -1,6 +1,9 @@
 import { Prisma, UserRole, UserStatus } from '../../generated/prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
 import { normalizeEmail } from '../../utils/emailNormalization.js';
+import { createGeocodingSourceHash, hasGeocodableAddress } from '../../utils/location.js';
+import { clinicRepository } from '../clinics/clinic.repository.js';
+import { geocodingService } from '../geocoding/geocoding.service.js';
 import { authRepository, PendingStaffInvitationRepositoryError } from './auth.repository.js';
 import { clerkIdentityService } from './clerkIdentity.service.js';
 import {
@@ -162,6 +165,30 @@ const logClinicOnboardingEvent = (event: string, details: Record<string, string>
     console.info(`[auth.onboarding.clinic] event=${event}${suffix ? ` ${suffix}` : ''}`);
 };
 
+const geocodeProvisionedClinic = async (
+    clinicId: string,
+    clinic: OnboardingClinicInput
+): Promise<void> => {
+    if (!hasGeocodableAddress(clinic)) {
+        return;
+    }
+
+    const sourceHash = createGeocodingSourceHash(clinic);
+
+    try {
+        const attempt = await geocodingService.geocodeAddress(clinic);
+
+        if (attempt.outcome === 'SUCCESS') {
+            await clinicRepository.saveGeocodingResultIfCurrent(clinicId, sourceHash, attempt.result);
+        } else if (attempt.outcome === 'FAILED') {
+            await clinicRepository.markGeocodingFailedIfCurrent(clinicId, sourceHash);
+        }
+    } catch {
+        // Onboarding has already committed. Geocoding is derived best-effort work.
+        console.warn(`[geocoding] entityType=CLINIC entityId=${clinicId} outcome=PERSISTENCE_FAILED`);
+    }
+};
+
 export const authService = {
     async getActiveUserByClerkUserId(clerkUserId: string): Promise<AuthenticatedUser> {
         const user = await authRepository.findUserByClerkUserId(clerkUserId);
@@ -316,6 +343,8 @@ export const authService = {
                 clinic: clinicInput,
                 admin: adminIdentity,
             });
+
+            await geocodeProvisionedClinic(result.clinic.id, clinicInput);
 
             logClinicOnboardingEvent('created', { outcome: 'CREATED' });
 

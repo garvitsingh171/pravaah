@@ -36,6 +36,16 @@ enum Gender {
   PREFER_NOT_TO_SAY
 }
 
+enum GeocodingStatus {
+  NOT_GEOCODED
+  GEOCODED
+  FAILED
+}
+
+enum GeocodingProvider {
+  GEOAPIFY
+}
+
 enum AppointmentStatus {
   SCHEDULED
   CONFIRMED
@@ -116,26 +126,37 @@ enum Weekday {
 }
 
 model Clinic {
-  id                      String   @id @default(uuid()) @db.Uuid
+  id                      String             @id @default(uuid()) @db.Uuid
   name                    String
-  slug                    String   @unique
+  slug                    String             @unique
   phone                   String?
   email                   String?
   addressLine1            String?
   addressLine2            String?
   city                    String?
   state                   String?
-  country                 String   @default("India")
+  country                 String             @default("India")
   pincode                 String?
-  timezone                String   @default("Asia/Kolkata")
-  openingTime             String   @default("09:00")
-  closingTime             String   @default("18:00")
-  slotDurationMinutes     Int      @default(15)
-  bufferMinutes           Int      @default(0)
-  lateArrivalGraceMinutes Int      @default(15)
-  isActive                Boolean  @default(true)
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  latitude                Float?
+  longitude               Float?
+  geocodingStatus         GeocodingStatus    @default(NOT_GEOCODED)
+  geocodingProvider       GeocodingProvider?
+  geocodingConfidence     Float?
+  geocodingResultType     String?
+  geocodingMatchType      String?
+  geocodingPlaceId        String?
+  geocodedAddress         String?
+  geocodedAt              DateTime?
+  geocodingSourceHash     String?
+  timezone                String             @default("Asia/Kolkata")
+  openingTime             String             @default("09:00")
+  closingTime             String             @default("18:00")
+  slotDurationMinutes     Int                @default(15)
+  bufferMinutes           Int                @default(0)
+  lateArrivalGraceMinutes Int                @default(15)
+  isActive                Boolean            @default(true)
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
 
   users                 User[]
   doctorClinics         DoctorClinic[]
@@ -261,7 +282,7 @@ model DoctorAvailabilityPeriod {
 }
 
 model Patient {
-  id                    String    @id @default(uuid()) @db.Uuid
+  id                    String             @id @default(uuid()) @db.Uuid
   fullName              String
   phone                 String
   email                 String?
@@ -276,11 +297,22 @@ model Patient {
   state                 String?
   country               String?
   pincode               String?
+  latitude              Float?
+  longitude             Float?
+  geocodingStatus       GeocodingStatus    @default(NOT_GEOCODED)
+  geocodingProvider     GeocodingProvider?
+  geocodingConfidence   Float?
+  geocodingResultType   String?
+  geocodingMatchType    String?
+  geocodingPlaceId      String?
+  geocodedAddress       String?
+  geocodedAt            DateTime?
+  geocodingSourceHash   String?
   emergencyContactName  String?
   emergencyContactPhone String?
-  isActive              Boolean   @default(true)
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  isActive              Boolean            @default(true)
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
 
   patientClinics    PatientClinic[]
   appointments      Appointment[]

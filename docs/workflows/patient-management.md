@@ -169,3 +169,12 @@ Patient records are split into a shared `Patient` row and a clinic-specific `Pat
 `AppointmentActivity` does not replace these aggregates. Timeline rows answer what happened to one appointment and who performed the action; `PatientClinic` remains the efficient clinic-scoped source for appointment, completion, no-show, late-arrival, and last-visit statistics. Patient APIs never derive these counters by scanning timeline rows, and activity insertion does not change prediction inputs or recalculation behavior.
 
 Structured cancellation/no-show reasons do not change patient attendance aggregates. Cancellation still changes no counters. Only the first guarded transition to `NO_SHOW` increments `totalNoShows`, regardless of which no-show reason was selected; retries and reason metadata never create another attendance event. Reasons are raw appointment outcome facts and are not converted into responsibility or reliability scores.
+
+## Location Lookup
+
+Residential coordinates belong to global `Patient`, not `PatientClinic`. A
+complete create or address change geocodes only after the Patient/PatientClinic
+transaction commits. Phone, email, contacts, notes, and
+`distanceFromClinicKm` do not trigger lookup. Expanded details expose status
+and an Admin/Staff retry for failed lookups at
+`POST /api/clinics/:clinicId/patients/:patientId/geocode` with `{}`.

@@ -115,6 +115,8 @@ export const listPatientsQuerySchema = z
     })
     .strict();
 
+export const retryPatientGeocodingBodySchema = z.object({}).strict().default({});
+
 export type ListPatientsQuerySchemaInput = z.infer<typeof listPatientsQuerySchema>;
 
 export type ClinicIdParamsSchemaInput = z.infer<typeof clinicIdParamsSchema>;
@@ -124,3 +126,5 @@ export type ClinicPatientIdParamsSchemaInput = z.infer<typeof clinicPatientIdPar
 export type CreatePatientSchemaInput = z.infer<typeof createPatientSchema>;
 
 export type UpdatePatientSchemaInput = z.infer<typeof updatePatientSchema>;
+
+export type RetryPatientGeocodingBodySchemaInput = z.infer<typeof retryPatientGeocodingBodySchema>;

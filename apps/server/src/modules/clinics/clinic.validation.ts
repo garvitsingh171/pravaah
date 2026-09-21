@@ -126,4 +126,8 @@ export type ClinicIdParamsInput = z.infer<typeof clinicIdParamsSchema>;
 
 export const provisionSampleDataBodySchema = z.object({}).strict().default({});
 
+export const retryClinicGeocodingBodySchema = z.object({}).strict().default({});
+
 export type ProvisionSampleDataBodySchemaInput = z.infer<typeof provisionSampleDataBodySchema>;
+
+export type RetryClinicGeocodingBodySchemaInput = z.infer<typeof retryClinicGeocodingBodySchema>;

@@ -1,6 +1,7 @@
 import { prisma } from '../../config/prisma.js';
 import { StaffInvitationStatus, UserRole, UserStatus } from '../../generated/prisma/client.js';
 import { normalizeEmail } from '../../utils/emailNormalization.js';
+import { createGeocodingSourceHash } from '../../utils/location.js';
 import type { ProvisionClinicWithAdminInput } from './auth.types.js';
 
 export class PendingStaffInvitationRepositoryError extends Error {
@@ -134,6 +135,7 @@ export const authRepository = {
                     state: input.clinic.state ?? null,
                     country: input.clinic.country,
                     pincode: input.clinic.pincode ?? null,
+                    geocodingSourceHash: createGeocodingSourceHash(input.clinic),
 
                     timezone: input.clinic.timezone,
 

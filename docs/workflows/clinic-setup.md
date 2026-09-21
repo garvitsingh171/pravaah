@@ -120,3 +120,11 @@ Sample data is documented in [Onboarding And Clinic Provisioning](onboarding-and
 ## How To Explain This Workflow
 
 Clinic settings are not a cosmetic client-only screen. The page loads the active user's clinic from the backend, allows only Admin users to edit operational settings, validates changed fields on the frontend and backend, and persists the supported `Clinic` fields through Prisma.
+
+## Location Lookup
+
+After a Clinic address change, the core update commits before best-effort
+forward geocoding. Complete means address line 1, city, state, and country.
+Address changes invalidate derived coordinates; operational settings do not. The
+Admin settings page shows found/failed/not-looked-up status and retries only a
+failed lookup via `POST /api/clinics/:clinicId/geocode` with `{}`.

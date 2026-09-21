@@ -36,6 +36,14 @@ export type ClinicSummary = BaseEntity & {
     state?: string | null;
     country?: string | null;
     pincode?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    geocodingStatus?: 'NOT_GEOCODED' | 'GEOCODED' | 'FAILED';
+    geocodingProvider?: 'GEOAPIFY' | null;
+    geocodingConfidence?: number | null;
+    geocodingResultType?: string | null;
+    geocodedAddress?: string | null;
+    geocodedAt?: string | null;
     timezone?: string | null;
     isActive: boolean;
 };
@@ -93,6 +101,14 @@ export type PatientSummary = BaseEntity & StructuredAddress & {
     age?: number | null;
     /** Transitional DB compatibility field; structured fields are authoritative. */
     address?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    geocodingStatus?: 'NOT_GEOCODED' | 'GEOCODED' | 'FAILED';
+    geocodingProvider?: 'GEOAPIFY' | null;
+    geocodingConfidence?: number | null;
+    geocodingResultType?: string | null;
+    geocodedAddress?: string | null;
+    geocodedAt?: string | null;
     emergencyContactName?: string | null;
     emergencyContactPhone?: string | null;
     notes?: string | null;
