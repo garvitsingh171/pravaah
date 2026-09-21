@@ -1,5 +1,6 @@
 import { clerkClient, type User } from '@clerk/express';
 import { AppError } from '../../utils/AppError.js';
+import { normalizeEmail } from '../../utils/emailNormalization.js';
 import type { TrustedClerkUserIdentity } from './auth.types.js';
 
 const identityDataMissingError = () =>
@@ -19,7 +20,7 @@ const resolvePrimaryEmail = (user: User): string => {
         throw identityDataMissingError();
     }
 
-    return email;
+    return normalizeEmail(email);
 };
 
 const resolveFullName = (user: User): string => {

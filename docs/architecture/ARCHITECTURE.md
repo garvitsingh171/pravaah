@@ -106,7 +106,7 @@ Valid application states include:
 | Active internal user            | Yes           | `ACTIVE` `ADMIN` or `STAFF`                      | Protected application routes  |
 | Invalid internal state          | Yes           | Missing/inactive/inconsistent outside onboarding | Recovery or error state       |
 
-An authenticated-but-unprovisioned Clerk identity is valid only for onboarding-aware routes. It is not a Pravaah role and has no clinic access.
+An authenticated-but-unprovisioned Clerk identity is valid only for onboarding-aware routes and Staff invitation preview/acceptance. It is not a Pravaah role and has no clinic access until the appropriate transaction succeeds.
 
 ## Backend Responsibility
 
@@ -160,6 +160,7 @@ Do not replace backend authorization with frontend checks or Clerk metadata alon
 For v0.2:
 
 - Clerk-authenticated onboarding endpoints may accept a valid Clerk identity without an internal `User`.
+- Clerk-authenticated invitation endpoints additionally require a valid hashed-token lookup and matching trusted email before creating `STAFF` access.
 - Operational APIs for clinics, doctors, patients, appointments, queue, dashboard, and prediction behavior still require an active internal user and clinic access.
 - `INTERNAL_USER_NOT_FOUND` must not be removed or bypassed for normal protected APIs.
 - The frontend must not choose role, status, clinic ownership, or another clinic's ID.

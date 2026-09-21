@@ -35,6 +35,7 @@ The generated Prisma client lives in `apps/server/src/generated/prisma` and is i
 | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `UserRole`                | `ADMIN`, `STAFF`                                                                                                                                                                                         |
 | `UserStatus`              | `INVITED`, `ACTIVE`, `SUSPENDED`                                                                                                                                                                         |
+| `StaffInvitationStatus`   | `PENDING`, `ACCEPTED`, `REVOKED`; expiry is derived from `PENDING` plus `expiresAt`                                                                                                                      |
 | `Gender`                  | `MALE`, `FEMALE`, `OTHER`, `PREFER_NOT_TO_SAY`                                                                                                                                                           |
 | `AppointmentStatus`       | `SCHEDULED`, `CONFIRMED`, `ARRIVED`, `IN_QUEUE`, `CALLED`, `COMPLETED`, `CANCELLED`, `NO_SHOW`                                                                                                           |
 | `AppointmentActivityType` | `APPOINTMENT_CREATED`, `APPOINTMENT_CONFIRMED`, `PATIENT_ARRIVED`, `ENTERED_QUEUE`, `PATIENT_CALLED`, `APPOINTMENT_COMPLETED`, `APPOINTMENT_CANCELLED`, `APPOINTMENT_NO_SHOW`, `APPOINTMENT_RESCHEDULED` |
@@ -49,6 +50,7 @@ The generated Prisma client lives in `apps/server/src/generated/prisma` and is i
 | -------------------------- | ----------------------------- | ------------------------------------------------------------- |
 | `Clinic`                   | `clinics`                     | Operational clinic boundary and settings.                     |
 | `User`                     | `users`                       | Internal app user mapped to Clerk identity.                   |
+| `StaffInvitation`          | `staff_invitations`           | Durable Admin authorization for a person to join one clinic.  |
 | `Doctor`                   | `doctors`                     | Doctor record; does not log in.                               |
 | `DoctorClinic`             | `doctor_clinics`              | Join table linking doctors to clinics.                        |
 | `DoctorAvailabilityPeriod` | `doctor_availability_periods` | Clinic-specific recurring weekly doctor working periods.      |
@@ -109,6 +111,19 @@ Why `User.clinicId` exists in MVP:
 Future improvement: add `ClinicMember` or `UserClinic` for multi-clinic users and role-per-clinic behavior.
 
 v0.2 keeps `User.clerkUserId` unique. A single Clerk identity must not create duplicate internal users or bootstrap multiple clinics through the self-service onboarding path.
+
+### StaffInvitation
+
+Important fields:
+
+- `clinicId` and `invitedByUserId` are required UUID foreign keys with `Restrict` deletion behavior.
+- `acceptedByUserId` is optional and uses `SetNull`; accepted invitation history remains if an accepted user were ever removed.
+- `email` stores the `trim().toLowerCase()` normalized invited address.
+- `tokenHash` is unique and stores SHA-256 output only; the raw reusable token is never persisted.
+- `status` persists only `PENDING`, `ACCEPTED`, or `REVOKED`.
+- `expiresAt`, `acceptedAt`, and `revokedAt` record lifecycle timing.
+
+Indexes cover `(clinicId, status)`, `(clinicId, email)`, `(email, status)`, and `expiresAt`. There is intentionally no unique clinic/email constraint because accepted, revoked, and expired historical rows must coexist with later reinvitations.
 
 ### Doctor
 
@@ -358,6 +373,9 @@ Storage notes:
 
 ```txt
 Clinic 1 -> many User
+Clinic 1 -> many StaffInvitation
+User 1 -> many StaffInvitation as invitedBy
+User 1 -> many StaffInvitation as acceptedBy (optional relation)
 Clinic many <-> many Doctor through DoctorClinic
 DoctorClinic 1 -> many DoctorAvailabilityPeriod
 Clinic many <-> many Patient through PatientClinic
@@ -465,8 +483,15 @@ Consistency rules:
 - Client-provided role, status, clinic ownership, user ID, or Clerk user ID must be ignored or rejected.
 - Clinic ownership and role assignment are server-controlled.
 - The ordinary `POST /api/clinics` path is disabled so it cannot create standalone clinic records.
+- A normalized-email advisory lock and in-transaction pending-invitation recheck prevent an invited Staff identity from racing into a new Admin clinic.
 
 Prefer deriving onboarding state from the existing `User` and `Clinic` relationship. Do not add an `Onboarding` table unless a future implementation issue proves durable onboarding-step persistence is required.
+
+### v0.4 Staff Invitation Acceptance
+
+Invitation creation serializes normalized-email membership decisions and same-clinic/email duplicate checks with PostgreSQL advisory transaction locks. Acceptance and revocation lock the invitation row and conditionally claim `PENDING`; only one terminal transition can commit. User creation or legacy `INVITED -> ACTIVE` activation occurs in the same transaction as `PENDING -> ACCEPTED`, so a losing or failed acceptance leaves no active Staff user.
+
+Expiration is derived: `status = PENDING AND expiresAt <= now` is effective `EXPIRED`. This avoids a scheduler and preserves immutable lifecycle history. Reinvitation always creates a new row, raw token, hash, and expiry.
 
 ### v0.2 Isolated Sample Data
 

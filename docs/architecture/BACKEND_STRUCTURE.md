@@ -100,6 +100,7 @@ src/modules/
 ├── appointments/
 ├── queues/
 ├── predictions/
+├── staff/
 └── dashboard/
 ```
 
@@ -116,6 +117,10 @@ __tests__/
 ```
 
 The `predictions` module has service/types/tests only because prediction is called by other workflows instead of exposed as its own route.
+
+The `staff/` module follows the same route -> validation -> controller -> service -> repository layering. It owns Admin team/invitation APIs and Clerk-only invitation preview/acceptance. The auth module only integrates the normalized-email pending-invitation guard into owner onboarding; normal active-user authentication remains unchanged.
+
+Staff repository transactions reuse PostgreSQL advisory transaction locks for email-scoped membership decisions and `FOR UPDATE` row locks for accept/revoke ownership. No raw token reaches the repository; it receives only a SHA-256 hash.
 
 ## File Responsibilities
 

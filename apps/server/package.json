@@ -20,12 +20,15 @@
     },
     "dependencies": {
         "@clerk/express": "^2.1.31",
+        "@neondatabase/serverless": "^1.1.0",
+        "@prisma/adapter-neon": "^7.8.0",
         "@prisma/adapter-pg": "^7.8.0",
         "@prisma/client": "^7.8.0",
         "cors": "^2.8.6",
         "dotenv": "^17.4.2",
         "express": "^5.2.1",
         "pg": "^8.21.0",
+        "ws": "^8.21.3",
         "zod": "^4.4.3"
     },
     "devDependencies": {
@@ -33,6 +36,7 @@
         "@types/express": "^5.0.6",
         "@types/node": "^24.12.4",
         "@types/pg": "^8.20.0",
+        "@types/ws": "^8.18.1",
         "prisma": "^7.8.0",
         "tsx": "^4.22.4",
         "typescript": "^6.0.3",

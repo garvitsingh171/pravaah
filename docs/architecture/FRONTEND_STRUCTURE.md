@@ -251,6 +251,13 @@ Implemented states include:
 
 ## Current Pages
 
+Staff identity adds two route shapes:
+
+- `/staff` is inside `ProtectedAppShell`, declared Admin-only in route metadata, and backed by Admin-only APIs. It lists clinic members and invitation history, creates copyable one-time links, and confirms suspend/reactivate/revoke actions.
+- `/invite/:token` is outside the protected shell so signed-out or Clerk-only invitees can authenticate and return. It presents signed-out, loading, valid, mismatch, expired, revoked, accepted, accepting, success, and retryable-error states.
+
+`lib/safeRedirect.ts` is shared by login and signup. It only accepts safe internal paths and preserves invitation return context without permitting external redirects.
+
 | Page              | Current behavior                                                                                                                                                                                                              |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Login             | Clerk `SignIn`, safe redirect handling, sign-out toast.                                                                                                                                                                       |
@@ -265,6 +272,8 @@ Implemented states include:
 | Appointments      | Lists/filter appointments, books appointments, updates appointment status, shows prediction details.                                                                                                                          |
 | Queue             | Lists today's queue, filters by doctor/status, shows doctor-scoped active queue lanes, updates queue status, reorders active entries manually, and keeps final entries in a secondary review section.                         |
 | Clinic Settings   | Loads the active clinic settings, displays the slug read-only, and lets Admins update supported profile and operational fields.                                                                                               |
+| Staff Management  | Admin-only clinic team, invitation creation/history, one-time link copy, revocation, suspension, and reactivation.                                                                                                            |
+| Staff Invitation  | Public-shell auth handoff and deliberate token-plus-identity acceptance into the inviting clinic.                                                                                                                             |
 
 ## How To Add A New Page
 

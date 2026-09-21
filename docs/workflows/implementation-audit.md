@@ -108,7 +108,7 @@ Resolution:
 Atlas documents Staff cannot access settings.
 
 Remaining gap:
-No Staff management/invite UI exists.
+Staff invitation and access management now exists as an implemented-not-released v0.4 workflow: Admin creates/revokes invitations, copies the one-time link, and suspends/reactivates Staff. Automatic email delivery, role editing, Admin transfer, hard deletion, and multi-clinic membership remain out of scope.
 
 ## D. Database Model Differences And Future-Ready Fields
 

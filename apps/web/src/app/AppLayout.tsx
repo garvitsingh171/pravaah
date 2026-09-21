@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import Sidebar, { MobileWorkspaceNavigation } from '../components/layout/Sidebar';
 import Topbar from '../components/layout/Topbar';
 import { LoadingState } from '../components/feedback';
@@ -122,6 +122,9 @@ function AppLayout({ initialSetup }: AppLayoutProps) {
         currentUserRole === 'ADMIN' ? 'Admin' : currentUserRole === 'STAFF' ? 'Staff' : 'Clinic';
     const userName = activeClinic.currentUser?.fullName?.trim() || userRoleLabel;
     const navigationItems = getNavigationRoutesForRole(currentUserRole);
+    const isRouteAllowed =
+        !currentRoute.allowedRoles ||
+        (currentUserRole !== null && currentRoute.allowedRoles.includes(currentUserRole));
     const topbarSupportingText =
         currentRoute.path === appRoutePaths.dashboard
             ? `${formatTopbarDate(new Date())} · Clinic flow`
@@ -194,6 +197,10 @@ function AppLayout({ initialSetup }: AppLayoutProps) {
             abortController.abort();
         };
     }, [isAdmin, loadSetupProgress, location.pathname]);
+
+    if (!isRouteAllowed) {
+        return <Navigate to={appRoutePaths.dashboard} replace />;
+    }
 
     return (
         <div className="min-h-screen bg-[var(--color-surface-canvas)] text-slate-900">

@@ -28,7 +28,7 @@
 | Side effects          | Optional sample data creates fictional doctors, patients, appointments, queue entries, and no-show predictions                                                                     |
 | Errors                | `CLINIC_SLUG_ALREADY_EXISTS`, `CLINIC_PROVISIONING_CONFLICT`, `INTERNAL_USER_ALREADY_EXISTS`, `CLINIC_PROVISIONING_FAILED`, sample `INVALID_CLINIC_TIMEZONE`                       |
 | Tests                 | `ClinicOnboardingPage.test.tsx`, `FirstRunSetupChecklist.test.tsx`, auth service/repository/controller tests, clinic repository/service/controller/validation tests                |
-| Known gaps            | No Staff invite/user-management workflow; onboarding creates only the first Admin                                                                                                  |
+| Staff safety          | Trusted normalized email is checked under a shared advisory lock; an unexpired pending Staff invitation returns `STAFF_INVITATION_PENDING` before clinic/Admin creation            |
 
 ## End-To-End Trace
 
@@ -77,11 +77,17 @@ authRepository.findOnboardingUserByClerkUserId(clerkUserId)
     ↓
 clerkIdentityService.getTrustedUserIdentity(clerkUserId)
     ↓
+normalize trusted email and check unexpired pending Staff invitation
+    ↓
+if present: 409 STAFF_INVITATION_PENDING, no clinic or User created
+    ↓
 authRepository.findClinicBySlug(clinicInput.slug)
     ↓
 authRepository.createClinicWithAdmin(...)
     ↓
 prisma.$transaction
+    ↓
+acquire normalized-email advisory lock and recheck pending Staff invitation
     ↓
 tx.clinic.create(...)
     ↓
@@ -101,6 +107,8 @@ or add sample data: POST /api/clinics/:clinicId/sample-data
 - It does not require an existing internal `User`, by design.
 - The client does not send role, status, `createdByUserId`, internal user ID, or clinic ownership.
 - The backend reads trusted identity from Clerk through `clerkIdentityService.getTrustedUserIdentity`.
+- Pending Staff detection may block owner provisioning, but it never accepts an invitation without the raw token.
+- The precheck and transactional recheck use the same normalized-email lock used by invitation creation, so an invitation/onboarding race cannot produce both a pending invitation and a new Admin clinic.
 - The backend assigns `ADMIN`, `ACTIVE`, and `clinicId` inside `authRepository.createClinicWithAdmin`.
 - Standalone `POST /api/clinics` exists in routing but `clinic.controller.ts -> createClinicController` always returns `STANDALONE_CLINIC_CREATION_DISABLED`.
 
@@ -113,6 +121,7 @@ or add sample data: POST /api/clinics/:clinicId/sample-data
 | Slug exists before transaction                    | `CLINIC_SLUG_ALREADY_EXISTS`, unless current identity completed during re-read        |
 | Unique constraint after attempted write           | service re-reads current identity, then returns safe replay or slug/identity conflict |
 | Transaction step fails                            | Prisma transaction rolls back clinic and user creation                                |
+| Trusted email has unexpired pending Staff invite  | `STAFF_INVITATION_PENDING`; invitee must use the original token                       |
 
 ## Sample Data Trace
 
@@ -182,8 +191,10 @@ flowchart TD
     D --> G[ClinicOnboardingPage form]
     G --> H[POST /api/auth/onboarding/clinic]
     H --> I[Trusted Clerk identity lookup]
-    I --> J[Slug precheck]
-    J --> K[Transaction]
+    I --> J{Pending Staff invitation for trusted email?}
+    J -->|Yes| R[STAFF_INVITATION_PENDING]
+    J -->|No| S[Slug precheck]
+    S --> K[Transaction and locked invite recheck]
     K --> L[Create Clinic]
     K --> M[Create ADMIN User]
     L --> N[Onboarding complete]
@@ -197,3 +208,10 @@ flowchart TD
 ## How To Explain This Workflow
 
 The first user is not allowed to self-assign authority from the browser. The browser sends clinic profile fields only. The backend verifies the Clerk identity, gets trusted identity data, creates the clinic and the first active Admin in one transaction, and only then lets the protected application open. Optional sample data is a separate Admin-only workflow after the Admin exists.
+
+There are now two intentionally separate entry paths:
+
+```text
+Independent owner: Clerk sign-up -> no pending Staff invite -> clinic transaction -> ADMIN ACTIVE
+Invited Staff: invite link -> Clerk sign-in/up -> token + email match -> acceptance transaction -> STAFF ACTIVE in existing clinic
+```

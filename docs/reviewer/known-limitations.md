@@ -5,7 +5,7 @@ This document lists verified limitations and claim boundaries for reviewer, inte
 ## Product Limitations
 
 - Patients and doctors do not log in. They are records managed by Admin/Staff users.
-- Staff management, invitations, and advanced permission administration are not implemented as a product workflow.
+- Staff invitations and active/suspended access management are implemented in source but not release-verified. Automatic email delivery, role editing, Admin ownership transfer, hard deletion, and advanced permissions are not implemented.
 - Billing, prescriptions, inventory, communication automation, and full electronic medical record workflows are outside the current product boundary.
 - The current product supports one active clinic context per internal `User`; there is no multi-clinic context switcher or membership model.
 - Sample data is suitable for demos, not real clinical use.

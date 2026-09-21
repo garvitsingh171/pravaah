@@ -287,7 +287,7 @@ const tryAcquireSampleDataProvisioningLock = async (
     clinicId: string
 ): Promise<void> => {
     try {
-        await tx.$queryRaw`
+        await tx.$executeRaw`
             SELECT pg_advisory_xact_lock(
                 hashtext(${clinicId}),
                 hashtext('sample-data')

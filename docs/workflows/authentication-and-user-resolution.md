@@ -27,7 +27,7 @@
 | State changes         | Frontend gate state only; no DB mutation except onboarding covered separately                                                                                                                                                                        |
 | Errors                | `AUTHENTICATION_REQUIRED`, `INVALID_AUTH_TOKEN`, `INTERNAL_USER_NOT_FOUND`, `USER_NOT_ACTIVE`, `CLINIC_ACCESS_DENIED`, `ADMIN_REQUIRED`, `CLINIC_STAFF_REQUIRED`                                                                                     |
 | Tests                 | `auth.middleware.test.ts`, `auth.service.test.ts`, `auth.repository.test.ts`, `auth.controller.test.ts`, `access.service.test.ts`, `ProtectedAppShell.test.tsx`, `apiClient.test.ts`                                                                 |
-| Known gaps            | No user-management UI; only `ADMIN` and `STAFF` internal roles exist                                                                                                                                                                                 |
+| Staff bridge          | Clerk-only invitation preview/acceptance securely creates the internal one-clinic `STAFF` identity; Admin management remains protected by normal active-user authorization                                                                           |
 
 ## End-To-End Trace
 
@@ -139,6 +139,8 @@ feature pages read useActiveClinic()
 | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ----------------------- | ---------------------- | ------------------------------ |
 | `GET /api/auth/onboarding-status`                        | `authenticateClerkIdentity`                                                                          | No                      | No                     | No                             |
 | `POST /api/auth/onboarding/clinic`                       | `authenticateClerkIdentity`, body validation                                                         | No before creation      | Server creates `ADMIN` | Server creates new clinic      |
+| `GET/POST /api/staff/invitations/:token[/accept]`        | `authenticateClerkIdentity`, token params, strict empty accept body                                  | No before acceptance    | Server creates `STAFF` | Invitation fixes clinic        |
+| Clinic Staff and invitation management routes            | `authenticateRequest`, `requireAdminRole`, validation, `requireClinicAccess`                         | Yes, active             | `ADMIN`                | Yes                            |
 | `GET /api/auth/me`                                       | `authenticateRequest`                                                                                | Yes, active             | No extra role check    | Profile includes linked clinic |
 | `GET/PATCH /api/clinics/:clinicId`                       | `authenticateRequest`, validation, `requireClinicAccess`, `requireAdminRole`                         | Yes                     | `ADMIN`                | Yes                            |
 | Doctor/patient/appointment/queue/dashboard clinic routes | `authenticateRequest`, validation, `requireClinicAccess`, `requireClinicStaffRole`                   | Yes                     | `ADMIN` or `STAFF`     | Yes                            |
@@ -162,4 +164,4 @@ feature page error state, field errors, toast, retry, or redirect
 
 ## How To Explain This Workflow
 
-Clerk proves who the browser user is. Pravaah then maps the Clerk user ID to its own `User` row before operational APIs run. The internal row carries role, status, and clinic membership, so authorization remains server-owned. The onboarding endpoints are special: they require a valid Clerk identity but intentionally allow the internal `User` to be missing so the first clinic and first Admin can be provisioned.
+Clerk proves who the browser user is. Pravaah then maps the Clerk user ID to its own `User` row before operational APIs run. The internal row carries role, status, and clinic membership, so authorization remains server-owned. Onboarding and Staff invitation preview/acceptance are explicit Clerk-only boundaries because an internal user may not exist yet. Invitation acceptance additionally requires the valid token and matching trusted email; all ordinary clinic APIs still require an active internal user.

@@ -402,6 +402,74 @@ Main errors:
 - `ADMIN_REQUIRED`
 - `VALIDATION_ERROR`
 
+## Staff Invitations And Management
+
+All clinic-scoped routes in this section require `authenticateRequest`, `requireAdminRole`, strict Zod validation, and `requireClinicAccess`. They therefore require an active internal Admin whose `clinicId` equals the route clinic. Preview and acceptance use `authenticateClerkIdentity` because the invitee may not have an internal user yet.
+
+### List Clinic Team
+
+| Method | Path                           | Auth                     |
+| ------ | ------------------------------ | ------------------------ |
+| GET    | `/api/clinics/:clinicId/staff` | Active same-clinic Admin |
+
+Returns `data.members[]` with `id`, `fullName`, `email`, `role`, `status`, and `createdAt`. The Admin row is included, but `clerkUserId` and phone are not exposed.
+
+### Create Staff Invitation
+
+| Method | Path                                       | Auth                     |
+| ------ | ------------------------------------------ | ------------------------ |
+| POST   | `/api/clinics/:clinicId/staff/invitations` | Active same-clinic Admin |
+
+Strict request body:
+
+```json
+{ "email": "staff@example.com" }
+```
+
+The server normalizes the email, fixes role/clinic/inviter/expiry, rejects members and duplicate unexpired pending invitations, and returns `data.invitation` plus a one-time `data.inviteUrl`. Neither the response nor later list calls expose `tokenHash`. No email is sent.
+
+Important conflicts: `STAFF_INVITATION_ALREADY_PENDING`, `STAFF_ALREADY_MEMBER`, `STAFF_REACTIVATION_REQUIRED`, and `USER_ALREADY_BELONGS_TO_ANOTHER_CLINIC`.
+
+### List Staff Invitations
+
+| Method | Path                                       | Auth                     |
+| ------ | ------------------------------------------ | ------------------------ |
+| GET    | `/api/clinics/:clinicId/staff/invitations` | Active same-clinic Admin |
+
+Returns invitation history with `id`, normalized `email`, effective `status`, timestamps, and minimal `invitedBy`. `PENDING` past its expiry is returned as `EXPIRED`; no token or reconstructable URL is returned.
+
+### Revoke Staff Invitation
+
+| Method | Path                                                            | Auth                     |
+| ------ | --------------------------------------------------------------- | ------------------------ |
+| PATCH  | `/api/clinics/:clinicId/staff/invitations/:invitationId/revoke` | Active same-clinic Admin |
+
+No authority fields are accepted. Only an unexpired persisted `PENDING` invitation transitions to `REVOKED`. Replays return `STAFF_INVITATION_ALREADY_REVOKED`; accepted or expired invitations return state conflicts.
+
+### Update Staff Status
+
+| Method | Path                                          | Auth                     |
+| ------ | --------------------------------------------- | ------------------------ |
+| PATCH  | `/api/clinics/:clinicId/staff/:userId/status` | Active same-clinic Admin |
+
+Strict body is either `{ "status": "SUSPENDED" }` or `{ "status": "ACTIVE" }`. Only `ACTIVE -> SUSPENDED` and `SUSPENDED -> ACTIVE` are allowed for a same-clinic `STAFF` target. Admin and `INVITED` targets are rejected. No user is deleted or reassigned.
+
+### Preview Staff Invitation
+
+| Method | Path                            | Auth                          |
+| ------ | ------------------------------- | ----------------------------- |
+| GET    | `/api/staff/invitations/:token` | Clerk identity; User optional |
+
+The raw route token is SHA-256 hashed for lookup. The trusted Clerk email must match before the API returns minimal clinic name, invited email, effective status, and expiry. Wrong identity returns `INVITATION_IDENTITY_MISMATCH`; invalid tokens return the non-enumerating `STAFF_INVITATION_NOT_FOUND` response.
+
+### Accept Staff Invitation
+
+| Method | Path                                   | Auth                          |
+| ------ | -------------------------------------- | ----------------------------- |
+| POST   | `/api/staff/invitations/:token/accept` | Clerk identity; User optional |
+
+The body must be empty. The backend resolves trusted Clerk name/email before entering the database transaction. A row lock claims an unexpired `PENDING` invitation, and the transaction creates or activates a same-clinic `STAFF`/`ACTIVE` user and marks the invitation accepted. Same-identity replay returns `ALREADY_ACCEPTED`; revoked, expired, suspended, Admin, identity-conflict, and other-clinic cases are rejected without partial state.
+
 ## Doctors
 
 ### Create Doctor

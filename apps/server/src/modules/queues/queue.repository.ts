@@ -88,15 +88,15 @@ const acquireQueueScopeLock = (
     doctorId: string,
     clinicLocalDate: string
 ) => {
-    return tx.$queryRaw`
+    return tx.$executeRaw`
         SELECT pg_advisory_xact_lock(
             hashtextextended(
                 concat(
-                    ${clinicId},
+                    ${clinicId}::text,
                     ':',
-                    ${doctorId},
+                    ${doctorId}::text,
                     ':',
-                    ${clinicLocalDate}
+                    ${clinicLocalDate}::text
                 ),
                 0
             )
@@ -615,13 +615,13 @@ export const queueRepository = {
         scheduledAt: Date,
         clinicTimezone: string
     ): Promise<number | null> {
-        await tx.$queryRaw`
+        await tx.$executeRaw`
             SELECT pg_advisory_xact_lock(
                 hashtextextended(
                     concat(
-                        ${clinicId},
+                        ${clinicId}::text,
                         ':',
-                        ${doctorId},
+                        ${doctorId}::text,
                         ':',
                         to_char(
                             ${scheduledAt}::timestamptz AT TIME ZONE ${clinicTimezone},

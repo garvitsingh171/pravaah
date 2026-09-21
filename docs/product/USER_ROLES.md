@@ -11,7 +11,9 @@ Pravaah MVP has two authenticated clinic-side roles:
 
 Patients and doctors are records only. They do not sign in, have sessions, or call protected APIs as users during the MVP.
 
-v0.2 adds an authenticated-but-unprovisioned onboarding state, but that state is not a new Pravaah role. Before successful onboarding, the Clerk identity has no internal role and no clinic access.
+An authenticated-but-unprovisioned Clerk identity is not a new Pravaah role. Before owner onboarding or Staff invitation acceptance, the identity has no internal role and no clinic access.
+
+The first clinic owner becomes `ADMIN` through onboarding. `STAFF` is invitation-only: a valid invitation token plus a matching authenticated Clerk email is required to join an existing clinic.
 
 ## Role Summary
 
@@ -47,6 +49,8 @@ v0.2 adds an authenticated-but-unprovisioned onboarding state, but that state is
 | Reorder queue through frontend UI           | Yes                                | Yes   | No             | No            |
 | View dashboard                              | Yes                                | Yes   | No             | No            |
 | View starter no-show risk                   | Yes                                | Yes   | No             | No            |
+| Create/list/revoke Staff invitations        | Yes, own clinic                    | No    | No             | No            |
+| Suspend/reactivate Staff                    | Yes, own clinic                    | No    | No             | No            |
 
 Authenticated-but-unprovisioned identities may call only explicitly onboarding-aware endpoints. They cannot access operational clinic, doctor, patient, appointment, queue, dashboard, or prediction APIs.
 
@@ -94,7 +98,19 @@ Internal Pravaah `User` authorization:
 
 Clerk alone is not enough. A signed-in Clerk user without an ACTIVE internal Pravaah `User` receives `INTERNAL_USER_NOT_FOUND` or `USER_NOT_ACTIVE` from normal protected APIs.
 
-In v0.2, a signed-in Clerk user without an internal `User` is allowed only on explicit onboarding-aware endpoints. This is an onboarding state, not a role.
+A signed-in Clerk user without an internal `User` is allowed only on explicit onboarding-aware or invitation endpoints. This is an identity state, not a role. Invitation endpoints require a valid token and matching trusted Clerk email; possession of a token alone does not grant access.
+
+## Identity, Membership, Role, Status, Invitation
+
+```txt
+Clerk identity = who this person is
+User.clinicId = which one clinic they may access
+User.role = what they may do
+User.status = whether they may currently use Pravaah
+StaffInvitation = which Admin authorized them to join
+```
+
+Invitation acceptance creates or activates an internal `STAFF`/`ACTIVE` user. Suspension changes only `User.status`; it never deletes the user, so appointment creator and activity-actor history remains attributable.
 
 ## v0.2 First Admin Provisioning
 
@@ -109,7 +125,7 @@ After successful self-service clinic onboarding, the backend creates the first c
 
 The frontend must not choose role, status, clinic ownership, user ID, or another clinic's ID. Those values are assigned by backend-controlled logic inside the transactional onboarding flow.
 
-Staff remains an internal operational role. v0.2 does not add patient login, doctor login, patient portal, or doctor portal.
+An invited identity with an unexpired pending Staff invitation is blocked from clinic onboarding with `STAFF_INVITATION_PENDING`. Identities without a pending invitation retain the owner onboarding behavior. Staff cannot invite or manage users, create a clinic from a pending invitation, change roles, or reactivate themselves after suspension.
 
 ## Current Clinic Access Model
 
@@ -125,7 +141,7 @@ This is not full multi-clinic SaaS membership. Future multi-clinic support shoul
 
 ## Current Limitations
 
-- No user management UI exists for inviting or editing Staff users.
+- Staff management supports invitations and active/suspended access changes; role editing, Admin transfer, and deletion remain unavailable.
 - `User.clinicId` supports one active clinic context per internal user.
 - Staff currently has broad clinic-staff access for doctor/patient/appointment/queue/dashboard APIs.
 - Clinic settings can be reviewed and updated by Admins through the current UI.
