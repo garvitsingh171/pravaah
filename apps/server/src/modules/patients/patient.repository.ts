@@ -1,10 +1,62 @@
 import { prisma } from '../../config/prisma.js';
 import type { Prisma } from '../../generated/prisma/client.js';
+import type { GeocodingResult } from '../../integrations/geoapify/geoapify.types.js';
 import type {
     CreatePatientInput,
     ListPatientsQueryInput,
     UpdatePatientInput,
 } from './patient.types.js';
+
+type GeocodingInvalidation = {
+    sourceHash: string;
+    attemptId: string;
+};
+
+const geocodingInvalidationData = (sourceHash: string, attemptId: string) => ({
+    latitude: null,
+    longitude: null,
+    geocodingStatus: 'NOT_GEOCODED' as const,
+    geocodingProvider: null,
+    geocodingConfidence: null,
+    geocodingResultType: null,
+    geocodingMatchType: null,
+    geocodingPlaceId: null,
+    geocodedAddress: null,
+    geocodedAt: null,
+    geocodingSourceHash: sourceHash,
+    geocodingAttemptId: attemptId,
+});
+
+const patientResponseSelect = {
+    id: true,
+    fullName: true,
+    phone: true,
+    email: true,
+    gender: true,
+    dateOfBirth: true,
+    age: true,
+    address: true,
+    addressLine1: true,
+    addressLine2: true,
+    city: true,
+    state: true,
+    country: true,
+    pincode: true,
+    latitude: true,
+    longitude: true,
+    geocodingStatus: true,
+    geocodingProvider: true,
+    geocodingConfidence: true,
+    geocodingResultType: true,
+    geocodingMatchType: true,
+    geocodedAddress: true,
+    geocodedAt: true,
+    emergencyContactName: true,
+    emergencyContactPhone: true,
+    isActive: true,
+    createdAt: true,
+    updatedAt: true,
+} satisfies Prisma.PatientSelect;
 
 export const patientRepository = {
     findClinicById(id: string) {
@@ -20,6 +72,7 @@ export const patientRepository = {
             where: {
                 id,
             },
+            select: patientResponseSelect,
         });
     },
 
@@ -34,7 +87,11 @@ export const patientRepository = {
         });
     },
 
-    createPatientWithClinicLink(clinicId: string, data: CreatePatientInput) {
+    createPatientWithClinicLink(
+        clinicId: string,
+        data: CreatePatientInput,
+        geocodingInvalidation?: GeocodingInvalidation
+    ) {
         return prisma.$transaction(async (tx) => {
             const patient = await tx.patient.create({
                 data: {
@@ -54,9 +111,16 @@ export const patientRepository = {
                     state: data.state ?? null,
                     country: data.country ?? null,
                     pincode: data.pincode ?? null,
+                    ...(geocodingInvalidation
+                        ? geocodingInvalidationData(
+                              geocodingInvalidation.sourceHash,
+                              geocodingInvalidation.attemptId
+                          )
+                        : {}),
                     emergencyContactName: data.emergencyContactName ?? null,
                     emergencyContactPhone: data.emergencyContactPhone ?? null,
                 },
+                select: patientResponseSelect,
             });
 
             await tx.patientClinic.create({
@@ -72,7 +136,12 @@ export const patientRepository = {
         });
     },
 
-    updatePatientWithClinicDetails(clinicId: string, patientId: string, data: UpdatePatientInput) {
+    updatePatientWithClinicDetails(
+        clinicId: string,
+        patientId: string,
+        data: UpdatePatientInput,
+        geocodingInvalidation?: GeocodingInvalidation
+    ) {
         const patientUpdateData: Prisma.PatientUpdateInput = {};
 
         if (data.fullName !== undefined) patientUpdateData.fullName = data.fullName;
@@ -98,6 +167,16 @@ export const patientRepository = {
             patientUpdateData.emergencyContactPhone = data.emergencyContactPhone;
         }
         if (data.isActive !== undefined) patientUpdateData.isActive = data.isActive;
+
+        if (geocodingInvalidation) {
+            Object.assign(
+                patientUpdateData,
+                geocodingInvalidationData(
+                    geocodingInvalidation.sourceHash,
+                    geocodingInvalidation.attemptId
+                )
+            );
+        }
 
         const patientClinicUpdateData: Prisma.PatientClinicUpdateInput = {};
 
@@ -132,7 +211,8 @@ export const patientRepository = {
                 where: {
                     id: patientId,
                 },
-                include: {
+                select: {
+                    ...patientResponseSelect,
                     patientClinics: {
                         where: {
                             clinicId,
@@ -140,6 +220,53 @@ export const patientRepository = {
                     },
                 },
             });
+        });
+    },
+
+    prepareGeocoding(patientId: string, sourceHash: string, attemptId: string) {
+        return prisma.patient.update({
+            where: { id: patientId },
+            data: geocodingInvalidationData(sourceHash, attemptId),
+        });
+    },
+
+    saveGeocodingResultIfCurrent(
+        patientId: string,
+        sourceHash: string,
+        attemptId: string,
+        result: GeocodingResult
+    ) {
+        return prisma.patient.updateMany({
+            where: {
+                id: patientId,
+                geocodingSourceHash: sourceHash,
+                geocodingAttemptId: attemptId,
+            },
+            data: {
+                latitude: result.latitude,
+                longitude: result.longitude,
+                geocodingStatus: 'GEOCODED',
+                geocodingProvider: 'GEOAPIFY',
+                geocodingConfidence: result.confidence,
+                geocodingResultType: result.resultType,
+                geocodingMatchType: result.matchType,
+                geocodingPlaceId: result.placeId,
+                geocodedAddress: result.formattedAddress,
+                geocodedAt: new Date(),
+            },
+        });
+    },
+
+    markGeocodingFailedIfCurrent(patientId: string, sourceHash: string, attemptId: string) {
+        return prisma.patient.updateMany({
+            where: {
+                id: patientId,
+                geocodingSourceHash: sourceHash,
+                geocodingAttemptId: attemptId,
+            },
+            data: {
+                geocodingStatus: 'FAILED',
+            },
         });
     },
 
@@ -178,7 +305,9 @@ export const patientRepository = {
                 patient: patientWhere,
             },
             include: {
-                patient: true,
+                patient: {
+                    select: patientResponseSelect,
+                },
             },
             orderBy: {
                 createdAt: 'desc',

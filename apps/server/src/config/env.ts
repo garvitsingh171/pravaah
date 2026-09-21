@@ -33,6 +33,7 @@ export const env = {
     databaseUrl: requireEnv('DATABASE_URL'),
     clerkSecretKey: requireEnv('CLERK_SECRET_KEY'),
     clerkWebhookSecret: process.env.CLERK_WEBHOOK_SECRET,
+    geoapifyApiKey: process.env.GEOAPIFY_API_KEY?.trim() || undefined,
     clientUrl,
     localClientUrl,
     allowedClientOrigins,

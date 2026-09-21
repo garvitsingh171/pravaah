@@ -600,3 +600,10 @@ flowchart TD
 Pravaah provides an internal Admin/Staff timeline for meaningful committed appointment creation, first-arrival, lifecycle, and reschedule events. It records the authenticated actor where available and structured event facts. Cancellation and no-show events include their selected structured reason and optional staff note. It is not a full compliance/security audit system, a patient-facing timeline, analytics, notification history, or event-sourced replacement for current appointment state.
 
 Cancellation and no-show capture preserve three meanings: status records what happened, a bounded reason records why it happened, and an optional note adds staff context. Cancellation and no-show use separate vocabularies. The capability does not provide reason analytics, responsibility scoring, reason correction, automation, or prediction features.
+
+## Address-to-Coordinates Capability
+
+Pravaah can resolve complete structured Clinic and Patient addresses into
+persisted geographic coordinates through a backend-only Geoapify integration.
+It does not claim automatic distance calculation, routing, travel time, maps,
+autocomplete, or no-show prediction improvements.

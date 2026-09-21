@@ -907,3 +907,19 @@ The authoritative booking, appointment-status, queue-status, or reschedule trans
 For a winning cancellation or no-show, the same existing terminal activity is enriched with the matching structured reason and optional note. Actor, status, reason, and event timestamp therefore describe one committed event. Historical terminal metadata remains valid without reason keys, and no duplicate reason activity type is introduced.
 
 The read path authenticates active Admin/Staff, resolves appointment clinic access, selects clinic-scoped activity plus minimal actor identity, and returns stable chronological history. The frontend loads it independently in an appointment dialog, uses the active clinic timezone, and tolerates absent/unknown metadata and legacy empty timelines.
+
+## Geoapify Geocoding Boundary
+
+Structured Clinic and Patient addresses remain Pravaah source data. A complete
+address write commits first, then the backend builds its canonical address and
+calls Geoapify Forward Geocoding outside the transaction. The provider response
+is validated before conditional persistence of coordinates and metadata.
+
+```text
+React → Pravaah API → structured address → canonical address/hash
+      → Geoapify integration client → validated coordinates → PostgreSQL
+```
+
+React never receives the provider key or calls Geoapify. Derived coordinates
+remain separate from `PatientClinic.distanceFromClinicKm`; this capability does
+not add distance, routing, maps, or prediction behavior.

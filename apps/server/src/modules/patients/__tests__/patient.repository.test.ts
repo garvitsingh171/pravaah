@@ -4,11 +4,15 @@ const mockTransaction = vi.hoisted(() => vi.fn());
 const mockPatientCreate = vi.hoisted(() => vi.fn());
 const mockPatientUpdate = vi.hoisted(() => vi.fn());
 const mockPatientFindUnique = vi.hoisted(() => vi.fn());
+const mockPatientUpdateMany = vi.hoisted(() => vi.fn());
 const mockPatientClinicCreate = vi.hoisted(() => vi.fn());
 const mockPatientClinicUpdate = vi.hoisted(() => vi.fn());
 
 vi.mock('../../../config/prisma.js', () => ({
     prisma: {
+        patient: {
+            updateMany: mockPatientUpdateMany,
+        },
         $transaction: mockTransaction,
     },
 }));
@@ -49,7 +53,7 @@ describe('patientRepository structured location persistence', () => {
             distanceFromClinicKm: 4.2,
         });
 
-        expect(mockPatientCreate).toHaveBeenCalledWith({
+        expect(mockPatientCreate).toHaveBeenCalledWith(expect.objectContaining({
             data: expect.objectContaining({
                 address: 'B-42, Malviya Nagar',
                 addressLine1: 'B-42, Malviya Nagar',
@@ -59,7 +63,8 @@ describe('patientRepository structured location persistence', () => {
                 country: 'India',
                 pincode: '302017',
             }),
-        });
+            select: expect.any(Object),
+        }));
         expect(mockPatientClinicCreate).toHaveBeenCalledWith({
             data: {
                 patientId: 'patient-id',
@@ -95,5 +100,40 @@ describe('patientRepository structured location persistence', () => {
                 distanceFromClinicKm: null,
             },
         });
+    });
+
+    it('persists a geocoding result only when the source-address hash is still current', async () => {
+        mockPatientUpdateMany.mockResolvedValue({ count: 0 });
+
+        await patientRepository.saveGeocodingResultIfCurrent(
+            'patient-id',
+            'address-a-hash',
+            'attempt-a',
+            {
+            latitude: 26.8467,
+            longitude: 75.7894,
+            provider: 'GEOAPIFY',
+            confidence: 0.92,
+            resultType: 'amenity',
+            matchType: 'full_match',
+            placeId: 'place-id',
+            formattedAddress: 'B-42, Malviya Nagar, Jaipur, Rajasthan, India',
+            }
+        );
+
+        expect(mockPatientUpdateMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: {
+                    id: 'patient-id',
+                    geocodingSourceHash: 'address-a-hash',
+                    geocodingAttemptId: 'attempt-a',
+                },
+                data: expect.objectContaining({
+                    geocodingStatus: 'GEOCODED',
+                    latitude: 26.8467,
+                    longitude: 75.7894,
+                }),
+            })
+        );
     });
 });

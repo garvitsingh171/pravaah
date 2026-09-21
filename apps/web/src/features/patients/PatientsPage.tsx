@@ -28,6 +28,7 @@ import {
 import { Gender, type Gender as GenderType, type PatientSummary } from '../../types';
 import {
     listPatients,
+    retryPatientGeocoding,
     updatePatient,
     type PatientListFilters,
     type UpdatePatientRequest,
@@ -147,6 +148,20 @@ const getPatientAddress = (patient: PatientSummary): string => {
         .join(', ');
 
     return structuredAddress || getOptionalText(patient.address);
+};
+
+const getLocationLookupStatus = (
+    status: PatientSummary['geocodingStatus']
+): { label: string; tone: 'success' | 'danger' | 'neutral' } => {
+    if (status === 'GEOCODED') {
+        return { label: 'Location found', tone: 'success' };
+    }
+
+    if (status === 'FAILED') {
+        return { label: 'Location lookup failed', tone: 'danger' };
+    }
+
+    return { label: 'Location not looked up', tone: 'neutral' };
 };
 
 const getInitials = (name: string): string => {
@@ -871,6 +886,9 @@ function PatientsPage() {
     const [statusAction, setStatusAction] = useState<PatientStatusAction | null>(null);
     const [statusActionError, setStatusActionError] = useState<string | null>(null);
     const [isStatusUpdating, setIsStatusUpdating] = useState(false);
+    const [retryingGeocodingPatientId, setRetryingGeocodingPatientId] = useState<string | null>(
+        null
+    );
 
     const loadPatients = useCallback(
         async (signal?: AbortSignal) => {
@@ -997,6 +1015,28 @@ function PatientsPage() {
             showErrorToast(message);
         } finally {
             setIsStatusUpdating(false);
+        }
+    };
+
+    const handleGeocodingRetry = async (patient: PatientSummary) => {
+        if (retryingGeocodingPatientId) {
+            return;
+        }
+
+        setRetryingGeocodingPatientId(patient.id);
+
+        try {
+            await retryPatientGeocoding(clinicId, patient.id);
+            await refreshPatientsAfterStatusChange();
+            showSuccessToast('Location lookup completed successfully.');
+        } catch (error) {
+            showErrorToast(
+                isApiClientError(error)
+                    ? error.message
+                    : 'Location lookup could not be completed. Please try again.'
+            );
+        } finally {
+            setRetryingGeocodingPatientId(null);
         }
     };
 
@@ -1360,6 +1400,54 @@ function PatientsPage() {
                                                                 <dd className="mt-1 text-slate-900">
                                                                     {patient.distanceFromClinicKm ??
                                                                         'Not added'}
+                                                                </dd>
+                                                            </div>
+                                                            <div>
+                                                                <dt className="font-medium text-slate-500">
+                                                                    Location lookup
+                                                                </dt>
+                                                                <dd className="mt-1 flex flex-wrap items-center gap-2">
+                                                                    {(() => {
+                                                                        const lookupStatus =
+                                                                            getLocationLookupStatus(
+                                                                                patient.geocodingStatus
+                                                                            );
+
+                                                                        return (
+                                                                            <Badge
+                                                                                tone={
+                                                                                    lookupStatus.tone
+                                                                                }
+                                                                            >
+                                                                                {lookupStatus.label}
+                                                                            </Badge>
+                                                                        );
+                                                                    })()}
+                                                                    {patient.geocodingStatus ===
+                                                                    'FAILED' ? (
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            size="sm"
+                                                                            onClick={() =>
+                                                                                void handleGeocodingRetry(
+                                                                                    patient
+                                                                                )
+                                                                            }
+                                                                            isLoading={
+                                                                                retryingGeocodingPatientId ===
+                                                                                patient.id
+                                                                            }
+                                                                            loadingText="Retrying..."
+                                                                            disabled={
+                                                                                retryingGeocodingPatientId !==
+                                                                                    null &&
+                                                                                retryingGeocodingPatientId !==
+                                                                                    patient.id
+                                                                            }
+                                                                        >
+                                                                            Retry location lookup
+                                                                        </Button>
+                                                                    ) : null}
                                                                 </dd>
                                                             </div>
                                                             <div className="md:col-span-3">

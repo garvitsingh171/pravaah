@@ -580,3 +580,15 @@ The seed uses placeholder contact data. Never replace it with real patient data.
 The existing `APPOINTMENT_CANCELLED` and `APPOINTMENT_NO_SHOW` rows carry terminal reason context in metadata for new events. The database migration does not alter historical JSON; missing keys remain a truthful legacy state rather than being fabricated as `UNKNOWN`.
 
 Application behavior is append-only: domain transactions insert rows and the timeline endpoint selects them; there are no update/delete APIs. Metadata contains event facts rather than prose or duplicated core columns, and embedded dates are ISO strings. The migration creates only the enum, table, indexes, and foreign keys; it does not synthesize legacy activity.
+
+## Geoapify-Derived Location Data
+
+`Clinic` and global `Patient` (not `PatientClinic`) hold nullable derived
+latitude/longitude, provider/result metadata, `geocodedAt`, and internal
+`geocodingSourceHash`. `GeocodingStatus` is `NOT_GEOCODED`, `GEOCODED`, or
+`FAILED`; `GeocodingProvider` currently contains only `GEOAPIFY`.
+
+Structured address fields remain user-entered source data, and `geocodedAddress`
+is the provider interpretation kept separately. `PatientClinic.distanceFromClinicKm`
+remains manual/legacy clinic-specific data and is not recalculated. Historical
+rows start without derived coordinates; migrations never call Geoapify.

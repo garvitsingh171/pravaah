@@ -9,12 +9,14 @@ import {
     createClinicController,
     getClinicSettingsController,
     provisionSampleDataController,
+    retryClinicGeocodingController,
     updateClinicController,
 } from './clinic.controller.js';
 import {
     updateClinicSchema,
     clinicIdParamsSchema,
     provisionSampleDataBodySchema,
+    retryClinicGeocodingBodySchema,
 } from './clinic.validation.js';
 
 const clinicRouter = Router();
@@ -42,6 +44,18 @@ clinicRouter.patch(
     requireClinicAccess,
     requireAdminRole,
     updateClinicController
+);
+
+clinicRouter.post(
+    '/:clinicId/geocode',
+    authenticateRequest,
+    validateRequest({
+        params: clinicIdParamsSchema,
+        body: retryClinicGeocodingBodySchema,
+    }),
+    requireClinicAccess,
+    requireAdminRole,
+    retryClinicGeocodingController
 );
 
 clinicRouter.post(

@@ -6,10 +6,17 @@ const mockClinicRepository = vi.hoisted(() => ({
     findById: vi.fn(),
     findSettingsById: vi.fn(),
     update: vi.fn(),
+    saveGeocodingResultIfCurrent: vi.fn(),
+    markGeocodingFailedIfCurrent: vi.fn(),
+    prepareGeocoding: vi.fn(),
     provisionSampleData: vi.fn(),
 }));
 
 const mockPredictNoShowRisk = vi.hoisted(() => vi.fn());
+const mockGeocodingService = vi.hoisted(() => ({
+    isConfigured: vi.fn(() => true),
+    geocodeAddress: vi.fn(),
+}));
 
 vi.mock('../clinic.repository.js', () => ({
     clinicRepository: mockClinicRepository,
@@ -17,6 +24,10 @@ vi.mock('../clinic.repository.js', () => ({
 
 vi.mock('../../predictions/prediction.service.js', () => ({
     predictNoShowRisk: mockPredictNoShowRisk,
+}));
+
+vi.mock('../../geocoding/geocoding.service.js', () => ({
+    geocodingService: mockGeocodingService,
 }));
 
 import { clinicService } from '../clinic.service.js';
@@ -100,6 +111,59 @@ describe('clinicService.updateClinic', () => {
             })
         ).rejects.toThrow(new AppError(404, 'CLINIC_NOT_FOUND', 'Clinic not found'));
         expect(mockClinicRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('invalidates and geocodes only when the normalized structured address changes', async () => {
+        const existingClinic = {
+            id: 'clinic-id',
+            addressLine1: '12 Wellness Road',
+            addressLine2: null,
+            city: 'Jaipur',
+            state: 'Rajasthan',
+            country: 'India',
+            pincode: '302017',
+        };
+        const geocodedClinic = {
+            ...existingClinic,
+            city: 'Mumbai',
+            geocodingStatus: 'GEOCODED',
+        };
+        const result = {
+            latitude: 19.076,
+            longitude: 72.8777,
+            provider: 'GEOAPIFY' as const,
+            confidence: 0.9,
+            resultType: 'street',
+            matchType: 'full_match',
+            placeId: 'place-id',
+            formattedAddress: '12 Wellness Road, Mumbai, Maharashtra, India',
+        };
+
+        mockClinicRepository.findById.mockResolvedValue(existingClinic);
+        mockClinicRepository.update.mockResolvedValue({
+            ...existingClinic,
+            city: 'Mumbai',
+            geocodingStatus: 'NOT_GEOCODED',
+        });
+        mockGeocodingService.geocodeAddress.mockResolvedValue({ outcome: 'SUCCESS', result });
+        mockClinicRepository.findSettingsById.mockResolvedValue(geocodedClinic);
+
+        await expect(
+            clinicService.updateClinic('clinic-id', { city: 'Mumbai' })
+        ).resolves.toBe(geocodedClinic);
+
+        expect(mockClinicRepository.update).toHaveBeenCalledWith(
+            'clinic-id',
+            { city: 'Mumbai' },
+            { sourceHash: expect.any(String), attemptId: expect.any(String) }
+        );
+        expect(mockGeocodingService.geocodeAddress).toHaveBeenCalledTimes(1);
+        expect(mockClinicRepository.saveGeocodingResultIfCurrent).toHaveBeenCalledWith(
+            'clinic-id',
+            expect.any(String),
+            expect.any(String),
+            result
+        );
     });
 });
 

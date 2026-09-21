@@ -24,6 +24,7 @@ const mockClerkIdentityService = vi.hoisted(() => ({
 
 vi.mock('../auth.repository.js', () => ({
     authRepository: mockAuthRepository,
+    PendingStaffInvitationRepositoryError: class PendingStaffInvitationRepositoryError extends Error {},
 }));
 
 vi.mock('../clerkIdentity.service.js', () => ({

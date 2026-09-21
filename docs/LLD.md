@@ -1055,3 +1055,18 @@ Booking inserts `APPOINTMENT_CREATED` after appointment/queue/prediction/statist
 Queue services and appointment status/reschedule services propagate the trusted authenticated internal `User.id`; no request schema accepts an actor ID. Completion uses the same logical event timestamp for queue completion, `PatientClinic.lastVisitAt` processing, and the activity. Reschedule inserts one row after the guarded scheduled-time update and any destination queue-position update; same-time, stale, conflict, or rollback paths insert none, while separate valid reschedules can repeat.
 
 `GET /api/appointments/:appointmentId/activities` uses authentication, UUID validation, Admin/Staff middleware, shared appointment clinic access, and a query constrained by both appointment and clinic. `AppointmentActivityDialog` supplies a per-row View activity action, non-blocking loading/error/empty/success states, product labels, nullable actor rendering, persisted arrival context, old/new reschedule times, and clinic-timezone formatting. Unknown future metadata is ignored defensively.
+
+## Geoapify Geocoding Implementation
+
+`location.ts` canonicalizes fields in fixed order: address line 1, address line
+2, city, state, pincode, country; blanks are trimmed and omitted. A SHA-256
+`geocodingSourceHash` identifies that exact normalized address. Automatic lookup
+requires address line 1, city, state, and country.
+
+The server-only Geoapify client uses native `fetch`, free-form `text`,
+`format=json`, `limit=1`, `lang=en`, and a 5,000 ms `AbortController` timeout.
+It validates response shape and finite coordinate bounds. An address change
+clears prior derived data, persists a new hash, then calls the provider after
+the transaction. Success and failure use a hash-constrained `updateMany`, so a
+stale result cannot overwrite a newer address. Missing configuration leaves
+automatic workflows `NOT_GEOCODED`; provider failures do not undo core writes.

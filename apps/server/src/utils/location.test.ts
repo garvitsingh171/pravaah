@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildCanonicalAddress, hasGeocodableAddress } from './location.js';
+import {
+    buildCanonicalAddress,
+    createGeocodingSourceHash,
+    hasGeocodableAddress,
+} from './location.js';
 
 describe('structured address utilities', () => {
     it('builds a deterministic canonical address in field order', () => {
@@ -43,5 +47,23 @@ describe('structured address utilities', () => {
                 country: 'India',
             })
         ).toBe(false);
+    });
+
+    it('creates a stable SHA-256 fingerprint from the normalized canonical address', () => {
+        expect(
+            createGeocodingSourceHash({
+                addressLine1: ' B-42, Malviya Nagar ',
+                city: ' Jaipur ',
+                state: ' Rajasthan ',
+                country: ' India ',
+            })
+        ).toBe(
+            createGeocodingSourceHash({
+                addressLine1: 'B-42, Malviya Nagar',
+                city: 'Jaipur',
+                state: 'Rajasthan',
+                country: 'India',
+            })
+        );
     });
 });

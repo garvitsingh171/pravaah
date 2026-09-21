@@ -63,6 +63,25 @@ export async function updateClinicController(
     }
 }
 
+export async function retryClinicGeocodingController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { clinicId } = req.params as { clinicId: string };
+        const clinic = await clinicService.retryGeocoding(clinicId);
+
+        res.status(200).json({
+            success: true,
+            message: 'Clinic location lookup completed successfully',
+            data: { clinic },
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
 export async function provisionSampleDataController(
     req: Request,
     res: Response,

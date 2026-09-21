@@ -62,3 +62,10 @@ No-show assistance is generated during appointment creation and can also be back
 ## Release Rule
 
 Do not mark a feature `DEPLOYED` until this repository records the relevant deployment evidence: URL, provider context, deployed commit SHA or release reference, and smoke-check result.
+
+## Geoapify Geocoding (#265)
+
+Implemented in source/schema pending owner-created migration and real-key smoke
+test. The provider key is server-only; geocoding is post-transaction and
+best-effort, while explicit retries use existing Clinic access controls. No
+distance or prediction behavior is included.

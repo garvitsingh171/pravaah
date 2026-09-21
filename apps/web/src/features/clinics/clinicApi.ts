@@ -12,6 +12,14 @@ export type ClinicSettings = {
     state: string | null;
     country: string;
     pincode: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    geocodingStatus: 'NOT_GEOCODED' | 'GEOCODED' | 'FAILED';
+    geocodingProvider: 'GEOAPIFY' | null;
+    geocodingConfidence: number | null;
+    geocodingResultType: string | null;
+    geocodedAddress: string | null;
+    geocodedAt: string | null;
     timezone: string;
     openingTime: string;
     closingTime: string;
@@ -54,5 +62,12 @@ export const updateClinicSettings = (clinicId: string, payload: UpdateClinicSett
     return apiClient.patch<ClinicSettingsResponseData>(
         `/clinics/${encodeURIComponent(clinicId)}`,
         payload
+    );
+};
+
+export const retryClinicGeocoding = (clinicId: string) => {
+    return apiClient.post<ClinicSettingsResponseData>(
+        `/clinics/${encodeURIComponent(clinicId)}/geocode`,
+        {}
     );
 };
