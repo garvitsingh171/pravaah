@@ -2,6 +2,7 @@ import 'dotenv/config';
 
 import { neonConfig } from '@neondatabase/serverless';
 import { PrismaNeon } from '@prisma/adapter-neon';
+import { PrismaPg } from '@prisma/adapter-pg';
 import ws from 'ws';
 import { PrismaClient } from '../generated/prisma/client.js';
 import { withTransientDatabaseRetry } from '../utils/databaseRetry.js';
@@ -12,11 +13,30 @@ if (!connectionString) {
     throw new Error('DATABASE_URL is not defined');
 }
 
-neonConfig.webSocketConstructor = ws;
+const databaseHost = (() => {
+    try {
+        return new URL(connectionString).hostname.toLowerCase();
+    } catch {
+        return '';
+    }
+})();
 
-const adapter = new PrismaNeon({
-    connectionString,
-});
+const useNeonAdapter =
+    process.env.PRISMA_DATABASE_ADAPTER?.trim().toLowerCase() === 'neon' ||
+    databaseHost.endsWith('.neon.tech');
+
+const adapter = useNeonAdapter
+    ? (() => {
+          neonConfig.webSocketConstructor = ws;
+          return new PrismaNeon({ connectionString });
+      })()
+    : new PrismaPg({
+          connectionString,
+          max: 5,
+          connectionTimeoutMillis: 15_000,
+          idleTimeoutMillis: 300_000,
+          keepAlive: true,
+      });
 
 const basePrisma = new PrismaClient({
     adapter,
