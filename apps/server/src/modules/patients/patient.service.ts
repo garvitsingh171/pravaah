@@ -1,4 +1,5 @@
 import { AppError } from '../../utils/AppError.js';
+import { getIndiaPincodeValidationMessage } from '../../utils/locationValidation.js';
 import { patientRepository } from './patient.repository.js';
 import type {
     CreatePatientInput,
@@ -41,6 +42,20 @@ export const patientService = {
                 'PATIENT_NOT_LINKED_TO_CLINIC',
                 'Patient is not linked to this clinic'
             );
+        }
+
+        const pincodeError = getIndiaPincodeValidationMessage(
+            input.country !== undefined ? input.country : existingPatient.country,
+            input.pincode !== undefined ? input.pincode : existingPatient.pincode
+        );
+
+        if (pincodeError) {
+            throw new AppError(400, 'VALIDATION_ERROR', 'Invalid request data.', [
+                {
+                    field: 'body.pincode',
+                    message: pincodeError,
+                },
+            ]);
         }
 
         return patientRepository.updatePatientWithClinicDetails(clinicId, patientId, input);

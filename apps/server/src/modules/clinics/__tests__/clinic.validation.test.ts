@@ -81,3 +81,60 @@ describe('clinic update validation settings surface', () => {
         expect(result.success).toBe(false);
     });
 });
+
+describe('clinic structured location normalization', () => {
+    it('trims location fields and keeps India as the create default', () => {
+        const result = createClinicSchema.safeParse({
+            ...minimumClinicInput,
+            addressLine1: '  12 Wellness Road  ',
+            city: ' Mumbai ',
+            state: ' Maharashtra ',
+            pincode: '400001',
+        });
+
+        expect(result.success).toBe(true);
+
+        if (result.success) {
+            expect(result.data.addressLine1).toBe('12 Wellness Road');
+            expect(result.data.city).toBe('Mumbai');
+            expect(result.data.state).toBe('Maharashtra');
+            expect(result.data.country).toBe('India');
+        }
+    });
+
+    it('normalizes empty optional update fields to null and rejects whitespace country', () => {
+        const clearResult = updateClinicSchema.safeParse({
+            addressLine1: '   ',
+            addressLine2: null,
+            pincode: '   ',
+        });
+        const whitespaceCountryResult = updateClinicSchema.safeParse({
+            country: '   ',
+        });
+
+        expect(clearResult.success).toBe(true);
+        expect(whitespaceCountryResult.success).toBe(false);
+
+        if (clearResult.success) {
+            expect(clearResult.data.addressLine1).toBeNull();
+            expect(clearResult.data.addressLine2).toBeNull();
+            expect(clearResult.data.pincode).toBeNull();
+        }
+    });
+
+    it('applies the Indian six-digit pincode rule without restricting international postcodes', () => {
+        const invalidIndiaResult = createClinicSchema.safeParse({
+            ...minimumClinicInput,
+            country: 'India',
+            pincode: 'ABCDEF',
+        });
+        const internationalResult = createClinicSchema.safeParse({
+            ...minimumClinicInput,
+            country: 'United Kingdom',
+            pincode: 'SW1A 1AA',
+        });
+
+        expect(invalidIndiaResult.success).toBe(false);
+        expect(internationalResult.success).toBe(true);
+    });
+});

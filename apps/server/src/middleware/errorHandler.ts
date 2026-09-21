@@ -28,6 +28,7 @@ export const errorHandler: ErrorRequestHandler = (error: HttpError, req, res, _n
             error: {
                 code: error.code,
                 message: error.message,
+                ...(error.details ? { details: error.details } : {}),
             },
         });
         return;

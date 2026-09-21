@@ -1,4 +1,11 @@
 import { z } from 'zod';
+import {
+    countryWithDefaultIndia,
+    nullableNormalizedText,
+    normalizedText,
+    optionalNormalizedText,
+    refineIndiaPincode,
+} from '../../utils/locationValidation.js';
 import { isSupportedClinicTimezone } from './clinicTimezone.js';
 
 const uuidSchema = z
@@ -18,7 +25,11 @@ const timeSchema = z
     .string()
     .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use a 24-hour time such as 09:00');
 
-const optionalNullableTextSchema = z.string().nullable().optional();
+const nullableClinicAddressLine1 = nullableNormalizedText(250, 'Address line 1');
+const nullableClinicAddressLine2 = nullableNormalizedText(250, 'Address line 2');
+const nullableClinicCity = nullableNormalizedText(100, 'City');
+const nullableClinicState = nullableNormalizedText(100, 'State');
+const nullableClinicPincode = nullableNormalizedText(20, 'Pincode');
 
 export const createClinicSchema = z
     .object({
@@ -32,15 +43,15 @@ export const createClinicSchema = z
                 'Clinic slug can only contain lowercase letters, numbers, and hyphens'
             ),
 
-        phone: z.string().optional(),
+        phone: optionalNormalizedText(40, 'Clinic phone'),
         email: z.string().email('Invalid clinic email').optional(),
 
-        addressLine1: z.string().optional(),
-        addressLine2: z.string().optional(),
-        city: z.string().optional(),
-        state: z.string().optional(),
-        country: z.string().default('India'),
-        pincode: z.string().optional(),
+        addressLine1: optionalNormalizedText(250, 'Address line 1'),
+        addressLine2: optionalNormalizedText(250, 'Address line 2'),
+        city: optionalNormalizedText(100, 'City'),
+        state: optionalNormalizedText(100, 'State'),
+        country: countryWithDefaultIndia,
+        pincode: optionalNormalizedText(20, 'Pincode'),
 
         timezone: timezoneSchema.default('Asia/Kolkata'),
 
@@ -61,7 +72,8 @@ export const createClinicSchema = z
             .min(0, 'Late arrival grace period cannot be negative')
             .default(15),
     })
-    .strict();
+    .strict()
+    .superRefine(refineIndiaPincode);
 
 export type CreateClinicSchemaInput = z.infer<typeof createClinicSchema>;
 
@@ -69,15 +81,15 @@ export const updateClinicSchema = z
     .object({
         name: z.string().min(2, 'Clinic name must be at least 2 characters long').optional(),
 
-        phone: optionalNullableTextSchema,
+        phone: nullableNormalizedText(40, 'Clinic phone'),
         email: z.string().email('Invalid clinic email').nullable().optional(),
 
-        addressLine1: optionalNullableTextSchema,
-        addressLine2: optionalNullableTextSchema,
-        city: optionalNullableTextSchema,
-        state: optionalNullableTextSchema,
-        country: z.string().min(1, 'Country is required').optional(),
-        pincode: optionalNullableTextSchema,
+        addressLine1: nullableClinicAddressLine1,
+        addressLine2: nullableClinicAddressLine2,
+        city: nullableClinicCity,
+        state: nullableClinicState,
+        country: normalizedText(100, 'Country').optional(),
+        pincode: nullableClinicPincode,
 
         timezone: timezoneSchema.optional(),
 
@@ -101,7 +113,8 @@ export const updateClinicSchema = z
     .strict()
     .refine((data) => Object.keys(data).length > 0, {
         message: 'At least one clinic field is required for update',
-    });
+    })
+    .superRefine(refineIndiaPincode);
 
 export type UpdateClinicSchemaInput = z.infer<typeof updateClinicSchema>;
 

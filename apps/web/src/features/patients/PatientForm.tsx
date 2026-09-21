@@ -10,8 +10,12 @@ export type PatientFormValues = {
     gender: '' | Gender;
     dateOfBirth: string;
     age: string;
-    address: string;
+    addressLine1: string;
+    addressLine2: string;
     city: string;
+    state: string;
+    country: string;
+    pincode: string;
     emergencyContactName: string;
     emergencyContactPhone: string;
     distanceFromClinicKm: string;
@@ -150,9 +154,37 @@ function PatientForm({
             </FormSection>
 
             <FormSection
-                title="Clinic Details"
-                description="Notes and distance are scoped to this clinic only."
+                title="Location"
+                description="Residential location is optional and can be completed later."
             >
+                <label className="block text-sm font-medium text-slate-700 md:col-span-2">
+                    Address line 1
+                    <textarea
+                        className={getFieldClassName(Boolean(fieldErrors.addressLine1))}
+                        value={values.addressLine1}
+                        onChange={(event) => onChange('addressLine1', event.target.value)}
+                        disabled={isSubmitting}
+                        rows={2}
+                        autoComplete="address-line1"
+                        aria-invalid={Boolean(fieldErrors.addressLine1)}
+                    />
+                    <FieldError message={fieldErrors.addressLine1} />
+                </label>
+
+                <label className="block text-sm font-medium text-slate-700 md:col-span-2">
+                    Address line 2
+                    <textarea
+                        className={getFieldClassName(Boolean(fieldErrors.addressLine2))}
+                        value={values.addressLine2}
+                        onChange={(event) => onChange('addressLine2', event.target.value)}
+                        disabled={isSubmitting}
+                        rows={2}
+                        autoComplete="address-line2"
+                        aria-invalid={Boolean(fieldErrors.addressLine2)}
+                    />
+                    <FieldError message={fieldErrors.addressLine2} />
+                </label>
+
                 <label className="block text-sm font-medium text-slate-700">
                     City
                     <input
@@ -160,9 +192,56 @@ function PatientForm({
                         value={values.city}
                         onChange={(event) => onChange('city', event.target.value)}
                         disabled={isSubmitting}
+                        autoComplete="address-level2"
                     />
                     <FieldError message={fieldErrors.city} />
                 </label>
+
+                <label className="block text-sm font-medium text-slate-700">
+                    State
+                    <input
+                        className={getFieldClassName(Boolean(fieldErrors.state))}
+                        value={values.state}
+                        onChange={(event) => onChange('state', event.target.value)}
+                        disabled={isSubmitting}
+                        autoComplete="address-level1"
+                        aria-invalid={Boolean(fieldErrors.state)}
+                    />
+                    <FieldError message={fieldErrors.state} />
+                </label>
+
+                <label className="block text-sm font-medium text-slate-700">
+                    Pincode
+                    <input
+                        className={getFieldClassName(Boolean(fieldErrors.pincode))}
+                        value={values.pincode}
+                        onChange={(event) => onChange('pincode', event.target.value)}
+                        disabled={isSubmitting}
+                        autoComplete="postal-code"
+                        inputMode="numeric"
+                        aria-invalid={Boolean(fieldErrors.pincode)}
+                    />
+                    <FieldError message={fieldErrors.pincode} />
+                </label>
+
+                <label className="block text-sm font-medium text-slate-700">
+                    Country
+                    <input
+                        className={getFieldClassName(Boolean(fieldErrors.country))}
+                        value={values.country}
+                        onChange={(event) => onChange('country', event.target.value)}
+                        disabled={isSubmitting}
+                        autoComplete="country-name"
+                        aria-invalid={Boolean(fieldErrors.country)}
+                    />
+                    <FieldError message={fieldErrors.country} />
+                </label>
+            </FormSection>
+
+            <FormSection
+                title="Clinic Details"
+                description="Notes and distance are scoped to this clinic only."
+            >
 
                 <label className="block text-sm font-medium text-slate-700">
                     Distance from clinic (km)
@@ -202,19 +281,7 @@ function PatientForm({
                 </label>
             </FormSection>
 
-            <FormSection title="Address and Notes">
-                <label className="block text-sm font-medium text-slate-700 md:col-span-2">
-                    Address
-                    <textarea
-                        className={getFieldClassName(Boolean(fieldErrors.address))}
-                        value={values.address}
-                        onChange={(event) => onChange('address', event.target.value)}
-                        disabled={isSubmitting}
-                        rows={3}
-                    />
-                    <FieldError message={fieldErrors.address} />
-                </label>
-
+            <FormSection title="Notes">
                 <label className="block text-sm font-medium text-slate-700 md:col-span-2">
                     Notes
                     <textarea

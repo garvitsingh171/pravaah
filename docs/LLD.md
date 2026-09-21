@@ -330,7 +330,7 @@ Forms are implemented with local React state. Important forms:
 | Clinic onboarding                | `ClinicOnboardingPage`                                                    | Local field checks, strict backend body, duplicate/conflict handling, retry and optional sample data.                               |
 | Clinic settings                  | `ClinicSettingsPage`                                                      | Loads defaults, Admin-only API, patch supported fields, validation errors and save state.                                           |
 | Doctor create/edit               | `DoctorCreatePage`, `DoctorForm`, `DoctorsPage`                           | Local required fields, backend validation, disabled submit, success redirect/toast.                                                 |
-| Patient create/edit              | `PatientCreatePage`, `PatientForm`, `PatientsPage`                        | Patient profile plus clinic notes/distance; backend remains authority.                                                              |
+| Patient create/edit              | `PatientCreatePage`, `PatientForm`, `PatientsPage`                        | Patient profile plus optional structured location and clinic notes/distance; backend remains authority.                              |
 | Appointment booking and activity | `AppointmentBookingForm`, `AppointmentsPage`, `AppointmentActivityDialog` | Doctor/patient options, date/time conversion, conflict display, risk response display, and clinic-timezone operational timeline.    |
 | Queue actions                    | `QueuePage`                                                               | Doctor-scoped ordered lanes/cards, icon move buttons with labels/tooltips, pending state per status/reorder, server reconciliation. |
 
@@ -528,7 +528,7 @@ There is no explicit not-found middleware in the inspected source.
 | Auth             | `auth.routes.ts`        | `auth.controller.ts`        | `auth.service.ts`, `access.service.ts`, `clerkIdentity.service.ts` | `auth.repository.ts`, `access.repository.ts` | `auth.validation.ts`        | auth/access/controller/middleware/repository/routes/service/validation tests. |
 | Clinics          | `clinic.routes.ts`      | `clinic.controller.ts`      | `clinic.service.ts`                                                | `clinic.repository.ts`                       | `clinic.validation.ts`      | controller/repository/service/validation tests.                               |
 | Doctors          | `doctor.routes.ts`      | `doctor.controller.ts`      | `doctor.service.ts`                                                | `doctor.repository.ts`                       | `doctor.validation.ts`      | validation tests.                                                             |
-| Patients         | `patient.routes.ts`     | `patient.controller.ts`     | `patient.service.ts`                                               | `patient.repository.ts`                      | `patient.validation.ts`     | No backend patient tests found in source list.                                |
+| Patients         | `patient.routes.ts`     | `patient.controller.ts`     | `patient.service.ts`                                               | `patient.repository.ts`                      | `patient.validation.ts`     | Structured location validation and repository tests; clinic-scoped access remains unchanged. |
 | Appointments     | `appointment.routes.ts` | `appointment.controller.ts` | `appointment.service.ts`                                           | `appointment.repository.ts`                  | `appointment.validation.ts` | controller/service/validation tests.                                          |
 | Queues           | `queue.routes.ts`       | `queue.controller.ts`       | `queue.service.ts`                                                 | `queue.repository.ts`                        | `queue.validation.ts`       | service tests.                                                                |
 | Dashboard        | `dashboard.routes.ts`   | `dashboard.controller.ts`   | `dashboard.service.ts`                                             | `dashboard.repository.ts`                    | `dashboard.validation.ts`   | controller/repository/service/validation tests.                               |
@@ -695,7 +695,14 @@ the source of truth for recurring doctor working windows.
 #### Patient
 
 Patient creation transactionally creates `Patient` and `PatientClinic`. Edit updates
-global profile fields and clinic-specific notes/distance inside one transaction.
+global profile fields, including optional structured residential location, and
+clinic-specific notes/distance inside one transaction. `Patient.address` is a
+deprecated compatibility column temporarily dual-written from `addressLine1`;
+new API requests use structured fields only. The frontend uses the structured
+fields for create, edit, and display, with a legacy address fallback for rows
+before migration/backfill. Patient location is not used by prediction or
+automatic distance calculation. List supports search and `Patient.isActive` filtering; link-aware inactive
+filtering remains a documented gap.
 Patient list supports search and `Patient.isActive` filtering; link-aware inactive
 filtering remains a documented gap.
 

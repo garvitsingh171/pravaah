@@ -45,8 +45,15 @@ export const patientRepository = {
                     gender: data.gender ?? null,
                     dateOfBirth: data.dateOfBirth ?? null,
                     age: data.age ?? null,
-                    address: data.address ?? null,
+                    // Transitional compatibility: legacy address mirrors the
+                    // structured primary line until the cleanup issue removes it.
+                    address: data.addressLine1 ?? null,
+                    addressLine1: data.addressLine1 ?? null,
+                    addressLine2: data.addressLine2 ?? null,
                     city: data.city ?? null,
+                    state: data.state ?? null,
+                    country: data.country ?? null,
+                    pincode: data.pincode ?? null,
                     emergencyContactName: data.emergencyContactName ?? null,
                     emergencyContactPhone: data.emergencyContactPhone ?? null,
                 },
@@ -74,8 +81,16 @@ export const patientRepository = {
         if (data.gender !== undefined) patientUpdateData.gender = data.gender;
         if (data.dateOfBirth !== undefined) patientUpdateData.dateOfBirth = data.dateOfBirth;
         if (data.age !== undefined) patientUpdateData.age = data.age;
-        if (data.address !== undefined) patientUpdateData.address = data.address;
+        if (data.addressLine1 !== undefined) {
+            // Keep old readers coherent while Patient.address is transitional.
+            patientUpdateData.address = data.addressLine1;
+            patientUpdateData.addressLine1 = data.addressLine1;
+        }
+        if (data.addressLine2 !== undefined) patientUpdateData.addressLine2 = data.addressLine2;
         if (data.city !== undefined) patientUpdateData.city = data.city;
+        if (data.state !== undefined) patientUpdateData.state = data.state;
+        if (data.country !== undefined) patientUpdateData.country = data.country;
+        if (data.pincode !== undefined) patientUpdateData.pincode = data.pincode;
         if (data.emergencyContactName !== undefined) {
             patientUpdateData.emergencyContactName = data.emergencyContactName;
         }

@@ -1,4 +1,5 @@
 import { AppError } from '../../utils/AppError.js';
+import { getIndiaPincodeValidationMessage } from '../../utils/locationValidation.js';
 import { predictNoShowRisk } from '../predictions/prediction.service.js';
 import { clinicRepository } from './clinic.repository.js';
 import type { ProvisionSampleDataServiceInput, UpdateClinicInput } from './clinic.types.js';
@@ -19,6 +20,20 @@ export const clinicService = {
 
         if (!existingClinic) {
             throw new AppError(404, 'CLINIC_NOT_FOUND', 'Clinic not found');
+        }
+
+        const pincodeError = getIndiaPincodeValidationMessage(
+            input.country !== undefined ? input.country : existingClinic.country,
+            input.pincode !== undefined ? input.pincode : existingClinic.pincode
+        );
+
+        if (pincodeError) {
+            throw new AppError(400, 'VALIDATION_ERROR', 'Invalid request data.', [
+                {
+                    field: 'body.pincode',
+                    message: pincodeError,
+                },
+            ]);
         }
 
         return clinicRepository.update(clinicId, input);

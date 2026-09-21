@@ -107,7 +107,8 @@ Manual checklist:
 Manual checklist:
 
 - create a patient with name and phone
-- add optional distance for scoring context
+- add optional structured residential location; country defaults to India in a new form
+- add optional manual distance for scoring context
 - verify it appears on `/patients`
 - verify `PatientClinic` link exists
 
@@ -124,7 +125,7 @@ Manual checklist:
 
 Manual checklist:
 
-- edit patient contact or clinic history fields
+- edit patient contact or structured location fields
 - save
 - confirm `PatientClinic` fields such as notes or distance are preserved correctly
 

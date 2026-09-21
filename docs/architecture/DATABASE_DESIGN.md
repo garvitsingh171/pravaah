@@ -207,7 +207,10 @@ Important fields:
 
 - `fullName`
 - required `phone`
-- optional email, gender, DOB, age, address, city, emergency contact
+- optional email, gender, DOB, and emergency contact
+- structured residential location: `addressLine1`, `addressLine2`, `city`,
+  `state`, `country`, and string `pincode`
+- legacy `address` retained temporarily as a deprecated compatibility field
 - `isActive`
 
 Indexes:
@@ -217,6 +220,13 @@ Indexes:
 - `isActive`
 
 Patients are records only. They do not authenticate in the MVP.
+
+Structured location is the source of truth for new application behavior. The
+legacy `address` column is not accepted by the normal patient API; create/update
+repository writes temporarily mirror `addressLine1` into it so historical
+readers do not see stale text. Historical rows are backfilled only from their
+existing non-blank `address` value into `addressLine1`; city, state, country,
+and pincode remain null when they were never collected.
 
 ### PatientClinic
 
@@ -249,6 +259,29 @@ Why `PatientClinic` exists:
 - A patient can be known to more than one clinic in the future.
 - Attendance history and distance are clinic-specific.
 - No-show scoring should use the patient's history at the current clinic, not global assumptions.
+
+`distanceFromClinicKm` remains a manually stored clinic-specific operational
+input. It is not derived from structured patient or clinic address data.
+
+### Structured Location Migration Plan (#263)
+
+The recommended new unapplied migration is
+`add_structured_patient_location`. It adds nullable `addressLine1`,
+`addressLine2`, `state`, `country`, and `pincode` columns to `patients`; the
+existing `city` and legacy `address` columns remain. Before applying the
+generated migration, review/add only this safe backfill:
+
+```sql
+UPDATE "patients"
+SET "addressLine1" = "address"
+WHERE "addressLine1" IS NULL
+  AND "address" IS NOT NULL
+  AND BTRIM("address") <> '';
+```
+
+No historical state, country, or pincode is inferred. Existing applied
+migrations are immutable, and this work does not add coordinates, geocoding
+metadata, or indexes for location fields.
 
 Operational aggregate semantics:
 

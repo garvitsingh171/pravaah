@@ -1,4 +1,9 @@
 import { z } from 'zod';
+import {
+    nullableNormalizedText,
+    optionalNormalizedText,
+    refineIndiaPincode,
+} from '../../utils/locationValidation.js';
 
 const uuidSchema = z
     .string()
@@ -27,9 +32,17 @@ export const createPatientSchema = z
 
         age: z.number().int().nonnegative('Age cannot be negative').optional(),
 
-        address: z.string().optional(),
+        addressLine1: optionalNormalizedText(250, 'Address line 1'),
 
-        city: z.string().optional(),
+        addressLine2: optionalNormalizedText(250, 'Address line 2'),
+
+        city: optionalNormalizedText(100, 'City'),
+
+        state: optionalNormalizedText(100, 'State'),
+
+        country: optionalNormalizedText(100, 'Country'),
+
+        pincode: optionalNormalizedText(20, 'Pincode'),
 
         emergencyContactName: z.string().optional(),
 
@@ -42,7 +55,8 @@ export const createPatientSchema = z
             .nonnegative('Distance from clinic cannot be negative')
             .optional(),
     })
-    .strict();
+    .strict()
+    .superRefine(refineIndiaPincode);
 
 export const updatePatientSchema = z
     .object({
@@ -58,9 +72,17 @@ export const updatePatientSchema = z
 
         age: z.number().int().nonnegative('Age cannot be negative').nullable().optional(),
 
-        address: z.string().nullable().optional(),
+        addressLine1: nullableNormalizedText(250, 'Address line 1'),
 
-        city: z.string().nullable().optional(),
+        addressLine2: nullableNormalizedText(250, 'Address line 2'),
+
+        city: nullableNormalizedText(100, 'City'),
+
+        state: nullableNormalizedText(100, 'State'),
+
+        country: nullableNormalizedText(100, 'Country'),
+
+        pincode: nullableNormalizedText(20, 'Pincode'),
 
         emergencyContactName: z.string().nullable().optional(),
 
@@ -79,7 +101,8 @@ export const updatePatientSchema = z
     .strict()
     .refine((data) => Object.keys(data).length > 0, {
         message: 'At least one patient field is required for update',
-    });
+    })
+    .superRefine(refineIndiaPincode);
 
 export const listPatientsQuerySchema = z
     .object({

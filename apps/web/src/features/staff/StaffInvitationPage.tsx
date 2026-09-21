@@ -133,7 +133,9 @@ function StaffInvitationPage() {
         if (!isLoaded || !isSignedIn) return undefined;
 
         const abortController = new AbortController();
-        void loadInvitation(abortController.signal);
+        void Promise.resolve().then(() => {
+            void loadInvitation(abortController.signal);
+        });
 
         return () => abortController.abort();
     }, [isLoaded, isSignedIn, loadInvitation]);

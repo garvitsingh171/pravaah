@@ -26,8 +26,23 @@
 | Concurrency control   | No explicit duplicate patient lock; `PatientClinic` has `@@unique([patientId, clinicId])`, but create always creates a new `Patient`                                   |
 | State changes         | Patient row, clinic-specific notes/distance/history link; frontend refetches after edit/status changes                                                                 |
 | Errors                | `CLINIC_NOT_FOUND`, `PATIENT_NOT_FOUND`, `PATIENT_NOT_LINKED_TO_CLINIC`, `VALIDATION_ERROR`                                                                            |
-| Tests                 | `PatientsPage.test.tsx`, `patient.validation.test.ts`, `patient.statistics.repository.test.ts`                                                                         |
+| Tests                 | `PatientsPage.test.tsx`, `patient.validation.test.ts`, `patient.repository.test.ts`, `patient.statistics.repository.test.ts`, `location.test.ts`                       |
 | Known gaps            | No patient login or manual reconciliation workflow                                                                                                                     |
+
+## Structured Patient Location (#263)
+
+Patient residential location is stored on the global `Patient` record as the
+optional fields `addressLine1`, `addressLine2`, `city`, `state`, `country`, and
+string `pincode`. The create form defaults a new record's country to `India`,
+but editing an existing patient preserves a stored unknown country as unknown.
+Location text is trimmed; blank optional values are sent as omitted values on
+create or `null` on PATCH clearing. Indian pincodes are six digits, while
+international postal codes remain bounded text.
+
+`Patient.address` remains a deprecated transitional database field. Historical
+values are displayed as a fallback before migration/backfill and safe create or
+update repository writes mirror `addressLine1` into it temporarily. No API
+client submits legacy `address`, and no geography is inferred from old text.
 
 ## Create Patient Trace
 
@@ -62,9 +77,11 @@ patient.repository.ts -> createPatientWithClinicLink()
     ↓
 prisma.$transaction
     ↓
-tx.patient.create(...)
+    tx.patient.create(...)
     ↓
-tx.patientClinic.create({ patientId, clinicId, notes, distanceFromClinicKm })
+    structured Patient location fields are persisted
+    ↓
+    tx.patientClinic.create({ patientId, clinicId, notes, distanceFromClinicKm })
     ↓
 201 { patient }
     ↓
@@ -136,6 +153,10 @@ PatientsPage refreshes list via loadPatients()
 Operational meanings are deliberately non-overlapping: `totalAppointments` counts successful bookings, `totalCompletedVisits` counts first transitions to `COMPLETED`, `totalNoShows` counts first transitions to `NO_SHOW`, `totalLateArrivals` counts late first arrivals, and `lastVisitAt` is the latest completion event time. Booking and lifecycle transactions maintain these aggregates atomically for the matching `(patientId, clinicId)` link. Normal patient create/update requests remain strict and do not accept any operational statistic as editable metadata.
 
 The no-show risk workflow still reads `totalLateArrivals` and `distanceFromClinicKm` from `PatientClinic`, while completed/no-show inputs continue to be counted from `Appointment`. The statistics feature does not change prediction sources, weights, thresholds, or stored predictions.
+
+Structured address does not participate in prediction, appointment booking,
+queue behavior, or automatic distance calculation. `distanceFromClinicKm`
+remains the current manual/legacy prediction input.
 
 ## Privacy Boundary
 

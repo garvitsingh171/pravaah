@@ -107,6 +107,12 @@ The current schema and form support:
 
 `isActive` exists in the Prisma `Clinic` model but is not editable in the frontend settings form or `updateClinicSchema`.
 
+Clinic location text is trimmed and bounded at the API boundary. Optional
+location fields clear as `null` through settings PATCH requests; India uses a
+six-digit pincode rule while international postal codes remain bounded text.
+These fields are structured source data only: no coordinates or automatic
+distance is produced.
+
 ## Sample Data Notes
 
 Sample data is documented in [Onboarding And Clinic Provisioning](onboarding-and-clinic-provisioning.md#sample-data-trace). The operational endpoint is Admin-only and clinic-scoped. It creates fictional records in one transaction and returns `CREATED` or `ALREADY_PROVISIONED`.
