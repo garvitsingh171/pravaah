@@ -112,6 +112,21 @@ Staff invitation and access management now exists as an implemented-not-released
 
 ## D. Database Model Differences And Future-Ready Fields
 
+### Structured clinic and patient location foundation (#263)
+
+The current Clinic already stores structured `addressLine1`, `addressLine2`,
+`city`, `state`, `country`, and `pincode`. The Patient now has the same
+conceptual fields while retaining the historical `address` column as a
+deprecated transitional compatibility field. New patient API requests use
+structured fields only; repository writes temporarily mirror `addressLine1` to
+legacy `address`. The owner must create and inspect the unapplied migration
+`add_structured_patient_location`, including only the safe `address` to
+`addressLine1` backfill. Unknown historical geography remains null.
+
+The canonical address helper is display-only, and the completeness helper only
+means “enough fields for a future geocoding attempt.” No coordinates, external
+provider, automatic distance, or prediction coupling exists.
+
 ### DoctorClinic and PatientClinic are real, but multi-clinic UI is not
 
 Expected/documented:

@@ -176,6 +176,16 @@ Patient is currently a record, not a logged-in user. A patient can be linked to 
 | Staff invitation/management UI     | Yes, own clinic             | No                          | No                                            | No                                            | Implemented but not yet released | One-time copy link; no automatic email delivery; suspend/reactivate rather than delete.        |
 | Live deployment access             | Owner verification required | Owner verification required | No                                            | No                                            | Owner verification required      | Repository has no verified live URLs.                                                          |
 
+### v0.4 Structured Location Foundation
+
+Pravaah stores optional structured clinic and patient address components with
+trimmed, bounded text and safe legacy patient-address migration support. New
+patient records default the UI country to India without fabricating country
+values for historical rows. This foundation does not include geocoding,
+coordinates, maps, automatic distance, travel time, routing, or prediction
+changes; the existing manual `PatientClinic.distanceFromClinicKm` input remains
+operational.
+
 ## Product Capability Status Summary
 
 | Capability                | Description                                                                                | Current status                   | Primary users           | Repository evidence                                                                            | Important limitations                                                                                       | Related doc                                                                         |

@@ -20,8 +20,12 @@ const emptyFormValues: PatientFormValues = {
     gender: '',
     dateOfBirth: '',
     age: '',
-    address: '',
+    addressLine1: '',
+    addressLine2: '',
     city: '',
+    state: '',
+    country: 'India',
+    pincode: '',
     emergencyContactName: '',
     emergencyContactPhone: '',
     distanceFromClinicKm: '',
@@ -35,8 +39,12 @@ const validationFieldMap: Partial<Record<string, keyof PatientFormValues>> = {
     'body.gender': 'gender',
     'body.dateOfBirth': 'dateOfBirth',
     'body.age': 'age',
-    'body.address': 'address',
+    'body.addressLine1': 'addressLine1',
+    'body.addressLine2': 'addressLine2',
     'body.city': 'city',
+    'body.state': 'state',
+    'body.country': 'country',
+    'body.pincode': 'pincode',
     'body.emergencyContactName': 'emergencyContactName',
     'body.emergencyContactPhone': 'emergencyContactPhone',
     'body.distanceFromClinicKm': 'distanceFromClinicKm',
@@ -94,6 +102,31 @@ const validatePatientForm = (values: PatientFormValues): PatientFormFieldErrors 
         errors.email = 'Enter a valid email address.';
     }
 
+    const locationFields: Array<{
+        field: keyof PatientFormValues;
+        label: string;
+        maxLength: number;
+    }> = [
+        { field: 'addressLine1', label: 'Address line 1', maxLength: 250 },
+        { field: 'addressLine2', label: 'Address line 2', maxLength: 250 },
+        { field: 'city', label: 'City', maxLength: 100 },
+        { field: 'state', label: 'State', maxLength: 100 },
+        { field: 'country', label: 'Country', maxLength: 100 },
+        { field: 'pincode', label: 'Pincode', maxLength: 20 },
+    ];
+
+    for (const locationField of locationFields) {
+        if (values[locationField.field].trim().length > locationField.maxLength) {
+            errors[locationField.field] = `${locationField.label} must be ${locationField.maxLength} characters or fewer.`;
+        }
+    }
+
+    if (values.country.trim().toLowerCase() === 'india' && values.pincode.trim()) {
+        if (!/^\d{6}$/.test(values.pincode.trim())) {
+            errors.pincode = 'Indian pincodes must contain exactly 6 digits.';
+        }
+    }
+
     const ageError = validateWholeNumber(
         values.age,
         'Age must be a whole number greater than or equal to 0.'
@@ -137,8 +170,12 @@ const toCreatePatientRequest = (values: PatientFormValues): CreatePatientRequest
         gender: values.gender ? (values.gender as Gender) : undefined,
         dateOfBirth: toOptionalString(values.dateOfBirth),
         age: toOptionalNumber(values.age),
-        address: toOptionalString(values.address),
+        addressLine1: toOptionalString(values.addressLine1),
+        addressLine2: toOptionalString(values.addressLine2),
         city: toOptionalString(values.city),
+        state: toOptionalString(values.state),
+        country: toOptionalString(values.country),
+        pincode: toOptionalString(values.pincode),
         emergencyContactName: toOptionalString(values.emergencyContactName),
         emergencyContactPhone: toOptionalString(values.emergencyContactPhone),
         notes: toOptionalString(values.notes),

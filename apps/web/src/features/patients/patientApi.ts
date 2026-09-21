@@ -8,8 +8,12 @@ export type CreatePatientRequest = {
     gender?: Gender;
     dateOfBirth?: string;
     age?: number;
-    address?: string;
+    addressLine1?: string;
+    addressLine2?: string;
     city?: string;
+    state?: string;
+    country?: string;
+    pincode?: string;
     emergencyContactName?: string;
     emergencyContactPhone?: string;
     notes?: string;
@@ -23,8 +27,12 @@ export type UpdatePatientRequest = {
     gender?: Gender | null;
     dateOfBirth?: string | null;
     age?: number | null;
-    address?: string | null;
+    addressLine1?: string | null;
+    addressLine2?: string | null;
     city?: string | null;
+    state?: string | null;
+    country?: string | null;
+    pincode?: string | null;
     emergencyContactName?: string | null;
     emergencyContactPhone?: string | null;
     notes?: string | null;

@@ -30,9 +30,12 @@ export type ClinicSummary = BaseEntity & {
     slug: string;
     phone?: string | null;
     email?: string | null;
+    addressLine1?: string | null;
+    addressLine2?: string | null;
     city?: string | null;
     state?: string | null;
     country?: string | null;
+    pincode?: string | null;
     timezone?: string | null;
     isActive: boolean;
 };
@@ -70,7 +73,16 @@ export type DoctorAvailability = {
     days: DoctorAvailabilityDay[];
 };
 
-export type PatientSummary = BaseEntity & {
+export type StructuredAddress = {
+    addressLine1?: string | null;
+    addressLine2?: string | null;
+    city?: string | null;
+    state?: string | null;
+    country?: string | null;
+    pincode?: string | null;
+};
+
+export type PatientSummary = BaseEntity & StructuredAddress & {
     patientClinicId?: string;
     clinicLinkIsActive?: boolean;
     fullName: string;
@@ -79,8 +91,8 @@ export type PatientSummary = BaseEntity & {
     gender?: Gender | null;
     dateOfBirth?: string | null;
     age?: number | null;
+    /** Transitional DB compatibility field; structured fields are authoritative. */
     address?: string | null;
-    city?: string | null;
     emergencyContactName?: string | null;
     emergencyContactPhone?: string | null;
     notes?: string | null;

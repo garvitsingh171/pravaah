@@ -70,8 +70,12 @@ type PatientEditFormValues = {
     gender: '' | GenderType;
     dateOfBirth: string;
     age: string;
-    address: string;
+    addressLine1: string;
+    addressLine2: string;
     city: string;
+    state: string;
+    country: string;
+    pincode: string;
     emergencyContactName: string;
     emergencyContactPhone: string;
     distanceFromClinicKm: string;
@@ -85,8 +89,12 @@ type PatientEditComparableValues = {
     gender: GenderType | null;
     dateOfBirth: string | null;
     age: number | null;
-    address: string | null;
+    addressLine1: string | null;
+    addressLine2: string | null;
     city: string | null;
+    state: string | null;
+    country: string | null;
+    pincode: string | null;
     emergencyContactName: string | null;
     emergencyContactPhone: string | null;
     distanceFromClinicKm: number | null;
@@ -102,8 +110,12 @@ const patientValidationFieldMap: Partial<Record<string, keyof PatientEditFormVal
     'body.gender': 'gender',
     'body.dateOfBirth': 'dateOfBirth',
     'body.age': 'age',
-    'body.address': 'address',
+    'body.addressLine1': 'addressLine1',
+    'body.addressLine2': 'addressLine2',
     'body.city': 'city',
+    'body.state': 'state',
+    'body.country': 'country',
+    'body.pincode': 'pincode',
     'body.emergencyContactName': 'emergencyContactName',
     'body.emergencyContactPhone': 'emergencyContactPhone',
     'body.distanceFromClinicKm': 'distanceFromClinicKm',
@@ -119,6 +131,22 @@ type PatientStatusAction = {
 
 const getOptionalText = (value: string | null | undefined): string => {
     return value?.trim() || 'Not added';
+};
+
+const getPatientAddress = (patient: PatientSummary): string => {
+    const structuredAddress = [
+        patient.addressLine1,
+        patient.addressLine2,
+        patient.city,
+        patient.state,
+        patient.pincode,
+        patient.country,
+    ]
+        .map((value) => value?.trim())
+        .filter((value): value is string => Boolean(value))
+        .join(', ');
+
+    return structuredAddress || getOptionalText(patient.address);
 };
 
 const getInitials = (name: string): string => {
@@ -229,8 +257,13 @@ const toPatientEditValues = (patient: PatientSummary): PatientEditFormValues => 
         gender: patient.gender ?? '',
         dateOfBirth: toDateInputValue(patient.dateOfBirth),
         age: patient.age === undefined || patient.age === null ? '' : String(patient.age),
-        address: patient.address ?? '',
+        // Transitional fallback keeps pre-migration records editable.
+        addressLine1: patient.addressLine1 ?? patient.address ?? '',
+        addressLine2: patient.addressLine2 ?? '',
         city: patient.city ?? '',
+        state: patient.state ?? '',
+        country: patient.country ?? '',
+        pincode: patient.pincode ?? '',
         emergencyContactName: patient.emergencyContactName ?? '',
         emergencyContactPhone: patient.emergencyContactPhone ?? '',
         distanceFromClinicKm:
@@ -259,8 +292,12 @@ const toComparablePatientValues = (values: PatientEditFormValues): PatientEditCo
         gender: values.gender || null,
         dateOfBirth: toNullableText(values.dateOfBirth),
         age: toNullableNumber(values.age),
-        address: toNullableText(values.address),
+        addressLine1: toNullableText(values.addressLine1),
+        addressLine2: toNullableText(values.addressLine2),
         city: toNullableText(values.city),
+        state: toNullableText(values.state),
+        country: toNullableText(values.country),
+        pincode: toNullableText(values.pincode),
         emergencyContactName: toNullableText(values.emergencyContactName),
         emergencyContactPhone: toNullableText(values.emergencyContactPhone),
         distanceFromClinicKm: toNullableNumber(values.distanceFromClinicKm),
@@ -285,6 +322,31 @@ const validatePatientEditForm = (values: PatientEditFormValues): PatientEditFiel
 
     if (values.email.trim() && !hasEmailShape(values.email.trim())) {
         errors.email = 'Enter a valid email address.';
+    }
+
+    const locationFields: Array<{
+        field: keyof PatientEditFormValues;
+        label: string;
+        maxLength: number;
+    }> = [
+        { field: 'addressLine1', label: 'Address line 1', maxLength: 250 },
+        { field: 'addressLine2', label: 'Address line 2', maxLength: 250 },
+        { field: 'city', label: 'City', maxLength: 100 },
+        { field: 'state', label: 'State', maxLength: 100 },
+        { field: 'country', label: 'Country', maxLength: 100 },
+        { field: 'pincode', label: 'Pincode', maxLength: 20 },
+    ];
+
+    for (const locationField of locationFields) {
+        if (values[locationField.field].trim().length > locationField.maxLength) {
+            errors[locationField.field] = `${locationField.label} must be ${locationField.maxLength} characters or fewer.`;
+        }
+    }
+
+    if (values.country.trim().toLowerCase() === 'india' && values.pincode.trim()) {
+        if (!/^\d{6}$/.test(values.pincode.trim())) {
+            errors.pincode = 'Indian pincodes must contain exactly 6 digits.';
+        }
     }
 
     if (values.age.trim()) {
@@ -325,8 +387,16 @@ const buildPatientUpdatePayload = (
         payload.dateOfBirth = nextValues.dateOfBirth;
     }
     if (nextValues.age !== initialValues.age) payload.age = nextValues.age;
-    if (nextValues.address !== initialValues.address) payload.address = nextValues.address;
+    if (nextValues.addressLine1 !== initialValues.addressLine1) {
+        payload.addressLine1 = nextValues.addressLine1;
+    }
+    if (nextValues.addressLine2 !== initialValues.addressLine2) {
+        payload.addressLine2 = nextValues.addressLine2;
+    }
     if (nextValues.city !== initialValues.city) payload.city = nextValues.city;
+    if (nextValues.state !== initialValues.state) payload.state = nextValues.state;
+    if (nextValues.country !== initialValues.country) payload.country = nextValues.country;
+    if (nextValues.pincode !== initialValues.pincode) payload.pincode = nextValues.pincode;
     if (nextValues.emergencyContactName !== initialValues.emergencyContactName) {
         payload.emergencyContactName = nextValues.emergencyContactName;
     }
@@ -561,9 +631,41 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
                 </FormSection>
 
                 <FormSection
-                    title="Clinic Details"
-                    description="Notes and distance are scoped to this clinic only."
+                    title="Location"
+                    description="Residential location is optional and can be completed later."
                 >
+                    <label className="block text-sm font-medium text-slate-700 md:col-span-2">
+                        Address line 1
+                        <textarea
+                            className={fieldControlClassName}
+                            value={values.addressLine1}
+                            onChange={(event) =>
+                                handleFieldChange('addressLine1', event.target.value)
+                            }
+                            disabled={isSubmitting}
+                            rows={2}
+                            autoComplete="address-line1"
+                            aria-invalid={Boolean(fieldErrors.addressLine1)}
+                        />
+                        <FieldError message={fieldErrors.addressLine1} />
+                    </label>
+
+                    <label className="block text-sm font-medium text-slate-700 md:col-span-2">
+                        Address line 2
+                        <textarea
+                            className={fieldControlClassName}
+                            value={values.addressLine2}
+                            onChange={(event) =>
+                                handleFieldChange('addressLine2', event.target.value)
+                            }
+                            disabled={isSubmitting}
+                            rows={2}
+                            autoComplete="address-line2"
+                            aria-invalid={Boolean(fieldErrors.addressLine2)}
+                        />
+                        <FieldError message={fieldErrors.addressLine2} />
+                    </label>
+
                     <label className="block text-sm font-medium text-slate-700">
                         City
                         <input
@@ -571,9 +673,56 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
                             value={values.city}
                             onChange={(event) => handleFieldChange('city', event.target.value)}
                             disabled={isSubmitting}
+                            autoComplete="address-level2"
                         />
                         <FieldError message={fieldErrors.city} />
                     </label>
+
+                    <label className="block text-sm font-medium text-slate-700">
+                        State
+                        <input
+                            className={fieldControlClassName}
+                            value={values.state}
+                            onChange={(event) => handleFieldChange('state', event.target.value)}
+                            disabled={isSubmitting}
+                            autoComplete="address-level1"
+                            aria-invalid={Boolean(fieldErrors.state)}
+                        />
+                        <FieldError message={fieldErrors.state} />
+                    </label>
+
+                    <label className="block text-sm font-medium text-slate-700">
+                        Pincode
+                        <input
+                            className={fieldControlClassName}
+                            value={values.pincode}
+                            onChange={(event) => handleFieldChange('pincode', event.target.value)}
+                            disabled={isSubmitting}
+                            autoComplete="postal-code"
+                            inputMode="numeric"
+                            aria-invalid={Boolean(fieldErrors.pincode)}
+                        />
+                        <FieldError message={fieldErrors.pincode} />
+                    </label>
+
+                    <label className="block text-sm font-medium text-slate-700">
+                        Country
+                        <input
+                            className={fieldControlClassName}
+                            value={values.country}
+                            onChange={(event) => handleFieldChange('country', event.target.value)}
+                            disabled={isSubmitting}
+                            autoComplete="country-name"
+                            aria-invalid={Boolean(fieldErrors.country)}
+                        />
+                        <FieldError message={fieldErrors.country} />
+                    </label>
+                </FormSection>
+
+                <FormSection
+                    title="Clinic Details"
+                    description="Notes and distance are scoped to this clinic only."
+                >
 
                     <label className="block text-sm font-medium text-slate-700">
                         Distance from clinic (km)
@@ -619,19 +768,7 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
                     </label>
                 </FormSection>
 
-                <FormSection title="Address and Notes">
-                    <label className="block text-sm font-medium text-slate-700 md:col-span-2">
-                        Address
-                        <textarea
-                            className={fieldControlClassName}
-                            value={values.address}
-                            onChange={(event) => handleFieldChange('address', event.target.value)}
-                            disabled={isSubmitting}
-                            rows={3}
-                        />
-                        <FieldError message={fieldErrors.address} />
-                    </label>
-
+                <FormSection title="Notes">
                     <label className="block text-sm font-medium text-slate-700 md:col-span-2">
                         Notes
                         <textarea
@@ -1199,9 +1336,7 @@ function PatientsPage() {
                                                                     Address
                                                                 </dt>
                                                                 <dd className="mt-1 text-slate-900">
-                                                                    {getOptionalText(
-                                                                        patient.address
-                                                                    )}
+                                                                    {getPatientAddress(patient)}
                                                                 </dd>
                                                             </div>
                                                             <div>

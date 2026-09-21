@@ -268,8 +268,14 @@ model Patient {
   gender                Gender?
   dateOfBirth           DateTime?
   age                   Int?
+  /// Deprecated transitional compatibility field. Structured location fields are authoritative.
   address               String?
+  addressLine1          String?
+  addressLine2          String?
   city                  String?
+  state                 String?
+  country               String?
+  pincode               String?
   emergencyContactName  String?
   emergencyContactPhone String?
   isActive              Boolean   @default(true)

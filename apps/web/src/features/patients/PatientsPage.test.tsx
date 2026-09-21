@@ -30,7 +30,12 @@ const patient: PatientSummary = {
     dateOfBirth: '1995-04-12T00:00:00.000Z',
     age: 31,
     address: '12 Demo Road',
+    addressLine1: '12 Demo Road',
+    addressLine2: 'Near Demo Park',
     city: 'Bengaluru',
+    state: 'Karnataka',
+    country: 'India',
+    pincode: '560038',
     emergencyContactName: 'Arun Malhotra',
     emergencyContactPhone: '+91 90000 02901',
     notes: 'Consistent attendance',
@@ -54,7 +59,12 @@ const patientWithNullableValues: PatientSummary = {
     dateOfBirth: null,
     age: null,
     address: null,
+    addressLine1: null,
+    addressLine2: null,
     city: null,
+    state: null,
+    country: null,
+    pincode: null,
     emergencyContactName: null,
     emergencyContactPhone: null,
     notes: null,
@@ -206,6 +216,39 @@ describe('PatientsPage edit workflow', () => {
         expect(payload).not.toHaveProperty('totalNoShows');
         expect(payload).not.toHaveProperty('createdAt');
         expect(await screen.findAllByText('Not added')).not.toHaveLength(0);
+    });
+
+    it('pre-fills structured location fields and sends null when a location field is cleared', async () => {
+        const user = userEvent.setup();
+        const updatedPatient = {
+            ...patient,
+            addressLine2: null,
+            pincode: null,
+        };
+
+        mockListPatients
+            .mockResolvedValueOnce({ patients: [patient] })
+            .mockResolvedValueOnce({ patients: [updatedPatient] });
+        mockUpdatePatient.mockResolvedValue({ patient: updatedPatient });
+
+        renderPatientsPage();
+
+        await user.click(await screen.findByRole('button', { name: /edit riya malhotra/i }));
+
+        expect(screen.getByLabelText(/address line 1/i)).toHaveValue('12 Demo Road');
+        expect(screen.getByLabelText(/state/i)).toHaveValue('Karnataka');
+        expect(screen.getByLabelText(/country/i)).toHaveValue('India');
+
+        await user.clear(screen.getByLabelText(/address line 2/i));
+        await user.clear(screen.getByLabelText(/^pincode$/i));
+        await user.click(screen.getByRole('button', { name: /save patient/i }));
+
+        await waitFor(() => {
+            expect(mockUpdatePatient).toHaveBeenCalledWith(adminActiveClinic.clinicId, patient.id, {
+                addressLine2: null,
+                pincode: null,
+            });
+        });
     });
 
     it('validates patient edit fields before submitting', async () => {

@@ -678,10 +678,28 @@ Body summary:
 fullName required
 phone required
 email, gender, dateOfBirth, age optional
-address, city optional
+addressLine1, addressLine2, city, state, country, pincode optional
 emergencyContactName, emergencyContactPhone optional
 notes optional
 distanceFromClinicKm optional
+```
+
+Structured patient location is the forward-looking address contract. A normal
+create/update request does not accept legacy `address`; during the staged
+migration the backend temporarily mirrors `addressLine1` into that deprecated
+database column for older readers. Empty optional location text is normalized
+away, and `country = India` requires a six-digit `pincode`; other countries may
+use bounded postal-code text. Example:
+
+```json
+{
+  "addressLine1": "B-42, Malviya Nagar",
+  "addressLine2": "Near Gaurav Tower",
+  "city": "Jaipur",
+  "state": "Rajasthan",
+  "country": "India",
+  "pincode": "302017"
+}
 ```
 
 Response summary:
@@ -740,6 +758,8 @@ Body summary:
 
 - any create-patient field plus nullable optional fields and `isActive`
 - at least one field required
+- `undefined`/omitted fields are unchanged; `null` clears nullable structured
+  location fields
 - `notes` and `distanceFromClinicKm` update `PatientClinic`
 - operational statistics are response-only and rejected by strict create/update validation
 
