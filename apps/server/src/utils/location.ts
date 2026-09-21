@@ -1,3 +1,5 @@
+import { createHash, randomUUID } from 'node:crypto';
+
 export type StructuredAddress = {
     addressLine1?: string | null | undefined;
     addressLine2?: string | null | undefined;
@@ -51,4 +53,5 @@ export const hasGeocodableAddress = (address: StructuredAddress): boolean => {
 export const createGeocodingSourceHash = (address: StructuredAddress): string => {
     return createHash('sha256').update(buildCanonicalAddress(address)).digest('hex');
 };
-import { createHash } from 'node:crypto';
+
+export const createGeocodingAttemptId = (): string => randomUUID();

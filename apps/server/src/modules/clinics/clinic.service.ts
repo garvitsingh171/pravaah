@@ -1,6 +1,7 @@
 import { AppError } from '../../utils/AppError.js';
 import {
     buildCanonicalAddress,
+    createGeocodingAttemptId,
     createGeocodingSourceHash,
     hasGeocodableAddress,
     type StructuredAddress,
@@ -23,15 +24,21 @@ const toClinicAddress = (clinic: StructuredAddress): StructuredAddress => ({
 const applyClinicGeocodingAttempt = async (
     clinicId: string,
     sourceHash: string,
+    attemptId: string,
     attempt: GeocodingAttempt
 ): Promise<void> => {
     if (attempt.outcome === 'SUCCESS') {
-        await clinicRepository.saveGeocodingResultIfCurrent(clinicId, sourceHash, attempt.result);
+        await clinicRepository.saveGeocodingResultIfCurrent(
+            clinicId,
+            sourceHash,
+            attemptId,
+            attempt.result
+        );
         return;
     }
 
     if (attempt.outcome === 'FAILED') {
-        await clinicRepository.markGeocodingFailedIfCurrent(clinicId, sourceHash);
+        await clinicRepository.markGeocodingFailedIfCurrent(clinicId, sourceHash, attemptId);
     }
 };
 
@@ -75,9 +82,10 @@ export const clinicService = {
         const addressChanged =
             buildCanonicalAddress(existingAddress) !== buildCanonicalAddress(nextAddress);
         const sourceHash = addressChanged ? createGeocodingSourceHash(nextAddress) : undefined;
+        const attemptId = sourceHash ? createGeocodingAttemptId() : undefined;
 
         const clinic = sourceHash
-            ? await clinicRepository.update(clinicId, input, { sourceHash })
+            ? await clinicRepository.update(clinicId, input, { sourceHash, attemptId: attemptId! })
             : await clinicRepository.update(clinicId, input);
 
         if (!addressChanged || !hasGeocodableAddress(nextAddress) || !sourceHash) {
@@ -88,6 +96,7 @@ export const clinicService = {
             await applyClinicGeocodingAttempt(
                 clinicId,
                 sourceHash,
+                attemptId!,
                 await geocodingService.geocodeAddress(nextAddress)
             );
 
@@ -116,8 +125,17 @@ export const clinicService = {
             );
         }
 
+        if (!geocodingService.isConfigured()) {
+            throw new AppError(
+                503,
+                'GEOAPIFY_NOT_CONFIGURED',
+                'Location lookup is not configured. Please contact an administrator.'
+            );
+        }
+
         const sourceHash = createGeocodingSourceHash(address);
-        await clinicRepository.prepareGeocoding(clinicId, sourceHash);
+        const attemptId = createGeocodingAttemptId();
+        await clinicRepository.prepareGeocoding(clinicId, sourceHash, attemptId);
 
         const attempt = await geocodingService.geocodeAddress(address);
 
@@ -129,7 +147,7 @@ export const clinicService = {
             );
         }
 
-        await applyClinicGeocodingAttempt(clinicId, sourceHash, attempt);
+        await applyClinicGeocodingAttempt(clinicId, sourceHash, attemptId, attempt);
 
         if (attempt.outcome === 'FAILED') {
             throw new AppError(

@@ -332,9 +332,10 @@ const clinicSettingsSelect = {
 
 type GeocodingInvalidation = {
     sourceHash: string;
+    attemptId: string;
 };
 
-const geocodingInvalidationData = (sourceHash: string) => ({
+const geocodingInvalidationData = (sourceHash: string, attemptId: string) => ({
     latitude: null,
     longitude: null,
     geocodingStatus: 'NOT_GEOCODED' as const,
@@ -346,6 +347,7 @@ const geocodingInvalidationData = (sourceHash: string) => ({
     geocodedAddress: null,
     geocodedAt: null,
     geocodingSourceHash: sourceHash,
+    geocodingAttemptId: attemptId,
 });
 
 export const clinicRepository = {
@@ -399,7 +401,13 @@ export const clinicRepository = {
         }
 
         if (geocodingInvalidation) {
-            Object.assign(updateData, geocodingInvalidationData(geocodingInvalidation.sourceHash));
+            Object.assign(
+                updateData,
+                geocodingInvalidationData(
+                    geocodingInvalidation.sourceHash,
+                    geocodingInvalidation.attemptId
+                )
+            );
         }
 
         return prisma.clinic.update({
@@ -411,19 +419,25 @@ export const clinicRepository = {
         });
     },
 
-    prepareGeocoding(id: string, sourceHash: string) {
+    prepareGeocoding(id: string, sourceHash: string, attemptId: string) {
         return prisma.clinic.update({
             where: { id },
-            data: geocodingInvalidationData(sourceHash),
+            data: geocodingInvalidationData(sourceHash, attemptId),
             select: clinicSettingsSelect,
         });
     },
 
-    saveGeocodingResultIfCurrent(id: string, sourceHash: string, result: GeocodingResult) {
+    saveGeocodingResultIfCurrent(
+        id: string,
+        sourceHash: string,
+        attemptId: string,
+        result: GeocodingResult
+    ) {
         return prisma.clinic.updateMany({
             where: {
                 id,
                 geocodingSourceHash: sourceHash,
+                geocodingAttemptId: attemptId,
             },
             data: {
                 latitude: result.latitude,
@@ -440,11 +454,12 @@ export const clinicRepository = {
         });
     },
 
-    markGeocodingFailedIfCurrent(id: string, sourceHash: string) {
+    markGeocodingFailedIfCurrent(id: string, sourceHash: string, attemptId: string) {
         return prisma.clinic.updateMany({
             where: {
                 id,
                 geocodingSourceHash: sourceHash,
+                geocodingAttemptId: attemptId,
             },
             data: {
                 geocodingStatus: 'FAILED',

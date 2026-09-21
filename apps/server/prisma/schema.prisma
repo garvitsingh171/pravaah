@@ -148,6 +148,7 @@ model Clinic {
   geocodedAddress         String?
   geocodedAt              DateTime?
   geocodingSourceHash     String?
+  geocodingAttemptId      String?
   timezone                String             @default("Asia/Kolkata")
   openingTime             String             @default("09:00")
   closingTime             String             @default("18:00")
@@ -308,6 +309,7 @@ model Patient {
   geocodedAddress       String?
   geocodedAt            DateTime?
   geocodingSourceHash   String?
+  geocodingAttemptId    String?
   emergencyContactName  String?
   emergencyContactPhone String?
   isActive              Boolean            @default(true)

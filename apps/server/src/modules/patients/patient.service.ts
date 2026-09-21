@@ -1,6 +1,7 @@
 import { AppError } from '../../utils/AppError.js';
 import {
     buildCanonicalAddress,
+    createGeocodingAttemptId,
     createGeocodingSourceHash,
     hasGeocodableAddress,
     type StructuredAddress,
@@ -26,15 +27,21 @@ const toPatientAddress = (patient: StructuredAddress): StructuredAddress => ({
 const applyPatientGeocodingAttempt = async (
     patientId: string,
     sourceHash: string,
+    attemptId: string,
     attempt: GeocodingAttempt
 ): Promise<void> => {
     if (attempt.outcome === 'SUCCESS') {
-        await patientRepository.saveGeocodingResultIfCurrent(patientId, sourceHash, attempt.result);
+        await patientRepository.saveGeocodingResultIfCurrent(
+            patientId,
+            sourceHash,
+            attemptId,
+            attempt.result
+        );
         return;
     }
 
     if (attempt.outcome === 'FAILED') {
-        await patientRepository.markGeocodingFailedIfCurrent(patientId, sourceHash);
+        await patientRepository.markGeocodingFailedIfCurrent(patientId, sourceHash, attemptId);
     }
 };
 
@@ -48,10 +55,11 @@ export const patientService = {
 
         const address = toPatientAddress(input);
         const sourceHash = createGeocodingSourceHash(address);
+        const attemptId = createGeocodingAttemptId();
         const patient = await patientRepository.createPatientWithClinicLink(
             clinicId,
             input,
-            sourceHash
+            { sourceHash, attemptId }
         );
 
         if (!hasGeocodableAddress(address)) {
@@ -62,6 +70,7 @@ export const patientService = {
             await applyPatientGeocodingAttempt(
                 patient.id,
                 sourceHash,
+                attemptId,
                 await geocodingService.geocodeAddress(address)
             );
 
@@ -123,9 +132,11 @@ export const patientService = {
         const addressChanged =
             buildCanonicalAddress(existingAddress) !== buildCanonicalAddress(nextAddress);
         const sourceHash = addressChanged ? createGeocodingSourceHash(nextAddress) : undefined;
+        const attemptId = sourceHash ? createGeocodingAttemptId() : undefined;
         const patient = sourceHash
             ? await patientRepository.updatePatientWithClinicDetails(clinicId, patientId, input, {
                   sourceHash,
+                  attemptId: attemptId!,
               })
             : await patientRepository.updatePatientWithClinicDetails(clinicId, patientId, input);
 
@@ -137,6 +148,7 @@ export const patientService = {
             await applyPatientGeocodingAttempt(
                 patientId,
                 sourceHash,
+                attemptId!,
                 await geocodingService.geocodeAddress(nextAddress)
             );
 
@@ -183,8 +195,17 @@ export const patientService = {
             );
         }
 
+        if (!geocodingService.isConfigured()) {
+            throw new AppError(
+                503,
+                'GEOAPIFY_NOT_CONFIGURED',
+                'Location lookup is not configured. Please contact an administrator.'
+            );
+        }
+
         const sourceHash = createGeocodingSourceHash(address);
-        await patientRepository.prepareGeocoding(patientId, sourceHash);
+        const attemptId = createGeocodingAttemptId();
+        await patientRepository.prepareGeocoding(patientId, sourceHash, attemptId);
 
         const attempt = await geocodingService.geocodeAddress(address);
 
@@ -196,7 +217,7 @@ export const patientService = {
             );
         }
 
-        await applyPatientGeocodingAttempt(patientId, sourceHash, attempt);
+        await applyPatientGeocodingAttempt(patientId, sourceHash, attemptId, attempt);
 
         if (attempt.outcome === 'FAILED') {
             throw new AppError(

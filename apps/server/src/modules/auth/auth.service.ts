@@ -1,7 +1,11 @@
 import { Prisma, UserRole, UserStatus } from '../../generated/prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
 import { normalizeEmail } from '../../utils/emailNormalization.js';
-import { createGeocodingSourceHash, hasGeocodableAddress } from '../../utils/location.js';
+import {
+    createGeocodingAttemptId,
+    createGeocodingSourceHash,
+    hasGeocodableAddress,
+} from '../../utils/location.js';
 import { clinicRepository } from '../clinics/clinic.repository.js';
 import { geocodingService } from '../geocoding/geocoding.service.js';
 import { authRepository, PendingStaffInvitationRepositoryError } from './auth.repository.js';
@@ -174,14 +178,25 @@ const geocodeProvisionedClinic = async (
     }
 
     const sourceHash = createGeocodingSourceHash(clinic);
+    const attemptId = createGeocodingAttemptId();
 
     try {
+        if (!geocodingService.isConfigured()) {
+            return;
+        }
+
+        await clinicRepository.prepareGeocoding(clinicId, sourceHash, attemptId);
         const attempt = await geocodingService.geocodeAddress(clinic);
 
         if (attempt.outcome === 'SUCCESS') {
-            await clinicRepository.saveGeocodingResultIfCurrent(clinicId, sourceHash, attempt.result);
+            await clinicRepository.saveGeocodingResultIfCurrent(
+                clinicId,
+                sourceHash,
+                attemptId,
+                attempt.result
+            );
         } else if (attempt.outcome === 'FAILED') {
-            await clinicRepository.markGeocodingFailedIfCurrent(clinicId, sourceHash);
+            await clinicRepository.markGeocodingFailedIfCurrent(clinicId, sourceHash, attemptId);
         }
     } catch {
         // Onboarding has already committed. Geocoding is derived best-effort work.

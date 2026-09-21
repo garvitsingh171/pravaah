@@ -15,18 +15,23 @@ export type GeocodingAttempt =
     | { outcome: 'FAILED'; category: Exclude<GeoapifyFailureCategory, 'NOT_CONFIGURED'> };
 
 export const geocodingService = {
+    isConfigured(): boolean {
+        return Boolean(env.geoapifyApiKey);
+    },
+
     async geocodeAddress(address: StructuredAddress): Promise<GeocodingAttempt> {
         if (!hasGeocodableAddress(address)) {
             throw new Error('Geocoding requires a complete address');
         }
 
-        if (!env.geoapifyApiKey) {
+        const apiKey = env.geoapifyApiKey;
+        if (!apiKey) {
             return { outcome: 'NOT_CONFIGURED' };
         }
 
         try {
             const result = await createGeoapifyClient({
-                apiKey: env.geoapifyApiKey,
+                apiKey,
             }).geocodeAddress({
                 canonicalAddress: buildCanonicalAddress(address),
                 country: address.country,

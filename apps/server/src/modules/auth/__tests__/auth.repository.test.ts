@@ -206,6 +206,7 @@ describe('authRepository.createClinicWithAdmin', () => {
                 country: input.clinic.country,
                 pincode: input.clinic.pincode,
                 geocodingSourceHash: expect.any(String),
+                geocodingAttemptId: expect.any(String),
                 timezone: input.clinic.timezone,
                 openingTime: input.clinic.openingTime,
                 closingTime: input.clinic.closingTime,

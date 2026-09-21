@@ -105,7 +105,11 @@ describe('patientRepository structured location persistence', () => {
     it('persists a geocoding result only when the source-address hash is still current', async () => {
         mockPatientUpdateMany.mockResolvedValue({ count: 0 });
 
-        await patientRepository.saveGeocodingResultIfCurrent('patient-id', 'address-a-hash', {
+        await patientRepository.saveGeocodingResultIfCurrent(
+            'patient-id',
+            'address-a-hash',
+            'attempt-a',
+            {
             latitude: 26.8467,
             longitude: 75.7894,
             provider: 'GEOAPIFY',
@@ -114,13 +118,15 @@ describe('patientRepository structured location persistence', () => {
             matchType: 'full_match',
             placeId: 'place-id',
             formattedAddress: 'B-42, Malviya Nagar, Jaipur, Rajasthan, India',
-        });
+            }
+        );
 
         expect(mockPatientUpdateMany).toHaveBeenCalledWith(
             expect.objectContaining({
                 where: {
                     id: 'patient-id',
                     geocodingSourceHash: 'address-a-hash',
+                    geocodingAttemptId: 'attempt-a',
                 },
                 data: expect.objectContaining({
                     geocodingStatus: 'GEOCODED',

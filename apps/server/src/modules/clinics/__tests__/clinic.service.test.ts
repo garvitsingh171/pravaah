@@ -14,6 +14,7 @@ const mockClinicRepository = vi.hoisted(() => ({
 
 const mockPredictNoShowRisk = vi.hoisted(() => vi.fn());
 const mockGeocodingService = vi.hoisted(() => ({
+    isConfigured: vi.fn(() => true),
     geocodeAddress: vi.fn(),
 }));
 
@@ -154,11 +155,12 @@ describe('clinicService.updateClinic', () => {
         expect(mockClinicRepository.update).toHaveBeenCalledWith(
             'clinic-id',
             { city: 'Mumbai' },
-            { sourceHash: expect.any(String) }
+            { sourceHash: expect.any(String), attemptId: expect.any(String) }
         );
         expect(mockGeocodingService.geocodeAddress).toHaveBeenCalledTimes(1);
         expect(mockClinicRepository.saveGeocodingResultIfCurrent).toHaveBeenCalledWith(
             'clinic-id',
+            expect.any(String),
             expect.any(String),
             result
         );
