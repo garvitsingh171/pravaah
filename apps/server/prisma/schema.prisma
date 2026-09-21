@@ -23,6 +23,12 @@ enum UserStatus {
   SUSPENDED
 }
 
+enum StaffInvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+}
+
 enum Gender {
   MALE
   FEMALE
@@ -138,6 +144,7 @@ model Clinic {
   queueEntries          QueueEntry[]
   noShowPredictions     NoShowPrediction[]
   appointmentActivities AppointmentActivity[]
+  staffInvitations      StaffInvitation[]
 
   @@index([isActive])
   @@index([city])
@@ -156,14 +163,41 @@ model User {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
-  clinic                Clinic?               @relation(fields: [clinicId], references: [id], onDelete: SetNull)
-  createdAppointments   Appointment[]         @relation("AppointmentCreatedBy")
-  appointmentActivities AppointmentActivity[] @relation("AppointmentActivityActor")
+  clinic                   Clinic?               @relation(fields: [clinicId], references: [id], onDelete: SetNull)
+  createdAppointments      Appointment[]         @relation("AppointmentCreatedBy")
+  appointmentActivities    AppointmentActivity[] @relation("AppointmentActivityActor")
+  staffInvitationsSent     StaffInvitation[]     @relation("StaffInvitationInvitedBy")
+  staffInvitationsAccepted StaffInvitation[]     @relation("StaffInvitationAcceptedBy")
 
   @@index([clinicId])
   @@index([role])
   @@index([status])
   @@map("users")
+}
+
+model StaffInvitation {
+  id               String                @id @default(uuid()) @db.Uuid
+  clinicId         String                @db.Uuid
+  email            String
+  tokenHash        String                @unique
+  status           StaffInvitationStatus @default(PENDING)
+  invitedByUserId  String                @db.Uuid
+  acceptedByUserId String?               @db.Uuid
+  expiresAt        DateTime
+  acceptedAt       DateTime?
+  revokedAt        DateTime?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  clinic     Clinic @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  invitedBy  User   @relation("StaffInvitationInvitedBy", fields: [invitedByUserId], references: [id], onDelete: Restrict)
+  acceptedBy User?  @relation("StaffInvitationAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([clinicId, status])
+  @@index([clinicId, email])
+  @@index([email, status])
+  @@index([expiresAt])
+  @@map("staff_invitations")
 }
 
 model Doctor {

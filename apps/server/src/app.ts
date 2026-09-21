@@ -14,6 +14,7 @@ import {
 } from './modules/appointments/appointment.routes.js';
 import { queueRouter } from './modules/queues/queue.routes.js';
 import { dashboardRouter } from './modules/dashboard/dashboard.routes.js';
+import { staffInvitationRouter, staffRouter } from './modules/staff/staff.routes.js';
 
 export const app = express();
 
@@ -43,6 +44,8 @@ app.use('/api/clinics', clinicAppointmentRouter);
 app.use('/api', appointmentRouter);
 app.use('/api/clinics', queueRouter);
 app.use('/api/clinics', dashboardRouter);
+app.use('/api/clinics', staffRouter);
+app.use('/api/staff', staffInvitationRouter);
 
 app.use(errorHandler);
 

@@ -9,6 +9,7 @@ import { isPresenceEstablishingAppointmentStatus } from './appointment.arrival.j
 import { establishAppointmentArrivalIfNeeded } from './appointment.arrival.repository.js';
 import type { EstablishAppointmentArrivalResult } from './appointment.arrival.repository.js';
 import { appointmentActivityRepository } from './appointment.activity.repository.js';
+import { withTransientDatabaseRetry } from '../../utils/databaseRetry.js';
 import {
     finalAppointmentStatuses,
     isAppointmentStatusTransitionAllowed,
@@ -343,16 +344,16 @@ export const appointmentRepository = {
         doctorId: string,
         clinicLocalDate?: string
     ) {
-        return tx.$queryRaw`
+        return tx.$executeRaw`
             SELECT pg_advisory_xact_lock(
                 hashtextextended(
                     concat(
-                        ${clinicId},
+                        ${clinicId}::text,
                         ':',
-                        ${doctorId},
+                        ${doctorId}::text,
                         CASE
                             WHEN ${clinicLocalDate ?? null}::text IS NULL THEN ''
-                            ELSE concat(':', ${clinicLocalDate ?? null})
+                            ELSE concat(':', ${clinicLocalDate ?? null}::text)
                         END
                     ),
                     0
@@ -725,7 +726,23 @@ export const appointmentRepository = {
     },
 
     runInTransaction<T>(operation: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
-        return prisma.$transaction(operation);
+        let transactionStarted = false;
+
+        return withTransientDatabaseRetry(
+            () => {
+                transactionStarted = false;
+
+                return prisma.$transaction((tx) => {
+                    transactionStarted = true;
+                    return operation(tx);
+                });
+            },
+            {
+                // Retrying after application writes begin could duplicate a commit whose
+                // acknowledgement was lost. Only retry connection acquisition failures.
+                shouldRetry: () => !transactionStarted,
+            }
+        );
     },
 
     createAppointment(

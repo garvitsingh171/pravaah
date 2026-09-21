@@ -2,38 +2,25 @@ import { SignIn, useAuth } from '@clerk/react';
 import { useEffect, useRef } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { LoadingState, useToast } from '../../components/feedback';
+import { getSafeInternalRedirectPath } from '../../lib';
 import { defaultDashboardPath } from '../../routes/dashboardRoutes';
 import AuthPageLayout from './components/AuthPageLayout';
 
 const redirectParamName = 'redirect_url';
-
-const getSafeRedirectPath = (redirectUrl: string | null): string => {
-    if (!redirectUrl) {
-        return defaultDashboardPath;
-    }
-
-    try {
-        const parsedUrl = new URL(redirectUrl, window.location.origin);
-
-        if (
-            parsedUrl.origin !== window.location.origin ||
-            parsedUrl.pathname.startsWith('/login')
-        ) {
-            return defaultDashboardPath;
-        }
-
-        return `${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
-    } catch {
-        return defaultDashboardPath;
-    }
-};
 
 function LoginPage() {
     const { isLoaded, isSignedIn } = useAuth();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const { showSuccessToast } = useToast();
-    const redirectPath = getSafeRedirectPath(searchParams.get(redirectParamName));
+    const safeRedirectPath = getSafeInternalRedirectPath(
+        searchParams.get(redirectParamName),
+        defaultDashboardPath
+    );
+    const redirectPath = safeRedirectPath.startsWith('/login')
+        ? defaultDashboardPath
+        : safeRedirectPath;
+    const signUpUrl = `/sign-up?${redirectParamName}=${encodeURIComponent(redirectPath)}`;
     const hasShownSignOutToast = useRef(false);
 
     useEffect(() => {
@@ -66,7 +53,7 @@ function LoginPage() {
                 path="/login"
                 routing="path"
                 fallbackRedirectUrl={redirectPath}
-                signUpUrl="/sign-up"
+                signUpUrl={signUpUrl}
                 withSignUp
             />
         </AuthPageLayout>

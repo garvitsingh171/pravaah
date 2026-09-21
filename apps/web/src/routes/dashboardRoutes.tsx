@@ -10,6 +10,7 @@ const PatientCreatePage = lazy(() => import('../features/patients/PatientCreateP
 const AppointmentsPage = lazy(() => import('../features/appointments/AppointmentsPage'));
 const QueuePage = lazy(() => import('../features/queues/QueuePage'));
 const ClinicSettingsPage = lazy(() => import('../features/clinics/ClinicSettingsPage'));
+const StaffManagementPage = lazy(() => import('../features/staff/StaffManagementPage'));
 
 export const appRoutePaths = {
     dashboard: '/dashboard',
@@ -20,6 +21,7 @@ export const appRoutePaths = {
     appointments: '/appointments',
     queue: '/queue',
     clinicSettings: '/clinic-settings',
+    staff: '/staff',
 } as const;
 
 export type AppRoute = {
@@ -27,7 +29,14 @@ export type AppRoute = {
     title: string;
     navigationLabel?: string;
     navigationDescription?: string;
-    navigationIcon: 'dashboard' | 'doctors' | 'patients' | 'appointments' | 'queue' | 'settings';
+    navigationIcon:
+        | 'dashboard'
+        | 'doctors'
+        | 'patients'
+        | 'appointments'
+        | 'queue'
+        | 'staff'
+        | 'settings';
     element: ReactNode;
     showInNavigation: boolean;
     allowedRoles?: UserRoleType[];
@@ -92,6 +101,16 @@ export const dashboardRoutes: AppRoute[] = [
         navigationIcon: 'queue',
         element: <QueuePage />,
         showInNavigation: true,
+    },
+    {
+        path: appRoutePaths.staff,
+        title: 'Staff management',
+        navigationLabel: 'Staff',
+        navigationDescription: 'Team access and invitations',
+        navigationIcon: 'staff',
+        element: <StaffManagementPage />,
+        showInNavigation: true,
+        allowedRoles: [UserRole.ADMIN],
     },
     {
         path: appRoutePaths.clinicSettings,

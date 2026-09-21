@@ -1,6 +1,14 @@
 import { prisma } from '../../config/prisma.js';
-import { UserRole, UserStatus } from '../../generated/prisma/client.js';
+import { StaffInvitationStatus, UserRole, UserStatus } from '../../generated/prisma/client.js';
+import { normalizeEmail } from '../../utils/emailNormalization.js';
 import type { ProvisionClinicWithAdminInput } from './auth.types.js';
+
+export class PendingStaffInvitationRepositoryError extends Error {
+    constructor() {
+        super('Pending Staff invitation prevents clinic provisioning');
+        this.name = 'PendingStaffInvitationRepositoryError';
+    }
+}
 
 export const authRepository = {
     findUserByClerkUserId(clerkUserId: string) {
@@ -78,8 +86,40 @@ export const authRepository = {
         });
     },
 
+    hasPendingStaffInvitationByEmail(email: string, now = new Date()) {
+        return prisma.staffInvitation.findFirst({
+            where: {
+                email: normalizeEmail(email),
+                status: StaffInvitationStatus.PENDING,
+                expiresAt: { gt: now },
+            },
+            select: { id: true },
+        });
+    },
+
     createClinicWithAdmin(input: ProvisionClinicWithAdminInput) {
         return prisma.$transaction(async (tx) => {
+            const normalizedEmail = normalizeEmail(input.admin.email);
+
+            await tx.$executeRaw`
+                SELECT pg_advisory_xact_lock(
+                    hashtextextended(concat('staff-membership:', ${normalizedEmail}::text), 0)
+                )
+            `;
+
+            const pendingStaffInvitation = await tx.staffInvitation.findFirst({
+                where: {
+                    email: normalizedEmail,
+                    status: StaffInvitationStatus.PENDING,
+                    expiresAt: { gt: new Date() },
+                },
+                select: { id: true },
+            });
+
+            if (pendingStaffInvitation) {
+                throw new PendingStaffInvitationRepositoryError();
+            }
+
             const clinic = await tx.clinic.create({
                 data: {
                     name: input.clinic.name,

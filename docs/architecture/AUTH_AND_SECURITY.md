@@ -22,7 +22,7 @@ For low-level auth request flow, onboarding exceptions, route guards, and backen
 - safe redirect handling
 - sign-out success toast
 
-`apps/web/src/features/auth/SignUpPage.tsx` renders Clerk `SignUp` with a fallback redirect to `/onboarding/clinic`. Sign-up must not grant operational app access until Pravaah creates an internal active `User` and clinic assignment through the backend onboarding flow.
+`apps/web/src/features/auth/SignUpPage.tsx` renders Clerk `SignUp`. Its default remains `/onboarding/clinic`, while a validated internal `redirect_url` preserves `/invite/:token` for invited Staff. Absolute, protocol-relative, backslash-authority, and non-path redirect inputs fall back safely.
 
 `apps/web/src/features/onboarding/ClinicOnboardingPage.tsx` lives outside `ProtectedAppShell`, requires a Clerk session, reads onboarding status through `/api/auth/onboarding-status`, and posts clinic profile fields to `/api/auth/onboarding/clinic`.
 
@@ -59,7 +59,9 @@ That middleware requires:
 4. Internal Pravaah user exists for that Clerk user ID.
 5. Internal user status is `ACTIVE`.
 
-In v0.2, only explicitly onboarding-aware endpoints may stop after Clerk identity verification and allow a missing internal `User`. Normal protected APIs must keep requiring the internal user and active status checks.
+Only explicitly onboarding-aware endpoints and Staff invitation preview/acceptance may stop after Clerk identity verification and allow a missing internal `User`. Normal protected APIs keep requiring the internal user and active status checks.
+
+Invitation preview and acceptance use `authenticateClerkIdentity`, resolve the trusted Clerk profile server-side, normalize its email, hash the route token, and require both token validity and identity-email equality. They never trust client-provided role, clinic, email, status, or user IDs.
 
 ## Bearer Token Flow
 
@@ -117,6 +119,7 @@ Admin-only routes:
 - `POST /api/clinics` is protected but disabled for standalone creation
 - `PATCH /api/clinics/:clinicId`
 - `POST /api/clinics/:clinicId/sample-data`
+- clinic Staff list, invitation creation/list/revocation, and Staff suspension/reactivation routes
 
 Most workflow routes allow Admin and Staff.
 
@@ -155,7 +158,9 @@ The backend must still enforce:
 
 Any browser request can be modified, so frontend checks are not security boundaries.
 
-For v0.2 onboarding, the frontend must not send trusted authority values such as internal role, user status, clinic ownership, or another clinic's ID. The backend must assign the first clinic user as `ADMIN`, `ACTIVE`, and linked to the newly created clinic inside one transaction.
+For onboarding, the frontend must not send trusted authority values such as internal role, user status, clinic ownership, or another clinic's ID. The backend assigns the first clinic user as `ADMIN`, `ACTIVE`, and linked to the newly created clinic inside one transaction. Before that transaction, the trusted normalized email is checked for an unexpired pending Staff invitation; a shared advisory lock closes the race and prevents an invited Staff identity from becoming a new Admin.
+
+Staff invitation secrets use 32 cryptographically random bytes encoded as base64url. Only `SHA-256(rawToken)` is persisted. The raw invite URL appears once in the creation response, is not logged, cannot be reconstructed from list data, and is not delivered by email because no mail provider exists.
 
 Optional sample-data provisioning runs only after that clinic and Admin exist. The
 runtime endpoint requires the normal protected API stack, own-clinic access, and
@@ -202,7 +207,7 @@ The MVP does not store:
 
 ## Current Security Limitations
 
-- No audit logging for sensitive changes.
+- Only minimal structured operational event logs exist for Staff invitation/status changes; there is no compliance audit platform.
 - No rate limiting middleware.
 - v0.2 onboarding increases the public surface; rate limiting and production monitoring still need a deployment decision.
 - No dedicated production logging/monitoring configuration.
@@ -218,7 +223,7 @@ The MVP does not store:
 - production logging with redaction
 - security headers appropriate to deployment target
 - role-per-clinic membership model
-- staff invite lifecycle
+- invitation rate limiting and production-grade delivery/monitoring
 - stricter CORS origin configuration per environment
 - automated dependency/security scanning
 

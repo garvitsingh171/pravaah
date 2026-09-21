@@ -51,6 +51,16 @@ For exact end-to-end code traces, use the [Workflow Atlas](workflows/README.md).
 
 Pravaah is a two-app TypeScript monorepo: a React/Vite frontend and an Express backend. Clerk provides user identity, the backend maps Clerk identities to internal Pravaah users, Prisma persists clinic workflow data in PostgreSQL, and feature modules enforce clinic-scoped business rules.
 
+v0.4 adds a deliberate identity bridge for Staff:
+
+```text
+Admin -> StaffInvitation -> one-time secure URL -> Clerk-authenticated invitee
+      -> trusted email + token match -> transactional STAFF/ACTIVE User
+      -> existing protected application in the inviting clinic
+```
+
+The invite page and preview/acceptance APIs allow a Clerk identity without an internal user. All management and operational APIs retain active internal-user authorization. Owner onboarding separately creates `Clinic + ADMIN/ACTIVE User`; a shared normalized-email transaction lock prevents a pending Staff invitation from racing into that owner path.
+
 Core product spine:
 
 ```txt
@@ -187,22 +197,24 @@ No Redux, Zustand, React Query, or server-state library is installed in the curr
 
 ### Route Matrix
 
-| Route                | Type            | Role                                  | Component               | Data dependency                      | Guard                                | Status                           |
-| -------------------- | --------------- | ------------------------------------- | ----------------------- | ------------------------------------ | ------------------------------------ | -------------------------------- |
-| `/`                  | Public          | Any visitor                           | `PublicLandingPage`     | Clerk state only                     | Public                               | Implemented but not yet released |
-| `/login/*`           | Public/auth     | Signed-out user                       | `LoginPage`             | Clerk UI                             | Redirect signed-in users             | Implemented but not yet released |
-| `/sign-up/*`         | Public/auth     | New user                              | `SignUpPage`            | Clerk UI                             | Redirect signed-in users             | Implemented but not yet released |
-| `/onboarding`        | Redirect        | Clerk user                            | `Navigate`              | None                                 | Redirect to clinic onboarding        | Implemented but not yet released |
-| `/onboarding/clinic` | Onboarding      | Clerk user, possibly no internal user | `ClinicOnboardingPage`  | onboarding APIs                      | Onboarding-aware                     | Implemented but not yet released |
-| `/dashboard`         | Protected       | Admin, Staff                          | `DashboardOverviewPage` | auth/current clinic, dashboard APIs  | `ProtectedAppShell`                  | Implemented but not yet released |
-| `/doctors`           | Protected       | Admin, Staff                          | `DoctorsPage`           | doctor APIs                          | App shell + clinic                   | Implemented but not yet released |
-| `/doctors/new`       | Protected       | Admin, Staff                          | `DoctorCreatePage`      | doctor create API                    | App shell + clinic                   | Implemented but not yet released |
-| `/patients`          | Protected       | Admin, Staff                          | `PatientsPage`          | patient APIs                         | App shell + clinic                   | Implemented but not yet released |
-| `/patients/new`      | Protected       | Admin, Staff                          | `PatientCreatePage`     | patient create API                   | App shell + clinic                   | Implemented but not yet released |
-| `/appointments`      | Protected       | Admin, Staff                          | `AppointmentsPage`      | doctors, patients, appointments APIs | App shell + clinic                   | Implemented but not yet released |
-| `/queue`             | Protected       | Admin, Staff                          | `QueuePage`             | queue APIs                           | App shell + clinic                   | Implemented but not yet released |
-| `/clinic-settings`   | Protected       | Admin                                 | `ClinicSettingsPage`    | clinic APIs                          | route metadata + backend Admin check | Implemented but not yet released |
-| `*`                  | Public fallback | Any                                   | `NotFoundPage`          | Clerk state                          | Public                               | Implemented but not yet released |
+| Route                | Type             | Role                                  | Component               | Data dependency                      | Guard                                | Status                           |
+| -------------------- | ---------------- | ------------------------------------- | ----------------------- | ------------------------------------ | ------------------------------------ | -------------------------------- |
+| `/`                  | Public           | Any visitor                           | `PublicLandingPage`     | Clerk state only                     | Public                               | Implemented but not yet released |
+| `/login/*`           | Public/auth      | Signed-out user                       | `LoginPage`             | Clerk UI                             | Redirect signed-in users             | Implemented but not yet released |
+| `/sign-up/*`         | Public/auth      | New user                              | `SignUpPage`            | Clerk UI                             | Redirect signed-in users             | Implemented but not yet released |
+| `/onboarding`        | Redirect         | Clerk user                            | `Navigate`              | None                                 | Redirect to clinic onboarding        | Implemented but not yet released |
+| `/onboarding/clinic` | Onboarding       | Clerk user, possibly no internal user | `ClinicOnboardingPage`  | onboarding APIs                      | Onboarding-aware                     | Implemented but not yet released |
+| `/invite/:token`     | Staff invitation | Clerk user, possibly no internal user | `StaffInvitationPage`   | invitation preview/accept APIs       | Clerk identity + token/email match   | Implemented but not yet released |
+| `/dashboard`         | Protected        | Admin, Staff                          | `DashboardOverviewPage` | auth/current clinic, dashboard APIs  | `ProtectedAppShell`                  | Implemented but not yet released |
+| `/doctors`           | Protected        | Admin, Staff                          | `DoctorsPage`           | doctor APIs                          | App shell + clinic                   | Implemented but not yet released |
+| `/doctors/new`       | Protected        | Admin, Staff                          | `DoctorCreatePage`      | doctor create API                    | App shell + clinic                   | Implemented but not yet released |
+| `/patients`          | Protected        | Admin, Staff                          | `PatientsPage`          | patient APIs                         | App shell + clinic                   | Implemented but not yet released |
+| `/patients/new`      | Protected        | Admin, Staff                          | `PatientCreatePage`     | patient create API                   | App shell + clinic                   | Implemented but not yet released |
+| `/appointments`      | Protected        | Admin, Staff                          | `AppointmentsPage`      | doctors, patients, appointments APIs | App shell + clinic                   | Implemented but not yet released |
+| `/queue`             | Protected        | Admin, Staff                          | `QueuePage`             | queue APIs                           | App shell + clinic                   | Implemented but not yet released |
+| `/staff`             | Protected        | Admin                                 | `StaffManagementPage`   | Staff/invitation management APIs     | App shell + Admin + clinic           | Implemented but not yet released |
+| `/clinic-settings`   | Protected        | Admin                                 | `ClinicSettingsPage`    | clinic APIs                          | route metadata + backend Admin check | Implemented but not yet released |
+| `*`                  | Public fallback  | Any                                   | `NotFoundPage`          | Clerk state                          | Public                               | Implemented but not yet released |
 
 Not implemented as routes: doctor detail, patient detail, appointment detail, dedicated unauthorized route, standalone prediction route, patient portal, and doctor portal.
 

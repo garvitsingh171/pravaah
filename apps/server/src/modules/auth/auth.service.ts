@@ -1,6 +1,7 @@
 import { Prisma, UserRole, UserStatus } from '../../generated/prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
-import { authRepository } from './auth.repository.js';
+import { normalizeEmail } from '../../utils/emailNormalization.js';
+import { authRepository, PendingStaffInvitationRepositoryError } from './auth.repository.js';
 import { clerkIdentityService } from './clerkIdentity.service.js';
 import {
     OnboardingNextStep,
@@ -101,6 +102,13 @@ const internalUserAlreadyExistsError = () =>
         409,
         'INTERNAL_USER_ALREADY_EXISTS',
         'An internal user already exists for this identity'
+    );
+
+const pendingStaffInvitationError = () =>
+    new AppError(
+        409,
+        'STAFF_INVITATION_PENDING',
+        'This account has a pending clinic staff invitation. Use the invitation link to join the clinic.'
     );
 
 const isUniqueConstraintError = (error: unknown): error is Prisma.PrismaClientKnownRequestError => {
@@ -264,6 +272,14 @@ export const authService = {
         }
 
         const adminIdentity = await clerkIdentityService.getTrustedUserIdentity(clerkUserId);
+        const pendingStaffInvitation = await authRepository.hasPendingStaffInvitationByEmail(
+            normalizeEmail(adminIdentity.email)
+        );
+
+        if (pendingStaffInvitation) {
+            logClinicOnboardingEvent('conflicted', { code: 'STAFF_INVITATION_PENDING' });
+            throw pendingStaffInvitationError();
+        }
 
         try {
             const existingClinic = await authRepository.findClinicBySlug(clinicInput.slug);
@@ -318,6 +334,11 @@ export const authService = {
                 },
             };
         } catch (error) {
+            if (error instanceof PendingStaffInvitationRepositoryError) {
+                logClinicOnboardingEvent('conflicted', { code: 'STAFF_INVITATION_PENDING' });
+                throw pendingStaffInvitationError();
+            }
+
             if (error instanceof AppError) {
                 throw error;
             }

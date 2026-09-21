@@ -1,12 +1,24 @@
 import type { ErrorRequestHandler } from 'express';
 import { Prisma } from '../generated/prisma/client.js';
 import { AppError } from '../utils/AppError.js';
+import { isTransientDatabaseError } from '../utils/databaseRetry.js';
 
 type HttpError = Error & {
+    code?: string;
     status?: number;
     statusCode?: number;
     type?: string;
     expose?: boolean;
+};
+
+const sendDatabaseUnavailable = (res: Parameters<ErrorRequestHandler>[2]): void => {
+    res.status(503).json({
+        success: false,
+        error: {
+            code: 'DATABASE_TRANSACTION_UNAVAILABLE',
+            message: 'The database is temporarily busy. Please try again.',
+        },
+    });
 };
 
 export const errorHandler: ErrorRequestHandler = (error: HttpError, req, res, _next) => {
@@ -52,6 +64,11 @@ export const errorHandler: ErrorRequestHandler = (error: HttpError, req, res, _n
     }
 
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2024' || error.code === 'P2028') {
+            sendDatabaseUnavailable(res);
+            return;
+        }
+
         if (error.code === 'P2002') {
             res.status(409).json({
                 success: false,
@@ -73,6 +90,11 @@ export const errorHandler: ErrorRequestHandler = (error: HttpError, req, res, _n
             });
             return;
         }
+    }
+
+    if (isTransientDatabaseError(error)) {
+        sendDatabaseUnavailable(res);
+        return;
     }
 
     console.error(error);

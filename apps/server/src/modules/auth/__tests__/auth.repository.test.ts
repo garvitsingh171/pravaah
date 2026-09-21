@@ -162,8 +162,12 @@ describe('authRepository.createClinicWithAdmin', () => {
     };
 
     const createTransactionClient = () => ({
+        $executeRaw: vi.fn().mockResolvedValue(1),
         clinic: {
             create: vi.fn(),
+        },
+        staffInvitation: {
+            findFirst: vi.fn().mockResolvedValue(null),
         },
         user: {
             create: vi.fn(),

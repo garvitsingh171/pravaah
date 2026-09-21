@@ -13,6 +13,7 @@ const mockAuthRepository = vi.hoisted(() => ({
     findCurrentUserProfileById: vi.fn(),
     findOnboardingUserByClerkUserId: vi.fn(),
     findClinicBySlug: vi.fn(),
+    hasPendingStaffInvitationByEmail: vi.fn(),
     createClinicWithAdmin: vi.fn(),
     getClinicSetupStatus: vi.fn(),
 }));
@@ -300,6 +301,7 @@ describe('authService.createClinicOnboarding', () => {
         mockAuthRepository.findOnboardingUserByClerkUserId.mockResolvedValue(null);
         mockClerkIdentityService.getTrustedUserIdentity.mockResolvedValue(trustedAdminIdentity);
         mockAuthRepository.findClinicBySlug.mockResolvedValue(null);
+        mockAuthRepository.hasPendingStaffInvitationByEmail.mockResolvedValue(null);
         mockAuthRepository.createClinicWithAdmin.mockResolvedValue(provisionedResult);
         mockAuthRepository.getClinicSetupStatus.mockResolvedValue(setupStatus);
     });
@@ -378,6 +380,25 @@ describe('authService.createClinicOnboarding', () => {
                 }),
             })
         );
+    });
+
+    it('blocks clinic provisioning when the trusted email has a pending Staff invitation', async () => {
+        mockAuthRepository.hasPendingStaffInvitationByEmail.mockResolvedValue({ id: 'invite-id' });
+
+        await expect(
+            authService.createClinicOnboarding('trusted-clerk-user-id', onboardingClinicInput)
+        ).rejects.toThrow(
+            new AppError(
+                409,
+                'STAFF_INVITATION_PENDING',
+                'This account has a pending clinic staff invitation. Use the invitation link to join the clinic.'
+            )
+        );
+
+        expect(mockAuthRepository.hasPendingStaffInvitationByEmail).toHaveBeenCalledWith(
+            'admin@example.com'
+        );
+        expect(mockAuthRepository.createClinicWithAdmin).not.toHaveBeenCalled();
     });
 
     it('returns ALREADY_COMPLETED for an existing active Admin with a valid active clinic', async () => {

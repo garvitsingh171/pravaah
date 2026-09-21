@@ -97,10 +97,7 @@ export default function TerminalAppointmentReasonDialog({
                     {patientName} with {doctorName} · {scheduledAtLabel}
                 </p>
 
-                <label
-                    htmlFor={reasonId}
-                    className="mt-5 block text-sm font-medium text-app-muted"
-                >
+                <label htmlFor={reasonId} className="mt-5 block text-sm font-medium text-app-muted">
                     {isCancellation ? 'Cancellation reason' : 'No-show reason'}
                 </label>
                 <select
@@ -119,10 +116,7 @@ export default function TerminalAppointmentReasonDialog({
                     ))}
                 </select>
 
-                <label
-                    htmlFor={noteId}
-                    className="mt-4 block text-sm font-medium text-app-muted"
-                >
+                <label htmlFor={noteId} className="mt-4 block text-sm font-medium text-app-muted">
                     Optional staff note
                 </label>
                 <textarea
@@ -135,10 +129,7 @@ export default function TerminalAppointmentReasonDialog({
                     disabled={isSubmitting}
                     placeholder="Add context for clinic staff"
                 />
-                <span
-                    id={noteCounterId}
-                    className="mt-1 block text-xs font-normal text-app-subtle"
-                >
+                <span id={noteCounterId} className="mt-1 block text-xs font-normal text-app-subtle">
                     {note.length}/500 characters
                 </span>
 

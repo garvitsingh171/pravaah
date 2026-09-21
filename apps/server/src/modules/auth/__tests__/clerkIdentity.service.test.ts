@@ -24,7 +24,7 @@ const createClerkUser = (overrides: Partial<User> = {}): User =>
             },
             {
                 id: 'primary-email-id',
-                emailAddress: ' admin@example.com ',
+                emailAddress: ' Admin@Example.COM ',
             },
         ],
         firstName: ' Clinic ',

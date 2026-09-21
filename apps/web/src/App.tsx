@@ -10,6 +10,7 @@ const PublicLandingPage = lazy(() => import('./features/public/PublicLandingPage
 const LoginPage = lazy(() => import('./features/auth/LoginPage'));
 const SignUpPage = lazy(() => import('./features/auth/SignUpPage'));
 const ClinicOnboardingPage = lazy(() => import('./features/onboarding/ClinicOnboardingPage'));
+const StaffInvitationPage = lazy(() => import('./features/staff/StaffInvitationPage'));
 const NotFoundPage = lazy(() => import('./routes/NotFoundPage'));
 
 function RouteLoadingFallback({ message = 'Loading page...' }: { message?: string }) {
@@ -86,6 +87,14 @@ export function AppRoutes() {
                 element={
                     <PublicRouteBoundary>
                         <ClinicOnboardingPage />
+                    </PublicRouteBoundary>
+                }
+            />
+            <Route
+                path="/invite/:token"
+                element={
+                    <PublicRouteBoundary>
+                        <StaffInvitationPage />
                     </PublicRouteBoundary>
                 }
             />
