@@ -186,7 +186,19 @@ export const patientService = {
               })
             : await patientRepository.updatePatientWithClinicDetails(clinicId, patientId, input);
 
-        if (!addressChanged || !hasGeocodableAddress(nextAddress) || !sourceHash) {
+        if (!addressChanged || !sourceHash) {
+            return patient;
+        }
+
+        if (!hasGeocodableAddress(nextAddress)) {
+            try {
+                await routingRepository.invalidateCalculatedRoutesForPatient(patientId);
+            } catch {
+                // The patient update already committed; stale route data must not turn it into a 500.
+                console.warn(
+                    `[routing] entityType=PATIENT entityId=${patientId} outcome=INVALIDATION_FAILED`
+                );
+            }
             return patient;
         }
 

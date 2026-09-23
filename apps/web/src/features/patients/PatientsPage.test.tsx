@@ -8,6 +8,7 @@ import { adminActiveClinic, renderWithProviders } from '../../test/renderWithPro
 
 const mockListPatients = vi.hoisted(() => vi.fn());
 const mockUpdatePatient = vi.hoisted(() => vi.fn());
+const mockRetryPatientRouting = vi.hoisted(() => vi.fn());
 
 vi.mock('./patientApi', async (importOriginal) => {
     const actual = await importOriginal<typeof import('./patientApi')>();
@@ -16,6 +17,7 @@ vi.mock('./patientApi', async (importOriginal) => {
         ...actual,
         listPatients: mockListPatients,
         updatePatient: mockUpdatePatient,
+        retryPatientRouting: mockRetryPatientRouting,
     };
 });
 
@@ -94,6 +96,7 @@ describe('PatientsPage edit workflow', () => {
     beforeEach(() => {
         mockListPatients.mockReset();
         mockUpdatePatient.mockReset();
+        mockRetryPatientRouting.mockReset();
     });
 
     it('shows edit actions, opens pre-filled values, handles nullable values, and cancels', async () => {
@@ -168,6 +171,32 @@ describe('PatientsPage edit workflow', () => {
             },
             expect.any(AbortSignal)
         );
+    });
+
+    it('allows a not-calculated patient to start travel calculation', async () => {
+        const user = userEvent.setup();
+        const notCalculatedPatient: PatientSummary = {
+            ...patient,
+            routingStatus: 'NOT_CALCULATED',
+        };
+        mockListPatients.mockResolvedValue({ patients: [notCalculatedPatient] });
+        mockRetryPatientRouting.mockResolvedValue({
+            patient: notCalculatedPatient,
+        });
+
+        renderPatientsPage();
+
+        await user.click(await screen.findByRole('button', { name: /details for riya malhotra/i }));
+        expect(screen.getByText('Travel estimate not calculated')).toBeVisible();
+
+        await user.click(screen.getByRole('button', { name: /calculate travel estimate/i }));
+
+        await waitFor(() => {
+            expect(mockRetryPatientRouting).toHaveBeenCalledWith(
+                adminActiveClinic.clinicId,
+                notCalculatedPatient.id
+            );
+        });
     });
 
     it('sends null for cleared nullable fields and excludes authority and history fields', async () => {

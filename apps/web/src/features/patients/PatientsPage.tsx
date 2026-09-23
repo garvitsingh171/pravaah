@@ -1446,6 +1446,32 @@ function PatientsPage() {
                                                                                 Travel estimate not
                                                                                 calculated
                                                                             </div>
+                                                                            {patient.routingStatus ===
+                                                                            'NOT_CALCULATED' ? (
+                                                                                <Button
+                                                                                    variant="outline"
+                                                                                    size="sm"
+                                                                                    onClick={() =>
+                                                                                        void handleRoutingRetry(
+                                                                                            patient
+                                                                                        )
+                                                                                    }
+                                                                                    isLoading={
+                                                                                        retryingRoutingPatientId ===
+                                                                                        patient.id
+                                                                                    }
+                                                                                    loadingText="Calculating..."
+                                                                                    disabled={
+                                                                                        retryingRoutingPatientId !==
+                                                                                            null &&
+                                                                                        retryingRoutingPatientId !==
+                                                                                            patient.id
+                                                                                    }
+                                                                                >
+                                                                                    Calculate travel
+                                                                                    estimate
+                                                                                </Button>
+                                                                            ) : null}
                                                                             {patient.distanceFromClinicKm !==
                                                                                 undefined &&
                                                                             patient.distanceFromClinicKm !==

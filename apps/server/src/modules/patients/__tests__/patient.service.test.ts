@@ -186,6 +186,25 @@ describe('patientService geocoding orchestration', () => {
         );
     });
 
+    it('invalidates routes when a patient address becomes incomplete', async () => {
+        mockPatientRepository.findPatientById.mockResolvedValue({
+            id: 'patient-id',
+            ...completeAddress,
+        });
+        mockPatientRepository.findPatientClinicLink.mockResolvedValue({ id: 'patient-clinic-id' });
+        const updatedPatient = { id: 'patient-id', ...completeAddress, city: null };
+        mockPatientRepository.updatePatientWithClinicDetails.mockResolvedValue(updatedPatient);
+
+        await expect(
+            patientService.updatePatient('clinic-id', 'patient-id', { city: null })
+        ).resolves.toBe(updatedPatient);
+
+        expect(mockPatientRepository.invalidateCalculatedRoutesForPatient).toHaveBeenCalledWith(
+            'patient-id'
+        );
+        expect(mockGeocodingService.geocodeAddress).not.toHaveBeenCalled();
+    });
+
     it('rejects a retry when the patient is not linked to the requested clinic', async () => {
         mockPatientRepository.findPatientById.mockResolvedValue({
             id: 'patient-id',

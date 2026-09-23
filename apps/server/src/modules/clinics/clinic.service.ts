@@ -90,7 +90,19 @@ export const clinicService = {
             ? await clinicRepository.update(clinicId, input, { sourceHash, attemptId: attemptId! })
             : await clinicRepository.update(clinicId, input);
 
-        if (!addressChanged || !hasGeocodableAddress(nextAddress) || !sourceHash) {
+        if (!addressChanged || !sourceHash) {
+            return clinic;
+        }
+
+        if (!hasGeocodableAddress(nextAddress)) {
+            try {
+                await routingRepository.invalidateCalculatedRoutesForClinic(clinicId);
+            } catch {
+                // The clinic update already committed; stale route data must not turn it into a 500.
+                console.warn(
+                    `[routing] entityType=CLINIC entityId=${clinicId} outcome=INVALIDATION_FAILED`
+                );
+            }
             return clinic;
         }
 
