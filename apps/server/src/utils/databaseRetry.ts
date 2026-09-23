@@ -7,6 +7,10 @@ const transientDatabaseErrorCodes = new Set([
     'ETIMEDOUT',
     'P2024',
     'P2028',
+    'P1001',
+    'P1002',
+    'P1017',
+    'P2034',
 ]);
 
 const isObject = (value: unknown): value is Record<PropertyKey, unknown> => {
@@ -18,7 +22,26 @@ export const isTransientDatabaseError = (error: unknown): boolean => {
         return false;
     }
 
-    if (typeof error.code === 'string' && transientDatabaseErrorCodes.has(error.code)) {
+    const errorCode =
+        typeof error.code === 'string'
+            ? error.code
+            : typeof error.errorCode === 'string'
+              ? error.errorCode
+              : undefined;
+
+    if (errorCode && transientDatabaseErrorCodes.has(errorCode)) {
+        return true;
+    }
+
+    // Some database adapters wrap DNS/socket failures without preserving the
+    // original Node.js error code. Keep those failures in the database
+    // unavailable path instead of exposing them as a generic 500 response.
+    if (
+        typeof error.message === 'string' &&
+        /getaddrinfo\s+enotfound|econnrefused|econnreset|etimedout|enetunreach|ehostunreach/i.test(
+            error.message
+        )
+    ) {
         return true;
     }
 

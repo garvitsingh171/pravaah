@@ -9,6 +9,7 @@ import {
     createPatientController,
     listPatientsByClinicController,
     retryPatientGeocodingController,
+    retryPatientRoutingController,
     updatePatientController,
 } from './patient.controller.js';
 import {
@@ -17,6 +18,7 @@ import {
     createPatientSchema,
     listPatientsQuerySchema,
     retryPatientGeocodingBodySchema,
+    retryPatientRoutingBodySchema,
     updatePatientSchema,
 } from './patient.validation.js';
 
@@ -32,6 +34,18 @@ patientRouter.post(
     requireClinicAccess,
     requireClinicStaffRole,
     createPatientController
+);
+
+patientRouter.post(
+    '/:clinicId/patients/:patientId/route',
+    authenticateRequest,
+    validateRequest({
+        params: clinicPatientIdParamsSchema,
+        body: retryPatientRoutingBodySchema,
+    }),
+    requireClinicAccess,
+    requireClinicStaffRole,
+    retryPatientRoutingController
 );
 
 patientRouter.patch(

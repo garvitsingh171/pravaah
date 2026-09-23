@@ -17,6 +17,9 @@ const mockGeocodingService = vi.hoisted(() => ({
     isConfigured: vi.fn(() => true),
     geocodeAddress: vi.fn(),
 }));
+const mockRoutingRepository = vi.hoisted(() => ({
+    invalidateCalculatedRoutesForClinic: vi.fn(),
+}));
 
 vi.mock('../clinic.repository.js', () => ({
     clinicRepository: mockClinicRepository,
@@ -28,6 +31,10 @@ vi.mock('../../predictions/prediction.service.js', () => ({
 
 vi.mock('../../geocoding/geocoding.service.js', () => ({
     geocodingService: mockGeocodingService,
+}));
+
+vi.mock('../../routing/routing.repository.js', () => ({
+    routingRepository: mockRoutingRepository,
 }));
 
 import { clinicService } from '../clinic.service.js';
@@ -164,6 +171,33 @@ describe('clinicService.updateClinic', () => {
             expect.any(String),
             result
         );
+    });
+
+    it('invalidates routes when a clinic address becomes incomplete', async () => {
+        const existingClinic = {
+            id: 'clinic-id',
+            addressLine1: '12 Wellness Road',
+            addressLine2: null,
+            city: 'Jaipur',
+            state: 'Rajasthan',
+            country: 'India',
+            pincode: '302017',
+            latitude: 26.9,
+            longitude: 75.8,
+        };
+        const updatedClinic = { ...existingClinic, city: null };
+
+        mockClinicRepository.findById.mockResolvedValue(existingClinic);
+        mockClinicRepository.update.mockResolvedValue(updatedClinic);
+
+        await expect(
+            clinicService.updateClinic('clinic-id', { city: null })
+        ).resolves.toBe(updatedClinic);
+
+        expect(mockRoutingRepository.invalidateCalculatedRoutesForClinic).toHaveBeenCalledWith(
+            'clinic-id'
+        );
+        expect(mockGeocodingService.geocodeAddress).not.toHaveBeenCalled();
     });
 });
 

@@ -681,7 +681,6 @@ email, gender, dateOfBirth, age optional
 addressLine1, addressLine2, city, state, country, pincode optional
 emergencyContactName, emergencyContactPhone optional
 notes optional
-distanceFromClinicKm optional
 ```
 
 Structured patient location is the forward-looking address contract. A normal
@@ -693,12 +692,12 @@ use bounded postal-code text. Example:
 
 ```json
 {
-  "addressLine1": "B-42, Malviya Nagar",
-  "addressLine2": "Near Gaurav Tower",
-  "city": "Jaipur",
-  "state": "Rajasthan",
-  "country": "India",
-  "pincode": "302017"
+    "addressLine1": "B-42, Malviya Nagar",
+    "addressLine2": "Near Gaurav Tower",
+    "city": "Jaipur",
+    "state": "Rajasthan",
+    "country": "India",
+    "pincode": "302017"
 }
 ```
 
@@ -738,6 +737,9 @@ data.patients[]
   totalNoShows
   totalLateArrivals
   lastVisitAt
+  distanceFromClinicKm
+  estimatedTravelTimeMinutes
+  routingStatus, routingProvider, routingMode, routingTrafficModel, routedAt
 ```
 
 Main errors:
@@ -760,7 +762,7 @@ Body summary:
 - at least one field required
 - `undefined`/omitted fields are unchanged; `null` clears nullable structured
   location fields
-- `notes` and `distanceFromClinicKm` update `PatientClinic`
+- `notes` updates `PatientClinic`; travel fields are response-only and server-derived
 - operational statistics are response-only and rejected by strict create/update validation
 
 Main errors:
@@ -769,6 +771,19 @@ Main errors:
 - `PATIENT_NOT_LINKED_TO_CLINIC`
 - `CLINIC_ACCESS_DENIED`
 - `VALIDATION_ERROR`
+
+### Retry Patient Travel Estimate
+
+| Field  | Value                                              |
+| ------ | -------------------------------------------------- |
+| Method | POST                                               |
+| Path   | `/api/clinics/:clinicId/patients/:patientId/route` |
+| Auth   | Required, own active clinic, Admin/Staff           |
+
+Body must be `{}`. The backend loads current geocoded coordinates and routing
+configuration, calls Geoapify outside a database transaction, and persists
+only the current attempt. `routingSourceHash` and `routingAttemptId` are never
+returned.
 
 ## Appointments
 
@@ -1282,10 +1297,10 @@ source hashes. Safe response metadata is `latitude`, `longitude`,
 `geocodingStatus`, `geocodingProvider`, `geocodingConfidence`,
 `geocodingResultType`, `geocodedAddress`, and `geocodedAt`.
 
-| Method | Path | Auth | Body |
-| --- | --- | --- | --- |
-| POST | `/api/clinics/:clinicId/geocode` | Active same-clinic Admin | Strict empty object `{}` |
-| POST | `/api/clinics/:clinicId/patients/:patientId/geocode` | Active same-clinic Admin/Staff and linked patient | Strict empty object `{}` |
+| Method | Path                                                 | Auth                                              | Body                     |
+| ------ | ---------------------------------------------------- | ------------------------------------------------- | ------------------------ |
+| POST   | `/api/clinics/:clinicId/geocode`                     | Active same-clinic Admin                          | Strict empty object `{}` |
+| POST   | `/api/clinics/:clinicId/patients/:patientId/geocode` | Active same-clinic Admin/Staff and linked patient | Strict empty object `{}` |
 
 Retries use only the stored structured address. Incomplete data returns
 `LOCATION_ADDRESS_INCOMPLETE`; missing server configuration returns

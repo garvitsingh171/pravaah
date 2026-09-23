@@ -29,6 +29,7 @@ import { Gender, type Gender as GenderType, type PatientSummary } from '../../ty
 import {
     listPatients,
     retryPatientGeocoding,
+    retryPatientRouting,
     updatePatient,
     type PatientListFilters,
     type UpdatePatientRequest,
@@ -79,7 +80,6 @@ type PatientEditFormValues = {
     pincode: string;
     emergencyContactName: string;
     emergencyContactPhone: string;
-    distanceFromClinicKm: string;
     notes: string;
 };
 
@@ -98,7 +98,6 @@ type PatientEditComparableValues = {
     pincode: string | null;
     emergencyContactName: string | null;
     emergencyContactPhone: string | null;
-    distanceFromClinicKm: number | null;
     notes: string | null;
 };
 
@@ -119,7 +118,6 @@ const patientValidationFieldMap: Partial<Record<string, keyof PatientEditFormVal
     'body.pincode': 'pincode',
     'body.emergencyContactName': 'emergencyContactName',
     'body.emergencyContactPhone': 'emergencyContactPhone',
-    'body.distanceFromClinicKm': 'distanceFromClinicKm',
     'body.notes': 'notes',
 };
 
@@ -281,10 +279,6 @@ const toPatientEditValues = (patient: PatientSummary): PatientEditFormValues => 
         pincode: patient.pincode ?? '',
         emergencyContactName: patient.emergencyContactName ?? '',
         emergencyContactPhone: patient.emergencyContactPhone ?? '',
-        distanceFromClinicKm:
-            patient.distanceFromClinicKm === undefined || patient.distanceFromClinicKm === null
-                ? ''
-                : String(patient.distanceFromClinicKm),
         notes: patient.notes ?? '',
     };
 };
@@ -315,7 +309,6 @@ const toComparablePatientValues = (values: PatientEditFormValues): PatientEditCo
         pincode: toNullableText(values.pincode),
         emergencyContactName: toNullableText(values.emergencyContactName),
         emergencyContactPhone: toNullableText(values.emergencyContactPhone),
-        distanceFromClinicKm: toNullableNumber(values.distanceFromClinicKm),
         notes: toNullableText(values.notes),
     };
 };
@@ -354,7 +347,8 @@ const validatePatientEditForm = (values: PatientEditFormValues): PatientEditFiel
 
     for (const locationField of locationFields) {
         if (values[locationField.field].trim().length > locationField.maxLength) {
-            errors[locationField.field] = `${locationField.label} must be ${locationField.maxLength} characters or fewer.`;
+            errors[locationField.field] =
+                `${locationField.label} must be ${locationField.maxLength} characters or fewer.`;
         }
     }
 
@@ -369,15 +363,6 @@ const validatePatientEditForm = (values: PatientEditFormValues): PatientEditFiel
 
         if (!Number.isInteger(age) || age < 0) {
             errors.age = 'Age must be a whole number greater than or equal to 0.';
-        }
-    }
-
-    if (values.distanceFromClinicKm.trim()) {
-        const distanceFromClinicKm = Number(values.distanceFromClinicKm);
-
-        if (!Number.isFinite(distanceFromClinicKm) || distanceFromClinicKm < 0) {
-            errors.distanceFromClinicKm =
-                'Distance from clinic must be a number greater than or equal to 0.';
         }
     }
 
@@ -417,9 +402,6 @@ const buildPatientUpdatePayload = (
     }
     if (nextValues.emergencyContactPhone !== initialValues.emergencyContactPhone) {
         payload.emergencyContactPhone = nextValues.emergencyContactPhone;
-    }
-    if (nextValues.distanceFromClinicKm !== initialValues.distanceFromClinicKm) {
-        payload.distanceFromClinicKm = nextValues.distanceFromClinicKm;
     }
     if (nextValues.notes !== initialValues.notes) payload.notes = nextValues.notes;
 
@@ -736,22 +718,12 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
 
                 <FormSection
                     title="Clinic Details"
-                    description="Notes and distance are scoped to this clinic only."
+                    description="Travel estimates are calculated from verified patient and clinic locations."
                 >
-
-                    <label className="block text-sm font-medium text-slate-700">
-                        Distance from clinic (km)
-                        <input
-                            className={fieldControlClassName}
-                            value={values.distanceFromClinicKm}
-                            onChange={(event) =>
-                                handleFieldChange('distanceFromClinicKm', event.target.value)
-                            }
-                            disabled={isSubmitting}
-                            inputMode="decimal"
-                        />
-                        <FieldError message={fieldErrors.distanceFromClinicKm} />
-                    </label>
+                    <p className="text-sm text-slate-600">
+                        Travel distance and estimated drive time are derived automatically and
+                        cannot be edited.
+                    </p>
                 </FormSection>
 
                 <FormSection title="Emergency Contact">
@@ -889,6 +861,7 @@ function PatientsPage() {
     const [retryingGeocodingPatientId, setRetryingGeocodingPatientId] = useState<string | null>(
         null
     );
+    const [retryingRoutingPatientId, setRetryingRoutingPatientId] = useState<string | null>(null);
 
     const loadPatients = useCallback(
         async (signal?: AbortSignal) => {
@@ -1037,6 +1010,28 @@ function PatientsPage() {
             );
         } finally {
             setRetryingGeocodingPatientId(null);
+        }
+    };
+
+    const handleRoutingRetry = async (patient: PatientSummary) => {
+        if (retryingRoutingPatientId) {
+            return;
+        }
+
+        setRetryingRoutingPatientId(patient.id);
+
+        try {
+            await retryPatientRouting(clinicId, patient.id);
+            await refreshPatientsAfterStatusChange();
+            showSuccessToast('Travel estimate recalculated successfully.');
+        } catch (error) {
+            showErrorToast(
+                isApiClientError(error)
+                    ? error.message
+                    : 'Travel estimate could not be calculated. Please try again.'
+            );
+        } finally {
+            setRetryingRoutingPatientId(null);
         }
     };
 
@@ -1395,11 +1390,103 @@ function PatientsPage() {
                                                             </div>
                                                             <div>
                                                                 <dt className="font-medium text-slate-500">
-                                                                    Distance from this clinic
+                                                                    Travel estimate
                                                                 </dt>
-                                                                <dd className="mt-1 text-slate-900">
-                                                                    {patient.distanceFromClinicKm ??
-                                                                        'Not added'}
+                                                                <dd className="mt-1 space-y-1 text-slate-900">
+                                                                    {patient.routingStatus ===
+                                                                    'CALCULATED' ? (
+                                                                        <>
+                                                                            <div>
+                                                                                Road distance:{' '}
+                                                                                {patient.distanceFromClinicKm ??
+                                                                                    'Not available'}{' '}
+                                                                                km
+                                                                            </div>
+                                                                            <div>
+                                                                                Estimated drive:{' '}
+                                                                                {patient.estimatedTravelTimeMinutes ??
+                                                                                    'Not available'}{' '}
+                                                                                min
+                                                                            </div>
+                                                                        </>
+                                                                    ) : patient.routingStatus ===
+                                                                      'FAILED' ? (
+                                                                        <>
+                                                                            <div>
+                                                                                Travel estimate
+                                                                                unavailable
+                                                                            </div>
+                                                                            <Button
+                                                                                variant="outline"
+                                                                                size="sm"
+                                                                                onClick={() =>
+                                                                                    void handleRoutingRetry(
+                                                                                        patient
+                                                                                    )
+                                                                                }
+                                                                                isLoading={
+                                                                                    retryingRoutingPatientId ===
+                                                                                    patient.id
+                                                                                }
+                                                                                loadingText="Retrying..."
+                                                                                disabled={
+                                                                                    retryingRoutingPatientId !==
+                                                                                        null &&
+                                                                                    retryingRoutingPatientId !==
+                                                                                        patient.id
+                                                                                }
+                                                                            >
+                                                                                Retry travel
+                                                                                estimate
+                                                                            </Button>
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <div>
+                                                                                Travel estimate not
+                                                                                calculated
+                                                                            </div>
+                                                                            {patient.routingStatus ===
+                                                                            'NOT_CALCULATED' ? (
+                                                                                <Button
+                                                                                    variant="outline"
+                                                                                    size="sm"
+                                                                                    onClick={() =>
+                                                                                        void handleRoutingRetry(
+                                                                                            patient
+                                                                                        )
+                                                                                    }
+                                                                                    isLoading={
+                                                                                        retryingRoutingPatientId ===
+                                                                                        patient.id
+                                                                                    }
+                                                                                    loadingText="Calculating..."
+                                                                                    disabled={
+                                                                                        retryingRoutingPatientId !==
+                                                                                            null &&
+                                                                                        retryingRoutingPatientId !==
+                                                                                            patient.id
+                                                                                    }
+                                                                                >
+                                                                                    Calculate travel
+                                                                                    estimate
+                                                                                </Button>
+                                                                            ) : null}
+                                                                            {patient.distanceFromClinicKm !==
+                                                                                undefined &&
+                                                                            patient.distanceFromClinicKm !==
+                                                                                null ? (
+                                                                                <div className="text-slate-500">
+                                                                                    Previous
+                                                                                    distance:{' '}
+                                                                                    {
+                                                                                        patient.distanceFromClinicKm
+                                                                                    }{' '}
+                                                                                    km
+                                                                                </div>
+                                                                            ) : null}
+                                                                        </>
+                                                                    )}
                                                                 </dd>
                                                             </div>
                                                             <div>

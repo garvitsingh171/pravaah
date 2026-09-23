@@ -8,6 +8,9 @@ import {
 } from '../../utils/location.js';
 import { getIndiaPincodeValidationMessage } from '../../utils/locationValidation.js';
 import { geocodingService, type GeocodingAttempt } from '../geocoding/geocoding.service.js';
+import { routingService } from '../routing/routing.service.js';
+import { haveCoordinatesChanged } from '../routing/routing.location.js';
+import { routingRepository } from '../routing/routing.repository.js';
 import { patientRepository } from './patient.repository.js';
 import type {
     CreatePatientInput,
@@ -45,6 +48,43 @@ const applyPatientGeocodingAttempt = async (
     }
 };
 
+const hasCurrentCoordinates = (entity: {
+    latitude?: number | null;
+    longitude?: number | null;
+    geocodingStatus?: string;
+}): boolean => {
+    return (
+        entity.geocodingStatus === 'GEOCODED' &&
+        entity.latitude !== null &&
+        entity.latitude !== undefined &&
+        entity.longitude !== null &&
+        entity.longitude !== undefined
+    );
+};
+
+const calculateRouteForCurrentClinic = async (
+    clinicId: string,
+    patientId: string,
+    clinic: { latitude?: number | null; longitude?: number | null; geocodingStatus?: string },
+    patient: { latitude?: number | null; longitude?: number | null; geocodingStatus?: string }
+): Promise<void> => {
+    if (!hasCurrentCoordinates(clinic) || !hasCurrentCoordinates(patient)) {
+        return;
+    }
+
+    try {
+        await routingService.calculatePatientClinicRoute({ clinicId, patientId });
+    } catch (error) {
+        // The Patient/PatientClinic write and geocoding write have already
+        // committed. Routing is derived enrichment and must not turn a
+        // successful core workflow into a 500 response.
+        console.warn(
+            `[routing] entityType=PATIENT_CLINIC patientId=${patientId} clinicId=${clinicId} outcome=PERSISTENCE_FAILED`,
+            error
+        );
+    }
+};
+
 export const patientService = {
     async createPatient(clinicId: string, input: CreatePatientInput) {
         const existingClinic = await patientRepository.findClinicById(clinicId);
@@ -56,23 +96,29 @@ export const patientService = {
         const address = toPatientAddress(input);
         const sourceHash = createGeocodingSourceHash(address);
         const attemptId = createGeocodingAttemptId();
-        const patient = await patientRepository.createPatientWithClinicLink(
-            clinicId,
-            input,
-            { sourceHash, attemptId }
-        );
+        const patient = await patientRepository.createPatientWithClinicLink(clinicId, input, {
+            sourceHash,
+            attemptId,
+        });
 
         if (!hasGeocodableAddress(address)) {
             return patient;
         }
 
         try {
-            await applyPatientGeocodingAttempt(
-                patient.id,
-                sourceHash,
-                attemptId,
-                await geocodingService.geocodeAddress(address)
-            );
+            const attempt = await geocodingService.geocodeAddress(address);
+            await applyPatientGeocodingAttempt(patient.id, sourceHash, attemptId, attempt);
+
+            if (attempt.outcome === 'SUCCESS') {
+                const currentPatient =
+                    (await patientRepository.findPatientById(patient.id)) ?? patient;
+                await calculateRouteForCurrentClinic(
+                    clinicId,
+                    patient.id,
+                    existingClinic,
+                    currentPatient
+                );
+            }
 
             return (await patientRepository.findPatientById(patient.id)) ?? patient;
         } catch {
@@ -140,19 +186,59 @@ export const patientService = {
               })
             : await patientRepository.updatePatientWithClinicDetails(clinicId, patientId, input);
 
-        if (!addressChanged || !hasGeocodableAddress(nextAddress) || !sourceHash) {
+        if (!addressChanged || !sourceHash) {
+            return patient;
+        }
+
+        if (!hasGeocodableAddress(nextAddress)) {
+            try {
+                await routingRepository.invalidateCalculatedRoutesForPatient(patientId);
+            } catch {
+                // The patient update already committed; stale route data must not turn it into a 500.
+                console.warn(
+                    `[routing] entityType=PATIENT entityId=${patientId} outcome=INVALIDATION_FAILED`
+                );
+            }
             return patient;
         }
 
         try {
-            await applyPatientGeocodingAttempt(
-                patientId,
-                sourceHash,
-                attemptId!,
-                await geocodingService.geocodeAddress(nextAddress)
-            );
+            const attempt = await geocodingService.geocodeAddress(nextAddress);
+            await applyPatientGeocodingAttempt(patientId, sourceHash, attemptId!, attempt);
 
-            return (await patientRepository.findPatientById(patientId)) ?? patient;
+            const currentPatient = await patientRepository.findPatientById(patientId);
+
+            if (!currentPatient) {
+                return patient;
+            }
+
+            if (attempt.outcome === 'SUCCESS') {
+                if (
+                    haveCoordinatesChanged(
+                        {
+                            latitude: existingPatient.latitude ?? null,
+                            longitude: existingPatient.longitude ?? null,
+                        },
+                        {
+                            latitude: currentPatient.latitude ?? null,
+                            longitude: currentPatient.longitude ?? null,
+                        }
+                    )
+                ) {
+                    await routingRepository.invalidateCalculatedRoutesForPatient(patientId);
+                }
+
+                await calculateRouteForCurrentClinic(
+                    clinicId,
+                    patientId,
+                    existingClinic,
+                    currentPatient
+                );
+            } else {
+                await routingRepository.invalidateCalculatedRoutesForPatient(patientId);
+            }
+
+            return currentPatient;
         } catch {
             // The Patient update transaction already committed.
             console.warn(
@@ -175,7 +261,10 @@ export const patientService = {
             throw new AppError(404, 'PATIENT_NOT_FOUND', 'Patient not found');
         }
 
-        const patientClinicLink = await patientRepository.findPatientClinicLink(patientId, clinicId);
+        const patientClinicLink = await patientRepository.findPatientClinicLink(
+            patientId,
+            clinicId
+        );
 
         if (!patientClinicLink) {
             throw new AppError(
@@ -220,11 +309,80 @@ export const patientService = {
         await applyPatientGeocodingAttempt(patientId, sourceHash, attemptId, attempt);
 
         if (attempt.outcome === 'FAILED') {
+            await routingRepository.invalidateCalculatedRoutesForPatient(patientId);
             throw new AppError(
                 502,
                 'GEOAPIFY_GEOCODING_FAILED',
                 'Location lookup failed. Please try again later.'
             );
+        }
+
+        if (attempt.outcome === 'SUCCESS') {
+            const currentPatient = (await patientRepository.findPatientById(patientId)) ?? patient;
+            if (
+                haveCoordinatesChanged(
+                    {
+                        latitude: patient.latitude ?? null,
+                        longitude: patient.longitude ?? null,
+                    },
+                    {
+                        latitude: currentPatient.latitude ?? null,
+                        longitude: currentPatient.longitude ?? null,
+                    }
+                )
+            ) {
+                await routingRepository.invalidateCalculatedRoutesForPatient(patientId);
+            }
+            await calculateRouteForCurrentClinic(
+                clinicId,
+                patientId,
+                existingClinic,
+                currentPatient
+            );
+
+            if (patientRepository.findPatientByIdWithClinic) {
+                return patientRepository.findPatientByIdWithClinic(patientId, clinicId);
+            }
+        }
+
+        return patientRepository.findPatientById(patientId);
+    },
+
+    async retryRouting(clinicId: string, patientId: string) {
+        const existingClinic = await patientRepository.findClinicById(clinicId);
+
+        if (!existingClinic) {
+            throw new AppError(404, 'CLINIC_NOT_FOUND', 'Clinic not found');
+        }
+
+        const patient = await patientRepository.findPatientById(patientId);
+
+        if (!patient) {
+            throw new AppError(404, 'PATIENT_NOT_FOUND', 'Patient not found');
+        }
+
+        const patientClinicLink = await patientRepository.findPatientClinicLink(
+            patientId,
+            clinicId
+        );
+
+        if (!patientClinicLink) {
+            throw new AppError(
+                403,
+                'PATIENT_NOT_LINKED_TO_CLINIC',
+                'Patient is not linked to this clinic'
+            );
+        }
+
+        await routingService.calculatePatientClinicRoute({
+            clinicId,
+            patientId,
+            force: true,
+            explicit: true,
+        });
+
+        if (patientRepository.findPatientByIdWithClinic) {
+            return patientRepository.findPatientByIdWithClinic(patientId, clinicId);
         }
 
         return patientRepository.findPatientById(patientId);

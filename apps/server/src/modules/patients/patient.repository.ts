@@ -58,6 +58,28 @@ const patientResponseSelect = {
     updatedAt: true,
 } satisfies Prisma.PatientSelect;
 
+const patientClinicResponseSelect = {
+    id: true,
+    patientId: true,
+    clinicId: true,
+    totalAppointments: true,
+    totalCompletedVisits: true,
+    totalNoShows: true,
+    totalLateArrivals: true,
+    lastVisitAt: true,
+    notes: true,
+    distanceFromClinicKm: true,
+    estimatedTravelTimeMinutes: true,
+    routingStatus: true,
+    routingProvider: true,
+    routingMode: true,
+    routingTrafficModel: true,
+    routedAt: true,
+    isActive: true,
+    createdAt: true,
+    updatedAt: true,
+} satisfies Prisma.PatientClinicSelect;
+
 export const patientRepository = {
     findClinicById(id: string) {
         return prisma.clinic.findUnique({
@@ -73,6 +95,19 @@ export const patientRepository = {
                 id,
             },
             select: patientResponseSelect,
+        });
+    },
+
+    findPatientByIdWithClinic(id: string, clinicId: string) {
+        return prisma.patient.findUnique({
+            where: { id },
+            select: {
+                ...patientResponseSelect,
+                patientClinics: {
+                    where: { clinicId },
+                    select: patientClinicResponseSelect,
+                },
+            },
         });
     },
 
@@ -128,7 +163,6 @@ export const patientRepository = {
                     patientId: patient.id,
                     clinicId,
                     notes: data.notes ?? null,
-                    distanceFromClinicKm: data.distanceFromClinicKm ?? null,
                 },
             });
 
@@ -181,10 +215,6 @@ export const patientRepository = {
         const patientClinicUpdateData: Prisma.PatientClinicUpdateInput = {};
 
         if (data.notes !== undefined) patientClinicUpdateData.notes = data.notes;
-        if (data.distanceFromClinicKm !== undefined) {
-            patientClinicUpdateData.distanceFromClinicKm = data.distanceFromClinicKm;
-        }
-
         return prisma.$transaction(async (tx) => {
             if (Object.keys(patientUpdateData).length > 0) {
                 await tx.patient.update({
@@ -304,7 +334,8 @@ export const patientRepository = {
                 clinicId,
                 patient: patientWhere,
             },
-            include: {
+            select: {
+                ...patientClinicResponseSelect,
                 patient: {
                     select: patientResponseSelect,
                 },

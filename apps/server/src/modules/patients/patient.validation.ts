@@ -49,11 +49,6 @@ export const createPatientSchema = z
         emergencyContactPhone: z.string().optional(),
 
         notes: z.string().optional(),
-
-        distanceFromClinicKm: z
-            .number()
-            .nonnegative('Distance from clinic cannot be negative')
-            .optional(),
     })
     .strict()
     .superRefine(refineIndiaPincode);
@@ -90,12 +85,6 @@ export const updatePatientSchema = z
 
         notes: z.string().nullable().optional(),
 
-        distanceFromClinicKm: z
-            .number()
-            .nonnegative('Distance from clinic cannot be negative')
-            .nullable()
-            .optional(),
-
         isActive: z.boolean().optional(),
     })
     .strict()
@@ -117,6 +106,8 @@ export const listPatientsQuerySchema = z
 
 export const retryPatientGeocodingBodySchema = z.object({}).strict().default({});
 
+export const retryPatientRoutingBodySchema = z.object({}).strict().default({});
+
 export type ListPatientsQuerySchemaInput = z.infer<typeof listPatientsQuerySchema>;
 
 export type ClinicIdParamsSchemaInput = z.infer<typeof clinicIdParamsSchema>;
@@ -128,3 +119,5 @@ export type CreatePatientSchemaInput = z.infer<typeof createPatientSchema>;
 export type UpdatePatientSchemaInput = z.infer<typeof updatePatientSchema>;
 
 export type RetryPatientGeocodingBodySchemaInput = z.infer<typeof retryPatientGeocodingBodySchema>;
+
+export type RetryPatientRoutingBodySchemaInput = z.infer<typeof retryPatientRoutingBodySchema>;

@@ -123,9 +123,10 @@ legacy `address`. The owner must create and inspect the unapplied migration
 `add_structured_patient_location`, including only the safe `address` to
 `addressLine1` backfill. Unknown historical geography remains null.
 
-The canonical address helper is display-only, and the completeness helper only
-means “enough fields for a future geocoding attempt.” No coordinates, external
-provider, automatic distance, or prediction coupling exists.
+The canonical address helper is display-only, and the completeness helper means
+“enough fields for a geocoding attempt.” Coordinates and routing are backend
+derived; they remain outside prediction inputs except for the existing distance
+value consumed by the unchanged distance rules.
 
 ### DoctorClinic and PatientClinic are real, but multi-clinic UI is not
 

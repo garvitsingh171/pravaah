@@ -162,7 +162,7 @@ Patient is currently a record, not a logged-in user. A patient can be linked to 
 | Clinic settings view/update        | Yes                         | No                          | No                                            | No                                            | Implemented but not yet released | Backend Admin role is authority.                                                               |
 | Doctor creation/editing            | Yes                         | Yes                         | No                                            | No                                            | Implemented but not yet released | Updates doctor profile/status, not link settings.                                              |
 | Doctor deactivation/reactivation   | Yes                         | Yes                         | No                                            | No                                            | Implemented but not yet released | Implemented through `Doctor.isActive`; `DoctorClinic.isActive` update UI/API is not exposed.   |
-| Patient creation/editing           | Yes                         | Yes                         | No                                            | No                                            | Implemented but not yet released | `PatientClinic` notes/distance can be updated.                                                 |
+| Patient creation/editing           | Yes                         | Yes                         | No                                            | No                                            | Implemented but not yet released | `PatientClinic` notes remain editable; travel values are server-derived.                       |
 | Patient deactivation/reactivation  | Yes                         | Yes                         | No                                            | No                                            | Implemented but not yet released | Implemented through `Patient.isActive`; `PatientClinic.isActive` update UI/API is not exposed. |
 | Appointment creation/viewing       | Yes                         | Yes                         | No                                            | No                                            | Implemented but not yet released | Requires active clinic, doctor link, and patient link.                                         |
 | Appointment status changes         | Yes                         | Yes                         | No                                            | No                                            | Implemented but not yet released | Current code blocks changing final statuses but does not enforce a strict sequence.            |
@@ -181,10 +181,11 @@ Patient is currently a record, not a logged-in user. A patient can be linked to 
 Pravaah stores optional structured clinic and patient address components with
 trimmed, bounded text and safe legacy patient-address migration support. New
 patient records default the UI country to India without fabricating country
-values for historical rows. This foundation does not include geocoding,
-coordinates, maps, automatic distance, travel time, routing, or prediction
-changes; the existing manual `PatientClinic.distanceFromClinicKm` input remains
-operational.
+values for historical rows. Complete addresses may now be geocoded by the
+backend, and trusted Patient/Clinic coordinates may produce a Geoapify road
+distance and free-flow drive estimate on `PatientClinic`. This is not live
+traffic, navigation, maps, or a prediction rule change; historical manual
+distances remain identifiable until routing takes ownership of a relationship.
 
 ## Product Capability Status Summary
 
@@ -605,5 +606,7 @@ Cancellation and no-show capture preserve three meanings: status records what ha
 
 Pravaah can resolve complete structured Clinic and Patient addresses into
 persisted geographic coordinates through a backend-only Geoapify integration.
-It does not claim automatic distance calculation, routing, travel time, maps,
-autocomplete, or no-show prediction improvements.
+When both coordinate sets are current, the backend can derive Patient-to-Clinic
+road distance and a free-flow drive estimate through Geoapify Routing. It does
+not claim live traffic, maps, autocomplete, navigation, or no-show prediction
+rule changes.

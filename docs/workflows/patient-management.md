@@ -154,9 +154,11 @@ Operational meanings are deliberately non-overlapping: `totalAppointments` count
 
 The no-show risk workflow still reads `totalLateArrivals` and `distanceFromClinicKm` from `PatientClinic`, while completed/no-show inputs continue to be counted from `Appointment`. The statistics feature does not change prediction sources, weights, thresholds, or stored predictions.
 
-Structured address does not participate in prediction, appointment booking,
-queue behavior, or automatic distance calculation. `distanceFromClinicKm`
-remains the current manual/legacy prediction input.
+Structured address does not participate directly in prediction, appointment
+booking, or queue behavior. After successful geocoding, the backend may call
+Geoapify Routing with Patient → Clinic coordinates and persist a road distance
+and estimated free-flow drive time on `PatientClinic`. Appointment booking does
+not call Routing, and travel time is not a prediction input.
 
 ## Privacy Boundary
 
@@ -175,6 +177,7 @@ Structured cancellation/no-show reasons do not change patient attendance aggrega
 Residential coordinates belong to global `Patient`, not `PatientClinic`. A
 complete create or address change geocodes only after the Patient/PatientClinic
 transaction commits. Phone, email, contacts, notes, and
-`distanceFromClinicKm` do not trigger lookup. Expanded details expose status
-and an Admin/Staff retry for failed lookups at
-`POST /api/clinics/:clinicId/patients/:patientId/geocode` with `{}`.
+`distanceFromClinicKm` do not trigger lookup. Expanded details expose geocoding
+and routing status. Admin/Staff can retry lookup at
+`POST /api/clinics/:clinicId/patients/:patientId/geocode` or routing at
+`POST /api/clinics/:clinicId/patients/:patientId/route`, both with `{}`.

@@ -241,6 +241,13 @@ Important fields:
 - `lastVisitAt`
 - `notes`
 - `distanceFromClinicKm`
+- `estimatedTravelTimeMinutes`
+- `routingStatus`
+- `routingProvider`
+- `routingMode`
+- `routingTrafficModel`
+- `routedAt`
+- `routingSourceHash` and `routingAttemptId` (internal concurrency guards)
 - `isActive`
 
 Constraints and indexes:
@@ -260,8 +267,12 @@ Why `PatientClinic` exists:
 - Attendance history and distance are clinic-specific.
 - No-show scoring should use the patient's history at the current clinic, not global assumptions.
 
-`distanceFromClinicKm` remains a manually stored clinic-specific operational
-input. It is not derived from structured patient or clinic address data.
+`distanceFromClinicKm` is a legacy/manual value for historical rows whose
+`routingStatus` is `NOT_CALCULATED`, or the current Geoapify road distance when
+`routingStatus` is `CALCULATED`. New Patient create/update requests cannot write
+it. `estimatedTravelTimeMinutes` is the server-derived free-flow estimate,
+rounded up to whole minutes. Routing metadata is relationship data and is never
+client-controlled; source hash and attempt ID are not normal API fields.
 
 ### Structured Location Migration Plan (#263)
 

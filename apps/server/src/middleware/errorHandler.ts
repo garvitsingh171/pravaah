@@ -16,7 +16,17 @@ const sendDatabaseUnavailable = (res: Parameters<ErrorRequestHandler>[2]): void 
         success: false,
         error: {
             code: 'DATABASE_TRANSACTION_UNAVAILABLE',
-            message: 'The database is temporarily busy. Please try again.',
+            message: 'The database is temporarily unavailable. Please try again.',
+        },
+    });
+};
+
+const sendDatabaseSchemaUnavailable = (res: Parameters<ErrorRequestHandler>[2]): void => {
+    res.status(503).json({
+        success: false,
+        error: {
+            code: 'DATABASE_SCHEMA_OUTDATED',
+            message: 'The service is being updated. Please try again shortly.',
         },
     });
 };
@@ -65,8 +75,13 @@ export const errorHandler: ErrorRequestHandler = (error: HttpError, req, res, _n
     }
 
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2024' || error.code === 'P2028') {
+        if (error.code === 'P2024' || error.code === 'P2028' || error.code === 'P2034') {
             sendDatabaseUnavailable(res);
+            return;
+        }
+
+        if (error.code === 'P2021' || error.code === 'P2022') {
+            sendDatabaseSchemaUnavailable(res);
             return;
         }
 
@@ -91,6 +106,11 @@ export const errorHandler: ErrorRequestHandler = (error: HttpError, req, res, _n
             });
             return;
         }
+    }
+
+    if (error instanceof Prisma.PrismaClientInitializationError) {
+        sendDatabaseUnavailable(res);
+        return;
     }
 
     if (isTransientDatabaseError(error)) {

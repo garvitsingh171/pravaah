@@ -90,36 +90,43 @@ export type StructuredAddress = {
     pincode?: string | null;
 };
 
-export type PatientSummary = BaseEntity & StructuredAddress & {
-    patientClinicId?: string;
-    clinicLinkIsActive?: boolean;
-    fullName: string;
-    phone: string;
-    email?: string | null;
-    gender?: Gender | null;
-    dateOfBirth?: string | null;
-    age?: number | null;
-    /** Transitional DB compatibility field; structured fields are authoritative. */
-    address?: string | null;
-    latitude?: number | null;
-    longitude?: number | null;
-    geocodingStatus?: 'NOT_GEOCODED' | 'GEOCODED' | 'FAILED';
-    geocodingProvider?: 'GEOAPIFY' | null;
-    geocodingConfidence?: number | null;
-    geocodingResultType?: string | null;
-    geocodedAddress?: string | null;
-    geocodedAt?: string | null;
-    emergencyContactName?: string | null;
-    emergencyContactPhone?: string | null;
-    notes?: string | null;
-    distanceFromClinicKm?: number | string | null;
-    totalAppointments?: number;
-    totalCompletedVisits?: number;
-    totalNoShows?: number;
-    totalLateArrivals?: number;
-    lastVisitAt?: string | null;
-    isActive: boolean;
-};
+export type PatientSummary = BaseEntity &
+    StructuredAddress & {
+        patientClinicId?: string;
+        clinicLinkIsActive?: boolean;
+        fullName: string;
+        phone: string;
+        email?: string | null;
+        gender?: Gender | null;
+        dateOfBirth?: string | null;
+        age?: number | null;
+        /** Transitional DB compatibility field; structured fields are authoritative. */
+        address?: string | null;
+        latitude?: number | null;
+        longitude?: number | null;
+        geocodingStatus?: 'NOT_GEOCODED' | 'GEOCODED' | 'FAILED';
+        geocodingProvider?: 'GEOAPIFY' | null;
+        geocodingConfidence?: number | null;
+        geocodingResultType?: string | null;
+        geocodedAddress?: string | null;
+        geocodedAt?: string | null;
+        emergencyContactName?: string | null;
+        emergencyContactPhone?: string | null;
+        notes?: string | null;
+        distanceFromClinicKm?: number | string | null;
+        estimatedTravelTimeMinutes?: number | null;
+        routingStatus?: 'NOT_CALCULATED' | 'CALCULATED' | 'FAILED';
+        routingProvider?: 'GEOAPIFY' | null;
+        routingMode?: 'DRIVE' | null;
+        routingTrafficModel?: 'FREE_FLOW' | null;
+        routedAt?: string | null;
+        totalAppointments?: number;
+        totalCompletedVisits?: number;
+        totalNoShows?: number;
+        totalLateArrivals?: number;
+        lastVisitAt?: string | null;
+        isActive: boolean;
+    };
 
 export type AppointmentSummary = BaseEntity & {
     clinicId: string;

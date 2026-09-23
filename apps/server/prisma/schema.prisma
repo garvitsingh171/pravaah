@@ -46,6 +46,24 @@ enum GeocodingProvider {
   GEOAPIFY
 }
 
+enum RoutingStatus {
+  NOT_CALCULATED
+  CALCULATED
+  FAILED
+}
+
+enum RoutingProvider {
+  GEOAPIFY
+}
+
+enum RoutingMode {
+  DRIVE
+}
+
+enum RoutingTrafficModel {
+  FREE_FLOW
+}
+
 enum AppointmentStatus {
   SCHEDULED
   CONFIRMED
@@ -328,19 +346,27 @@ model Patient {
 }
 
 model PatientClinic {
-  id                   String    @id @default(uuid()) @db.Uuid
-  patientId            String    @db.Uuid
-  clinicId             String    @db.Uuid
-  totalAppointments    Int       @default(0)
-  totalCompletedVisits Int       @default(0)
-  totalNoShows         Int       @default(0)
-  totalLateArrivals    Int       @default(0)
-  lastVisitAt          DateTime?
-  notes                String?
-  distanceFromClinicKm Decimal?  @db.Decimal(6, 2)
-  isActive             Boolean   @default(true)
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  id                         String               @id @default(uuid()) @db.Uuid
+  patientId                  String               @db.Uuid
+  clinicId                   String               @db.Uuid
+  totalAppointments          Int                  @default(0)
+  totalCompletedVisits       Int                  @default(0)
+  totalNoShows               Int                  @default(0)
+  totalLateArrivals          Int                  @default(0)
+  lastVisitAt                DateTime?
+  notes                      String?
+  distanceFromClinicKm       Decimal?             @db.Decimal(6, 2)
+  estimatedTravelTimeMinutes Int?
+  routingStatus              RoutingStatus        @default(NOT_CALCULATED)
+  routingProvider            RoutingProvider?
+  routingMode                RoutingMode?
+  routingTrafficModel        RoutingTrafficModel?
+  routedAt                   DateTime?
+  routingSourceHash          String?
+  routingAttemptId           String?
+  isActive                   Boolean              @default(true)
+  createdAt                  DateTime             @default(now())
+  updatedAt                  DateTime             @updatedAt
 
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
   clinic  Clinic  @relation(fields: [clinicId], references: [id], onDelete: Cascade)

@@ -8,6 +8,7 @@ import { adminActiveClinic, renderWithProviders } from '../../test/renderWithPro
 
 const mockListPatients = vi.hoisted(() => vi.fn());
 const mockUpdatePatient = vi.hoisted(() => vi.fn());
+const mockRetryPatientRouting = vi.hoisted(() => vi.fn());
 
 vi.mock('./patientApi', async (importOriginal) => {
     const actual = await importOriginal<typeof import('./patientApi')>();
@@ -16,6 +17,7 @@ vi.mock('./patientApi', async (importOriginal) => {
         ...actual,
         listPatients: mockListPatients,
         updatePatient: mockUpdatePatient,
+        retryPatientRouting: mockRetryPatientRouting,
     };
 });
 
@@ -94,6 +96,7 @@ describe('PatientsPage edit workflow', () => {
     beforeEach(() => {
         mockListPatients.mockReset();
         mockUpdatePatient.mockReset();
+        mockRetryPatientRouting.mockReset();
     });
 
     it('shows edit actions, opens pre-filled values, handles nullable values, and cancels', async () => {
@@ -170,13 +173,38 @@ describe('PatientsPage edit workflow', () => {
         );
     });
 
+    it('allows a not-calculated patient to start travel calculation', async () => {
+        const user = userEvent.setup();
+        const notCalculatedPatient: PatientSummary = {
+            ...patient,
+            routingStatus: 'NOT_CALCULATED',
+        };
+        mockListPatients.mockResolvedValue({ patients: [notCalculatedPatient] });
+        mockRetryPatientRouting.mockResolvedValue({
+            patient: notCalculatedPatient,
+        });
+
+        renderPatientsPage();
+
+        await user.click(await screen.findByRole('button', { name: /details for riya malhotra/i }));
+        expect(screen.getByText('Travel estimate not calculated')).toBeVisible();
+
+        await user.click(screen.getByRole('button', { name: /calculate travel estimate/i }));
+
+        await waitFor(() => {
+            expect(mockRetryPatientRouting).toHaveBeenCalledWith(
+                adminActiveClinic.clinicId,
+                notCalculatedPatient.id
+            );
+        });
+    });
+
     it('sends null for cleared nullable fields and excludes authority and history fields', async () => {
         const user = userEvent.setup();
         const updatedPatient = {
             ...patient,
             email: null,
             notes: null,
-            distanceFromClinicKm: null,
         };
 
         mockListPatients
@@ -194,14 +222,12 @@ describe('PatientsPage edit workflow', () => {
 
         await user.click(await screen.findByRole('button', { name: /edit riya malhotra/i }));
         await user.clear(screen.getByLabelText(/^email$/i));
-        await user.clear(screen.getByLabelText(/distance from clinic/i));
         await user.clear(screen.getByLabelText(/^notes$/i));
         await user.click(screen.getByRole('button', { name: /save patient/i }));
 
         await waitFor(() => {
             expect(mockUpdatePatient).toHaveBeenCalledWith(adminActiveClinic.clinicId, patient.id, {
                 email: null,
-                distanceFromClinicKm: null,
                 notes: null,
             });
         });
@@ -268,8 +294,6 @@ describe('PatientsPage edit workflow', () => {
         await user.type(screen.getByLabelText(/^email$/i), 'bad-email');
         await user.clear(screen.getByLabelText(/^age$/i));
         await user.type(screen.getByLabelText(/^age$/i), '-3');
-        await user.clear(screen.getByLabelText(/distance from clinic/i));
-        await user.type(screen.getByLabelText(/distance from clinic/i), '-1');
         await user.click(screen.getByRole('button', { name: /save patient/i }));
 
         expect(screen.getByText('Patient name must be at least 2 characters long.')).toBeVisible();
@@ -277,9 +301,6 @@ describe('PatientsPage edit workflow', () => {
         expect(screen.getByText('Enter a valid email address.')).toBeVisible();
         expect(
             screen.getByText('Age must be a whole number greater than or equal to 0.')
-        ).toBeVisible();
-        expect(
-            screen.getByText('Distance from clinic must be a number greater than or equal to 0.')
         ).toBeVisible();
         expect(mockUpdatePatient).not.toHaveBeenCalled();
     });
