@@ -43,6 +43,7 @@ const protectedRoutePaths = [
     '/appointments',
     '/queue',
     '/clinic-settings',
+    '/profile',
 ];
 
 export const routeMetadata: RouteMetadata[] = [

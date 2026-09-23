@@ -128,8 +128,9 @@ function AppLayout({ initialSetup }: AppLayoutProps) {
     const topbarSupportingText =
         currentRoute.path === appRoutePaths.dashboard
             ? `${formatTopbarDate(new Date())} · Clinic flow`
-            : undefined;
+            : currentRoute.navigationDescription;
     const lastSetupPathRef = useRef(location.pathname);
+    const mainScrollRef = useRef<HTMLElement>(null);
     const [setupDockState, setSetupDockState] = useState<FloatingSetupDockState>(() =>
         getInitialSetupDockState(isAdmin, initialSetup)
     );
@@ -179,6 +180,21 @@ function AppLayout({ initialSetup }: AppLayoutProps) {
     );
 
     useEffect(() => {
+        const scrollContainer = mainScrollRef.current;
+
+        if (!scrollContainer) {
+            return;
+        }
+
+        scrollContainer.scrollTop = 0;
+        scrollContainer.scrollLeft = 0;
+
+        if (typeof scrollContainer.scrollTo === 'function') {
+            scrollContainer.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+        }
+    }, [location.pathname]);
+
+    useEffect(() => {
         if (!isAdmin) {
             setSetupDockState(idleSetupDockState);
             return undefined;
@@ -203,7 +219,7 @@ function AppLayout({ initialSetup }: AppLayoutProps) {
     }
 
     return (
-        <div className="min-h-screen bg-[var(--color-surface-canvas)] text-slate-900">
+        <div className="flex h-dvh min-w-0 flex-col overflow-hidden bg-[var(--color-surface-canvas)] text-slate-900">
             <a
                 href="#main-content"
                 className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-teal-800 focus:shadow-lg focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-teal-600"
@@ -215,14 +231,14 @@ function AppLayout({ initialSetup }: AppLayoutProps) {
                 clinicName={clinicName}
                 clinicMeta={clinicMeta}
             />
-            <div className="flex min-h-screen min-w-0 flex-col md:flex-row">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col md:flex-row">
                 <Sidebar
                     navigationItems={navigationItems}
                     clinicName={clinicName}
                     clinicMeta={clinicMeta}
                 />
 
-                <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                     <Topbar
                         title={currentRoute.title}
                         supportingText={topbarSupportingText}
@@ -233,8 +249,9 @@ function AppLayout({ initialSetup }: AppLayoutProps) {
                     />
 
                     <main
+                        ref={mainScrollRef}
                         id="main-content"
-                        className="min-w-0 flex-1 px-3 py-4 sm:px-4 md:px-6 md:py-5"
+                        className="min-h-0 min-w-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4 md:px-6 md:py-5"
                     >
                         <div className="mx-auto w-full max-w-screen-2xl">
                             <Suspense fallback={<ProtectedRouteLoadingState />}>

@@ -1,9 +1,10 @@
+import { MotionConfig } from 'motion/react';
 import { lazy, Suspense, useEffect, useRef, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import ProtectedAppShell from './app/ProtectedAppShell';
 import { LoadingState } from './components/feedback';
 import PublicErrorBoundary from './components/public/PublicErrorBoundary';
-import { dashboardRoutes } from './routes/dashboardRoutes';
+import { dashboardRoutes, isProtectedWorkspacePath } from './routes/dashboardRoutes';
 import RouteMetadata from './routes/RouteMetadata';
 
 const PublicLandingPage = lazy(() => import('./features/public/PublicLandingPage'));
@@ -41,7 +42,9 @@ function RouteScrollRestoration() {
         }
 
         previousPathnameRef.current = location.pathname;
-        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+        if (!isProtectedWorkspacePath(location.pathname)) {
+            window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+        }
     }, [location.pathname]);
 
     return null;
@@ -122,9 +125,11 @@ export function AppRoutes() {
 function App() {
     return (
         <BrowserRouter>
-            <RouteMetadata />
-            <RouteScrollRestoration />
-            <AppRoutes />
+            <MotionConfig reducedMotion="user">
+                <RouteMetadata />
+                <RouteScrollRestoration />
+                <AppRoutes />
+            </MotionConfig>
         </BrowserRouter>
     );
 }
