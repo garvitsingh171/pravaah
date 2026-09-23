@@ -1,6 +1,7 @@
 import { prisma } from '../../config/prisma.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type { GeocodingResult } from '../../integrations/geoapify/geoapify.types.js';
+import { withTransientDatabaseTransactionRetry } from '../../utils/databaseRetry.js';
 import type {
     CreatePatientInput,
     ListPatientsQueryInput,
@@ -127,47 +128,50 @@ export const patientRepository = {
         data: CreatePatientInput,
         geocodingInvalidation?: GeocodingInvalidation
     ) {
-        return prisma.$transaction(async (tx) => {
-            const patient = await tx.patient.create({
-                data: {
-                    fullName: data.fullName,
-                    phone: data.phone,
+        return withTransientDatabaseTransactionRetry(
+            (callback) => prisma.$transaction(callback),
+            async (tx) => {
+                const patient = await tx.patient.create({
+                    data: {
+                        fullName: data.fullName,
+                        phone: data.phone,
 
-                    email: data.email ?? null,
-                    gender: data.gender ?? null,
-                    dateOfBirth: data.dateOfBirth ?? null,
-                    age: data.age ?? null,
-                    // Transitional compatibility: legacy address mirrors the
-                    // structured primary line until the cleanup issue removes it.
-                    address: data.addressLine1 ?? null,
-                    addressLine1: data.addressLine1 ?? null,
-                    addressLine2: data.addressLine2 ?? null,
-                    city: data.city ?? null,
-                    state: data.state ?? null,
-                    country: data.country ?? null,
-                    pincode: data.pincode ?? null,
-                    ...(geocodingInvalidation
-                        ? geocodingInvalidationData(
-                              geocodingInvalidation.sourceHash,
-                              geocodingInvalidation.attemptId
-                          )
-                        : {}),
-                    emergencyContactName: data.emergencyContactName ?? null,
-                    emergencyContactPhone: data.emergencyContactPhone ?? null,
-                },
-                select: patientResponseSelect,
-            });
+                        email: data.email ?? null,
+                        gender: data.gender ?? null,
+                        dateOfBirth: data.dateOfBirth ?? null,
+                        age: data.age ?? null,
+                        // Transitional compatibility: legacy address mirrors the
+                        // structured primary line until the cleanup issue removes it.
+                        address: data.addressLine1 ?? null,
+                        addressLine1: data.addressLine1 ?? null,
+                        addressLine2: data.addressLine2 ?? null,
+                        city: data.city ?? null,
+                        state: data.state ?? null,
+                        country: data.country ?? null,
+                        pincode: data.pincode ?? null,
+                        ...(geocodingInvalidation
+                            ? geocodingInvalidationData(
+                                  geocodingInvalidation.sourceHash,
+                                  geocodingInvalidation.attemptId
+                              )
+                            : {}),
+                        emergencyContactName: data.emergencyContactName ?? null,
+                        emergencyContactPhone: data.emergencyContactPhone ?? null,
+                    },
+                    select: patientResponseSelect,
+                });
 
-            await tx.patientClinic.create({
-                data: {
-                    patientId: patient.id,
-                    clinicId,
-                    notes: data.notes ?? null,
-                },
-            });
+                await tx.patientClinic.create({
+                    data: {
+                        patientId: patient.id,
+                        clinicId,
+                        notes: data.notes ?? null,
+                    },
+                });
 
-            return patient;
-        });
+                return patient;
+            }
+        );
     },
 
     updatePatientWithClinicDetails(
@@ -215,42 +219,45 @@ export const patientRepository = {
         const patientClinicUpdateData: Prisma.PatientClinicUpdateInput = {};
 
         if (data.notes !== undefined) patientClinicUpdateData.notes = data.notes;
-        return prisma.$transaction(async (tx) => {
-            if (Object.keys(patientUpdateData).length > 0) {
-                await tx.patient.update({
+        return withTransientDatabaseTransactionRetry(
+            (callback) => prisma.$transaction(callback),
+            async (tx) => {
+                if (Object.keys(patientUpdateData).length > 0) {
+                    await tx.patient.update({
+                        where: {
+                            id: patientId,
+                        },
+                        data: patientUpdateData,
+                    });
+                }
+
+                if (Object.keys(patientClinicUpdateData).length > 0) {
+                    await tx.patientClinic.update({
+                        where: {
+                            patientId_clinicId: {
+                                patientId,
+                                clinicId,
+                            },
+                        },
+                        data: patientClinicUpdateData,
+                    });
+                }
+
+                return tx.patient.findUnique({
                     where: {
                         id: patientId,
                     },
-                    data: patientUpdateData,
-                });
-            }
-
-            if (Object.keys(patientClinicUpdateData).length > 0) {
-                await tx.patientClinic.update({
-                    where: {
-                        patientId_clinicId: {
-                            patientId,
-                            clinicId,
+                    select: {
+                        ...patientResponseSelect,
+                        patientClinics: {
+                            where: {
+                                clinicId,
+                            },
                         },
                     },
-                    data: patientClinicUpdateData,
                 });
             }
-
-            return tx.patient.findUnique({
-                where: {
-                    id: patientId,
-                },
-                select: {
-                    ...patientResponseSelect,
-                    patientClinics: {
-                        where: {
-                            clinicId,
-                        },
-                    },
-                },
-            });
-        });
+        );
     },
 
     prepareGeocoding(patientId: string, sourceHash: string, attemptId: string) {

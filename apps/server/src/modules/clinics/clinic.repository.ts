@@ -1,4 +1,5 @@
 import { prisma } from '../../config/prisma.js';
+import { withTransientDatabaseTransactionRetry } from '../../utils/databaseRetry.js';
 import {
     AppointmentActivityType,
     AppointmentStatus,
@@ -478,315 +479,328 @@ export const clinicRepository = {
             distanceFromClinicKm: number | null;
         }) => NoShowPredictionOutput
     ) {
-        return prisma.$transaction(async (tx) => {
-            const clinic = await tx.clinic.findUnique({
-                where: {
-                    id: input.clinicId,
-                },
-                select: {
-                    id: true,
-                    timezone: true,
-                    slotDurationMinutes: true,
-                    lateArrivalGraceMinutes: true,
-                },
-            });
-
-            if (!clinic) {
-                return {
-                    outcome: 'CLINIC_NOT_FOUND' as const,
-                    today: '',
-                    summary: null,
-                };
-            }
-
-            if (!isSupportedClinicTimezone(clinic.timezone)) {
-                return {
-                    outcome: 'INVALID_CLINIC_TIMEZONE' as const,
-                    today: '',
-                    summary: null,
-                };
-            }
-
-            const todayParts = getClinicTodayParts(clinic.timezone);
-            const today = getClinicDateLabel(todayParts);
-
-            await tryAcquireSampleDataProvisioningLock(tx, clinic.id);
-
-            const existingCounts = await countSampleRecords(
-                tx,
-                clinic.id,
-                todayParts,
-                clinic.timezone
-            );
-
-            if (
-                existingCounts.doctors > 0 ||
-                existingCounts.patients > 0 ||
-                existingCounts.appointments > 0 ||
-                existingCounts.queueEntries > 0 ||
-                existingCounts.noShowPredictions > 0
-            ) {
-                return {
-                    outcome: 'ALREADY_PROVISIONED' as const,
-                    today,
-                    summary: existingCounts,
-                };
-            }
-
-            const createdDoctors: Array<{ id: string }> = [];
-
-            for (const [index, doctor] of sampleDoctorDefinitions.entries()) {
-                const createdDoctor = await tx.doctor.create({
-                    data: {
-                        fullName: doctor.fullName,
-                        specialization: doctor.specialization,
-                        qualification: doctor.qualification,
-                        registrationNumber: buildSampleRegistrationNumber(clinic.id, index),
-                        phone: doctor.phone,
-                        email: doctor.email,
-                        gender: doctor.gender,
-                        experienceYears: doctor.experienceYears,
-                        isActive: true,
-                        doctorClinics: {
-                            create: {
-                                clinicId: clinic.id,
-                                isActive: true,
-                                displayName: doctor.displayName,
-                                consultationFee: doctor.consultationFee,
-                            },
-                        },
+        return withTransientDatabaseTransactionRetry(
+            (callback) => prisma.$transaction(callback),
+            async (tx) => {
+                const clinic = await tx.clinic.findUnique({
+                    where: {
+                        id: input.clinicId,
                     },
                     select: {
                         id: true,
+                        timezone: true,
+                        slotDurationMinutes: true,
+                        lateArrivalGraceMinutes: true,
                     },
                 });
 
-                createdDoctors.push(createdDoctor);
-            }
-
-            const createdPatients: CreatedSamplePatient[] = [];
-
-            for (const patient of samplePatientDefinitions) {
-                const createdPatient = await tx.patient.create({
-                    data: {
-                        fullName: patient.fullName,
-                        phone: patient.phone,
-                        email: patient.email,
-                        gender: patient.gender,
-                        age: patient.age,
-                        address: patient.addressLine1,
-                        addressLine1: patient.addressLine1,
-                        addressLine2: patient.addressLine2 ?? null,
-                        city: patient.city,
-                        state: patient.state,
-                        country: patient.country,
-                        pincode: patient.pincode ?? null,
-                        emergencyContactName: patient.emergencyContactName,
-                        emergencyContactPhone: patient.emergencyContactPhone,
-                        isActive: true,
-                        patientClinics: {
-                            create: {
-                                clinicId: clinic.id,
-                                totalAppointments: patient.history.totalAppointments,
-                                totalCompletedVisits: getSampleCompletedVisitCount(patient.history),
-                                totalNoShows: patient.history.totalNoShows,
-                                totalLateArrivals: patient.history.totalLateArrivals,
-                                distanceFromClinicKm: patient.history.distanceFromClinicKm,
-                                notes: patient.history.notes,
-                                isActive: true,
-                            },
-                        },
-                    },
-                    select: {
-                        id: true,
-                    },
-                });
-
-                createdPatients.push({
-                    id: createdPatient.id,
-                    history: patient.history,
-                });
-            }
-
-            for (const appointmentDefinition of sampleAppointmentDefinitions) {
-                const doctor = createdDoctors[appointmentDefinition.doctorIndex];
-                const patient = createdPatients[appointmentDefinition.patientIndex];
-
-                if (!doctor || !patient) {
-                    throw new Error('Sample appointment definition references missing sample data');
+                if (!clinic) {
+                    return {
+                        outcome: 'CLINIC_NOT_FOUND' as const,
+                        today: '',
+                        summary: null,
+                    };
                 }
 
-                const scheduledAt = getClinicDateTime(
-                    addClinicDays(todayParts, appointmentDefinition.dateOffset),
-                    appointmentDefinition.time,
+                if (!isSupportedClinicTimezone(clinic.timezone)) {
+                    return {
+                        outcome: 'INVALID_CLINIC_TIMEZONE' as const,
+                        today: '',
+                        summary: null,
+                    };
+                }
+
+                const todayParts = getClinicTodayParts(clinic.timezone);
+                const today = getClinicDateLabel(todayParts);
+
+                await tryAcquireSampleDataProvisioningLock(tx, clinic.id);
+
+                const existingCounts = await countSampleRecords(
+                    tx,
+                    clinic.id,
+                    todayParts,
                     clinic.timezone
                 );
-                const arrivedAt =
-                    appointmentDefinition.arrivalOffsetMinutes === undefined
-                        ? null
-                        : addMinutes(scheduledAt, appointmentDefinition.arrivalOffsetMinutes);
-                const arrivalOutcome = arrivedAt
-                    ? calculateArrivalOutcome({
-                          scheduledAt,
-                          arrivedAt,
-                          graceMinutes: clinic.lateArrivalGraceMinutes,
-                      })
-                    : null;
-                const bookedAt = addMinutes(
-                    scheduledAt,
-                    -appointmentDefinition.bookedMinutesBefore
-                );
-
-                const appointment = await tx.appointment.create({
-                    data: {
-                        clinicId: clinic.id,
-                        doctorId: doctor.id,
-                        patientId: patient.id,
-                        createdByUserId: input.createdByUserId,
-                        scheduledAt,
-                        durationMinutes: clinic.slotDurationMinutes,
-                        status: appointmentDefinition.status,
-                        bookingSource: appointmentDefinition.bookingSource,
-                        reason: appointmentDefinition.reason,
-                        notes: `${SAMPLE_DATA_NOTE_MARKER} ${appointmentDefinition.notes}`,
-                        arrivedAt,
-                        arrivalOffsetMinutes: arrivalOutcome?.arrivalOffsetMinutes ?? null,
-                        isLateArrival: arrivalOutcome?.isLateArrival ?? null,
-                        lateArrivalGraceMinutes: arrivalOutcome?.lateArrivalGraceMinutes ?? null,
-                        createdAt: bookedAt,
-                    },
-                    select: {
-                        id: true,
-                        clinicId: true,
-                        doctorId: true,
-                        patientId: true,
-                        scheduledAt: true,
-                        bookingSource: true,
-                        createdAt: true,
-                    },
-                });
-
-                await tx.appointmentActivity.create({
-                    data: {
-                        appointmentId: appointment.id,
-                        clinicId: appointment.clinicId,
-                        actorUserId: input.createdByUserId,
-                        type: AppointmentActivityType.APPOINTMENT_CREATED,
-                        occurredAt: appointment.createdAt,
-                        metadata: buildAppointmentCreatedActivityMetadata({
-                            scheduledAt: appointment.scheduledAt,
-                            bookingSource: appointment.bookingSource,
-                            doctorId: appointment.doctorId,
-                            patientId: appointment.patientId,
-                        }) as Prisma.InputJsonObject,
-                    },
-                });
-
-                const completedAppointmentCount = getSampleCompletedVisitCount(patient.history);
-                const prediction = predictNoShowRisk({
-                    scheduledAt,
-                    bookedAt,
-                    patientNoShowCount: patient.history.totalNoShows,
-                    patientLateArrivalCount: patient.history.totalLateArrivals,
-                    patientCompletedAppointmentCount: completedAppointmentCount,
-                    distanceFromClinicKm:
-                        patient.history.distanceFromClinicKm === ''
-                            ? null
-                            : Number(patient.history.distanceFromClinicKm),
-                });
-
-                await tx.noShowPrediction.create({
-                    data: {
-                        appointmentId: appointment.id,
-                        clinicId: clinic.id,
-                        patientId: appointment.patientId,
-                        riskLevel: prediction.riskLevel,
-                        score: prediction.score,
-                        reasons: prediction.reasons,
-                    },
-                });
-
-                await incrementPatientTotalAppointments({
-                    tx,
-                    clinicId: clinic.id,
-                    patientId: patient.id,
-                });
-
-                if (arrivalOutcome?.isLateArrival) {
-                    await tx.patientClinic.update({
-                        where: {
-                            patientId_clinicId: {
-                                patientId: patient.id,
-                                clinicId: clinic.id,
-                            },
-                        },
-                        data: {
-                            totalLateArrivals: {
-                                increment: 1,
-                            },
-                        },
-                    });
-                }
-
-                const completedAt =
-                    appointmentDefinition.status === AppointmentStatus.COMPLETED
-                        ? addMinutes(scheduledAt, 20)
-                        : null;
 
                 if (
-                    appointmentDefinition.queueStatus !== null &&
-                    appointmentDefinition.queuePosition !== null
+                    existingCounts.doctors > 0 ||
+                    existingCounts.patients > 0 ||
+                    existingCounts.appointments > 0 ||
+                    existingCounts.queueEntries > 0 ||
+                    existingCounts.noShowPredictions > 0
                 ) {
-                    await tx.queueEntry.create({
+                    return {
+                        outcome: 'ALREADY_PROVISIONED' as const,
+                        today,
+                        summary: existingCounts,
+                    };
+                }
+
+                const createdDoctors: Array<{ id: string }> = [];
+
+                for (const [index, doctor] of sampleDoctorDefinitions.entries()) {
+                    const createdDoctor = await tx.doctor.create({
                         data: {
-                            clinicId: clinic.id,
-                            appointmentId: appointment.id,
-                            doctorId: doctor.id,
-                            patientId: patient.id,
-                            position: appointmentDefinition.queuePosition,
-                            status: appointmentDefinition.queueStatus,
-                            queuedAt: addMinutes(scheduledAt, -15),
-                            calledAt:
-                                appointmentDefinition.queueStatus === QueueStatus.CALLED ||
-                                appointmentDefinition.queueStatus === QueueStatus.COMPLETED
-                                    ? addMinutes(scheduledAt, 5)
-                                    : null,
-                            completedAt:
-                                appointmentDefinition.queueStatus === QueueStatus.COMPLETED
-                                    ? completedAt
-                                    : null,
+                            fullName: doctor.fullName,
+                            specialization: doctor.specialization,
+                            qualification: doctor.qualification,
+                            registrationNumber: buildSampleRegistrationNumber(clinic.id, index),
+                            phone: doctor.phone,
+                            email: doctor.email,
+                            gender: doctor.gender,
+                            experienceYears: doctor.experienceYears,
+                            isActive: true,
+                            doctorClinics: {
+                                create: {
+                                    clinicId: clinic.id,
+                                    isActive: true,
+                                    displayName: doctor.displayName,
+                                    consultationFee: doctor.consultationFee,
+                                },
+                            },
+                        },
+                        select: {
+                            id: true,
                         },
                     });
+
+                    createdDoctors.push(createdDoctor);
                 }
 
-                if (completedAt) {
-                    await applyPatientAppointmentOutcome({
-                        tx,
-                        clinicId: clinic.id,
-                        patientId: patient.id,
-                        previousStatus: AppointmentStatus.SCHEDULED,
-                        newStatus: AppointmentStatus.COMPLETED,
-                        eventTimestamp: completedAt,
+                const createdPatients: CreatedSamplePatient[] = [];
+
+                for (const patient of samplePatientDefinitions) {
+                    const createdPatient = await tx.patient.create({
+                        data: {
+                            fullName: patient.fullName,
+                            phone: patient.phone,
+                            email: patient.email,
+                            gender: patient.gender,
+                            age: patient.age,
+                            address: patient.addressLine1,
+                            addressLine1: patient.addressLine1,
+                            addressLine2: patient.addressLine2 ?? null,
+                            city: patient.city,
+                            state: patient.state,
+                            country: patient.country,
+                            pincode: patient.pincode ?? null,
+                            emergencyContactName: patient.emergencyContactName,
+                            emergencyContactPhone: patient.emergencyContactPhone,
+                            isActive: true,
+                            patientClinics: {
+                                create: {
+                                    clinicId: clinic.id,
+                                    totalAppointments: patient.history.totalAppointments,
+                                    totalCompletedVisits: getSampleCompletedVisitCount(
+                                        patient.history
+                                    ),
+                                    totalNoShows: patient.history.totalNoShows,
+                                    totalLateArrivals: patient.history.totalLateArrivals,
+                                    distanceFromClinicKm: patient.history.distanceFromClinicKm,
+                                    notes: patient.history.notes,
+                                    isActive: true,
+                                },
+                            },
+                        },
+                        select: {
+                            id: true,
+                        },
                     });
-                } else if (appointmentDefinition.status === AppointmentStatus.NO_SHOW) {
-                    await applyPatientAppointmentOutcome({
-                        tx,
-                        clinicId: clinic.id,
-                        patientId: patient.id,
-                        previousStatus: AppointmentStatus.SCHEDULED,
-                        newStatus: AppointmentStatus.NO_SHOW,
-                        eventTimestamp: scheduledAt,
+
+                    createdPatients.push({
+                        id: createdPatient.id,
+                        history: patient.history,
                     });
                 }
+
+                for (const appointmentDefinition of sampleAppointmentDefinitions) {
+                    const doctor = createdDoctors[appointmentDefinition.doctorIndex];
+                    const patient = createdPatients[appointmentDefinition.patientIndex];
+
+                    if (!doctor || !patient) {
+                        throw new Error(
+                            'Sample appointment definition references missing sample data'
+                        );
+                    }
+
+                    const scheduledAt = getClinicDateTime(
+                        addClinicDays(todayParts, appointmentDefinition.dateOffset),
+                        appointmentDefinition.time,
+                        clinic.timezone
+                    );
+                    const arrivedAt =
+                        appointmentDefinition.arrivalOffsetMinutes === undefined
+                            ? null
+                            : addMinutes(scheduledAt, appointmentDefinition.arrivalOffsetMinutes);
+                    const arrivalOutcome = arrivedAt
+                        ? calculateArrivalOutcome({
+                              scheduledAt,
+                              arrivedAt,
+                              graceMinutes: clinic.lateArrivalGraceMinutes,
+                          })
+                        : null;
+                    const bookedAt = addMinutes(
+                        scheduledAt,
+                        -appointmentDefinition.bookedMinutesBefore
+                    );
+
+                    const appointment = await tx.appointment.create({
+                        data: {
+                            clinicId: clinic.id,
+                            doctorId: doctor.id,
+                            patientId: patient.id,
+                            createdByUserId: input.createdByUserId,
+                            scheduledAt,
+                            durationMinutes: clinic.slotDurationMinutes,
+                            status: appointmentDefinition.status,
+                            bookingSource: appointmentDefinition.bookingSource,
+                            reason: appointmentDefinition.reason,
+                            notes: `${SAMPLE_DATA_NOTE_MARKER} ${appointmentDefinition.notes}`,
+                            arrivedAt,
+                            arrivalOffsetMinutes: arrivalOutcome?.arrivalOffsetMinutes ?? null,
+                            isLateArrival: arrivalOutcome?.isLateArrival ?? null,
+                            lateArrivalGraceMinutes:
+                                arrivalOutcome?.lateArrivalGraceMinutes ?? null,
+                            createdAt: bookedAt,
+                        },
+                        select: {
+                            id: true,
+                            clinicId: true,
+                            doctorId: true,
+                            patientId: true,
+                            scheduledAt: true,
+                            bookingSource: true,
+                            createdAt: true,
+                        },
+                    });
+
+                    await tx.appointmentActivity.create({
+                        data: {
+                            appointmentId: appointment.id,
+                            clinicId: appointment.clinicId,
+                            actorUserId: input.createdByUserId,
+                            type: AppointmentActivityType.APPOINTMENT_CREATED,
+                            occurredAt: appointment.createdAt,
+                            metadata: buildAppointmentCreatedActivityMetadata({
+                                scheduledAt: appointment.scheduledAt,
+                                bookingSource: appointment.bookingSource,
+                                doctorId: appointment.doctorId,
+                                patientId: appointment.patientId,
+                            }) as Prisma.InputJsonObject,
+                        },
+                    });
+
+                    const completedAppointmentCount = getSampleCompletedVisitCount(patient.history);
+                    const prediction = predictNoShowRisk({
+                        scheduledAt,
+                        bookedAt,
+                        patientNoShowCount: patient.history.totalNoShows,
+                        patientLateArrivalCount: patient.history.totalLateArrivals,
+                        patientCompletedAppointmentCount: completedAppointmentCount,
+                        distanceFromClinicKm:
+                            patient.history.distanceFromClinicKm === ''
+                                ? null
+                                : Number(patient.history.distanceFromClinicKm),
+                    });
+
+                    await tx.noShowPrediction.create({
+                        data: {
+                            appointmentId: appointment.id,
+                            clinicId: clinic.id,
+                            patientId: appointment.patientId,
+                            riskLevel: prediction.riskLevel,
+                            score: prediction.score,
+                            reasons: prediction.reasons,
+                        },
+                    });
+
+                    await incrementPatientTotalAppointments({
+                        tx,
+                        clinicId: clinic.id,
+                        patientId: patient.id,
+                    });
+
+                    if (arrivalOutcome?.isLateArrival) {
+                        await tx.patientClinic.update({
+                            where: {
+                                patientId_clinicId: {
+                                    patientId: patient.id,
+                                    clinicId: clinic.id,
+                                },
+                            },
+                            data: {
+                                totalLateArrivals: {
+                                    increment: 1,
+                                },
+                            },
+                        });
+                    }
+
+                    const completedAt =
+                        appointmentDefinition.status === AppointmentStatus.COMPLETED
+                            ? addMinutes(scheduledAt, 20)
+                            : null;
+
+                    if (
+                        appointmentDefinition.queueStatus !== null &&
+                        appointmentDefinition.queuePosition !== null
+                    ) {
+                        await tx.queueEntry.create({
+                            data: {
+                                clinicId: clinic.id,
+                                appointmentId: appointment.id,
+                                doctorId: doctor.id,
+                                patientId: patient.id,
+                                position: appointmentDefinition.queuePosition,
+                                status: appointmentDefinition.queueStatus,
+                                queuedAt: addMinutes(scheduledAt, -15),
+                                calledAt:
+                                    appointmentDefinition.queueStatus === QueueStatus.CALLED ||
+                                    appointmentDefinition.queueStatus === QueueStatus.COMPLETED
+                                        ? addMinutes(scheduledAt, 5)
+                                        : null,
+                                completedAt:
+                                    appointmentDefinition.queueStatus === QueueStatus.COMPLETED
+                                        ? completedAt
+                                        : null,
+                            },
+                        });
+                    }
+
+                    if (completedAt) {
+                        await applyPatientAppointmentOutcome({
+                            tx,
+                            clinicId: clinic.id,
+                            patientId: patient.id,
+                            previousStatus: AppointmentStatus.SCHEDULED,
+                            newStatus: AppointmentStatus.COMPLETED,
+                            eventTimestamp: completedAt,
+                        });
+                    } else if (appointmentDefinition.status === AppointmentStatus.NO_SHOW) {
+                        await applyPatientAppointmentOutcome({
+                            tx,
+                            clinicId: clinic.id,
+                            patientId: patient.id,
+                            previousStatus: AppointmentStatus.SCHEDULED,
+                            newStatus: AppointmentStatus.NO_SHOW,
+                            eventTimestamp: scheduledAt,
+                        });
+                    }
+                }
+
+                const summary = await countSampleRecords(
+                    tx,
+                    clinic.id,
+                    todayParts,
+                    clinic.timezone
+                );
+
+                return {
+                    outcome: 'CREATED' as const,
+                    today,
+                    summary,
+                };
             }
-
-            const summary = await countSampleRecords(tx, clinic.id, todayParts, clinic.timezone);
-
-            return {
-                outcome: 'CREATED' as const,
-                today,
-                summary,
-            };
-        });
+        );
     },
 };

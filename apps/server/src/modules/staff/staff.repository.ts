@@ -5,6 +5,7 @@ import {
     UserStatus,
 } from '../../generated/prisma/client.js';
 import { prisma } from '../../config/prisma.js';
+import { withTransientDatabaseTransactionRetry } from '../../utils/databaseRetry.js';
 import type { TrustedClerkUserIdentity } from '../auth/auth.types.js';
 import type { ManageableStaffStatus } from './staff.types.js';
 
@@ -126,34 +127,37 @@ export const staffRepository = {
         expiresAt: Date;
         now: Date;
     }): Promise<CreateInvitationRepositoryResult> {
-        return prisma.$transaction(async (tx) => {
-            await acquireEmailMembershipLock(tx, input.email);
-            await acquireClinicInvitationLock(tx, input.clinicId, input.email);
+        return withTransientDatabaseTransactionRetry(
+            (callback) => prisma.$transaction(callback),
+            async (tx) => {
+                await acquireEmailMembershipLock(tx, input.email);
+                await acquireClinicInvitationLock(tx, input.clinicId, input.email);
 
-            const existingUser = await findUserByNormalizedEmail(tx, input.email);
+                const existingUser = await findUserByNormalizedEmail(tx, input.email);
 
-            if (existingUser) {
-                return { outcome: 'MEMBER_EXISTS', user: existingUser };
+                if (existingUser) {
+                    return { outcome: 'MEMBER_EXISTS', user: existingUser };
+                }
+
+                const pendingInvitation = await tx.staffInvitation.findFirst({
+                    where: {
+                        clinicId: input.clinicId,
+                        email: input.email,
+                        status: StaffInvitationStatus.PENDING,
+                        expiresAt: { gt: input.now },
+                    },
+                    select: { id: true },
+                });
+
+                if (pendingInvitation) {
+                    return { outcome: 'INVITATION_PENDING' };
+                }
+
+                const invitation = await createInvitationRecord(tx, input);
+
+                return { outcome: 'CREATED', invitation };
             }
-
-            const pendingInvitation = await tx.staffInvitation.findFirst({
-                where: {
-                    clinicId: input.clinicId,
-                    email: input.email,
-                    status: StaffInvitationStatus.PENDING,
-                    expiresAt: { gt: input.now },
-                },
-                select: { id: true },
-            });
-
-            if (pendingInvitation) {
-                return { outcome: 'INVITATION_PENDING' };
-            }
-
-            const invitation = await createInvitationRecord(tx, input);
-
-            return { outcome: 'CREATED', invitation };
-        });
+        );
     },
 
     listClinicMembers(clinicId: string) {
@@ -198,47 +202,80 @@ export const staffRepository = {
         normalizedEmail: string;
         now: Date;
     }): Promise<AcceptInvitationRepositoryResult> {
-        return prisma.$transaction(async (tx) => {
-            const lockedRows = await tx.$queryRaw<Array<{ id: string }>>`
+        return withTransientDatabaseTransactionRetry(
+            (callback) => prisma.$transaction(callback),
+            async (tx) => {
+                const lockedRows = await tx.$queryRaw<Array<{ id: string }>>`
                 SELECT "id"
                 FROM "staff_invitations"
                 WHERE "tokenHash" = ${input.tokenHash}
                 FOR UPDATE
             `;
 
-            if (!lockedRows[0]) {
-                return { outcome: 'NOT_FOUND' };
-            }
-
-            const invitation = await tx.staffInvitation.findUnique({
-                where: { id: lockedRows[0].id },
-                include: {
-                    clinic: { select: { id: true, name: true } },
-                    acceptedBy: { select: { id: true, clerkUserId: true } },
-                },
-            });
-
-            if (!invitation) {
-                return { outcome: 'NOT_FOUND' };
-            }
-
-            if (invitation.email !== input.normalizedEmail) {
-                return { outcome: 'IDENTITY_MISMATCH' };
-            }
-
-            if (invitation.status === StaffInvitationStatus.REVOKED) {
-                return { outcome: 'REVOKED' };
-            }
-
-            if (invitation.status === StaffInvitationStatus.ACCEPTED) {
-                const acceptedBy = invitation.acceptedBy;
-
-                if (!acceptedBy || acceptedBy.clerkUserId !== input.identity.clerkUserId) {
-                    return { outcome: 'ALREADY_ACCEPTED_BY_ANOTHER_IDENTITY' };
+                if (!lockedRows[0]) {
+                    return { outcome: 'NOT_FOUND' };
                 }
 
-                const acceptedUser = await tx.user.findUnique({
-                    where: { id: acceptedBy.id },
+                const invitation = await tx.staffInvitation.findUnique({
+                    where: { id: lockedRows[0].id },
+                    include: {
+                        clinic: { select: { id: true, name: true } },
+                        acceptedBy: { select: { id: true, clerkUserId: true } },
+                    },
+                });
+
+                if (!invitation) {
+                    return { outcome: 'NOT_FOUND' };
+                }
+
+                if (invitation.email !== input.normalizedEmail) {
+                    return { outcome: 'IDENTITY_MISMATCH' };
+                }
+
+                if (invitation.status === StaffInvitationStatus.REVOKED) {
+                    return { outcome: 'REVOKED' };
+                }
+
+                if (invitation.status === StaffInvitationStatus.ACCEPTED) {
+                    const acceptedBy = invitation.acceptedBy;
+
+                    if (!acceptedBy || acceptedBy.clerkUserId !== input.identity.clerkUserId) {
+                        return { outcome: 'ALREADY_ACCEPTED_BY_ANOTHER_IDENTITY' };
+                    }
+
+                    const acceptedUser = await tx.user.findUnique({
+                        where: { id: acceptedBy.id },
+                        select: {
+                            id: true,
+                            clerkUserId: true,
+                            fullName: true,
+                            email: true,
+                            role: true,
+                            status: true,
+                            clinicId: true,
+                            createdAt: true,
+                        },
+                    });
+
+                    if (!acceptedUser) {
+                        return { outcome: 'IDENTITY_CONFLICT' };
+                    }
+
+                    return {
+                        outcome: 'ALREADY_ACCEPTED',
+                        user: acceptedUser,
+                        clinic: invitation.clinic,
+                    };
+                }
+
+                if (invitation.expiresAt <= input.now) {
+                    return { outcome: 'EXPIRED' };
+                }
+
+                await acquireEmailMembershipLock(tx, input.normalizedEmail);
+
+                const clerkUser = await tx.user.findUnique({
+                    where: { clerkUserId: input.identity.clerkUserId },
                     select: {
                         id: true,
                         clerkUserId: true,
@@ -250,125 +287,95 @@ export const staffRepository = {
                         createdAt: true,
                     },
                 });
+                const emailUser = await findUserByNormalizedEmail(tx, input.normalizedEmail);
 
-                if (!acceptedUser) {
+                if (clerkUser && emailUser && clerkUser.id !== emailUser.id) {
                     return { outcome: 'IDENTITY_CONFLICT' };
                 }
 
-                return {
-                    outcome: 'ALREADY_ACCEPTED',
-                    user: acceptedUser,
-                    clinic: invitation.clinic,
-                };
-            }
+                const existingUser = clerkUser ?? emailUser;
+                let staffUser: ExistingUserRecord;
 
-            if (invitation.expiresAt <= input.now) {
-                return { outcome: 'EXPIRED' };
-            }
+                if (existingUser) {
+                    if (
+                        existingUser.clerkUserId !== input.identity.clerkUserId ||
+                        existingUser.email.trim().toLowerCase() !== input.normalizedEmail
+                    ) {
+                        return { outcome: 'IDENTITY_CONFLICT' };
+                    }
 
-            await acquireEmailMembershipLock(tx, input.normalizedEmail);
+                    if (existingUser.role !== UserRole.STAFF) {
+                        return { outcome: 'ADMIN_CONFLICT' };
+                    }
 
-            const clerkUser = await tx.user.findUnique({
-                where: { clerkUserId: input.identity.clerkUserId },
-                select: {
-                    id: true,
-                    clerkUserId: true,
-                    fullName: true,
-                    email: true,
-                    role: true,
-                    status: true,
-                    clinicId: true,
-                    createdAt: true,
-                },
-            });
-            const emailUser = await findUserByNormalizedEmail(tx, input.normalizedEmail);
+                    if (existingUser.clinicId !== invitation.clinicId) {
+                        return { outcome: 'OTHER_CLINIC' };
+                    }
 
-            if (clerkUser && emailUser && clerkUser.id !== emailUser.id) {
-                return { outcome: 'IDENTITY_CONFLICT' };
-            }
+                    if (existingUser.status === UserStatus.SUSPENDED) {
+                        return { outcome: 'SUSPENDED' };
+                    }
 
-            const existingUser = clerkUser ?? emailUser;
-            let staffUser: ExistingUserRecord;
-
-            if (existingUser) {
-                if (
-                    existingUser.clerkUserId !== input.identity.clerkUserId ||
-                    existingUser.email.trim().toLowerCase() !== input.normalizedEmail
-                ) {
-                    return { outcome: 'IDENTITY_CONFLICT' };
+                    staffUser =
+                        existingUser.status === UserStatus.INVITED
+                            ? await tx.user.update({
+                                  where: { id: existingUser.id },
+                                  data: { status: UserStatus.ACTIVE },
+                                  select: {
+                                      id: true,
+                                      clerkUserId: true,
+                                      fullName: true,
+                                      email: true,
+                                      role: true,
+                                      status: true,
+                                      clinicId: true,
+                                      createdAt: true,
+                                  },
+                              })
+                            : existingUser;
+                } else {
+                    staffUser = await tx.user.create({
+                        data: {
+                            clerkUserId: input.identity.clerkUserId,
+                            fullName: input.identity.fullName,
+                            email: input.normalizedEmail,
+                            role: UserRole.STAFF,
+                            status: UserStatus.ACTIVE,
+                            clinicId: invitation.clinicId,
+                        },
+                        select: {
+                            id: true,
+                            clerkUserId: true,
+                            fullName: true,
+                            email: true,
+                            role: true,
+                            status: true,
+                            clinicId: true,
+                            createdAt: true,
+                        },
+                    });
                 }
 
-                if (existingUser.role !== UserRole.STAFF) {
-                    return { outcome: 'ADMIN_CONFLICT' };
-                }
-
-                if (existingUser.clinicId !== invitation.clinicId) {
-                    return { outcome: 'OTHER_CLINIC' };
-                }
-
-                if (existingUser.status === UserStatus.SUSPENDED) {
-                    return { outcome: 'SUSPENDED' };
-                }
-
-                staffUser =
-                    existingUser.status === UserStatus.INVITED
-                        ? await tx.user.update({
-                              where: { id: existingUser.id },
-                              data: { status: UserStatus.ACTIVE },
-                              select: {
-                                  id: true,
-                                  clerkUserId: true,
-                                  fullName: true,
-                                  email: true,
-                                  role: true,
-                                  status: true,
-                                  clinicId: true,
-                                  createdAt: true,
-                              },
-                          })
-                        : existingUser;
-            } else {
-                staffUser = await tx.user.create({
+                const claim = await tx.staffInvitation.updateMany({
+                    where: {
+                        id: invitation.id,
+                        status: StaffInvitationStatus.PENDING,
+                        expiresAt: { gt: input.now },
+                    },
                     data: {
-                        clerkUserId: input.identity.clerkUserId,
-                        fullName: input.identity.fullName,
-                        email: input.normalizedEmail,
-                        role: UserRole.STAFF,
-                        status: UserStatus.ACTIVE,
-                        clinicId: invitation.clinicId,
-                    },
-                    select: {
-                        id: true,
-                        clerkUserId: true,
-                        fullName: true,
-                        email: true,
-                        role: true,
-                        status: true,
-                        clinicId: true,
-                        createdAt: true,
+                        status: StaffInvitationStatus.ACCEPTED,
+                        acceptedAt: input.now,
+                        acceptedByUserId: staffUser.id,
                     },
                 });
+
+                if (claim.count !== 1) {
+                    throw new Error('Staff invitation claim lost after row lock');
+                }
+
+                return { outcome: 'ACCEPTED', user: staffUser, clinic: invitation.clinic };
             }
-
-            const claim = await tx.staffInvitation.updateMany({
-                where: {
-                    id: invitation.id,
-                    status: StaffInvitationStatus.PENDING,
-                    expiresAt: { gt: input.now },
-                },
-                data: {
-                    status: StaffInvitationStatus.ACCEPTED,
-                    acceptedAt: input.now,
-                    acceptedByUserId: staffUser.id,
-                },
-            });
-
-            if (claim.count !== 1) {
-                throw new Error('Staff invitation claim lost after row lock');
-            }
-
-            return { outcome: 'ACCEPTED', user: staffUser, clinic: invitation.clinic };
-        });
+        );
     },
 
     revokeInvitation(input: {
@@ -376,8 +383,10 @@ export const staffRepository = {
         invitationId: string;
         now: Date;
     }): Promise<RevokeInvitationRepositoryResult> {
-        return prisma.$transaction(async (tx) => {
-            const lockedRows = await tx.$queryRaw<Array<{ id: string }>>`
+        return withTransientDatabaseTransactionRetry(
+            (callback) => prisma.$transaction(callback),
+            async (tx) => {
+                const lockedRows = await tx.$queryRaw<Array<{ id: string }>>`
                 SELECT "id"
                 FROM "staff_invitations"
                 WHERE "id" = ${input.invitationId}::uuid
@@ -385,62 +394,65 @@ export const staffRepository = {
                 FOR UPDATE
             `;
 
-            if (!lockedRows[0]) {
-                return { outcome: 'NOT_FOUND' };
+                if (!lockedRows[0]) {
+                    return { outcome: 'NOT_FOUND' };
+                }
+
+                const invitation = await tx.staffInvitation.findUnique({
+                    where: { id: lockedRows[0].id },
+                    include: invitationInclude,
+                });
+
+                if (!invitation) {
+                    return { outcome: 'NOT_FOUND' };
+                }
+
+                if (invitation.status === StaffInvitationStatus.REVOKED) {
+                    return { outcome: 'ALREADY_REVOKED' };
+                }
+
+                if (invitation.status === StaffInvitationStatus.ACCEPTED) {
+                    return { outcome: 'ALREADY_ACCEPTED' };
+                }
+
+                if (invitation.expiresAt <= input.now) {
+                    return { outcome: 'EXPIRED' };
+                }
+
+                const transition = await tx.staffInvitation.updateMany({
+                    where: {
+                        id: invitation.id,
+                        clinicId: input.clinicId,
+                        status: StaffInvitationStatus.PENDING,
+                        expiresAt: { gt: input.now },
+                    },
+                    data: {
+                        status: StaffInvitationStatus.REVOKED,
+                        revokedAt: input.now,
+                    },
+                });
+
+                if (transition.count !== 1) {
+                    throw new Error('Staff invitation revoke claim lost after row lock');
+                }
+
+                return {
+                    outcome: 'REVOKED',
+                    invitation: {
+                        ...invitation,
+                        status: StaffInvitationStatus.REVOKED,
+                        revokedAt: input.now,
+                    },
+                };
             }
-
-            const invitation = await tx.staffInvitation.findUnique({
-                where: { id: lockedRows[0].id },
-                include: invitationInclude,
-            });
-
-            if (!invitation) {
-                return { outcome: 'NOT_FOUND' };
-            }
-
-            if (invitation.status === StaffInvitationStatus.REVOKED) {
-                return { outcome: 'ALREADY_REVOKED' };
-            }
-
-            if (invitation.status === StaffInvitationStatus.ACCEPTED) {
-                return { outcome: 'ALREADY_ACCEPTED' };
-            }
-
-            if (invitation.expiresAt <= input.now) {
-                return { outcome: 'EXPIRED' };
-            }
-
-            const transition = await tx.staffInvitation.updateMany({
-                where: {
-                    id: invitation.id,
-                    clinicId: input.clinicId,
-                    status: StaffInvitationStatus.PENDING,
-                    expiresAt: { gt: input.now },
-                },
-                data: {
-                    status: StaffInvitationStatus.REVOKED,
-                    revokedAt: input.now,
-                },
-            });
-
-            if (transition.count !== 1) {
-                throw new Error('Staff invitation revoke claim lost after row lock');
-            }
-
-            return {
-                outcome: 'REVOKED',
-                invitation: {
-                    ...invitation,
-                    status: StaffInvitationStatus.REVOKED,
-                    revokedAt: input.now,
-                },
-            };
-        });
+        );
     },
 
     updateStaffStatus(input: { clinicId: string; userId: string; status: ManageableStaffStatus }) {
-        return prisma.$transaction(async (tx) => {
-            await tx.$queryRaw`
+        return withTransientDatabaseTransactionRetry(
+            (callback) => prisma.$transaction(callback),
+            async (tx) => {
+                await tx.$queryRaw`
                 SELECT "id"
                 FROM "users"
                 WHERE "id" = ${input.userId}::uuid
@@ -448,47 +460,50 @@ export const staffRepository = {
                 FOR UPDATE
             `;
 
-            const user = await tx.user.findFirst({
-                where: { id: input.userId, clinicId: input.clinicId },
-                select: {
-                    id: true,
-                    fullName: true,
-                    email: true,
-                    role: true,
-                    status: true,
-                    createdAt: true,
-                },
-            });
+                const user = await tx.user.findFirst({
+                    where: { id: input.userId, clinicId: input.clinicId },
+                    select: {
+                        id: true,
+                        fullName: true,
+                        email: true,
+                        role: true,
+                        status: true,
+                        createdAt: true,
+                    },
+                });
 
-            if (!user) {
-                return { outcome: 'NOT_FOUND' as const };
+                if (!user) {
+                    return { outcome: 'NOT_FOUND' as const };
+                }
+
+                if (user.role !== UserRole.STAFF) {
+                    return { outcome: 'STAFF_REQUIRED' as const };
+                }
+
+                const expectedStatus =
+                    input.status === UserStatus.SUSPENDED
+                        ? UserStatus.ACTIVE
+                        : UserStatus.SUSPENDED;
+
+                if (user.status !== expectedStatus) {
+                    return { outcome: 'INVALID_TRANSITION' as const, user };
+                }
+
+                const updatedUser = await tx.user.update({
+                    where: { id: user.id },
+                    data: { status: input.status },
+                    select: {
+                        id: true,
+                        fullName: true,
+                        email: true,
+                        role: true,
+                        status: true,
+                        createdAt: true,
+                    },
+                });
+
+                return { outcome: 'UPDATED' as const, user: updatedUser };
             }
-
-            if (user.role !== UserRole.STAFF) {
-                return { outcome: 'STAFF_REQUIRED' as const };
-            }
-
-            const expectedStatus =
-                input.status === UserStatus.SUSPENDED ? UserStatus.ACTIVE : UserStatus.SUSPENDED;
-
-            if (user.status !== expectedStatus) {
-                return { outcome: 'INVALID_TRANSITION' as const, user };
-            }
-
-            const updatedUser = await tx.user.update({
-                where: { id: user.id },
-                data: { status: input.status },
-                select: {
-                    id: true,
-                    fullName: true,
-                    email: true,
-                    role: true,
-                    status: true,
-                    createdAt: true,
-                },
-            });
-
-            return { outcome: 'UPDATED' as const, user: updatedUser };
-        });
+        );
     },
 };

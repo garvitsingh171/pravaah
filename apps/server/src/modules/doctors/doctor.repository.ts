@@ -1,5 +1,6 @@
 import { prisma } from '../../config/prisma.js';
 import type { Prisma } from '../../generated/prisma/client.js';
+import { withTransientDatabaseTransactionRetry } from '../../utils/databaseRetry.js';
 import type { DoctorAvailabilityDayInput } from './doctorAvailability.js';
 import type { CreateDoctorInput, UpdateDoctorInput } from './doctor.types.js';
 
@@ -43,35 +44,38 @@ export const doctorRepository = {
     },
 
     createDoctorWithClinicLink(clinicId: string, data: CreateDoctorInput) {
-        return prisma.$transaction(async (tx) => {
-            const doctor = await tx.doctor.create({
-                data: {
-                    fullName: data.fullName,
+        return withTransientDatabaseTransactionRetry(
+            (callback) => prisma.$transaction(callback),
+            async (tx) => {
+                const doctor = await tx.doctor.create({
+                    data: {
+                        fullName: data.fullName,
 
-                    specialization: data.specialization ?? null,
-                    qualification: data.qualification ?? null,
-                    registrationNumber: data.registrationNumber ?? null,
+                        specialization: data.specialization ?? null,
+                        qualification: data.qualification ?? null,
+                        registrationNumber: data.registrationNumber ?? null,
 
-                    phone: data.phone ?? null,
-                    email: data.email ?? null,
+                        phone: data.phone ?? null,
+                        email: data.email ?? null,
 
-                    gender: data.gender ?? null,
-                    experienceYears: data.experienceYears ?? null,
+                        gender: data.gender ?? null,
+                        experienceYears: data.experienceYears ?? null,
 
-                    isActive: true,
-                },
-            });
+                        isActive: true,
+                    },
+                });
 
-            await tx.doctorClinic.create({
-                data: {
-                    doctorId: doctor.id,
-                    clinicId,
-                    isActive: true,
-                },
-            });
+                await tx.doctorClinic.create({
+                    data: {
+                        doctorId: doctor.id,
+                        clinicId,
+                        isActive: true,
+                    },
+                });
 
-            return doctor;
-        });
+                return doctor;
+            }
+        );
     },
 
     findDoctorLinksByClinicId(clinicId: string) {
@@ -157,39 +161,42 @@ export const doctorRepository = {
     replaceDoctorAvailability(doctorClinicId: string, days: DoctorAvailabilityDayInput[]) {
         const replacementPeriods = flattenAvailabilityPeriods(doctorClinicId, days);
 
-        return prisma.$transaction(async (tx) => {
-            await tx.$queryRaw`
+        return withTransientDatabaseTransactionRetry(
+            (callback) => prisma.$transaction(callback),
+            async (tx) => {
+                await tx.$queryRaw`
                 SELECT "id"
                 FROM "doctor_clinics"
                 WHERE "id" = ${doctorClinicId}::uuid
                 FOR UPDATE
             `;
 
-            await tx.doctorAvailabilityPeriod.deleteMany({
-                where: {
-                    doctorClinicId,
-                },
-            });
+                await tx.doctorAvailabilityPeriod.deleteMany({
+                    where: {
+                        doctorClinicId,
+                    },
+                });
 
-            if (replacementPeriods.length > 0) {
-                await tx.doctorAvailabilityPeriod.createMany({
-                    data: replacementPeriods,
+                if (replacementPeriods.length > 0) {
+                    await tx.doctorAvailabilityPeriod.createMany({
+                        data: replacementPeriods,
+                    });
+                }
+
+                return tx.doctorAvailabilityPeriod.findMany({
+                    where: {
+                        doctorClinicId,
+                    },
+                    orderBy: [
+                        {
+                            weekday: 'asc',
+                        },
+                        {
+                            startTime: 'asc',
+                        },
+                    ],
                 });
             }
-
-            return tx.doctorAvailabilityPeriod.findMany({
-                where: {
-                    doctorClinicId,
-                },
-                orderBy: [
-                    {
-                        weekday: 'asc',
-                    },
-                    {
-                        startTime: 'asc',
-                    },
-                ],
-            });
-        });
+        );
     },
 };
