@@ -1,3 +1,5 @@
+import type { Prisma } from '../generated/prisma/client.js';
+
 const transientDatabaseErrorCodes = new Set([
     'ECONNREFUSED',
     'ECONNRESET',
@@ -87,4 +89,31 @@ export const withTransientDatabaseRetry = async <Result>(
             await wait(retryDelay);
         }
     }
+};
+
+/**
+ * Retry only failures that happen before Prisma invokes the transaction
+ * callback. Once the callback starts, application writes may already have
+ * happened and retrying could duplicate a successful commit whose response
+ * was lost.
+ */
+export const withTransientDatabaseTransactionRetry = async <Result>(
+    transaction: (callback: (tx: Prisma.TransactionClient) => Promise<unknown>) => Promise<unknown>,
+    operation: (tx: Prisma.TransactionClient) => Promise<Result>
+): Promise<Result> => {
+    let transactionStarted = false;
+
+    return withTransientDatabaseRetry(
+        () => {
+            transactionStarted = false;
+
+            return transaction(async (tx) => {
+                transactionStarted = true;
+                return operation(tx);
+            }) as Promise<Result>;
+        },
+        {
+            shouldRetry: () => !transactionStarted,
+        }
+    );
 };

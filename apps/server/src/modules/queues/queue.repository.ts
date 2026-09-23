@@ -1,5 +1,6 @@
 import { prisma } from '../../config/prisma.js';
 import { AppointmentStatus, Prisma, QueueStatus } from '../../generated/prisma/client.js';
+import { withTransientDatabaseTransactionRetry } from '../../utils/databaseRetry.js';
 import { isPresenceEstablishingAppointmentStatus } from '../appointments/appointment.arrival.js';
 import { establishAppointmentArrivalIfNeeded } from '../appointments/appointment.arrival.repository.js';
 import type { EstablishAppointmentArrivalResult } from '../appointments/appointment.arrival.repository.js';
@@ -266,86 +267,117 @@ export const queueRepository = {
         actorUserId,
         terminalReason,
     }: UpdateQueueEntryStatusInput) {
-        return prisma.$transaction(async (tx) => {
-            const existingQueueEntry = await tx.queueEntry.findFirst({
-                where: {
-                    id: queueEntryId,
-                    appointmentId,
-                    clinicId,
-                },
-                select: {
-                    patientId: true,
-                    status: true,
-                    appointment: {
-                        select: {
-                            scheduledAt: true,
-                            status: true,
-                            arrivedAt: true,
+        return withTransientDatabaseTransactionRetry(
+            (callback) => prisma.$transaction(callback),
+            async (tx) => {
+                const existingQueueEntry = await tx.queueEntry.findFirst({
+                    where: {
+                        id: queueEntryId,
+                        appointmentId,
+                        clinicId,
+                    },
+                    select: {
+                        patientId: true,
+                        status: true,
+                        appointment: {
+                            select: {
+                                scheduledAt: true,
+                                status: true,
+                                arrivedAt: true,
+                            },
                         },
                     },
-                },
-            });
-
-            if (!existingQueueEntry || existingQueueEntry.status !== expectedQueueStatus) {
-                throw new Error('QUEUE_STATUS_UPDATE_CONFLICT');
-            }
-
-            if (!isQueueStatusTransitionAllowed(existingQueueEntry.status, status)) {
-                throw new Error('QUEUE_STATUS_TRANSITION_INVALID');
-            }
-
-            if (existingQueueEntry.appointment.status !== expectedAppointmentStatus) {
-                throw new Error('APPOINTMENT_STATUS_SYNC_CONFLICT');
-            }
-
-            if (
-                !isAppointmentStatusTransitionAllowed(
-                    existingQueueEntry.appointment.status,
-                    appointmentStatus
-                )
-            ) {
-                throw new Error('APPOINTMENT_STATUS_TRANSITION_INVALID');
-            }
-
-            let didAppointmentTransition = false;
-            let arrivalResult: EstablishAppointmentArrivalResult = {
-                wasEstablished: false,
-                outcome: null,
-            };
-
-            if (existingQueueEntry.appointment.status !== appointmentStatus) {
-                const appointmentUpdateResult = await tx.appointment.updateMany({
-                    where: {
-                        id: appointmentId,
-                        clinicId,
-                        status: existingQueueEntry.appointment.status,
-                    },
-                    data:
-                        appointmentStatus === AppointmentStatus.CANCELLED &&
-                        terminalReason &&
-                        'cancellationReason' in terminalReason
-                            ? {
-                                  status: appointmentStatus,
-                                  cancellationReason: terminalReason.cancellationReason,
-                                  cancellationNote: terminalReason.cancellationNote,
-                              }
-                            : appointmentStatus === AppointmentStatus.NO_SHOW &&
-                                terminalReason &&
-                                'noShowReason' in terminalReason
-                              ? {
-                                    status: appointmentStatus,
-                                    noShowReason: terminalReason.noShowReason,
-                                    noShowNote: terminalReason.noShowNote,
-                                }
-                              : { status: appointmentStatus },
                 });
 
-                if (appointmentUpdateResult.count === 1) {
-                    didAppointmentTransition = true;
-                } else {
-                    const concurrentAppointment = await tx.appointment.findFirst({
+                if (!existingQueueEntry || existingQueueEntry.status !== expectedQueueStatus) {
+                    throw new Error('QUEUE_STATUS_UPDATE_CONFLICT');
+                }
+
+                if (!isQueueStatusTransitionAllowed(existingQueueEntry.status, status)) {
+                    throw new Error('QUEUE_STATUS_TRANSITION_INVALID');
+                }
+
+                if (existingQueueEntry.appointment.status !== expectedAppointmentStatus) {
+                    throw new Error('APPOINTMENT_STATUS_SYNC_CONFLICT');
+                }
+
+                if (
+                    !isAppointmentStatusTransitionAllowed(
+                        existingQueueEntry.appointment.status,
+                        appointmentStatus
+                    )
+                ) {
+                    throw new Error('APPOINTMENT_STATUS_TRANSITION_INVALID');
+                }
+
+                let didAppointmentTransition = false;
+                let arrivalResult: EstablishAppointmentArrivalResult = {
+                    wasEstablished: false,
+                    outcome: null,
+                };
+
+                if (existingQueueEntry.appointment.status !== appointmentStatus) {
+                    const appointmentUpdateResult = await tx.appointment.updateMany({
                         where: {
                             id: appointmentId,
+                            clinicId,
+                            status: existingQueueEntry.appointment.status,
+                        },
+                        data:
+                            appointmentStatus === AppointmentStatus.CANCELLED &&
+                            terminalReason &&
+                            'cancellationReason' in terminalReason
+                                ? {
+                                      status: appointmentStatus,
+                                      cancellationReason: terminalReason.cancellationReason,
+                                      cancellationNote: terminalReason.cancellationNote,
+                                  }
+                                : appointmentStatus === AppointmentStatus.NO_SHOW &&
+                                    terminalReason &&
+                                    'noShowReason' in terminalReason
+                                  ? {
+                                        status: appointmentStatus,
+                                        noShowReason: terminalReason.noShowReason,
+                                        noShowNote: terminalReason.noShowNote,
+                                    }
+                                  : { status: appointmentStatus },
+                    });
+
+                    if (appointmentUpdateResult.count === 1) {
+                        didAppointmentTransition = true;
+                    } else {
+                        const concurrentAppointment = await tx.appointment.findFirst({
+                            where: {
+                                id: appointmentId,
+                                clinicId,
+                            },
+                            select: {
+                                status: true,
+                            },
+                        });
+
+                        if (concurrentAppointment?.status !== appointmentStatus) {
+                            throw new Error('APPOINTMENT_STATUS_SYNC_CONFLICT');
+                        }
+                    }
+                }
+
+                const queueUpdateResult = await tx.queueEntry.updateMany({
+                    where: {
+                        id: queueEntryId,
+                        clinicId,
+                        status: expectedQueueStatus,
+                    },
+                    data: {
+                        status,
+                    },
+                });
+
+                if (queueUpdateResult.count !== 1) {
+                    const concurrentQueueEntry = await tx.queueEntry.findFirst({
+                        where: {
+                            id: queueEntryId,
+                            appointmentId,
                             clinicId,
                         },
                         select: {
@@ -353,112 +385,84 @@ export const queueRepository = {
                         },
                     });
 
-                    if (concurrentAppointment?.status !== appointmentStatus) {
-                        throw new Error('APPOINTMENT_STATUS_SYNC_CONFLICT');
+                    if (concurrentQueueEntry?.status !== status) {
+                        throw new Error('QUEUE_STATUS_UPDATE_CONFLICT');
                     }
                 }
-            }
 
-            const queueUpdateResult = await tx.queueEntry.updateMany({
-                where: {
-                    id: queueEntryId,
-                    clinicId,
-                    status: expectedQueueStatus,
-                },
-                data: {
-                    status,
-                },
-            });
+                if (timestampUpdates.calledAt !== undefined) {
+                    await tx.queueEntry.updateMany({
+                        where: {
+                            id: queueEntryId,
+                            clinicId,
+                            calledAt: null,
+                        },
+                        data: {
+                            calledAt: timestampUpdates.calledAt,
+                        },
+                    });
+                }
 
-            if (queueUpdateResult.count !== 1) {
-                const concurrentQueueEntry = await tx.queueEntry.findFirst({
-                    where: {
-                        id: queueEntryId,
+                if (timestampUpdates.completedAt !== undefined) {
+                    await tx.queueEntry.updateMany({
+                        where: {
+                            id: queueEntryId,
+                            clinicId,
+                            completedAt: null,
+                        },
+                        data: {
+                            completedAt: timestampUpdates.completedAt,
+                        },
+                    });
+                }
+
+                if (
+                    existingQueueEntry.appointment.arrivedAt === null &&
+                    isPresenceEstablishingAppointmentStatus(appointmentStatus)
+                ) {
+                    arrivalResult = await establishAppointmentArrivalIfNeeded({
+                        tx,
                         appointmentId,
                         clinicId,
-                    },
-                    select: {
-                        status: true,
-                    },
-                });
-
-                if (concurrentQueueEntry?.status !== status) {
-                    throw new Error('QUEUE_STATUS_UPDATE_CONFLICT');
+                        patientId: existingQueueEntry.patientId,
+                        scheduledAt: existingQueueEntry.appointment.scheduledAt,
+                        targetStatus: appointmentStatus,
+                        arrivalTimestamp: eventTimestamp,
+                    });
                 }
-            }
 
-            if (timestampUpdates.calledAt !== undefined) {
-                await tx.queueEntry.updateMany({
-                    where: {
-                        id: queueEntryId,
+                if (didAppointmentTransition) {
+                    await applyPatientAppointmentOutcome({
+                        tx,
                         clinicId,
-                        calledAt: null,
-                    },
-                    data: {
-                        calledAt: timestampUpdates.calledAt,
-                    },
-                });
-            }
+                        patientId: existingQueueEntry.patientId,
+                        previousStatus: existingQueueEntry.appointment.status,
+                        newStatus: appointmentStatus,
+                        eventTimestamp,
+                    });
+                }
 
-            if (timestampUpdates.completedAt !== undefined) {
-                await tx.queueEntry.updateMany({
-                    where: {
-                        id: queueEntryId,
-                        clinicId,
-                        completedAt: null,
-                    },
-                    data: {
-                        completedAt: timestampUpdates.completedAt,
-                    },
-                });
-            }
-
-            if (
-                existingQueueEntry.appointment.arrivedAt === null &&
-                isPresenceEstablishingAppointmentStatus(appointmentStatus)
-            ) {
-                arrivalResult = await establishAppointmentArrivalIfNeeded({
+                await appointmentActivityRepository.recordAppointmentTransitionActivities({
                     tx,
                     appointmentId,
                     clinicId,
-                    patientId: existingQueueEntry.patientId,
-                    scheduledAt: existingQueueEntry.appointment.scheduledAt,
-                    targetStatus: appointmentStatus,
-                    arrivalTimestamp: eventTimestamp,
-                });
-            }
-
-            if (didAppointmentTransition) {
-                await applyPatientAppointmentOutcome({
-                    tx,
-                    clinicId,
-                    patientId: existingQueueEntry.patientId,
+                    actorUserId,
                     previousStatus: existingQueueEntry.appointment.status,
                     newStatus: appointmentStatus,
                     eventTimestamp,
+                    didTransition: didAppointmentTransition,
+                    arrivalResult,
+                    terminalReason,
+                });
+
+                return tx.queueEntry.findUniqueOrThrow({
+                    where: {
+                        id: queueEntryId,
+                    },
+                    include: queueEntryDetailsInclude,
                 });
             }
-
-            await appointmentActivityRepository.recordAppointmentTransitionActivities({
-                tx,
-                appointmentId,
-                clinicId,
-                actorUserId,
-                previousStatus: existingQueueEntry.appointment.status,
-                newStatus: appointmentStatus,
-                eventTimestamp,
-                didTransition: didAppointmentTransition,
-                arrivalResult,
-                terminalReason,
-            });
-
-            return tx.queueEntry.findUniqueOrThrow({
-                where: {
-                    id: queueEntryId,
-                },
-                include: queueEntryDetailsInclude,
-            });
-        });
+        );
     },
 
     async reorderQueueEntries(
@@ -469,123 +473,126 @@ export const queueRepository = {
         queueEntryIds: string[],
         activeStatuses: QueueStatus[]
     ) {
-        return prisma.$transaction(async (tx) => {
-            await acquireQueueScopeLock(tx, clinicId, doctorId, date);
+        return withTransientDatabaseTransactionRetry(
+            (callback) => prisma.$transaction(callback),
+            async (tx) => {
+                await acquireQueueScopeLock(tx, clinicId, doctorId, date);
 
-            const dateRange = await getClinicDateRange(tx, date, clinicTimezone);
+                const dateRange = await getClinicDateRange(tx, date, clinicTimezone);
 
-            if (!dateRange) {
-                throw new Error('QUEUE_REORDER_CONFLICT');
-            }
+                if (!dateRange) {
+                    throw new Error('QUEUE_REORDER_CONFLICT');
+                }
 
-            const activeQueueEntries = await tx.queueEntry.findMany({
-                where: {
-                    clinicId,
-                    doctorId,
-                    status: {
-                        in: activeStatuses,
-                    },
-                    appointment: {
-                        scheduledAt: {
-                            gte: dateRange.start,
-                            lt: dateRange.end,
-                        },
-                    },
-                },
-                select: {
-                    id: true,
-                },
-                orderBy: [
-                    {
-                        position: 'asc',
-                    },
-                    {
-                        appointment: {
-                            scheduledAt: 'asc',
-                        },
-                    },
-                ],
-            });
-
-            const activeQueueEntryIds = new Set(
-                activeQueueEntries.map((queueEntry) => queueEntry.id)
-            );
-            const requestedQueueEntryIds = new Set(queueEntryIds);
-
-            if (
-                activeQueueEntries.length !== queueEntryIds.length ||
-                activeQueueEntries.some(
-                    (queueEntry) => !requestedQueueEntryIds.has(queueEntry.id)
-                ) ||
-                queueEntryIds.some((queueEntryId) => !activeQueueEntryIds.has(queueEntryId))
-            ) {
-                throw new Error('QUEUE_REORDER_CONFLICT');
-            }
-
-            for (const [index, queueEntryId] of queueEntryIds.entries()) {
-                const updatedQueueEntry = await tx.queueEntry.updateMany({
+                const activeQueueEntries = await tx.queueEntry.findMany({
                     where: {
-                        id: queueEntryId,
+                        clinicId,
+                        doctorId,
+                        status: {
+                            in: activeStatuses,
+                        },
+                        appointment: {
+                            scheduledAt: {
+                                gte: dateRange.start,
+                                lt: dateRange.end,
+                            },
+                        },
+                    },
+                    select: {
+                        id: true,
+                    },
+                    orderBy: [
+                        {
+                            position: 'asc',
+                        },
+                        {
+                            appointment: {
+                                scheduledAt: 'asc',
+                            },
+                        },
+                    ],
+                });
+
+                const activeQueueEntryIds = new Set(
+                    activeQueueEntries.map((queueEntry) => queueEntry.id)
+                );
+                const requestedQueueEntryIds = new Set(queueEntryIds);
+
+                if (
+                    activeQueueEntries.length !== queueEntryIds.length ||
+                    activeQueueEntries.some(
+                        (queueEntry) => !requestedQueueEntryIds.has(queueEntry.id)
+                    ) ||
+                    queueEntryIds.some((queueEntryId) => !activeQueueEntryIds.has(queueEntryId))
+                ) {
+                    throw new Error('QUEUE_REORDER_CONFLICT');
+                }
+
+                for (const [index, queueEntryId] of queueEntryIds.entries()) {
+                    const updatedQueueEntry = await tx.queueEntry.updateMany({
+                        where: {
+                            id: queueEntryId,
+                            clinicId,
+                            doctorId,
+                            status: {
+                                in: activeStatuses,
+                            },
+                        },
+                        data: {
+                            position: 1_000_000 + index,
+                        },
+                    });
+
+                    if (updatedQueueEntry.count !== 1) {
+                        throw new Error('QUEUE_REORDER_CONFLICT');
+                    }
+                }
+
+                for (const [index, queueEntryId] of queueEntryIds.entries()) {
+                    const updatedQueueEntry = await tx.queueEntry.updateMany({
+                        where: {
+                            id: queueEntryId,
+                            clinicId,
+                            doctorId,
+                            status: {
+                                in: activeStatuses,
+                            },
+                        },
+                        data: {
+                            position: index + 1,
+                        },
+                    });
+
+                    if (updatedQueueEntry.count !== 1) {
+                        throw new Error('QUEUE_REORDER_CONFLICT');
+                    }
+                }
+
+                return tx.queueEntry.findMany({
+                    where: {
+                        id: {
+                            in: queueEntryIds,
+                        },
                         clinicId,
                         doctorId,
                         status: {
                             in: activeStatuses,
                         },
                     },
-                    data: {
-                        position: 1_000_000 + index,
-                    },
-                });
-
-                if (updatedQueueEntry.count !== 1) {
-                    throw new Error('QUEUE_REORDER_CONFLICT');
-                }
-            }
-
-            for (const [index, queueEntryId] of queueEntryIds.entries()) {
-                const updatedQueueEntry = await tx.queueEntry.updateMany({
-                    where: {
-                        id: queueEntryId,
-                        clinicId,
-                        doctorId,
-                        status: {
-                            in: activeStatuses,
+                    include: queueEntryDetailsInclude,
+                    orderBy: [
+                        {
+                            position: 'asc',
                         },
-                    },
-                    data: {
-                        position: index + 1,
-                    },
-                });
-
-                if (updatedQueueEntry.count !== 1) {
-                    throw new Error('QUEUE_REORDER_CONFLICT');
-                }
-            }
-
-            return tx.queueEntry.findMany({
-                where: {
-                    id: {
-                        in: queueEntryIds,
-                    },
-                    clinicId,
-                    doctorId,
-                    status: {
-                        in: activeStatuses,
-                    },
-                },
-                include: queueEntryDetailsInclude,
-                orderBy: [
-                    {
-                        position: 'asc',
-                    },
-                    {
-                        appointment: {
-                            scheduledAt: 'asc',
+                        {
+                            appointment: {
+                                scheduledAt: 'asc',
+                            },
                         },
-                    },
-                ],
-            });
-        });
+                    ],
+                });
+            }
+        );
     },
 
     async acquireQueueScopeLocks(tx: Prisma.TransactionClient, scopes: QueueScope[]) {
