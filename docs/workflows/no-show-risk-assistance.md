@@ -56,10 +56,10 @@ Dashboard backfill passes scheduled/booked/no-show/completed counts, but does no
 
 The rule math, thresholds, reasons, feature sources, and `starter-rule-v1` version stay unchanged. `PatientClinic` now also maintains booking, completion, no-show, and last-completed-visit aggregates, but prediction continues counting completed/no-show `Appointment` rows directly and reading only late arrivals/distance from `PatientClinic`. Stored predictions are not recalculated by attendance updates.
 
-Structured clinic or patient address fields are not prediction inputs. #263
-does not geocode addresses, calculate distance, or trigger prediction
-recalculation; `PatientClinic.distanceFromClinicKm` remains the current manual
-input.
+Structured clinic or patient address fields are not prediction inputs. Geoapify
+Routing may improve the source of `PatientClinic.distanceFromClinicKm`, but it
+does not trigger mass prediction recalculation. Historical manual values remain
+identifiable as legacy `NOT_CALCULATED` data and are not labelled as routed.
 
 ## Rule Summary
 

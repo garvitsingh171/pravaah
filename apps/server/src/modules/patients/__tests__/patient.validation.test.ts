@@ -15,6 +15,21 @@ describe('patient operational statistics validation', () => {
         expect(createResult.success).toBe(false);
         expect(updateResult.success).toBe(false);
     });
+
+    it('rejects client-controlled distance and routing fields', () => {
+        const createResult = createPatientSchema.safeParse({
+            fullName: 'Riya Malhotra',
+            phone: '+91 90000 02001',
+            distanceFromClinicKm: 8,
+        });
+        const updateResult = updatePatientSchema.safeParse({
+            distanceFromClinicKm: 8,
+            routingStatus: 'CALCULATED',
+        });
+
+        expect(createResult.success).toBe(false);
+        expect(updateResult.success).toBe(false);
+    });
 });
 
 describe('patient structured location validation', () => {

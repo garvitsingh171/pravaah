@@ -108,7 +108,7 @@ Manual checklist:
 
 - create a patient with name and phone
 - add optional structured residential location; country defaults to India in a new form
-- add optional manual distance for scoring context
+- verify the read-only travel estimate after both locations are geocoded
 - verify it appears on `/patients`
 - verify `PatientClinic` link exists
 

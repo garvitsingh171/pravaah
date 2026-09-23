@@ -9,6 +9,8 @@ import {
 import { getIndiaPincodeValidationMessage } from '../../utils/locationValidation.js';
 import { geocodingService, type GeocodingAttempt } from '../geocoding/geocoding.service.js';
 import { predictNoShowRisk } from '../predictions/prediction.service.js';
+import { haveCoordinatesChanged } from '../routing/routing.location.js';
+import { routingRepository } from '../routing/routing.repository.js';
 import { clinicRepository } from './clinic.repository.js';
 import type { ProvisionSampleDataServiceInput, UpdateClinicInput } from './clinic.types.js';
 
@@ -93,17 +95,39 @@ export const clinicService = {
         }
 
         try {
-            await applyClinicGeocodingAttempt(
-                clinicId,
-                sourceHash,
-                attemptId!,
-                await geocodingService.geocodeAddress(nextAddress)
-            );
+            const attempt = await geocodingService.geocodeAddress(nextAddress);
+            await applyClinicGeocodingAttempt(clinicId, sourceHash, attemptId!, attempt);
 
-            return (await clinicRepository.findSettingsById(clinicId)) ?? clinic;
+            const updatedClinic = (await clinicRepository.findSettingsById(clinicId)) ?? clinic;
+
+            if (existingClinic.latitude != null && existingClinic.longitude != null) {
+                if (
+                    attempt.outcome !== 'SUCCESS' ||
+                    haveCoordinatesChanged(
+                        {
+                            latitude: existingClinic.latitude,
+                            longitude: existingClinic.longitude,
+                        },
+                        {
+                            latitude:
+                                updatedClinic.latitude ??
+                                (attempt.outcome === 'SUCCESS' ? attempt.result.latitude : null),
+                            longitude:
+                                updatedClinic.longitude ??
+                                (attempt.outcome === 'SUCCESS' ? attempt.result.longitude : null),
+                        }
+                    )
+                ) {
+                    await routingRepository.invalidateCalculatedRoutesForClinic(clinicId);
+                }
+            }
+
+            return updatedClinic;
         } catch {
             // The clinic write has committed; derived geocoding must not undo it.
-            console.warn(`[geocoding] entityType=CLINIC entityId=${clinicId} outcome=PERSISTENCE_FAILED`);
+            console.warn(
+                `[geocoding] entityType=CLINIC entityId=${clinicId} outcome=PERSISTENCE_FAILED`
+            );
             return clinic;
         }
     },
@@ -135,6 +159,10 @@ export const clinicService = {
 
         const sourceHash = createGeocodingSourceHash(address);
         const attemptId = createGeocodingAttemptId();
+        const previousCoordinates = {
+            latitude: clinic.latitude,
+            longitude: clinic.longitude,
+        };
         await clinicRepository.prepareGeocoding(clinicId, sourceHash, attemptId);
 
         const attempt = await geocodingService.geocodeAddress(address);
@@ -150,11 +178,26 @@ export const clinicService = {
         await applyClinicGeocodingAttempt(clinicId, sourceHash, attemptId, attempt);
 
         if (attempt.outcome === 'FAILED') {
+            if (previousCoordinates.latitude != null && previousCoordinates.longitude != null) {
+                await routingRepository.invalidateCalculatedRoutesForClinic(clinicId);
+            }
             throw new AppError(
                 502,
                 'GEOAPIFY_GEOCODING_FAILED',
                 'Location lookup failed. Please try again later.'
             );
+        }
+
+        if (
+            attempt.outcome === 'SUCCESS' &&
+            previousCoordinates.latitude != null &&
+            previousCoordinates.longitude != null &&
+            haveCoordinatesChanged(previousCoordinates, {
+                latitude: attempt.result.latitude,
+                longitude: attempt.result.longitude,
+            })
+        ) {
+            await routingRepository.invalidateCalculatedRoutesForClinic(clinicId);
         }
 
         return clinicRepository.findSettingsById(clinicId);

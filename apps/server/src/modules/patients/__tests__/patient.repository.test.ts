@@ -50,27 +50,27 @@ describe('patientRepository structured location persistence', () => {
             country: 'India',
             pincode: '302017',
             notes: 'Clinic-specific note',
-            distanceFromClinicKm: 4.2,
         });
 
-        expect(mockPatientCreate).toHaveBeenCalledWith(expect.objectContaining({
-            data: expect.objectContaining({
-                address: 'B-42, Malviya Nagar',
-                addressLine1: 'B-42, Malviya Nagar',
-                addressLine2: 'Near Gaurav Tower',
-                city: 'Jaipur',
-                state: 'Rajasthan',
-                country: 'India',
-                pincode: '302017',
-            }),
-            select: expect.any(Object),
-        }));
+        expect(mockPatientCreate).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    address: 'B-42, Malviya Nagar',
+                    addressLine1: 'B-42, Malviya Nagar',
+                    addressLine2: 'Near Gaurav Tower',
+                    city: 'Jaipur',
+                    state: 'Rajasthan',
+                    country: 'India',
+                    pincode: '302017',
+                }),
+                select: expect.any(Object),
+            })
+        );
         expect(mockPatientClinicCreate).toHaveBeenCalledWith({
             data: {
                 patientId: 'patient-id',
                 clinicId: 'clinic-id',
                 notes: 'Clinic-specific note',
-                distanceFromClinicKm: 4.2,
             },
         });
     });
@@ -79,7 +79,6 @@ describe('patientRepository structured location persistence', () => {
         await patientRepository.updatePatientWithClinicDetails('clinic-id', 'patient-id', {
             city: 'Jaipur',
             addressLine2: null,
-            distanceFromClinicKm: null,
         });
 
         expect(mockPatientUpdate).toHaveBeenCalledWith({
@@ -89,17 +88,7 @@ describe('patientRepository structured location persistence', () => {
                 addressLine2: null,
             },
         });
-        expect(mockPatientClinicUpdate).toHaveBeenCalledWith({
-            where: {
-                patientId_clinicId: {
-                    patientId: 'patient-id',
-                    clinicId: 'clinic-id',
-                },
-            },
-            data: {
-                distanceFromClinicKm: null,
-            },
-        });
+        expect(mockPatientClinicUpdate).not.toHaveBeenCalled();
     });
 
     it('persists a geocoding result only when the source-address hash is still current', async () => {
@@ -110,14 +99,14 @@ describe('patientRepository structured location persistence', () => {
             'address-a-hash',
             'attempt-a',
             {
-            latitude: 26.8467,
-            longitude: 75.7894,
-            provider: 'GEOAPIFY',
-            confidence: 0.92,
-            resultType: 'amenity',
-            matchType: 'full_match',
-            placeId: 'place-id',
-            formattedAddress: 'B-42, Malviya Nagar, Jaipur, Rajasthan, India',
+                latitude: 26.8467,
+                longitude: 75.7894,
+                provider: 'GEOAPIFY',
+                confidence: 0.92,
+                resultType: 'amenity',
+                matchType: 'full_match',
+                placeId: 'place-id',
+                formattedAddress: 'B-42, Malviya Nagar, Jaipur, Rajasthan, India',
             }
         );
 

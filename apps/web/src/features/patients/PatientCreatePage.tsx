@@ -28,7 +28,6 @@ const emptyFormValues: PatientFormValues = {
     pincode: '',
     emergencyContactName: '',
     emergencyContactPhone: '',
-    distanceFromClinicKm: '',
     notes: '',
 };
 
@@ -47,7 +46,6 @@ const validationFieldMap: Partial<Record<string, keyof PatientFormValues>> = {
     'body.pincode': 'pincode',
     'body.emergencyContactName': 'emergencyContactName',
     'body.emergencyContactPhone': 'emergencyContactPhone',
-    'body.distanceFromClinicKm': 'distanceFromClinicKm',
     'body.notes': 'notes',
 };
 
@@ -63,20 +61,6 @@ const validateWholeNumber = (value: string, message: string): string | undefined
     const numberValue = Number(value);
 
     if (!Number.isInteger(numberValue) || numberValue < 0) {
-        return message;
-    }
-
-    return undefined;
-};
-
-const validateNonNegativeNumber = (value: string, message: string): string | undefined => {
-    if (!value.trim()) {
-        return undefined;
-    }
-
-    const numberValue = Number(value);
-
-    if (!Number.isFinite(numberValue) || numberValue < 0) {
         return message;
     }
 
@@ -117,7 +101,8 @@ const validatePatientForm = (values: PatientFormValues): PatientFormFieldErrors 
 
     for (const locationField of locationFields) {
         if (values[locationField.field].trim().length > locationField.maxLength) {
-            errors[locationField.field] = `${locationField.label} must be ${locationField.maxLength} characters or fewer.`;
+            errors[locationField.field] =
+                `${locationField.label} must be ${locationField.maxLength} characters or fewer.`;
         }
     }
 
@@ -134,15 +119,6 @@ const validatePatientForm = (values: PatientFormValues): PatientFormFieldErrors 
 
     if (ageError) {
         errors.age = ageError;
-    }
-
-    const distanceError = validateNonNegativeNumber(
-        values.distanceFromClinicKm,
-        'Distance from clinic must be a number greater than or equal to 0.'
-    );
-
-    if (distanceError) {
-        errors.distanceFromClinicKm = distanceError;
     }
 
     if (values.notes.trim().length > 500) {
@@ -179,7 +155,6 @@ const toCreatePatientRequest = (values: PatientFormValues): CreatePatientRequest
         emergencyContactName: toOptionalString(values.emergencyContactName),
         emergencyContactPhone: toOptionalString(values.emergencyContactPhone),
         notes: toOptionalString(values.notes),
-        distanceFromClinicKm: toOptionalNumber(values.distanceFromClinicKm),
     };
 };
 

@@ -363,19 +363,19 @@ erDiagram
 
 Model summary:
 
-| Model                      | Purpose                            | Key fields/defaults                                                                                                          | Relationships and constraints                                              | Current limitation                                     |
-| -------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------ |
-| `User`                     | Internal app user mapped to Clerk. | `clerkUserId` unique, `email` unique, `role`, `status`, optional `clinicId`.                                                 | Many users to one clinic with `SetNull`; indexes on clinic, role, status.  | Single-clinic access model.                            |
-| `Clinic`                   | Clinic tenant and settings.        | `slug` unique, timezone, hours, slot duration, buffer, late-arrival grace, `isActive`.                                       | Has users, links, appointments, queue, predictions.                        | No active-state settings update endpoint.              |
-| `Doctor`                   | Provider profile.                  | name, specialization, qualification, contact, gender, experience, `isActive`.                                                | Linked to clinics through `DoctorClinic`; appointments restrict deletion.  | No login.                                              |
-| `DoctorClinic`             | Doctor-clinic join.                | `doctorId`, `clinicId`, `isActive`, optional display name and fee.                                                           | Unique `(doctorId, clinicId)`; cascade from doctor/clinic.                 | Link fields not exposed in current edit API.           |
-| `DoctorAvailabilityPeriod` | Recurring weekly working periods.  | `doctorClinicId`, weekday, `HH:mm` start/end strings.                                                                        | Cascades from `DoctorClinic`; unique exact periods; indexed by weekday.    | No date-specific exception/leave model.                |
+| Model                      | Purpose                            | Key fields/defaults                                                                                                              | Relationships and constraints                                              | Current limitation                                     |
+| -------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `User`                     | Internal app user mapped to Clerk. | `clerkUserId` unique, `email` unique, `role`, `status`, optional `clinicId`.                                                     | Many users to one clinic with `SetNull`; indexes on clinic, role, status.  | Single-clinic access model.                            |
+| `Clinic`                   | Clinic tenant and settings.        | `slug` unique, timezone, hours, slot duration, buffer, late-arrival grace, `isActive`.                                           | Has users, links, appointments, queue, predictions.                        | No active-state settings update endpoint.              |
+| `Doctor`                   | Provider profile.                  | name, specialization, qualification, contact, gender, experience, `isActive`.                                                    | Linked to clinics through `DoctorClinic`; appointments restrict deletion.  | No login.                                              |
+| `DoctorClinic`             | Doctor-clinic join.                | `doctorId`, `clinicId`, `isActive`, optional display name and fee.                                                               | Unique `(doctorId, clinicId)`; cascade from doctor/clinic.                 | Link fields not exposed in current edit API.           |
+| `DoctorAvailabilityPeriod` | Recurring weekly working periods.  | `doctorClinicId`, weekday, `HH:mm` start/end strings.                                                                            | Cascades from `DoctorClinic`; unique exact periods; indexed by weekday.    | No date-specific exception/leave model.                |
 | `Patient`                  | Patient profile.                   | name, phone, optional demographics, structured residential address, legacy address compatibility, emergency contact, `isActive`. | Linked to clinics through `PatientClinic`; appointments restrict deletion. | No login or full medical record.                       |
-| `PatientClinic`            | Clinic-specific patient history.   | total appointments/completed visits/no-shows/late arrivals, last completed visit, notes, distance, `isActive`.               | Unique `(patientId, clinicId)`; cascade from patient/clinic.               | No reconciliation/admin-correction workflow.           |
-| `Appointment`              | Scheduled visit.                   | clinic, doctor, patient, creator, scheduledAt, duration, status, visit reason/notes, terminal reason/note, arrival snapshot. | Partial unique active doctor/time index; many query indexes.               | Rescheduling keeps doctor/patient/duration fixed.      |
-| `AppointmentActivity`      | Append-only operational event.     | appointment, clinic, optional actor, explicit type, occurredAt, structured metadata.                                         | Restrict appointment/clinic deletion; actor `SetNull`; chronology indexes. | Legacy appointments may have partial/no history.       |
-| `QueueEntry`               | Daily queue record.                | unique appointment, clinic, doctor, patient, position, status, queued/called/completed times.                                | Indexes by status, doctor/position, queuedAt.                              | Created during booking, including future appointments. |
-| `NoShowPrediction`         | Stored deterministic risk.         | unique appointment, clinic, patient, riskLevel, score, reasons JSON.                                                         | Indexes by clinic and patient.                                             | No persisted model version column.                     |
+| `PatientClinic`            | Clinic-specific patient history.   | total appointments/completed visits/no-shows/late arrivals, last completed visit, notes, distance, `isActive`.                   | Unique `(patientId, clinicId)`; cascade from patient/clinic.               | No reconciliation/admin-correction workflow.           |
+| `Appointment`              | Scheduled visit.                   | clinic, doctor, patient, creator, scheduledAt, duration, status, visit reason/notes, terminal reason/note, arrival snapshot.     | Partial unique active doctor/time index; many query indexes.               | Rescheduling keeps doctor/patient/duration fixed.      |
+| `AppointmentActivity`      | Append-only operational event.     | appointment, clinic, optional actor, explicit type, occurredAt, structured metadata.                                             | Restrict appointment/clinic deletion; actor `SetNull`; chronology indexes. | Legacy appointments may have partial/no history.       |
+| `QueueEntry`               | Daily queue record.                | unique appointment, clinic, doctor, patient, position, status, queued/called/completed times.                                    | Indexes by status, doctor/position, queuedAt.                              | Created during booking, including future appointments. |
+| `NoShowPrediction`         | Stored deterministic risk.         | unique appointment, clinic, patient, riskLevel, score, reasons JSON.                                                             | Indexes by clinic and patient.                                             | No persisted model version column.                     |
 
 Terminal-reason capture stays inside the existing appointment/queue transactional lifecycle. Separate cancellation and no-show enums are validated at the API boundary. The guarded appointment compare-and-set writes status plus the applicable reason/note; its ownership flag gates patient statistics and enrichment of the existing terminal `AppointmentActivity`. No separate reason service, queue reason state, or audit stream exists.
 
@@ -387,10 +387,10 @@ Clinic and Patient each store optional structured address components. A pure
 canonical formatter can order those components for display, and a completeness
 helper only indicates that a future geocoding attempt has the minimum fields.
 Structured address is not coordinates; coordinates are not distance; distance
-is not travel time. #263 implements only address storage, normalization,
-legacy Patient backfill planning, and protected API/UI support. Geocoding,
-coordinates, automatic distance, routing, and travel-time calculation remain
-future layers.
+is not travel time. #263 provides address storage and geocoding; #267 adds
+backend-only Patient-to-Clinic road routing from current trusted coordinates.
+The route is stored compactly on `PatientClinic`, with no map geometry or live
+traffic claim.
 
 ## Enums And State Models
 
@@ -920,6 +920,17 @@ React → Pravaah API → structured address → canonical address/hash
       → Geoapify integration client → validated coordinates → PostgreSQL
 ```
 
-React never receives the provider key or calls Geoapify. Derived coordinates
-remain separate from `PatientClinic.distanceFromClinicKm`; this capability does
-not add distance, routing, maps, or prediction behavior.
+React never receives the provider key or calls Geoapify. After both sides are
+geocoded, the backend may call Geoapify Routing with Patient → Clinic
+coordinates, outside any Prisma transaction, and conditionally persist:
+
+```text
+Patient coordinates + Clinic coordinates
+    → Geoapify Routing (drive, balanced, free_flow)
+    → distance meters / 1000, time seconds rounded up to minutes
+    → PatientClinic distanceFromClinicKm + estimatedTravelTimeMinutes
+```
+
+Routing failure never rolls back Patient/Clinic core writes. Clinic coordinate
+changes invalidate related routes without mass provider calls; Patient changes
+invalidate all related routes and recalculate only the current Clinic link.

@@ -17,7 +17,6 @@ export type CreatePatientRequest = {
     emergencyContactName?: string;
     emergencyContactPhone?: string;
     notes?: string;
-    distanceFromClinicKm?: number;
 };
 
 export type UpdatePatientRequest = {
@@ -36,7 +35,6 @@ export type UpdatePatientRequest = {
     emergencyContactName?: string | null;
     emergencyContactPhone?: string | null;
     notes?: string | null;
-    distanceFromClinicKm?: number | null;
     isActive?: boolean;
 };
 
@@ -62,6 +60,12 @@ type PatientClinicListItem = {
     isActive: boolean;
     createdAt: string;
     updatedAt: string;
+    estimatedTravelTimeMinutes?: number | null;
+    routingStatus: 'NOT_CALCULATED' | 'CALCULATED' | 'FAILED';
+    routingProvider?: 'GEOAPIFY' | null;
+    routingMode?: 'DRIVE' | null;
+    routingTrafficModel?: 'FREE_FLOW' | null;
+    routedAt?: string | null;
     patient: PatientSummary;
 };
 
@@ -89,6 +93,12 @@ const toPatientSummary = (patientLink: PatientClinicListItem): PatientSummary =>
         clinicLinkIsActive: patientLink.isActive,
         notes: patientLink.notes,
         distanceFromClinicKm: patientLink.distanceFromClinicKm,
+        estimatedTravelTimeMinutes: patientLink.estimatedTravelTimeMinutes,
+        routingStatus: patientLink.routingStatus,
+        routingProvider: patientLink.routingProvider,
+        routingMode: patientLink.routingMode,
+        routingTrafficModel: patientLink.routingTrafficModel,
+        routedAt: patientLink.routedAt,
         totalAppointments: patientLink.totalAppointments,
         totalCompletedVisits: patientLink.totalCompletedVisits,
         totalNoShows: patientLink.totalNoShows,
@@ -136,6 +146,13 @@ export const updatePatient = (
 export const retryPatientGeocoding = (clinicId: string, patientId: string) => {
     return apiClient.post<UpdatePatientResponseData>(
         `${getPatientCollectionPath(clinicId)}/${encodeURIComponent(patientId)}/geocode`,
+        {}
+    );
+};
+
+export const retryPatientRouting = (clinicId: string, patientId: string) => {
+    return apiClient.post<UpdatePatientResponseData>(
+        `${getPatientCollectionPath(clinicId)}/${encodeURIComponent(patientId)}/route`,
         {}
     );
 };

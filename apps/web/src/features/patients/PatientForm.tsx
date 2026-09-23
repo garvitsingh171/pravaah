@@ -18,7 +18,6 @@ export type PatientFormValues = {
     pincode: string;
     emergencyContactName: string;
     emergencyContactPhone: string;
-    distanceFromClinicKm: string;
     notes: string;
 };
 
@@ -240,20 +239,12 @@ function PatientForm({
 
             <FormSection
                 title="Clinic Details"
-                description="Notes and distance are scoped to this clinic only."
+                description="Travel estimates are calculated from verified patient and clinic locations."
             >
-
-                <label className="block text-sm font-medium text-slate-700">
-                    Distance from clinic (km)
-                    <input
-                        className={getFieldClassName(Boolean(fieldErrors.distanceFromClinicKm))}
-                        value={values.distanceFromClinicKm}
-                        onChange={(event) => onChange('distanceFromClinicKm', event.target.value)}
-                        disabled={isSubmitting}
-                        inputMode="decimal"
-                    />
-                    <FieldError message={fieldErrors.distanceFromClinicKm} />
-                </label>
+                <p className="text-sm text-slate-600">
+                    Travel distance and estimated drive time will appear after the patient and
+                    clinic locations are verified.
+                </p>
             </FormSection>
 
             <FormSection title="Emergency Contact">
