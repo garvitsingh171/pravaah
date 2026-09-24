@@ -251,6 +251,7 @@ function AppLayout({ initialSetup }: AppLayoutProps) {
                     <main
                         ref={mainScrollRef}
                         id="main-content"
+                        data-workspace-scroll-container="true"
                         className="min-h-0 min-w-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4 md:px-6 md:py-5"
                     >
                         <div className="mx-auto w-full max-w-screen-2xl">

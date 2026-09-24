@@ -58,7 +58,14 @@ function ConfirmationDialog({
         previouslyFocusedElementRef.current =
             document.activeElement instanceof HTMLElement ? document.activeElement : null;
         const previousOverflow = document.body.style.overflow;
+        const workspaceScrollContainer = document.querySelector<HTMLElement>(
+            '[data-workspace-scroll-container="true"]'
+        );
+        const previousWorkspaceOverflow = workspaceScrollContainer?.style.overflow ?? null;
         document.body.style.overflow = 'hidden';
+        if (workspaceScrollContainer) {
+            workspaceScrollContainer.style.overflow = 'hidden';
+        }
         cancelButtonRef.current?.focus();
 
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -101,6 +108,9 @@ function ConfirmationDialog({
 
         return () => {
             document.body.style.overflow = previousOverflow;
+            if (workspaceScrollContainer) {
+                workspaceScrollContainer.style.overflow = previousWorkspaceOverflow ?? '';
+            }
             document.removeEventListener('keydown', handleKeyDown);
             previouslyFocusedElementRef.current?.focus();
         };
