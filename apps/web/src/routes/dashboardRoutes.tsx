@@ -11,6 +11,7 @@ const AppointmentsPage = lazy(() => import('../features/appointments/Appointment
 const QueuePage = lazy(() => import('../features/queues/QueuePage'));
 const ClinicSettingsPage = lazy(() => import('../features/clinics/ClinicSettingsPage'));
 const StaffManagementPage = lazy(() => import('../features/staff/StaffManagementPage'));
+const ProfilePage = lazy(() => import('../features/profile/ProfilePage'));
 
 export const appRoutePaths = {
     dashboard: '/dashboard',
@@ -22,6 +23,7 @@ export const appRoutePaths = {
     queue: '/queue',
     clinicSettings: '/clinic-settings',
     staff: '/staff',
+    profile: '/profile',
 } as const;
 
 export type AppRoute = {
@@ -122,6 +124,14 @@ export const dashboardRoutes: AppRoute[] = [
         showInNavigation: true,
         allowedRoles: [UserRole.ADMIN],
     },
+    {
+        path: appRoutePaths.profile,
+        title: 'Profile',
+        navigationDescription: 'Account and access',
+        navigationIcon: 'staff',
+        element: <ProfilePage />,
+        showInNavigation: false,
+    },
 ];
 
 const notFoundRoute: AppRoute = {
@@ -162,4 +172,10 @@ export const getRouteForPath = (path: string): AppRoute => {
     const normalizedPath = normalizeRoutePath(path);
 
     return dashboardRoutes.find((route) => route.path === normalizedPath) ?? notFoundRoute;
+};
+
+export const isProtectedWorkspacePath = (path: string): boolean => {
+    return dashboardRoutes.some(
+        (route) => route.path !== '*' && (path === route.path || path.startsWith(`${route.path}/`))
+    );
 };

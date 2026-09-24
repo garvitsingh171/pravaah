@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { PravaahLogoLink } from '../brand';
 import type { AppRoute } from '../../routes/dashboardRoutes';
@@ -111,12 +112,19 @@ function WorkspaceNavigation({
                     >
                         {({ isActive }) => (
                             <>
-                                <span
-                                    className={`absolute left-1 h-6 w-1 rounded-full transition ${
-                                        isActive ? 'bg-brand' : 'bg-transparent'
-                                    }`}
-                                    aria-hidden="true"
-                                />
+                                {isActive ? (
+                                    <motion.span
+                                        layoutId={`workspace-active-indicator-${surface}`}
+                                        transition={{ duration: 0.18 }}
+                                        className="absolute left-1 h-6 w-1 rounded-full bg-brand"
+                                        aria-hidden="true"
+                                    />
+                                ) : (
+                                    <span
+                                        className="absolute left-1 h-6 w-1 rounded-full bg-transparent"
+                                        aria-hidden="true"
+                                    />
+                                )}
                                 <span
                                     className={`ml-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${
                                         isActive
@@ -282,76 +290,88 @@ function MobileWorkspaceNavigation({ navigationItems, clinicName, clinicMeta }: 
                 </button>
             </div>
 
-            {isOpen ? (
-                <div className="fixed inset-0 z-50 md:hidden" role="presentation">
-                    <button
-                        type="button"
-                        className="absolute inset-0 bg-slate-950/40"
-                        aria-label="Dismiss clinic navigation overlay"
-                        onClick={() => closeMenu()}
-                    />
-                    <aside
-                        ref={drawerRef}
-                        id="mobile-workspace-navigation"
-                        role="dialog"
-                        aria-modal="true"
-                        className="absolute inset-y-0 left-0 flex w-[min(22rem,calc(100vw-2rem))] flex-col overflow-y-auto border-r border-slate-200 bg-white shadow-xl"
-                        aria-label="Clinic workspace navigation menu"
-                        tabIndex={-1}
-                    >
-                        <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-4">
-                            <div className="min-w-0">
-                                <PravaahLogoLink
-                                    layout="horizontal"
-                                    surface="light"
-                                    size="sm"
-                                    onNavigate={() => closeMenu(false)}
-                                />
-                                <p className="mt-3 break-words text-sm font-semibold leading-5 text-slate-950">
-                                    {clinicName}
-                                </p>
-                                <p className="mt-1 break-words text-xs leading-5 text-slate-500">
-                                    {clinicMeta}
-                                </p>
-                            </div>
-                            <button
-                                ref={closeButtonRef}
-                                type="button"
-                                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
-                                aria-label="Close clinic navigation"
-                                onClick={() => closeMenu()}
-                            >
-                                <svg
-                                    className="h-5 w-5"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="1.8"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    aria-hidden="true"
-                                >
-                                    <path d="M18 6 6 18" />
-                                    <path d="m6 6 12 12" />
-                                </svg>
-                            </button>
-                        </div>
-                        <div className="flex-1 px-3 py-4">
-                            <WorkspaceNavigation
-                                navigationItems={navigationItems}
-                                onNavigate={() => closeMenu(false)}
-                            />
-                        </div>
-                    </aside>
-                </div>
-            ) : null}
+            <AnimatePresence initial={false}>
+                {isOpen
+                    ? [
+                          <motion.button
+                              key="mobile-navigation-overlay"
+                              type="button"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                              transition={{ duration: 0.22 }}
+                              className="fixed inset-0 z-50 bg-slate-950/40 md:hidden"
+                              aria-label="Dismiss clinic navigation overlay"
+                              onClick={() => closeMenu()}
+                          />,
+                          <motion.aside
+                              key="mobile-navigation-drawer"
+                              initial={{ x: '-100%' }}
+                              animate={{ x: 0 }}
+                              exit={{ x: '-100%' }}
+                              transition={{ duration: 0.24, ease: [0.2, 0.8, 0.2, 1] }}
+                              ref={drawerRef}
+                              id="mobile-workspace-navigation"
+                              role="dialog"
+                              aria-modal="true"
+                              className="fixed inset-y-0 left-0 z-[51] flex w-[min(22rem,calc(100vw-2rem))] flex-col md:hidden overflow-y-auto border-r border-slate-200 bg-white shadow-xl"
+                              aria-label="Clinic workspace navigation menu"
+                              tabIndex={-1}
+                          >
+                              <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-4">
+                                  <div className="min-w-0">
+                                      <PravaahLogoLink
+                                          layout="horizontal"
+                                          surface="light"
+                                          size="sm"
+                                          onNavigate={() => closeMenu(false)}
+                                      />
+                                      <p className="mt-3 break-words text-sm font-semibold leading-5 text-slate-950">
+                                          {clinicName}
+                                      </p>
+                                      <p className="mt-1 break-words text-xs leading-5 text-slate-500">
+                                          {clinicMeta}
+                                      </p>
+                                  </div>
+                                  <button
+                                      ref={closeButtonRef}
+                                      type="button"
+                                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
+                                      aria-label="Close clinic navigation"
+                                      onClick={() => closeMenu()}
+                                  >
+                                      <svg
+                                          className="h-5 w-5"
+                                          viewBox="0 0 24 24"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          strokeWidth="1.8"
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          aria-hidden="true"
+                                      >
+                                          <path d="M18 6 6 18" />
+                                          <path d="m6 6 12 12" />
+                                      </svg>
+                                  </button>
+                              </div>
+                              <div className="flex-1 px-3 py-4">
+                                  <WorkspaceNavigation
+                                      navigationItems={navigationItems}
+                                      onNavigate={() => closeMenu(false)}
+                                  />
+                              </div>
+                          </motion.aside>,
+                      ]
+                    : null}
+            </AnimatePresence>
         </div>
     );
 }
 
 function Sidebar({ navigationItems, clinicName, clinicMeta }: SidebarProps) {
     return (
-        <aside className="hidden bg-slate-950 text-white md:flex md:min-h-screen md:w-64 md:shrink-0 md:flex-col">
+        <aside className="hidden h-full bg-slate-950 text-white md:flex md:w-64 md:shrink-0 md:flex-col">
             <div className="px-4 py-4 md:px-5 md:py-6">
                 <PravaahLogoLink layout="horizontal" surface="dark" size="md" />
                 <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-brand">
@@ -368,7 +388,7 @@ function Sidebar({ navigationItems, clinicName, clinicMeta }: SidebarProps) {
                 </div>
             </div>
 
-            <div className="flex-1 px-3 pb-4">
+            <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
                 <WorkspaceNavigation navigationItems={navigationItems} surface="dark" />
             </div>
         </aside>

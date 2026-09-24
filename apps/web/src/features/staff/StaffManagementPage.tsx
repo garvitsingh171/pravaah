@@ -294,7 +294,6 @@ function StaffManagementPage() {
         <div className="space-y-6">
             <PageHeader
                 eyebrow="Admin workspace"
-                title="Staff management"
                 description="Invite Staff into this clinic, manage access, and review invitation history."
             />
 

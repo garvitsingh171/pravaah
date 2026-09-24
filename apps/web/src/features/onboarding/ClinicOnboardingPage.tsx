@@ -1,10 +1,11 @@
 import { useAuth, useClerk } from '@clerk/react';
+import { motion } from 'motion/react';
 import type { FormEvent, ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { PravaahLogoLink } from '../../components/brand';
 import { ErrorMessage, FieldError, LoadingState, useToast } from '../../components/feedback';
-import { Badge, fieldControlClassName } from '../../components/ui';
+import { fieldControlClassName } from '../../components/ui';
 import { isApiClientError } from '../../lib';
 import { dashboardRoutes, defaultDashboardPath } from '../../routes/dashboardRoutes';
 import {
@@ -326,13 +327,18 @@ function FormSection({
     children: ReactNode;
 }) {
     return (
-        <section className="space-y-4 border-b border-slate-200 pb-6 last:border-b-0 last:pb-0">
+        <motion.section
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
+            className="space-y-4 rounded-xl border border-slate-200/80 bg-white/70 p-5 shadow-[0_4px_18px_rgba(15,23,42,0.03)] last:border-b-0 last:pb-5 sm:p-6"
+        >
             <div>
                 <h2 className="text-base font-semibold text-slate-950">{title}</h2>
                 <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p>
             </div>
             <div className="grid gap-5 md:grid-cols-2">{children}</div>
-        </section>
+        </motion.section>
     );
 }
 
@@ -407,43 +413,124 @@ function OnboardingPageShell({
     };
 
     return (
-        <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900">
-            <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-                <header className="flex flex-col gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-center sm:justify-between">
+        <motion.main
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4 }}
+            className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(20,184,166,0.16),_transparent_36%),linear-gradient(135deg,_#eff8f7_0%,_#f8fafc_52%,_#e9f0f5_100%)] px-4 py-5 text-slate-900 sm:py-8"
+        >
+            <div
+                className="pointer-events-none absolute -left-24 top-32 h-64 w-64 rounded-full bg-teal-300/20 blur-3xl"
+                aria-hidden="true"
+            />
+            <div
+                className="pointer-events-none absolute -right-24 bottom-16 h-72 w-72 rounded-full bg-sky-300/20 blur-3xl"
+                aria-hidden="true"
+            />
+            <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-6">
+                <motion.header
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.35, delay: 0.05 }}
+                    className="flex flex-col gap-4 rounded-2xl border border-white/80 bg-white/90 px-4 py-4 shadow-[var(--shadow-soft)] backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-6"
+                >
                     <PravaahLogoLink layout="horizontal" surface="light" size="sm">
                         <span className="hidden text-base font-bold text-slate-950 sm:inline">
                             {eyebrow}
                         </span>
                     </PravaahLogoLink>
 
-                    <button
+                    <motion.button
                         type="button"
-                        className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-soft hover:bg-brand-subtle hover:text-brand-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action disabled:cursor-wait disabled:opacity-70 sm:w-auto"
+                        whileHover={{ y: -1 }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={{ duration: 0.16 }}
+                        className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-brand-soft hover:bg-brand-subtle hover:text-brand-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action disabled:cursor-wait disabled:opacity-70 sm:w-auto"
                         disabled={isSigningOut}
                         onClick={() => void handleSignOut()}
                     >
                         {isSigningOut ? 'Signing out...' : 'Sign out'}
-                    </button>
-                </header>
+                    </motion.button>
+                </motion.header>
 
-                <div className="rounded-lg border border-app-border bg-white p-4 shadow-sm">
-                    <div className="flex flex-wrap items-center gap-2">
-                        {onboardingProgressItems.map((item, index) => (
-                            <Badge key={item} tone={index === 1 ? 'brand' : 'neutral'}>
-                                {item}
-                            </Badge>
-                        ))}
+                <motion.section
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.35, delay: 0.12 }}
+                    className="rounded-2xl border border-white/80 bg-white/90 p-4 shadow-[var(--shadow-soft)] backdrop-blur sm:p-5"
+                    aria-labelledby="onboarding-progress-title"
+                >
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <p
+                                id="onboarding-progress-title"
+                                className="text-xs font-bold uppercase tracking-[0.18em] text-brand-foreground"
+                            >
+                                Setup path
+                            </p>
+                            <p className="mt-1 text-sm font-semibold text-slate-950">
+                                Build a workspace ready for the clinic day
+                            </p>
+                        </div>
+                        <span className="inline-flex w-fit items-center gap-2 rounded-full bg-brand-subtle px-3 py-1.5 text-xs font-bold text-brand-foreground ring-1 ring-brand-soft">
+                            <span
+                                className="h-1.5 w-1.5 rounded-full bg-brand"
+                                aria-hidden="true"
+                            />
+                            Step 2 of 3
+                        </span>
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-app-muted">
+                    <ol
+                        className="mt-5 grid gap-3 sm:grid-cols-3"
+                        aria-label="Clinic setup progress"
+                    >
+                        {onboardingProgressItems.map((item, index) => (
+                            <li key={item} aria-current={index === 1 ? 'step' : undefined}>
+                                <div
+                                    className={
+                                        index === 1
+                                            ? 'flex items-center gap-3 rounded-xl border border-brand-soft bg-brand-subtle px-3 py-3 transition'
+                                            : index < 1
+                                              ? 'flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 transition'
+                                              : 'flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 transition'
+                                    }
+                                >
+                                    <span
+                                        className={
+                                            index === 1
+                                                ? 'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-xs font-bold text-slate-950 shadow-sm'
+                                                : index < 1
+                                                  ? 'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white'
+                                                  : 'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-xs font-bold text-slate-400 ring-1 ring-slate-200'
+                                        }
+                                    >
+                                        {index < 1 ? '✓' : index + 1}
+                                    </span>
+                                    <span
+                                        className={
+                                            index === 1
+                                                ? 'text-sm font-semibold text-brand-foreground'
+                                                : index < 1
+                                                  ? 'text-sm font-semibold text-emerald-800'
+                                                  : 'text-sm font-semibold text-slate-500'
+                                        }
+                                    >
+                                        {item}
+                                    </span>
+                                </div>
+                            </li>
+                        ))}
+                    </ol>
+                    <p className="mt-4 max-w-3xl text-sm leading-6 text-app-muted">
                         Pravaah keeps identity, clinic creation, and workspace access separate so
                         recovery states can be handled without guessing operational roles in the
                         browser.
                     </p>
-                </div>
+                </motion.section>
 
                 {children}
             </div>
-        </main>
+        </motion.main>
     );
 }
 
@@ -683,13 +770,16 @@ function ClinicOnboardingForm({
                     clinic is created.
                 </p>
 
-                <button
+                <motion.button
                     type="submit"
-                    className="rounded-md bg-action px-4 py-2 text-sm font-semibold text-white transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-action-soft"
+                    whileHover={isSubmitting ? undefined : { y: -1 }}
+                    whileTap={isSubmitting ? undefined : { scale: 0.98 }}
+                    transition={{ duration: 0.16 }}
+                    className="rounded-lg bg-action px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-action-soft"
                     disabled={isSubmitting}
                 >
                     {isSubmitting ? 'Creating clinic...' : 'Create clinic workspace'}
-                </button>
+                </motion.button>
             </div>
         </form>
     );
@@ -707,7 +797,12 @@ function SampleDataDecisionPanel({
     const isProvisioning = state.status === 'provisioning';
 
     return (
-        <section className="mx-auto grid w-full max-w-5xl gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-start">
+        <motion.section
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="mx-auto grid w-full max-w-5xl gap-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-start"
+        >
             <div className="space-y-5">
                 <div>
                     <p className="text-sm font-semibold uppercase text-brand-foreground">
@@ -728,7 +823,12 @@ function SampleDataDecisionPanel({
                 </div>
             </div>
 
-            <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+            <motion.div
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.35, delay: 0.12 }}
+                className="rounded-2xl border border-white/80 bg-white/95 p-5 shadow-[var(--shadow-raised)] ring-1 ring-slate-200/50 md:p-7"
+            >
                 {state.status === 'error' && state.error ? (
                     <div className="mb-5">
                         <ErrorMessage
@@ -780,8 +880,8 @@ function SampleDataDecisionPanel({
                         {isProvisioning ? 'Adding sample data...' : 'Add fictional sample data'}
                     </button>
                 </div>
-            </div>
-        </section>
+            </motion.div>
+        </motion.section>
     );
 }
 
@@ -1179,8 +1279,13 @@ function ClinicOnboardingPage() {
 
     return (
         <OnboardingPageShell>
-            <section className="grid gap-6 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)] lg:items-start">
-                <div className="space-y-6">
+            <section className="grid gap-8 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)] lg:items-start">
+                <motion.div
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.4, delay: 0.16 }}
+                    className="space-y-6"
+                >
                     <div>
                         <p className="text-sm font-semibold uppercase text-brand-foreground">
                             Clinic bootstrap
@@ -1194,26 +1299,58 @@ function ClinicOnboardingPage() {
                         </p>
                     </div>
 
-                    <div className="rounded-lg border border-slate-200 bg-white p-5">
+                    <div className="rounded-2xl border border-white/80 bg-white/85 p-5 shadow-[var(--shadow-soft)] backdrop-blur">
                         <h2 className="text-base font-bold text-slate-950">What happens next</h2>
                         <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
-                            <li>
-                                Pravaah uses your current Clerk identity as the trusted account.
+                            <li className="flex items-start gap-3">
+                                <span
+                                    className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700"
+                                    aria-hidden="true"
+                                >
+                                    ✓
+                                </span>
+                                <span>
+                                    Pravaah uses your current Clerk identity as the trusted account.
+                                </span>
                             </li>
-                            <li>The backend creates the clinic and first Admin together.</li>
-                            <li>
-                                Role, status, user ID, and clinic ownership are never chosen here.
+                            <li className="flex items-start gap-3">
+                                <span
+                                    className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700"
+                                    aria-hidden="true"
+                                >
+                                    ✓
+                                </span>
+                                <span>
+                                    The backend creates the clinic and first Admin together.
+                                </span>
+                            </li>
+                            <li className="flex items-start gap-3">
+                                <span
+                                    className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700"
+                                    aria-hidden="true"
+                                >
+                                    ✓
+                                </span>
+                                <span>
+                                    Role, status, user ID, and clinic ownership are never chosen
+                                    here.
+                                </span>
                             </li>
                         </ul>
                     </div>
 
-                    <div className="rounded-lg border border-[var(--color-status-success-border)] bg-[var(--color-status-success-bg)] p-5 text-sm leading-6 text-[var(--color-status-success-text)]">
+                    <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/80 p-5 text-sm leading-6 text-emerald-800 shadow-[var(--shadow-soft)]">
                         Entered values stay on the page if validation or a recoverable server error
                         occurs, so you can correct only the fields that need attention.
                     </div>
-                </div>
+                </motion.div>
 
-                <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+                <motion.div
+                    initial={{ opacity: 0, x: 12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.4, delay: 0.22 }}
+                    className="rounded-2xl border border-white/80 bg-white/95 p-5 shadow-[var(--shadow-raised)] ring-1 ring-slate-200/50 md:p-7 lg:sticky lg:top-6"
+                >
                     {formError ? (
                         <div className="mb-6">
                             <ErrorMessage
@@ -1232,7 +1369,7 @@ function ClinicOnboardingPage() {
                         onChange={handleChange}
                         onSubmit={handleSubmit}
                     />
-                </div>
+                </motion.div>
             </section>
         </OnboardingPageShell>
     );

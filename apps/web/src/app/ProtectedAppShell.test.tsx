@@ -94,6 +94,7 @@ function renderShell(route = '/dashboard?tab=today#risk') {
                 <Route path="/appointments" element={<h1>Appointments</h1>} />
                 <Route path="/queue" element={<h1>Queue</h1>} />
                 <Route path="/clinic-settings" element={<h1>Clinic Settings</h1>} />
+                <Route path="/profile" element={<h1>Profile destination</h1>} />
             </Route>
             <Route path="/login" element={<LocationState />} />
             <Route path="/onboarding/clinic" element={<LocationState />} />
@@ -313,6 +314,24 @@ describe('ProtectedAppShell', () => {
         await user.keyboard('{Escape}');
         await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
         expect(trigger).toHaveFocus();
+    });
+
+    it('navigates from the account menu to the profile page', async () => {
+        const user = userEvent.setup();
+        setClerkSignedIn();
+        mockGetOnboardingStatus.mockResolvedValue(completedAdminOnboarding);
+
+        renderShell('/dashboard');
+
+        expect(
+            await screen.findByRole('heading', { name: /protected dashboard/i })
+        ).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: /test admin/i }));
+        await user.click(screen.getByRole('menuitem', { name: /^profile$/i }));
+
+        expect(
+            await screen.findByRole('heading', { name: /profile destination/i })
+        ).toBeInTheDocument();
     });
 
     it('renders incomplete setup progress and lets users dismiss it for the session', async () => {
