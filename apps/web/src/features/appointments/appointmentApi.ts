@@ -9,6 +9,7 @@ import {
     type DoctorSummary,
     type PatientSummary,
     type QueueEntrySummary,
+    type PredictionGenerationSource,
     type RiskLevel,
     type UserRole,
 } from '../../types';
@@ -30,7 +31,10 @@ export type AppointmentNoShowPrediction = {
     riskScore?: number;
     reasons: unknown[];
     suggestedActions?: string[];
-    modelVersion?: string;
+    ruleVersion?: string | null;
+    featureSchemaVersion?: string | null;
+    generationSource?: PredictionGenerationSource;
+    modelVersion?: string | null;
     generatedAt?: string;
     createdAt?: string;
     updatedAt?: string;

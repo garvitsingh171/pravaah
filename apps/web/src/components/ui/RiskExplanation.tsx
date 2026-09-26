@@ -1,4 +1,4 @@
-import type { RiskLevel } from '../../types';
+import type { PredictionGenerationSource, RiskLevel } from '../../types';
 import Badge from './Badge';
 import RiskBadge from './RiskBadge';
 
@@ -14,7 +14,10 @@ export type RiskPredictionLike = {
     riskScore?: number;
     reasons?: unknown[];
     suggestedActions?: unknown;
-    modelVersion?: string;
+    ruleVersion?: string | null;
+    featureSchemaVersion?: string | null;
+    generationSource?: PredictionGenerationSource;
+    modelVersion?: string | null;
     generatedAt?: string;
     createdAt?: string;
 };
@@ -102,6 +105,7 @@ function RiskExplanation({ prediction, subjectName, compact = false }: RiskExpla
     const reasonMessages = getReasonMessages(prediction.reasons);
     const suggestedActions = getSuggestedActions(prediction.suggestedActions);
     const generatedAt = formatGeneratedAt(prediction.generatedAt ?? prediction.createdAt);
+    const ruleVersion = prediction.ruleVersion ?? prediction.modelVersion ?? null;
 
     return (
         <details className="group rounded-lg border border-app-border bg-white p-4 text-sm shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
@@ -125,11 +129,9 @@ function RiskExplanation({ prediction, subjectName, compact = false }: RiskExpla
                         This is rule-based appointment-flow support. It is not a diagnosis and it
                         does not automatically cancel, contact, or reorder anything.
                     </p>
-                    {generatedAt || prediction.modelVersion ? (
+                    {generatedAt || ruleVersion ? (
                         <p className="mt-2 text-xs">
-                            {prediction.modelVersion
-                                ? `Rule version: ${prediction.modelVersion}.`
-                                : ''}
+                            {ruleVersion ? `Rule version: ${ruleVersion}.` : ''}
                             {generatedAt ? ` Generated ${generatedAt}.` : ''}
                         </p>
                     ) : null}

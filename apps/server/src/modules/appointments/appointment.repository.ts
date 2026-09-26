@@ -61,6 +61,10 @@ const noShowPredictionBookingSelect = {
     riskLevel: true,
     score: true,
     reasons: true,
+    featureSchemaVersion: true,
+    featureSnapshot: true,
+    ruleVersion: true,
+    generationSource: true,
     createdAt: true,
     updatedAt: true,
 } satisfies Prisma.NoShowPredictionSelect;
@@ -114,8 +118,10 @@ const appointmentDetailsInclude = {
             completedAt: true,
         },
     },
-    noShowPrediction: {
+    noShowPredictions: {
         select: noShowPredictionBookingSelect,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 1,
     },
 } satisfies Prisma.AppointmentInclude;
 
@@ -774,6 +780,11 @@ export const appointmentRepository = {
                 patientId,
                 riskLevel: prediction.riskLevel,
                 score: prediction.score,
+                featureSchemaVersion: prediction.featureSchemaVersion ?? null,
+                featureSnapshot: prediction.featureSnapshot ?? null,
+                ruleVersion: prediction.ruleVersion ?? null,
+                generationSource: prediction.generationSource ?? 'APPOINTMENT_CREATION',
+                runKey: prediction.runKey ?? `baseline:${appointmentId}`,
                 reasons: prediction.reasons,
             },
             select: noShowPredictionBookingSelect,

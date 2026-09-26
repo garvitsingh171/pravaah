@@ -356,7 +356,7 @@ erDiagram
     Clinic ||--o{ AppointmentActivity : owns
     User ||--o{ AppointmentActivity : performs
     Appointment ||--o| QueueEntry : has
-    Appointment ||--o| NoShowPrediction : has
+    Appointment ||--o{ NoShowPrediction : has
     Clinic ||--o{ QueueEntry : owns
     Patient ||--o{ NoShowPrediction : has
 ```
@@ -375,7 +375,7 @@ Model summary:
 | `Appointment`              | Scheduled visit.                   | clinic, doctor, patient, creator, scheduledAt, duration, status, visit reason/notes, terminal reason/note, arrival snapshot.     | Partial unique active doctor/time index; many query indexes.               | Rescheduling keeps doctor/patient/duration fixed.      |
 | `AppointmentActivity`      | Append-only operational event.     | appointment, clinic, optional actor, explicit type, occurredAt, structured metadata.                                             | Restrict appointment/clinic deletion; actor `SetNull`; chronology indexes. | Legacy appointments may have partial/no history.       |
 | `QueueEntry`               | Daily queue record.                | unique appointment, clinic, doctor, patient, position, status, queued/called/completed times.                                    | Indexes by status, doctor/position, queuedAt.                              | Created during booking, including future appointments. |
-| `NoShowPrediction`         | Stored deterministic risk.         | unique appointment, clinic, patient, riskLevel, score, reasons JSON.                                                             | Indexes by clinic and patient.                                             | No persisted model version column.                     |
+| `NoShowPrediction`         | Stored deterministic risk.         | appointment, clinic, patient, score/risk/reasons, feature snapshot, feature/rule versions, provenance, and run key.                                                             | Indexes by clinic and patient.                                             | Legacy rows may have unknown snapshot/version metadata.                     |
 
 Terminal-reason capture stays inside the existing appointment/queue transactional lifecycle. Separate cancellation and no-show enums are validated at the API boundary. The guarded appointment compare-and-set writes status plus the applicable reason/note; its ownership flag gates patient statistics and enrichment of the existing terminal `AppointmentActivity`. No separate reason service, queue reason state, or audit stream exists.
 
@@ -463,7 +463,7 @@ Key protections:
 - unique `DoctorAvailabilityPeriod(doctorClinicId, weekday, startTime, endTime)`
 - unique `PatientClinic(patientId, clinicId)`
 - unique `QueueEntry.appointmentId`
-- unique `NoShowPrediction.appointmentId`
+- nullable unique baseline `runKey` for automatic baseline runs
 - partial unique appointment index on `(clinicId, doctorId, scheduledAt)` for active appointment statuses
 - indexes for clinic, status, role, doctor/date, patient/date, queue status, queue position, queued time, prediction clinic/patient
 
@@ -714,7 +714,7 @@ Rule behavior:
 - `MEDIUM` begins at 30 and `HIGH` begins at 60
 - response version is `starter-rule-v1`
 
-Storage: `NoShowPrediction` stores appointment, clinic, patient, risk level, score, JSON reasons, and timestamps. Suggested actions and version are response-layer fields. There is no trained model, no accuracy claim, and no automatic action.
+Storage: `NoShowPrediction` stores an immutable run with appointment, clinic, patient, risk level, score, reasons, feature snapshot, separate feature and rule versions, provenance, and timestamps. Suggested actions remain response-time guidance. There is no trained ML model, accuracy claim, or automatic action.
 
 ## Security Architecture
 
@@ -855,7 +855,7 @@ Browser-based E2E testing is intentionally absent. Manual workflow checks are re
 - No patient or doctor portal.
 - No notifications or reminder integrations.
 - No trained ML.
-- Limited prediction inputs and no stored model version field.
+- Limited prediction inputs; legacy rows may have unknown persisted version metadata.
 - Limited observability and no global security/configuration audit log; appointment operational activity is preserved.
 - No browser E2E suite.
 - Deployment verification gaps.

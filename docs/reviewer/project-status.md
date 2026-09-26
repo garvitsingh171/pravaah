@@ -57,7 +57,7 @@ Clinic setup
 -> Dashboard review
 ```
 
-No-show assistance is generated during appointment creation and can also be backfilled by dashboard reads. It stores a `NoShowPrediction` row with risk level, score, and reasons. Staff remain responsible for any operational decision.
+No-show assistance is generated during appointment creation and can also be backfilled by dashboard reads. It stores append-only `NoShowPrediction` runs with risk level, score, reasons, separate feature and rule versions, provenance, and an immutable normalized feature snapshot; operational responses use the latest run. Staff remain responsible for any operational decision.
 
 ## Release Rule
 

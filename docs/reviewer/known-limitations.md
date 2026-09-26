@@ -17,7 +17,7 @@ This document lists verified limitations and claim boundaries for reviewer, inte
 - Queue status and appointment status are synchronized in transactions, but no audit log records who made each operational decision.
 - Advisory locks are used for selected booking, queue positioning, queue reorder, and sample-data scopes. They should not be described as universal race-condition protection.
 - `PatientClinic` attendance counters are used by the risk logic but are not automatically updated by appointment or queue status changes in current source.
-- Dashboard summary and high-risk reads can backfill missing no-show predictions, so those reads may have a database side effect.
+- Dashboard summary and high-risk reads can backfill missing no-show predictions, so those reads may have a database side effect; backfill snapshots represent execution-time inputs and are not booking-time reconstruction.
 - Doctor updates verify clinic linkage but update the shared `Doctor` row, which matters if future multi-clinic doctor sharing is introduced.
 
 ## Data And AI Limitations

@@ -11,6 +11,9 @@ CREATE TYPE "RoutingMode" AS ENUM ('DRIVE');
 CREATE TYPE "RoutingTrafficModel" AS ENUM ('FREE_FLOW');
 
 -- AlterTable
+ALTER TABLE "clinics" ADD COLUMN     "geocodingAttemptId" TEXT;
+
+-- AlterTable
 ALTER TABLE "patient_clinics" ADD COLUMN     "estimatedTravelTimeMinutes" INTEGER,
 ADD COLUMN     "routedAt" TIMESTAMP(3),
 ADD COLUMN     "routingAttemptId" TEXT,
@@ -19,3 +22,6 @@ ADD COLUMN     "routingProvider" "RoutingProvider",
 ADD COLUMN     "routingSourceHash" TEXT,
 ADD COLUMN     "routingStatus" "RoutingStatus" NOT NULL DEFAULT 'NOT_CALCULATED',
 ADD COLUMN     "routingTrafficModel" "RoutingTrafficModel";
+
+-- AlterTable
+ALTER TABLE "patients" ADD COLUMN     "geocodingAttemptId" TEXT;
