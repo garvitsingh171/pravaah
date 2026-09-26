@@ -903,7 +903,9 @@ function PredictionDetailPanel({ appointment }: { appointment: AppointmentListIt
                         Rule version
                     </dt>
                     <dd className="mt-1 text-sm font-semibold text-slate-900">
-                        {prediction.modelVersion?.trim() || 'Not available'}
+                        {prediction.ruleVersion?.trim() ||
+                            prediction.modelVersion?.trim() ||
+                            'Not available'}
                     </dd>
                 </div>
                 <div className="rounded-md border border-slate-200 bg-white p-3">

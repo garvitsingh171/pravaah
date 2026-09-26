@@ -6,6 +6,10 @@ const noShowPredictionDashboardSelect = {
     riskLevel: true,
     score: true,
     reasons: true,
+    featureSchemaVersion: true,
+    featureSnapshot: true,
+    ruleVersion: true,
+    generationSource: true,
     createdAt: true,
     updatedAt: true,
 } satisfies Prisma.NoShowPredictionSelect;
@@ -36,8 +40,10 @@ const appointmentDetailsSelect = {
             age: true,
         },
     },
-    noShowPrediction: {
+    noShowPredictions: {
         select: noShowPredictionDashboardSelect,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 1,
     },
 } satisfies Prisma.AppointmentSelect;
 
@@ -126,6 +132,33 @@ const getClinicDateRange = async (date: string, clinicTimezone: string) => {
     return dateRange;
 };
 
+const findLatestPredictionAppointmentIds = async (
+    clinicId: string,
+    dateRange: { start: Date; end: Date },
+    riskLevel?: RiskLevel
+): Promise<string[]> => {
+    const riskFilter = riskLevel ? Prisma.sql`AND latest."riskLevel" = ${riskLevel}` : Prisma.empty;
+    const rows = await prisma.$queryRaw<Array<{ appointmentId: string }>>`
+        SELECT latest."appointmentId"
+        FROM (
+            SELECT DISTINCT ON (prediction."appointmentId")
+                prediction."appointmentId",
+                prediction."riskLevel"
+            FROM "no_show_predictions" prediction
+            JOIN "appointments" appointment
+                ON appointment."id" = prediction."appointmentId"
+            WHERE appointment."clinicId" = ${clinicId}
+              AND appointment."scheduledAt" >= ${dateRange.start}
+              AND appointment."scheduledAt" < ${dateRange.end}
+              AND appointment."status" IN (${Prisma.join(activeAppointmentStatuses)})
+            ORDER BY prediction."appointmentId", prediction."createdAt" DESC, prediction."id" DESC
+        ) latest
+        WHERE 1 = 1 ${riskFilter}
+    `;
+
+    return rows.map((row) => row.appointmentId);
+};
+
 export const dashboardRepository = {
     getClinicDateRange,
 
@@ -186,24 +219,29 @@ export const dashboardRepository = {
             return [];
         }
 
-        return prisma.noShowPrediction.groupBy({
-            by: ['riskLevel'],
-            where: {
-                clinicId,
-                appointment: {
-                    scheduledAt: {
-                        gte: dateRange.start,
-                        lt: dateRange.end,
-                    },
-                    status: {
-                        in: activeAppointmentStatuses,
-                    },
-                },
-            },
-            _count: {
-                riskLevel: true,
-            },
-        });
+        const rows = await prisma.$queryRaw<Array<{ riskLevel: RiskLevel; count: number }>>`
+            WITH latest_predictions AS (
+                SELECT DISTINCT ON (prediction."appointmentId")
+                    prediction."appointmentId",
+                    prediction."riskLevel"
+                FROM "no_show_predictions" prediction
+                JOIN "appointments" appointment
+                    ON appointment."id" = prediction."appointmentId"
+                WHERE appointment."clinicId" = ${clinicId}
+                  AND appointment."scheduledAt" >= ${dateRange.start}
+                  AND appointment."scheduledAt" < ${dateRange.end}
+                  AND appointment."status" IN (${Prisma.join(activeAppointmentStatuses)})
+                ORDER BY prediction."appointmentId", prediction."createdAt" DESC, prediction."id" DESC
+            )
+            SELECT "riskLevel", COUNT(*)::int AS "count"
+            FROM latest_predictions
+            GROUP BY "riskLevel"
+        `;
+
+        return rows.map((row) => ({
+            riskLevel: row.riskLevel,
+            _count: { riskLevel: Number(row.count) },
+        }));
     },
 
     async findAppointmentsMissingNoShowPrediction(
@@ -227,7 +265,7 @@ export const dashboardRepository = {
                 status: {
                     in: activeAppointmentStatuses,
                 },
-                noShowPrediction: null,
+                noShowPredictions: { none: {} },
             },
             select: {
                 id: true,
@@ -289,10 +327,12 @@ export const dashboardRepository = {
                 status: {
                     in: activeAppointmentStatuses,
                 },
-                noShowPrediction: {
-                    is: {
-                        riskLevel: RiskLevel.HIGH,
-                    },
+                id: {
+                    in: await findLatestPredictionAppointmentIds(
+                        clinicId,
+                        dateRange,
+                        RiskLevel.HIGH
+                    ),
                 },
             },
             select: appointmentDetailsSelect,

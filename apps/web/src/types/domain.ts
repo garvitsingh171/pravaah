@@ -11,6 +11,8 @@ import type {
     Weekday,
 } from './enums';
 
+export type PredictionGenerationSource = 'APPOINTMENT_CREATION' | 'BACKFILL' | 'LEGACY_EXISTING';
+
 export type BaseEntity = {
     id: string;
     createdAt: string;
@@ -177,6 +179,9 @@ export type NoShowPredictionSummary = BaseEntity & {
     riskScore?: number;
     riskLevel: RiskLevel;
     reasons: string[];
-    modelVersion?: string;
+    ruleVersion?: string | null;
+    featureSchemaVersion?: string | null;
+    generationSource?: PredictionGenerationSource;
+    modelVersion?: string | null;
     generatedAt?: string;
 };

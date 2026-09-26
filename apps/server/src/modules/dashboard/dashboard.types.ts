@@ -98,7 +98,8 @@ export type HighRiskAppointmentCandidate = {
     reason: string | null;
     doctor: DashboardDoctorDetails;
     patient: DashboardPatientDetails;
-    noShowPrediction: StoredNoShowPredictionForResponse | null;
+    noShowPredictions?: StoredNoShowPredictionForResponse[];
+    noShowPrediction?: StoredNoShowPredictionForResponse | null;
 };
 
 export type DashboardHighRiskAppointment = {

@@ -869,13 +869,11 @@ LOW = 0..29, MEDIUM = 30..59, HIGH = 60..100
 return reasons and human suggested actions
 ```
 
-The stored model has score, level, reasons JSON, clinic, patient, and appointment.
-Suggested actions and `modelVersion` are added in response mapping. The system is
+The stored run has score, level, reasons JSON, clinic, patient, appointment, feature snapshot, separate feature and rule versions, and provenance. Suggested actions are added in response mapping and `modelVersion` is only a compatibility alias. The system is
 not trained ML, not diagnosis, not automatic cancellation, and not automatic queue
 optimization.
 
 ### Dashboard And Setup Status
-
 Dashboard summary and high-risk endpoints verify clinic access, choose a clinic-local
 date, backfill missing predictions for the selected date, then aggregate appointment
 status counts, queue status counts, and risk level counts. Today activity combines
@@ -938,7 +936,7 @@ erDiagram
     Patient ||--o{ Appointment : books
     User ||--o{ Appointment : creates
     Appointment ||--o| QueueEntry : has
-    Appointment ||--o| NoShowPrediction : has
+    Appointment ||--o{ NoShowPrediction : has
     Clinic ||--o{ QueueEntry : owns
     Doctor ||--o{ QueueEntry : owns
     Patient ||--o{ QueueEntry : owns
@@ -957,7 +955,7 @@ erDiagram
 | `PatientClinic`            | Clinic-specific event-maintained patient aggregates and metadata. | unique `(patientId, clinicId)`; indexes clinic/patient/active.                                                            | `isActive`; cascades from patient/clinic.                       |
 | `Appointment`              | Scheduled visit.                                                  | indexes clinic/date, clinic/doctor/date, clinic/patient/date, clinic/status; migration partial unique active doctor slot. | final statuses preserve history; restrict deletion.             |
 | `QueueEntry`               | Queue state/position.                                             | unique appointment; indexes clinic/status, clinic/doctor/position, clinic/queuedAt.                                       | final statuses preserve history; restrict deletion.             |
-| `NoShowPrediction`         | Stored deterministic risk.                                        | unique appointment; indexes clinic/patient.                                                                               | restrict deletion.                                              |
+| `NoShowPrediction`         | Stored deterministic risk.                                        | latest lookup `(appointmentId, createdAt)` plus clinic/patient indexes; nullable unique baseline `runKey`.                                                                               | restrict deletion.                                              |
 
 Enums: `UserRole`, `UserStatus`, `Gender`, `AppointmentStatus`, `QueueStatus`,
 `RiskLevel`, and `BookingSource`.
@@ -979,7 +977,7 @@ a Prisma `@@unique` because it is partial SQL.
 | Appointment status            | `Appointment`, mapped `QueueEntry`, `PatientClinic`              | Exact appointment compare-and-set, same-target retry classification, shared outcome writer. | Route-level lifecycle coverage can expand.         |
 | Queue status                  | `QueueEntry`, mapped `Appointment`, `PatientClinic`              | Appointment-first exact guards, queue guard, shared outcome writer.                         | Route-level lifecycle coverage can expand.         |
 | Queue reorder                 | `QueueEntry.position` rows                                       | Advisory lock by clinic/doctor/date, complete active-set validation, temporary positions.   | Needs owner test/manual evidence after fix.        |
-| Dashboard prediction backfill | `NoShowPrediction` rows                                          | Unique appointment constraint and duplicate skipping.                                       | Backfill inputs are less rich than booking inputs. |
+| Dashboard prediction backfill | `NoShowPrediction` rows | Nullable unique baseline `runKey` plus duplicate skipping makes concurrent reads idempotent. | Backfill snapshots reflect execution-time inputs and are not booking-time reconstruction. |
 
 ### Privacy And Data Boundaries
 
@@ -1044,7 +1042,7 @@ evidence commands for this issue.
 - Appointment conflict detection accounts for duration plus clinic buffer.
 - Queue entries are created during booking, including future appointments.
 - `PatientClinic` booking and attendance aggregates are event-maintained; no reconciliation/admin correction tool exists.
-- `NoShowPrediction` does not persist model version.
+- `NoShowPrediction` persists separate `ruleVersion` and `featureSchemaVersion` metadata for new runs; legacy rows retain unknown values when unprovable.
 - No OpenAPI generation, activity pagination, global security/configuration audit logging, monitoring, or browser E2E suite exists.
 
 ### Appointment operational activity implementation

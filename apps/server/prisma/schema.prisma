@@ -114,6 +114,12 @@ enum RiskLevel {
   HIGH
 }
 
+enum PredictionGenerationSource {
+  APPOINTMENT_CREATION
+  BACKFILL
+  LEGACY_EXISTING
+}
+
 enum BookingSource {
   RECEPTION
   PHONE
@@ -401,13 +407,13 @@ model Appointment {
   createdAt               DateTime                       @default(now())
   updatedAt               DateTime                       @updatedAt
 
-  clinic           Clinic                @relation(fields: [clinicId], references: [id], onDelete: Restrict)
-  doctor           Doctor                @relation(fields: [doctorId], references: [id], onDelete: Restrict)
-  patient          Patient               @relation(fields: [patientId], references: [id], onDelete: Restrict)
-  createdBy        User                  @relation("AppointmentCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
-  queueEntry       QueueEntry?
-  noShowPrediction NoShowPrediction?
-  activities       AppointmentActivity[]
+  clinic            Clinic                @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  doctor            Doctor                @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+  patient           Patient               @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  createdBy         User                  @relation("AppointmentCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  queueEntry        QueueEntry?
+  noShowPredictions NoShowPrediction[]
+  activities        AppointmentActivity[]
 
   @@index([clinicId, scheduledAt])
   @@index([clinicId, doctorId, scheduledAt])
@@ -461,20 +467,26 @@ model QueueEntry {
 }
 
 model NoShowPrediction {
-  id            String    @id @default(uuid()) @db.Uuid
-  appointmentId String    @unique @db.Uuid
-  clinicId      String    @db.Uuid
-  patientId     String    @db.Uuid
-  riskLevel     RiskLevel
-  score         Int
-  reasons       Json
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                   String                     @id @default(uuid()) @db.Uuid
+  appointmentId        String                     @db.Uuid
+  clinicId             String                     @db.Uuid
+  patientId            String                     @db.Uuid
+  featureSchemaVersion String?
+  featureSnapshot      Json?
+  ruleVersion          String?
+  generationSource     PredictionGenerationSource @default(LEGACY_EXISTING)
+  runKey               String?                    @unique
+  riskLevel            RiskLevel
+  score                Int
+  reasons              Json
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
 
   appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Restrict)
   clinic      Clinic      @relation(fields: [clinicId], references: [id], onDelete: Restrict)
   patient     Patient     @relation(fields: [patientId], references: [id], onDelete: Restrict)
 
+  @@index([appointmentId, createdAt])
   @@index([clinicId])
   @@index([patientId])
   @@map("no_show_predictions")
