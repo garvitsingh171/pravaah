@@ -2,7 +2,10 @@ import { AppointmentStatus, QueueStatus } from '../../generated/prisma/client.js
 import { AppError } from '../../utils/AppError.js';
 import { accessService } from '../auth/access.service.js';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
-import { toNoShowPredictionResponse } from '../predictions/prediction.service.js';
+import {
+    toLatestNoShowPrediction,
+    toNoShowPredictionResponse,
+} from '../predictions/prediction.service.js';
 import type { StoredNoShowPredictionForResponse } from '../predictions/prediction.types.js';
 import { isFinalQueueStatus, isQueueStatusTransitionAllowed } from './queue.lifecycle.js';
 import { queueRepository } from './queue.repository.js';
@@ -25,19 +28,23 @@ const queueStatusToAppointmentStatus: Record<QueueStatus, AppointmentStatus> = {
 
 type QueueEntryWithAppointmentPrediction = {
     appointment: {
-        noShowPrediction: StoredNoShowPredictionForResponse | null;
+        noShowPredictions?: StoredNoShowPredictionForResponse[];
+        noShowPrediction?: StoredNoShowPredictionForResponse | null;
     };
 };
 
 const withQueueNoShowPredictionResponse = <T extends QueueEntryWithAppointmentPrediction>(
     queueEntry: T
 ) => {
-    const { noShowPrediction, ...appointment } = queueEntry.appointment;
+    const { noShowPredictions, noShowPrediction, ...appointment } = queueEntry.appointment;
+    const latestPrediction = noShowPredictions
+        ? toLatestNoShowPrediction(noShowPredictions)
+        : (noShowPrediction ?? null);
 
     return {
         ...queueEntry,
         appointment,
-        noShowPrediction: toNoShowPredictionResponse(noShowPrediction),
+        noShowPrediction: toNoShowPredictionResponse(latestPrediction),
     };
 };
 

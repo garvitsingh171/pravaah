@@ -21,8 +21,8 @@
 | Database models       | `NoShowPrediction`, `Appointment`, `Patient`, `PatientClinic`                                                                                                |
 | Prisma operations     | `noShowPrediction.create`, `noShowPrediction.createMany({ skipDuplicates: true })`, response selects                                                         |
 | Transaction           | Booking prediction is inside appointment transaction. Dashboard backfill is not wrapped in a larger transaction                                              |
-| Concurrency control   | `NoShowPrediction.appointmentId` is unique; dashboard backfill uses `skipDuplicates`                                                                         |
-| State changes         | Stored `NoShowPrediction` rows; frontend display only                                                                                                        |
+| Concurrency control   | nullable unique baseline `runKey`; dashboard backfill uses `skipDuplicates`                                                                         |
+| State changes         | append-only `NoShowPrediction` runs; frontend displays only the latest run                                                                                                        |
 | Errors                | Prediction service does not throw domain errors; parent appointment/dashboard errors apply                                                                   |
 | Tests                 | `prediction.service.test.ts`, appointment/dashboard tests                                                                                                    |
 | Known gaps            | Stored predictions are not recalculated after later lifecycle events                                                                                         |
@@ -86,7 +86,7 @@ The score is clamped to `0..100`. Risk levels are:
 
 Response mapping adds:
 
-- `modelVersion: starter-rule-v1`
+- `ruleVersion: starter-rule-v1` is persisted on new runs; `modelVersion` is only a compatibility alias
 - `generatedAt`
 - human-readable suggested actions from `getSuggestedNoShowActions`
 
@@ -101,15 +101,15 @@ reads PatientClinic totalLateArrivals and distanceFromClinicKm
     ↓
 appointment transaction creates Appointment
     ↓
-prediction.service.ts -> predictNoShowRisk(...)
+prediction.service.ts -> normalizeNoShowPredictionFeatures(...) -> evaluateNoShowFeatureSnapshotV1(...)
     ↓
 appointment.repository.ts -> createNoShowPrediction(tx, clinicId, appointmentId, patientId, prediction)
     ↓
-tx.noShowPrediction.create({ riskLevel, score, reasons })
+tx.noShowPrediction.create({ metadata, riskLevel, score, reasons })
     ↓
 prediction.service.ts -> toNoShowPredictionResponse(storedPrediction)
     ↓
-frontend receives riskLevel, score, reasons, suggestedActions, modelVersion
+frontend receives riskLevel, score, reasons, suggestedActions, persisted ruleVersion, and provenance
 ```
 
 ## Dashboard Backfill Trace
@@ -126,7 +126,7 @@ dashboard.repository.ts -> findAppointmentsMissingNoShowPrediction()
     ↓
 dashboard.repository.ts -> countPatientAppointmentsByStatuses()
     ↓
-prediction.service.ts -> predictNoShowRisk(...)
+prediction.service.ts -> normalizeNoShowPredictionFeatures(...) -> evaluateNoShowFeatureSnapshotV1(...)
     ↓
 dashboard.repository.ts -> createNoShowPredictions(predictions)
     ↓

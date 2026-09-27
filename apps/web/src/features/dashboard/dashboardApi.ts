@@ -4,6 +4,7 @@ import type {
     BookingSource,
     DoctorSummary,
     PatientSummary,
+    PredictionGenerationSource,
     RiskLevel,
 } from '../../types';
 
@@ -68,7 +69,10 @@ export type DashboardNoShowPrediction = {
     score?: number;
     riskScore?: number;
     reasons: unknown[];
-    modelVersion?: string;
+    ruleVersion?: string | null;
+    featureSchemaVersion?: string | null;
+    generationSource?: PredictionGenerationSource;
+    modelVersion?: string | null;
     generatedAt?: string;
     createdAt?: string;
     updatedAt?: string;

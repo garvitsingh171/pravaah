@@ -710,6 +710,11 @@ export const clinicRepository = {
                             patientId: appointment.patientId,
                             riskLevel: prediction.riskLevel,
                             score: prediction.score,
+                            featureSchemaVersion: prediction.featureSchemaVersion,
+                            featureSnapshot: prediction.featureSnapshot,
+                            ruleVersion: prediction.ruleVersion,
+                            generationSource: 'APPOINTMENT_CREATION',
+                            runKey: `baseline:${appointment.id}`,
                             reasons: prediction.reasons,
                         },
                     });

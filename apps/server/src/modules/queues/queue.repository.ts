@@ -15,6 +15,10 @@ const noShowPredictionQueueSelect = {
     riskLevel: true,
     score: true,
     reasons: true,
+    featureSchemaVersion: true,
+    featureSnapshot: true,
+    ruleVersion: true,
+    generationSource: true,
     createdAt: true,
     updatedAt: true,
 } satisfies Prisma.NoShowPredictionSelect;
@@ -37,8 +41,10 @@ const queueEntryDetailsInclude = {
             arrivalOffsetMinutes: true,
             isLateArrival: true,
             lateArrivalGraceMinutes: true,
-            noShowPrediction: {
+            noShowPredictions: {
                 select: noShowPredictionQueueSelect,
+                orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+                take: 1,
             },
         },
     },

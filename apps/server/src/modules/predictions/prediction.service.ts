@@ -1,11 +1,15 @@
 import type {
+    NoShowFeatureSnapshotV1,
     NoShowPredictionInput,
     NoShowPredictionOutput,
     NoShowPredictionReason,
     NoShowPredictionResponse,
+    NoShowPredictionRun,
     NoShowRiskLevel,
+    PredictionGenerationSource,
     StoredNoShowPredictionForResponse,
 } from './prediction.types.js';
+import { NO_SHOW_FEATURE_SCHEMA_VERSION, NO_SHOW_RULE_VERSION } from './prediction.types.js';
 
 const MINIMUM_SCORE = 0;
 const MAXIMUM_SCORE = 100;
@@ -13,11 +17,41 @@ const MAXIMUM_SCORE = 100;
 const MEDIUM_RISK_SCORE = 30;
 const HIGH_RISK_SCORE = 60;
 
-const NO_SHOW_RULE_VERSION = 'starter-rule-v1';
 const SHORT_NOTICE_BOOKING_HOURS = 24;
 const LONG_ADVANCE_BOOKING_DAYS = 14;
 const MODERATE_DISTANCE_KM = 8;
 const LONG_DISTANCE_KM = 15;
+
+export const normalizeNoShowPredictionFeatures = (
+    input: NoShowPredictionInput
+): NoShowFeatureSnapshotV1 => ({
+    scheduledAt: input.scheduledAt.toISOString(),
+    bookedAt: input.bookedAt.toISOString(),
+    patientNoShowCount: input.patientNoShowCount ?? 0,
+    patientLateArrivalCount: input.patientLateArrivalCount ?? 0,
+    patientCompletedAppointmentCount: input.patientCompletedAppointmentCount ?? 0,
+    distanceFromClinicKm: input.distanceFromClinicKm ?? null,
+});
+
+export const isNoShowFeatureSnapshotV1 = (
+    snapshot: unknown
+): snapshot is NoShowFeatureSnapshotV1 => {
+    if (typeof snapshot !== 'object' || snapshot === null) {
+        return false;
+    }
+
+    const value = snapshot as Record<string, unknown>;
+
+    return (
+        Object.keys(value).length === 6 &&
+        typeof value.scheduledAt === 'string' &&
+        typeof value.bookedAt === 'string' &&
+        typeof value.patientNoShowCount === 'number' &&
+        typeof value.patientLateArrivalCount === 'number' &&
+        typeof value.patientCompletedAppointmentCount === 'number' &&
+        (value.distanceFromClinicKm === null || typeof value.distanceFromClinicKm === 'number')
+    );
+};
 
 const getHoursBetween = (from: Date, to: Date): number => {
     return (to.getTime() - from.getTime()) / (1000 * 60 * 60);
@@ -111,17 +145,22 @@ export const getSuggestedNoShowActions = (
     return [...new Set(suggestedActions)];
 };
 
-export const predictNoShowRisk = (input: NoShowPredictionInput): NoShowPredictionOutput => {
+const evaluateNoShowFeatureSnapshotV1 = (
+    snapshot: NoShowFeatureSnapshotV1
+): NoShowPredictionOutput => {
     let score = 0;
     const reasons: NoShowPredictionReason[] = [];
 
-    const hoursUntilAppointment = getHoursBetween(input.bookedAt, input.scheduledAt);
+    const hoursUntilAppointment = getHoursBetween(
+        new Date(snapshot.bookedAt),
+        new Date(snapshot.scheduledAt)
+    );
 
-    const patientNoShowCount = input.patientNoShowCount ?? 0;
-    const patientLateArrivalCount = input.patientLateArrivalCount ?? 0;
-    const patientCompletedAppointmentCount = input.patientCompletedAppointmentCount ?? 0;
+    const patientNoShowCount = snapshot.patientNoShowCount;
+    const patientLateArrivalCount = snapshot.patientLateArrivalCount;
+    const patientCompletedAppointmentCount = snapshot.patientCompletedAppointmentCount;
     const totalPastAppointments = patientNoShowCount + patientCompletedAppointmentCount;
-    const distanceFromClinicKm = input.distanceFromClinicKm ?? null;
+    const distanceFromClinicKm = snapshot.distanceFromClinicKm;
 
     if (patientNoShowCount >= 2) {
         score += 40;
@@ -228,6 +267,65 @@ export const predictNoShowRisk = (input: NoShowPredictionInput): NoShowPredictio
     };
 };
 
+const attachPredictionRunMetadata = (
+    output: NoShowPredictionOutput,
+    snapshot: NoShowFeatureSnapshotV1
+): NoShowPredictionOutput => {
+    Object.defineProperties(output, {
+        featureSchemaVersion: { value: NO_SHOW_FEATURE_SCHEMA_VERSION, enumerable: false },
+        featureSnapshot: { value: snapshot, enumerable: false },
+        ruleVersion: { value: NO_SHOW_RULE_VERSION, enumerable: false },
+    });
+
+    return output;
+};
+
+export const withNoShowPredictionRunProvenance = (
+    output: NoShowPredictionOutput,
+    generationSource: Exclude<PredictionGenerationSource, 'LEGACY_EXISTING'>,
+    runKey?: string | null
+): NoShowPredictionOutput => {
+    Object.defineProperties(output, {
+        generationSource: { value: generationSource, enumerable: false },
+        ...(runKey === undefined ? {} : { runKey: { value: runKey, enumerable: false } }),
+    });
+
+    return output;
+};
+
+export const predictNoShowRisk = (input: NoShowPredictionInput): NoShowPredictionOutput => {
+    const featureSnapshot = normalizeNoShowPredictionFeatures(input);
+
+    return attachPredictionRunMetadata(
+        evaluateNoShowFeatureSnapshotV1(featureSnapshot),
+        featureSnapshot
+    );
+};
+
+export const createNoShowPredictionRun = ({
+    input,
+    generationSource,
+    runKey,
+}: {
+    input: NoShowPredictionInput;
+    generationSource: Exclude<PredictionGenerationSource, 'LEGACY_EXISTING'>;
+    runKey?: string | null;
+}): NoShowPredictionRun => {
+    const featureSnapshot = normalizeNoShowPredictionFeatures(input);
+
+    return {
+        ...evaluateNoShowFeatureSnapshotV1(featureSnapshot),
+        featureSchemaVersion: NO_SHOW_FEATURE_SCHEMA_VERSION,
+        featureSnapshot,
+        ruleVersion: NO_SHOW_RULE_VERSION,
+        generationSource,
+        ...(runKey === undefined ? {} : { runKey }),
+    };
+};
+
+export const toLatestNoShowPrediction = <T>(predictions: T[] | null | undefined): T | null =>
+    predictions?.[0] ?? null;
+
 export function toNoShowPredictionResponse(
     prediction: StoredNoShowPredictionForResponse
 ): NoShowPredictionResponse;
@@ -242,6 +340,30 @@ export function toNoShowPredictionResponse(
         return null;
     }
 
+    const hasPersistedMetadata =
+        'ruleVersion' in prediction ||
+        'featureSchemaVersion' in prediction ||
+        'generationSource' in prediction;
+
+    if (!hasPersistedMetadata) {
+        return {
+            id: prediction.id,
+            riskLevel: prediction.riskLevel,
+            score: prediction.score,
+            reasons: Array.isArray(prediction.reasons) ? prediction.reasons : [],
+            suggestedActions: getSuggestedNoShowActions(
+                prediction.riskLevel,
+                Array.isArray(prediction.reasons) ? prediction.reasons : []
+            ),
+            modelVersion: NO_SHOW_RULE_VERSION,
+            generatedAt: prediction.createdAt,
+            createdAt: prediction.createdAt,
+            updatedAt: prediction.updatedAt,
+        } as NoShowPredictionResponse;
+    }
+
+    const ruleVersion = prediction.ruleVersion ?? null;
+
     return {
         id: prediction.id,
         riskLevel: prediction.riskLevel,
@@ -251,7 +373,10 @@ export function toNoShowPredictionResponse(
             prediction.riskLevel,
             Array.isArray(prediction.reasons) ? prediction.reasons : []
         ),
-        modelVersion: NO_SHOW_RULE_VERSION,
+        ruleVersion,
+        featureSchemaVersion: prediction.featureSchemaVersion ?? null,
+        generationSource: prediction.generationSource ?? 'LEGACY_EXISTING',
+        modelVersion: ruleVersion,
         generatedAt: prediction.createdAt,
         createdAt: prediction.createdAt,
         updatedAt: prediction.updatedAt,

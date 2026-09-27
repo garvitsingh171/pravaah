@@ -359,7 +359,8 @@ The code allows several manual transitions through service rules and blocks chan
 
 Important fields:
 
-- `appointmentId` unique
+- `appointmentId` (not unique; each row is one immutable prediction run)
+- `featureSchemaVersion`, `featureSnapshot`, `ruleVersion`, `generationSource`, and nullable baseline `runKey`
 - `clinicId`, `doctorId`, `patientId`
 - `position`
 - `status`
@@ -385,15 +386,17 @@ WAITING -> ARRIVED -> WAITING -> CALLED -> COMPLETED
 
 The appointment creation workflow currently creates a `QueueEntry` immediately, including for future appointments, with initial status `WAITING`. That initial row supports ordering and does not by itself record `Appointment.arrivedAt`. Queue list APIs filter by the appointment's clinic-local date.
 
-Appointment rescheduling updates the existing `Appointment.scheduledAt` value in place. It does not create a replacement appointment row. The linked `QueueEntry.appointmentId` remains unchanged; if the appointment moves to another clinic-local date, that same queue row becomes part of the destination doctor/date queue and receives a destination position. The linked `NoShowPrediction.appointmentId` also remains unchanged; no prediction history or reschedule-history table is created.
+Appointment rescheduling updates the existing `Appointment.scheduledAt` value in place. It does not create a replacement appointment row. The linked `QueueEntry.appointmentId` remains unchanged; if the appointment moves to another clinic-local date, that same queue row becomes part of the destination doctor/date queue and receives a destination position. The linked `NoShowPrediction.appointmentId` also remains unchanged; rescheduling does not create a new prediction run under the current policy.
 
 ### NoShowPrediction
 
 Important fields:
 
-- `appointmentId` unique
+- `appointmentId` (not unique; each row is one immutable prediction run)
+- `featureSchemaVersion`, `featureSnapshot`, `ruleVersion`, `generationSource`, and nullable baseline `runKey`
 - `clinicId`
 - `patientId`
+- `(appointmentId, createdAt)` for deterministic latest-run lookup
 - `riskLevel`
 - `score`
 - `reasons` JSON
@@ -402,16 +405,18 @@ Indexes:
 
 - `clinicId`
 - `patientId`
+- `(appointmentId, createdAt)` for deterministic latest-run lookup
 
 Deletion behavior:
 
 - restricts deletion of linked Appointment, Clinic, and Patient.
 
 Storage notes:
+- The database stores score, risk level, reasons, separate feature/rule versions, bounded provenance, and a narrow JSON feature snapshot for new runs.
+- `suggestedActions` remain response-time presentation guidance; `generatedAt` is mapped from `createdAt`.
+- Pre-#273 rows use `LEGACY_EXISTING` with null snapshot/version metadata when those facts cannot be proven.
+- `PatientClinic` aggregates remain mutable operational state; `featureSnapshot` is immutable historical evidence.
 
-- The database stores score, risk level, and JSON reasons.
-- The response layer adds `suggestedActions`, `modelVersion = starter-rule-v1`, and `generatedAt` from `createdAt`.
-- There is no separate model version column in the current schema.
 
 ## Relationships
 
@@ -428,7 +433,7 @@ Doctor 1 -> many Appointment
 Patient 1 -> many Appointment
 User 1 -> many Appointment as createdBy
 Appointment 1 -> 0/1 QueueEntry
-Appointment 1 -> 0/1 NoShowPrediction
+Appointment 1 -> many NoShowPrediction runs (latest used operationally)
 Clinic 1 -> many QueueEntry
 Clinic 1 -> many NoShowPrediction
 Patient 1 -> many NoShowPrediction

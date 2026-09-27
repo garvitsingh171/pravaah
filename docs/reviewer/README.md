@@ -25,7 +25,7 @@ Implemented in source and owner-verified in production for v0.3.0:
 - onboarding-aware routing and self-service clinic provisioning
 - Admin clinic settings and optional fictional sample data
 - doctor and patient create/list/edit workflows
-- appointment creation, listing, filtering, status updates, queue entry creation, and stored no-show risk output
+- appointment creation, listing, filtering, status updates, queue entry creation, and versioned no-show prediction runs
 - queue listing, status updates, and manual reorder within one doctor/date queue
 - dashboard summary, high-risk appointments, activity feed, and first-run setup checklist
 - backend validation, internal authorization, selected transactions, and selected advisory locks

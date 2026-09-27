@@ -11,6 +11,7 @@ import { timeToMinutes, type Weekday } from '../doctors/doctorAvailability.js';
 import { incrementPatientTotalAppointments } from '../patients/patient.statistics.repository.js';
 import {
     predictNoShowRisk,
+    toLatestNoShowPrediction,
     toNoShowPredictionResponse,
 } from '../predictions/prediction.service.js';
 import type { StoredNoShowPredictionForResponse } from '../predictions/prediction.types.js';
@@ -74,13 +75,23 @@ const createAppointmentRescheduleConflictError = () =>
     );
 
 const withNoShowPredictionResponse = <
-    T extends { noShowPrediction: StoredNoShowPredictionForResponse | null },
+    T extends {
+        noShowPredictions?: StoredNoShowPredictionForResponse[];
+        noShowPrediction?: StoredNoShowPredictionForResponse | null;
+    },
 >(
     appointment: T
-) => ({
-    ...appointment,
-    noShowPrediction: toNoShowPredictionResponse(appointment.noShowPrediction),
-});
+) => {
+    const { noShowPredictions, noShowPrediction, ...appointmentWithoutPrediction } = appointment;
+    const latestPrediction = noShowPredictions
+        ? toLatestNoShowPrediction(noShowPredictions)
+        : (noShowPrediction ?? null);
+
+    return {
+        ...appointmentWithoutPrediction,
+        noShowPrediction: toNoShowPredictionResponse(latestPrediction),
+    };
+};
 
 async function validateAppointmentClinicOwnership(
     clinicId: string,
@@ -877,15 +888,21 @@ export const appointmentService = {
                             completedAt: true,
                         },
                     },
-                    noShowPrediction: {
+                    noShowPredictions: {
                         select: {
                             id: true,
                             riskLevel: true,
                             score: true,
                             reasons: true,
+                            featureSchemaVersion: true,
+                            featureSnapshot: true,
+                            ruleVersion: true,
+                            generationSource: true,
                             createdAt: true,
                             updatedAt: true,
                         },
+                        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+                        take: 1,
                     },
                 },
             });

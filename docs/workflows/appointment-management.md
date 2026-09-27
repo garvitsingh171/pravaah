@@ -461,3 +461,10 @@ Successful reschedules insert `APPOINTMENT_RESCHEDULED` in the guarded schedulin
 Cancellation and no-show actions open a reason dialog instead of submitting immediately. `CANCELLED` requires `cancellationReason` and accepts an optional trimmed `cancellationNote`; `NO_SHOW` requires `noShowReason` and accepts an optional trimmed `noShowNote`. Other statuses reject all terminal-reason fields. The appointment-purpose `Appointment.reason` is unchanged.
 
 The status controller passes the complete validated payload through the service. The repository writes the applicable status, structured reason, and optional note in the same exact-current-status `updateMany` that owns the first transition. Only that owner updates patient statistics and enriches the existing `APPOINTMENT_CANCELLED` or `APPOINTMENT_NO_SHOW` activity. Same-status retries and losing concurrent requests cannot replace the winning reason or add another activity. Historical terminal appointments and activities remain valid with no recorded reason.
+
+
+## Versioned prediction-run persistence
+
+Booking and dashboard backfill both persist the exact normalized feature snapshot used by the deterministic evaluator. Booking writes `APPOINTMENT_CREATION`; backfill writes `BACKFILL` and records the execution-time inputs. Both use the baseline idempotency key `baseline:<appointmentId>`, so concurrent dashboard reads cannot create duplicate baseline rows. The existing booking transaction remains atomic across Appointment, QueueEntry, prediction run, patient statistics, and activity.
+
+An appointment may have many historical runs, but current appointment, queue, and dashboard APIs adapt the deterministically latest run (`createdAt DESC`, `id DESC`) to their existing singular `noShowPrediction` contract. Rescheduling does not recalculate predictions.

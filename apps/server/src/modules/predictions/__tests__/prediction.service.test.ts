@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { predictNoShowRisk } from '../prediction.service.js';
+import {
+    createNoShowPredictionRun,
+    normalizeNoShowPredictionFeatures,
+    predictNoShowRisk,
+    toNoShowPredictionResponse,
+} from '../prediction.service.js';
 
 describe('predictNoShowRisk', () => {
     it('returns LOW risk for a patient with strong attendance history', () => {
@@ -106,5 +111,85 @@ describe('predictNoShowRisk', () => {
                 }),
             ])
         );
+    });
+});
+
+describe('versioned prediction runs', () => {
+    const input = {
+        bookedAt: new Date('2026-09-20T08:30:00.000Z'),
+        scheduledAt: new Date('2026-09-25T10:00:00.000Z'),
+        distanceFromClinicKm: 0,
+    };
+
+    it('normalizes optional values into the complete JSON-safe V1 shape', () => {
+        expect(normalizeNoShowPredictionFeatures(input)).toEqual({
+            scheduledAt: '2026-09-25T10:00:00.000Z',
+            bookedAt: '2026-09-20T08:30:00.000Z',
+            patientNoShowCount: 0,
+            patientLateArrivalCount: 0,
+            patientCompletedAppointmentCount: 0,
+            distanceFromClinicKm: 0,
+        });
+
+        expect(
+            normalizeNoShowPredictionFeatures({ ...input, distanceFromClinicKm: null })
+                .distanceFromClinicKm
+        ).toBeNull();
+    });
+
+    it('evaluates and persists the exact same normalized snapshot', () => {
+        const run = createNoShowPredictionRun({
+            input,
+            generationSource: 'APPOINTMENT_CREATION',
+        });
+
+        expect(run.featureSnapshot).toEqual(normalizeNoShowPredictionFeatures(input));
+        expect(run.featureSchemaVersion).toBe('no-show-features-v1');
+        expect(run.ruleVersion).toBe('starter-rule-v1');
+        expect(Object.keys(run.featureSnapshot)).toEqual([
+            'scheduledAt',
+            'bookedAt',
+            'patientNoShowCount',
+            'patientLateArrivalCount',
+            'patientCompletedAppointmentCount',
+            'distanceFromClinicKm',
+        ]);
+        expect(predictNoShowRisk(input).score).toBe(run.score);
+    });
+
+    it('maps the stored historical rule version rather than the current constant', () => {
+        const response = toNoShowPredictionResponse({
+            id: 'prediction-id',
+            riskLevel: 'LOW',
+            score: 0,
+            reasons: [],
+            featureSchemaVersion: 'no-show-features-v1',
+            featureSnapshot: null,
+            ruleVersion: 'historical-rule-v0',
+            generationSource: 'APPOINTMENT_CREATION',
+            createdAt: new Date('2026-09-25T10:00:00.000Z'),
+            updatedAt: new Date('2026-09-25T10:00:00.000Z'),
+        });
+
+        expect(response?.ruleVersion).toBe('historical-rule-v0');
+        expect(response?.modelVersion).toBe('historical-rule-v0');
+    });
+
+    it('keeps legacy unknown metadata null', () => {
+        const response = toNoShowPredictionResponse({
+            id: 'legacy-id',
+            riskLevel: 'LOW',
+            score: 0,
+            reasons: [],
+            featureSchemaVersion: null,
+            featureSnapshot: null,
+            ruleVersion: null,
+            generationSource: 'LEGACY_EXISTING',
+            createdAt: new Date('2026-09-25T10:00:00.000Z'),
+            updatedAt: new Date('2026-09-25T10:00:00.000Z'),
+        });
+
+        expect(response?.ruleVersion).toBeNull();
+        expect(response?.modelVersion).toBeNull();
     });
 });

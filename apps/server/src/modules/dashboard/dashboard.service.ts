@@ -2,7 +2,8 @@ import { AppointmentStatus, QueueStatus } from '../../generated/prisma/client.js
 import { accessService } from '../auth/access.service.js';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
 import {
-    predictNoShowRisk,
+    createNoShowPredictionRun,
+    toLatestNoShowPrediction,
     toNoShowPredictionResponse,
 } from '../predictions/prediction.service.js';
 import { dashboardRepository } from './dashboard.repository.js';
@@ -155,11 +156,17 @@ const backfillMissingNoShowPredictions = async (
             completedCount: 0,
         };
 
-        const prediction = predictNoShowRisk({
-            scheduledAt: appointment.scheduledAt,
-            bookedAt: appointment.createdAt,
-            patientNoShowCount: history.noShowCount,
-            patientCompletedAppointmentCount: history.completedCount,
+        const prediction = createNoShowPredictionRun({
+            input: {
+                scheduledAt: appointment.scheduledAt,
+                bookedAt: appointment.createdAt,
+                patientNoShowCount: history.noShowCount,
+                patientLateArrivalCount: 0,
+                patientCompletedAppointmentCount: history.completedCount,
+                distanceFromClinicKm: null,
+            },
+            generationSource: 'BACKFILL',
+            runKey: `baseline:${appointment.id}`,
         });
 
         return {
@@ -168,6 +175,11 @@ const backfillMissingNoShowPredictions = async (
             patientId: appointment.patientId,
             riskLevel: prediction.riskLevel,
             score: prediction.score,
+            featureSchemaVersion: prediction.featureSchemaVersion,
+            featureSnapshot: prediction.featureSnapshot,
+            ruleVersion: prediction.ruleVersion,
+            generationSource: prediction.generationSource,
+            runKey: prediction.runKey,
             reasons: prediction.reasons,
         };
     });
@@ -179,7 +191,10 @@ const buildHighRiskAppointments = (
     appointments: HighRiskAppointmentCandidate[]
 ): DashboardHighRiskAppointment[] => {
     return appointments.flatMap((appointment) => {
-        const noShowPrediction = toNoShowPredictionResponse(appointment.noShowPrediction);
+        const latestPrediction = appointment.noShowPredictions
+            ? toLatestNoShowPrediction(appointment.noShowPredictions)
+            : (appointment.noShowPrediction ?? null);
+        const noShowPrediction = toNoShowPredictionResponse(latestPrediction);
 
         if (!noShowPrediction || noShowPrediction.riskLevel !== 'HIGH') {
             return [];

@@ -109,7 +109,7 @@ The current product addresses:
 | PatientClinic         | Join record linking a patient to a clinic; stores clinic-specific history, notes, distance, and link status.                                           |
 | Appointment           | Scheduled visit stored in `Appointment`; links clinic, doctor, patient, creator, time, status, and booking details.                                    |
 | QueueEntry            | Queue record for an appointment; stores position, queue status, and timing fields.                                                                     |
-| NoShowPrediction      | Stored deterministic risk score and reasons for an appointment.                                                                                        |
+| NoShowPrediction      | Append-only deterministic prediction runs with score, reasons, provenance, and versioned feature snapshots; operational APIs use the latest run. |
 | Risk score            | Integer score clamped from 0 to 100 by the starter rule set.                                                                                           |
 | Risk level            | `LOW`, `MEDIUM`, or `HIGH` based on score thresholds.                                                                                                  |
 | Clinic context        | Current clinic resolved from the authenticated internal user and enforced by backend checks.                                                           |
@@ -282,7 +282,7 @@ Queue entries are created during appointment booking. Queue list is scoped by cl
 
 ### No-Show Risk Assistance
 
-Risk assistance is deterministic, explainable, advisory, and stored. Inputs include patient no-show count, completed appointment count, clinic-specific late-arrival history, distance from clinic, booking lead time, and new/strong-attendance signals. Score range is 0 to 100. Thresholds are `LOW` below 30, `MEDIUM` from 30 to 59, and `HIGH` from 60 upward. Version exposed in responses is `starter-rule-v1`; generated time is derived from prediction creation time.
+Risk assistance is deterministic, explainable, advisory, and stored. Inputs include patient no-show count, completed appointment count, clinic-specific late-arrival history, distance from clinic, booking lead time, and new/strong-attendance signals. Score range is 0 to 100. Thresholds are `LOW` below 30, `MEDIUM` from 30 to 59, and `HIGH` from 60 upward. New runs persist `ruleVersion`, `featureSchemaVersion`, `generationSource`, and the exact normalized feature snapshot; generated time is derived from prediction creation time. Legacy unknown metadata remains null.
 
 Risk does not cancel appointments, reorder queues, replace staff decisions, or predict with certainty. Dashboard can backfill missing predictions for active appointments. Status: Implemented but not yet released.
 
@@ -318,7 +318,7 @@ flowchart TD
     D --> E[First Patient created]
     E --> F[PatientClinic created]
     F --> G[First Appointment booked]
-    G --> H[QueueEntry and NoShowPrediction created]
+    G --> H[QueueEntry and versioned NoShowPrediction run created]
     H --> I[Clinic becomes operational]
 ```
 
