@@ -135,17 +135,15 @@ CLERK_WEBHOOK_SECRET=your_clerk_webhook_secret_if_used
 The seed reads `apps/server/.env` and supports:
 
 ```txt
-SEED_CLERK_USER_ID=user_xxxxxxxxx
-DEV_CLERK_USER_ID=user_xxxxxxxxx
+SEED_ADMIN_CLERK_USER_ID=user_xxxxxxxxx
 SEED_STAFF_CLERK_USER_ID=user_yyyyyyyyy
-SEED_USER_EMAIL=local-admin@pravaah.local
-SEED_USER_FULL_NAME=Local Pravaah Admin
-SEED_STAFF_USER_EMAIL=local-staff@pravaah.local
-SEED_STAFF_USER_FULL_NAME=Local Pravaah Staff
-SEED_DEMO_CLINIC_ID=00000000-0000-4000-8000-000000000000
+SEED_DATABASE_TARGET=ep-your-development-branch.neon.tech
+SEED_DATABASE_ALLOWLIST=ep-your-development-branch.neon.tech
+SEED_PROFILE=demo
+SEED_ANCHOR_DATE=2026-10-16
 ```
 
-Use a real Clerk development user ID for `SEED_CLERK_USER_ID` when you want your signed-in user to access protected APIs. Placeholder seed users do not bypass Clerk.
+Use real Clerk development user IDs for the new `SEED_*_CLERK_USER_ID` variables when you want those users to access protected APIs. Placeholder seed users do not bypass Clerk.
 
 ## Database Setup
 
@@ -169,12 +167,37 @@ npx prisma studio
 
 Prisma config lives in `apps/server/prisma.config.ts`. The Prisma client is generated to `apps/server/src/generated/prisma`, which is ignored by `apps/server/.gitignore`.
 
-## Seed Demo Data
+## Seed Demo Data Safely
+
+The seed is development-only. A localhost hostname is not a safety boundary because Neon databases are hosted remotely. Create a dedicated Neon development branch/database and put the unique development branch host from its connection string in both `SEED_DATABASE_TARGET` and `SEED_DATABASE_ALLOWLIST`. (If the database name itself is unique, that name is also accepted.) The seed refuses production/staging environments, missing or mismatched identities, and unknown targets. It never prints connection strings or credentials and never calls external providers.
+
+Required server seed settings:
+
+```txt
+NODE_ENV=development
+DATABASE_URL=<dedicated development database URL>
+SEED_DATABASE_TARGET=pravaah_dev
+SEED_DATABASE_ALLOWLIST=pravaah_dev
+SEED_PROFILE=demo
+SEED_ANCHOR_DATE=2026-10-16
+```
+
+Optional Clerk binding:
+
+```txt
+SEED_ADMIN_CLERK_USER_ID=user_<real development Clerk user id>
+SEED_STAFF_CLERK_USER_ID=user_<real development Clerk user id>
+```
+
+These IDs must be copied from Clerk's development instance; the seed does not create Clerk accounts. Clinic A's admin is the bound login. Other seeded internal users are fictional records and are not usable logins unless separately bound through the normal application workflow.
 
 From the repository root:
 
 ```bash
 npm run seed:demo
+npm run seed:small
+npm run seed:stress
+npm run seed:verify
 ```
 
 Or from `apps/server`:
@@ -183,16 +206,16 @@ Or from `apps/server`:
 npm run seed:demo
 ```
 
-The seed creates or updates:
+The default demo profile creates or updates:
 
-- one demo clinic
-- one Admin internal user
-- one Staff internal user
-- three doctors
-- six patients
-- appointments for yesterday, today, tomorrow, and next week
-- six today's queue entries
-- stored LOW/MEDIUM/HIGH no-show prediction examples
+- three fictional Indian clinics (busy urban, specialty, and sparse)
+- clinic-scoped admin/staff records, availability, invitations, and stable fictional IDs
+- 15 doctors, 150 patients, 480 appointments, queue history, prediction runs, refresh work, activities, and lifecycle events
+- data spanning 60 days in the past, the anchor day, and 29 days ahead
+
+All generated data is fictional and uses `example.test`, reserved `+91 00000`-style phone numbers, and offline geocoding/routing states. The `small` and `stress` profiles change only the generated volume.
+
+Re-running is idempotent through stable IDs and upserts. Stale rows from a reduced profile are not removed by default. To remove only exact seed-owned appointments and their dependent records, set `SEED_CLEANUP_CONFIRMATION=I_UNDERSTAND_SEED_OWNED_ROWS_ONLY` for that run. Never use this against a shared or production database.
 
 The seed uses placeholder patient/doctor data only. Do not seed real patient data.
 
@@ -304,7 +327,7 @@ VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
 2. Put the publishable key in `apps/web/.env`.
 3. Put the secret key only in `apps/server/.env`.
 4. Create or identify a development user in Clerk.
-5. For seeded demo login, copy that user's Clerk ID into `SEED_CLERK_USER_ID`.
+5. For seeded demo login, copy that user's development Clerk ID into `SEED_ADMIN_CLERK_USER_ID`.
 6. Run the seed so the internal Pravaah `User.clerkUserId` matches the Clerk user.
 7. For self-service onboarding, use the public sign-up route and let the onboarding API create the internal Admin user.
 

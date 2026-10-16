@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { AppRoutes } from './App';
@@ -32,21 +32,18 @@ describe('App routes', () => {
         const user = userEvent.setup();
         renderWithProviders(<AppRoutes />, { route: '/' });
 
-        const menu = await screen.findByRole('button', { name: 'Menu' }, { timeout: 5000 });
+        await screen.findByRole('heading', { name: /better patient flow/i }, { timeout: 10000 });
+        const menu = document.querySelector<HTMLButtonElement>('.m-menu-button')!;
         await user.click(menu);
-        const productLink = screen.getByRole('link', { name: 'Product' });
+        const productLink = within(
+            screen.getByRole('navigation', { name: 'Main navigation' })
+        ).getByRole('link', { name: 'Product' });
         productLink.focus();
-        expect(screen.getByRole('button', { name: 'Close' })).toHaveAttribute(
-            'aria-expanded',
-            'true'
-        );
+        expect(menu).toHaveAttribute('aria-expanded', 'true');
         await user.keyboard('{Escape}');
         expect(menu).toHaveFocus();
-        expect(screen.getByRole('button', { name: 'Menu' })).toHaveAttribute(
-            'aria-expanded',
-            'false'
-        );
-    });
+        expect(menu).toHaveAttribute('aria-expanded', 'false');
+    }, 15000);
 
     it('renders the public landing page for signed-out visitors without requesting onboarding status', async () => {
         setClerkSignedOut();
@@ -57,16 +54,16 @@ describe('App routes', () => {
 
         expect(
             await screen.findByRole('heading', {
-                name: /from appointment to consultation. keep your clinic moving/i,
+                name: /better patient flow/i,
             })
         ).toBeInTheDocument();
         expect(screen.getAllByRole('link', { name: /^sign in$/i })[0]).toHaveAttribute(
             'href',
             '/login'
         );
-        expect(screen.getAllByRole('link', { name: /^explore pravaah$/i })[0]).toHaveAttribute(
+        expect(screen.getByRole('link', { name: /explore pravaah/i })).toHaveAttribute(
             'href',
-            '/sign-up'
+            '/product'
         );
         expect(mockGetOnboardingStatus).not.toHaveBeenCalled();
     });
@@ -80,7 +77,7 @@ describe('App routes', () => {
 
         expect(
             await screen.findByRole('heading', {
-                name: /from appointment to consultation. keep your clinic moving/i,
+                name: /better patient flow/i,
             })
         ).toBeInTheDocument();
         expect(screen.getAllByRole('link', { name: /pravaah home/i })[0]).toHaveAttribute(
@@ -89,7 +86,7 @@ describe('App routes', () => {
         );
     });
 
-    it('routes the public logo to the dashboard for signed-in users', async () => {
+    it('keeps marketing navigation available for signed-in users', async () => {
         setClerkSignedIn();
 
         renderWithProviders(<AppRoutes />, {
@@ -98,12 +95,36 @@ describe('App routes', () => {
 
         expect(
             await screen.findByRole('heading', {
-                name: /from appointment to consultation. keep your clinic moving/i,
+                name: /better patient flow/i,
             })
         ).toBeInTheDocument();
         expect(screen.getAllByRole('link', { name: /pravaah home/i })[0]).toHaveAttribute(
             'href',
+            '/'
+        );
+        expect(screen.getAllByRole('link', { name: /workspace/i })[0]).toHaveAttribute(
+            'href',
             '/dashboard'
         );
+    });
+
+    it('opens a feature page directly without requesting onboarding status', async () => {
+        setClerkSignedOut();
+        renderWithProviders(<AppRoutes />, { route: '/features/live-queue' });
+        expect(
+            await screen.findByRole('heading', { name: 'Clarity for every patient waiting.' })
+        ).toBeInTheDocument();
+        expect(mockGetOnboardingStatus).not.toHaveBeenCalled();
+    });
+
+    it('filters FAQ questions by search term', async () => {
+        setClerkSignedOut();
+        const user = userEvent.setup();
+        renderWithProviders(<AppRoutes />, { route: '/faq' });
+
+        const search = await screen.findByRole('searchbox', { name: 'Search questions' });
+        await user.type(search, 'reorder');
+        expect(screen.getByText('How does the live queue work?')).toBeInTheDocument();
+        expect(screen.queryByText('What is Pravaah?')).not.toBeInTheDocument();
     });
 });

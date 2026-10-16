@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 420" role="img" aria-labelledby="title desc">
+  <title id="title">A connected clinic visit</title>
+  <desc id="desc">Illustration of reception, a waiting area, and a consultation room linked by a teal path.</desc>
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#e2f7ef"/><stop offset="1" stop-color="#f3f8f5"/></linearGradient>
+    <linearGradient id="path" x2="1"><stop stop-color="#109b8d"/><stop offset="1" stop-color="#71dbc6"/></linearGradient>
+  </defs>
+  <rect width="720" height="420" rx="24" fill="url(#bg)"/>
+  <circle cx="650" cy="65" r="110" fill="#c8eee2" opacity=".6"/>
+  <path d="M110 296c85 0 76-135 193-135s93 134 204 134h90" fill="none" stroke="#a5d9cc" stroke-width="25" stroke-linecap="round" opacity=".3"/>
+  <path d="M110 296c85 0 76-135 193-135s93 134 204 134h90" fill="none" stroke="url(#path)" stroke-width="4" stroke-linecap="round" stroke-dasharray="7 10"/>
+  <rect x="42" y="208" width="170" height="142" rx="14" fill="#fff" stroke="#c9e5dd"/>
+  <rect x="66" y="226" width="60" height="11" rx="5" fill="#d4eee7"/>
+  <rect x="66" y="255" width="125" height="59" rx="8" fill="#0e3a45"/>
+  <path d="M80 274h54m-54 12h86m-86 12h67" stroke="#79dcca" stroke-width="5" stroke-linecap="round"/>
+  <text x="66" y="336" fill="#24535a" font-family="Arial,sans-serif" font-size="13" font-weight="700">RECEPTION</text>
+  <rect x="244" y="69" width="169" height="142" rx="14" fill="#fff" stroke="#c9e5dd"/>
+  <circle cx="291" cy="120" r="18" fill="#d0ede5"/>
+  <path d="M263 165c4-20 17-31 28-31s24 11 28 31" fill="#3db9a7"/>
+  <circle cx="355" cy="120" r="18" fill="#e0e9e9"/>
+  <path d="M327 165c4-20 17-31 28-31s24 11 28 31" fill="#97b6b7"/>
+  <text x="263" y="189" fill="#24535a" font-family="Arial,sans-serif" font-size="13" font-weight="700">WAITING</text>
+  <rect x="489" y="208" width="190" height="142" rx="14" fill="#fff" stroke="#c9e5dd"/>
+  <rect x="509" y="233" width="46" height="46" rx="10" fill="#e0f5eb"/>
+  <path d="M532 244v24m-12-12h24" stroke="#119b8b" stroke-width="5" stroke-linecap="round"/>
+  <path d="M568 243h86m-86 18h68m-127 38h144" stroke="#bdded6" stroke-width="7" stroke-linecap="round"/>
+  <text x="509" y="334" fill="#24535a" font-family="Arial,sans-serif" font-size="13" font-weight="700">CONSULTATION</text>
+  <circle cx="110" cy="296" r="11" fill="#fff" stroke="#079d8d" stroke-width="4"/>
+  <circle cx="303" cy="161" r="11" fill="#fff" stroke="#079d8d" stroke-width="4"/>
+  <circle cx="597" cy="295" r="11" fill="#fff" stroke="#079d8d" stroke-width="4"/>
+</svg>

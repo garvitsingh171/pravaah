@@ -20,7 +20,10 @@
         "check": "npm run build && npm run lint",
         "test:web": "npm run test -w apps/web",
         "test:server": "npm run test -w apps/server",
-        "seed:demo": "npm run seed:demo -w apps/server"
+        "seed:demo": "npm run seed:demo -w apps/server",
+        "seed:small": "npm run seed:small -w apps/server",
+        "seed:stress": "npm run seed:stress -w apps/server",
+        "seed:verify": "npm run seed:verify -w apps/server"
     },
     "repository": {
         "type": "git",

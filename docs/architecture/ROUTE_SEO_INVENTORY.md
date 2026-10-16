@@ -1,47 +1,35 @@
 # Route SEO Inventory
 
-This inventory reflects the React Router configuration in `apps/web/src/App.tsx` and `apps/web/src/routes/dashboardRoutes.tsx`.
+The public marketing routes are configured in `apps/web/src/App.tsx`, `apps/web/src/lib/siteMetadata.ts`, and `apps/web/scripts/generate-static-marketing.mjs`.
 
-## Site URL
+## Canonical Site
 
-The frontend metadata utility uses `VITE_SITE_URL` with a fallback of:
+`https://pravaah.garvitsingh171.com` is the canonical origin. Runtime metadata can use `VITE_SITE_URL`, but the build-time HTML generator and sitemap use the production origin above.
 
-```txt
-https://pravaah.garvitsingh171.com
-```
+## Public Routes
 
-The repository still does not contain production deployment evidence. The owner must verify the final production origin before release.
+| Route | Purpose | Build-time HTML | Sitemap |
+| --- | --- | --- | --- |
+| `/` | Introduction | Yes | Yes |
+| `/product` | Detailed product overview | Yes | Yes |
+| `/features` | Feature index | Yes | Yes |
+| `/features/appointments` | Appointment management | Yes | Yes |
+| `/features/live-queue` | Queue management | Yes | Yes |
+| `/features/no-show-risk` | Explainable, rule-based assistance | Yes | Yes |
+| `/features/clinic-management` | Clinic, doctor, and patient records | Yes | Yes |
+| `/features/team-management` | Admin and Staff access | Yes | Yes |
+| `/solutions` | Clinic roles | Yes | Yes |
+| `/how-it-works` | Daily workflow | Yes | Yes |
+| `/faq` | Product questions | Yes | Yes |
+| `/about` | Product story | Yes | Yes |
+| `/contact` | Email handoff | Yes | Yes |
 
-## Route Classification
+Each public route has a unique title, description, canonical URL, Open Graph and Twitter metadata in `siteMetadata.ts`. The build produces route-specific HTML with core copy and internal links so crawlers that do not run JavaScript can still discover the page. Vercel routes these paths to their generated HTML; all other application paths retain the SPA fallback.
 
-| Route                | Classification              | Indexing           | Sitemap | Canonical | Metadata owner                            | Direct load                                           |
-| -------------------- | --------------------------- | ------------------ | ------- | --------- | ----------------------------------------- | ----------------------------------------------------- |
-| `/`                  | Public informational        | `index,follow`     | Yes     | Yes       | `RouteMetadata` and `index.html` fallback | Vercel SPA rewrite                                    |
-| `/login/*`           | Authentication              | `noindex,nofollow` | No      | No        | `RouteMetadata`                           | Vercel SPA rewrite                                    |
-| `/sign-up/*`         | Authentication              | `noindex,nofollow` | No      | No        | `RouteMetadata`                           | Vercel SPA rewrite                                    |
-| `/onboarding`        | Public onboarding redirect  | `noindex,nofollow` | No      | No        | `RouteMetadata`                           | Vercel SPA rewrite                                    |
-| `/onboarding/clinic` | Private onboarding          | `noindex,nofollow` | No      | No        | `RouteMetadata`                           | Vercel SPA rewrite                                    |
-| `/dashboard`         | Protected application       | `noindex,nofollow` | No      | No        | `RouteMetadata`                           | Vercel SPA rewrite plus Clerk/app guards              |
-| `/doctors`           | Protected application       | `noindex,nofollow` | No      | No        | `RouteMetadata`                           | Vercel SPA rewrite plus Clerk/app guards              |
-| `/doctors/new`       | Protected application       | `noindex,nofollow` | No      | No        | `RouteMetadata`                           | Vercel SPA rewrite plus Clerk/app guards              |
-| `/patients`          | Protected application       | `noindex,nofollow` | No      | No        | `RouteMetadata`                           | Vercel SPA rewrite plus Clerk/app guards              |
-| `/patients/new`      | Protected application       | `noindex,nofollow` | No      | No        | `RouteMetadata`                           | Vercel SPA rewrite plus Clerk/app guards              |
-| `/appointments`      | Protected application       | `noindex,nofollow` | No      | No        | `RouteMetadata`                           | Vercel SPA rewrite plus Clerk/app guards              |
-| `/queue`             | Protected application       | `noindex,nofollow` | No      | No        | `RouteMetadata`                           | Vercel SPA rewrite plus Clerk/app guards              |
-| `/clinic-settings`   | Protected Admin application | `noindex,nofollow` | No      | No        | `RouteMetadata`                           | Vercel SPA rewrite plus Clerk/app/backend role guards |
-| `*`                  | Not found fallback          | `noindex,nofollow` | No      | No        | `RouteMetadata`                           | Vercel SPA rewrite                                    |
+The generated HTML is a readable content snapshot, not a full static render of the interactive React page. The React application replaces it after startup. This remains a practical indexing improvement within the current Vite architecture, with a possible initial layout change on slow connections. Full pre-rendering or SSR is future work.
 
-## Public SEO Files
+## Private Routes
 
-- `apps/web/public/robots.txt` allows public crawling and declares the sitemap URL.
-- `apps/web/public/sitemap.xml` contains only the public homepage canonical URL.
-- `apps/web/public/brand/pravaah-social-card.png` is the 1200 by 630 social preview image.
-- `apps/web/index.html` carries the default public metadata for crawlers that do not execute React.
+Authentication, onboarding, invitations, and the protected workspace are excluded from the sitemap and marked `noindex,nofollow` by route metadata. `robots.txt` also disallows crawling of these path families. This is not an access-control boundary: Clerk, internal user resolution, clinic scoping, role checks, and backend authorization protect private data.
 
-## SPA Limitation
-
-Pravaah is a Vite single-page app. Runtime metadata updates work for browsers and crawlers that execute JavaScript, but route-specific social previews are not guaranteed for crawlers that only read the initial HTML. The current architecture provides a strong default public preview for `/` and documents this limitation without introducing SSR or a new framework.
-
-## Security Note
-
-Sitemap exclusion and `noindex` are not security controls. Protected data remains protected by Clerk authentication, internal-user resolution, role checks, clinic access checks, and backend authorization.
+The public social preview image is `apps/web/public/brand/pravaah-social-card.png`.

@@ -1,4 +1,16 @@
 User-agent: *
 Allow: /
+Disallow: /dashboard
+Disallow: /doctors
+Disallow: /patients
+Disallow: /appointments
+Disallow: /queue
+Disallow: /clinic-settings
+Disallow: /staff
+Disallow: /profile
+Disallow: /onboarding
+Disallow: /invite
+Disallow: /login
+Disallow: /sign-up
 
 Sitemap: https://pravaah.garvitsingh171.com/sitemap.xml

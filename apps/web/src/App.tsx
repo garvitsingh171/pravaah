@@ -5,7 +5,36 @@ import PublicErrorBoundary from './components/public/PublicErrorBoundary';
 import { dashboardRoutes, isProtectedWorkspacePath } from './routes/dashboardRoutes';
 import RouteMetadata from './routes/RouteMetadata';
 
-const PublicLandingPage = lazy(() => import('./features/public/PublicLandingPage'));
+const MarketingLayout = lazy(() => import('./features/marketing/MarketingLayout'));
+const HomePage = lazy(() => import('./features/marketing/HomePage'));
+const ProductPage = lazy(() =>
+    import('./features/marketing/DetailPages').then((module) => ({ default: module.ProductPage }))
+);
+const FeaturesIndexPage = lazy(() =>
+    import('./features/marketing/DetailPages').then((module) => ({
+        default: module.FeaturesIndexPage,
+    }))
+);
+const SolutionsPage = lazy(() =>
+    import('./features/marketing/DetailPages').then((module) => ({ default: module.SolutionsPage }))
+);
+const HowItWorksPage = lazy(() =>
+    import('./features/marketing/DetailPages').then((module) => ({
+        default: module.HowItWorksPage,
+    }))
+);
+const FaqPage = lazy(() =>
+    import('./features/marketing/DetailPages').then((module) => ({ default: module.FaqPage }))
+);
+const AboutPage = lazy(() =>
+    import('./features/marketing/DetailPages').then((module) => ({ default: module.AboutPage }))
+);
+const ContactPage = lazy(() =>
+    import('./features/marketing/DetailPages').then((module) => ({ default: module.ContactPage }))
+);
+const FeaturePage = lazy(() =>
+    import('./features/marketing/DetailPages').then((module) => ({ default: module.FeaturePage }))
+);
 const ProtectedAppShell = lazy(() => import('./app/ProtectedAppShell'));
 const LoginPage = lazy(() => import('./features/auth/LoginPage'));
 const SignUpPage = lazy(() => import('./features/auth/SignUpPage'));
@@ -53,13 +82,38 @@ export function AppRoutes() {
     return (
         <Routes>
             <Route
-                path="/"
                 element={
                     <PublicRouteBoundary>
-                        <PublicLandingPage />
+                        <MarketingLayout />
                     </PublicRouteBoundary>
                 }
-            />
+            >
+                <Route path="/" element={<HomePage />} />
+                <Route path="/product" element={<ProductPage />} />
+                <Route path="/features" element={<FeaturesIndexPage />} />
+                <Route
+                    path="/features/appointments"
+                    element={<FeaturePage slug="appointments" />}
+                />
+                <Route path="/features/live-queue" element={<FeaturePage slug="live-queue" />} />
+                <Route
+                    path="/features/no-show-risk"
+                    element={<FeaturePage slug="no-show-risk" />}
+                />
+                <Route
+                    path="/features/clinic-management"
+                    element={<FeaturePage slug="clinic-management" />}
+                />
+                <Route
+                    path="/features/team-management"
+                    element={<FeaturePage slug="team-management" />}
+                />
+                <Route path="/solutions" element={<SolutionsPage />} />
+                <Route path="/how-it-works" element={<HowItWorksPage />} />
+                <Route path="/faq" element={<FaqPage />} />
+                <Route path="/about" element={<AboutPage />} />
+                <Route path="/contact" element={<ContactPage />} />
+            </Route>
             <Route
                 path="/login/*"
                 element={

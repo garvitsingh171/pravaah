@@ -12,6 +12,9 @@
         "test": "vitest run",
         "seed": "prisma db seed",
         "seed:demo": "prisma db seed",
+        "seed:small": "SEED_PROFILE=small prisma db seed",
+        "seed:stress": "SEED_PROFILE=stress prisma db seed",
+        "seed:verify": "tsx prisma/seed.verify.ts",
         "prisma:generate": "prisma generate",
         "prisma:migrate:deploy": "prisma migrate deploy"
     },

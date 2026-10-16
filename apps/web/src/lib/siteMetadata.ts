@@ -32,6 +32,78 @@ export const publicRouteMetadata: RouteMetadata[] = [
         socialImagePath: defaultSocialImagePath,
         structuredData: 'softwareApplication',
     },
+    ...[
+        [
+            '/product',
+            'Product | Pravaah Clinic Flow Management',
+            'Explore how Pravaah connects clinic appointments, patient arrivals, live queues, no-show assistance, records and team access.',
+        ],
+        [
+            '/features/appointments',
+            'Clinic Appointment Management | Pravaah',
+            'Book patients with available doctors, follow appointment status and keep scheduling connected to the clinic day.',
+        ],
+        [
+            '/features/live-queue',
+            'Live Patient Queue Management | Pravaah',
+            'See arrivals, waiting patients and called visits in a staff-controlled live clinic queue.',
+        ],
+        [
+            '/features/no-show-risk',
+            'Explainable No-Show Assistance | Pravaah',
+            'Review rule-based no-show risk levels, reasons and suggested actions while keeping clinic decisions in staff hands.',
+        ],
+        [
+            '/features/clinic-management',
+            'Clinic, Doctor and Patient Management | Pravaah',
+            'Manage clinic details, doctor availability and patient records that support a connected daily workflow.',
+        ],
+        [
+            '/features/team-management',
+            'Clinic Team Management | Pravaah',
+            'Learn how Admin and Staff access and clinic-scoped records help teams work together in Pravaah.',
+        ],
+        [
+            '/features',
+            'Clinic Management Features | Pravaah',
+            'Explore Pravaah features for appointments, queues, explainable no-show assistance, clinic records and team access.',
+        ],
+        [
+            '/solutions',
+            'Solutions for Clinic Teams | Pravaah',
+            'See how Pravaah helps clinic managers, reception staff and doctors coordinate the daily patient journey.',
+        ],
+        [
+            '/how-it-works',
+            'How Pravaah Works | Clinic Visit Workflow',
+            'Follow the Pravaah clinic workflow from setup and booking through arrival, queue movement and visit completion.',
+        ],
+        [
+            '/faq',
+            'Frequently Asked Questions | Pravaah',
+            'Clear answers about Pravaah setup, appointments, queues, no-show assistance and clinic access.',
+        ],
+        [
+            '/about',
+            'About Pravaah | Better Clinic Flow',
+            'Learn why Pravaah focuses on the complete clinic visit, from booking to a completed consultation.',
+        ],
+        [
+            '/contact',
+            'Contact Pravaah | Ask About a Demo',
+            'Ask the Pravaah team about clinic flow, product fit or a demonstration using a direct email draft.',
+        ],
+    ].map<RouteMetadata>(([path, title, description]) => ({
+        path,
+        title,
+        description,
+        indexingType: 'public',
+        indexable: true,
+        canonicalPath: path,
+        ogType: 'website',
+        socialImagePath: defaultSocialImagePath,
+        structuredData: 'website',
+    })),
 ];
 
 const protectedRoutePaths = [
@@ -43,6 +115,7 @@ const protectedRoutePaths = [
     '/appointments',
     '/queue',
     '/clinic-settings',
+    '/staff',
     '/profile',
 ];
 

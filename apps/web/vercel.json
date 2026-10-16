@@ -1,5 +1,17 @@
 {
     "rewrites": [
+        { "source": "/product", "destination": "/product/index.html" },
+        { "source": "/features", "destination": "/features/index.html" },
+        { "source": "/features/appointments", "destination": "/features/appointments/index.html" },
+        { "source": "/features/live-queue", "destination": "/features/live-queue/index.html" },
+        { "source": "/features/no-show-risk", "destination": "/features/no-show-risk/index.html" },
+        { "source": "/features/clinic-management", "destination": "/features/clinic-management/index.html" },
+        { "source": "/features/team-management", "destination": "/features/team-management/index.html" },
+        { "source": "/solutions", "destination": "/solutions/index.html" },
+        { "source": "/how-it-works", "destination": "/how-it-works/index.html" },
+        { "source": "/faq", "destination": "/faq/index.html" },
+        { "source": "/about", "destination": "/about/index.html" },
+        { "source": "/contact", "destination": "/contact/index.html" },
         {
             "source": "/((?!api(?:/|$)).*)",
             "destination": "/index.html"

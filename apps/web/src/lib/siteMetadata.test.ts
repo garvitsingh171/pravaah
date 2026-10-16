@@ -9,7 +9,11 @@ import {
 
 describe('siteMetadata', () => {
     it('keeps only public informational routes indexable', () => {
-        expect(publicRouteMetadata.map((metadata) => metadata.path)).toEqual(['/']);
+        expect(publicRouteMetadata.map((metadata) => metadata.path)).toContain('/');
+        expect(publicRouteMetadata.map((metadata) => metadata.path)).toContain(
+            '/features/live-queue'
+        );
+        expect(publicRouteMetadata.map((metadata) => metadata.path)).toContain('/contact');
         expect(publicRouteMetadata.every((metadata) => metadata.indexable)).toBe(true);
         expect(getMetadataForPath('/dashboard').indexable).toBe(false);
         expect(getMetadataForPath('/queue').indexable).toBe(false);
