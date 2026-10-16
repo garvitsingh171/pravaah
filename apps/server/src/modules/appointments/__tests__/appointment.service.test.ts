@@ -22,6 +22,7 @@ const mockAppointmentRepository = vi.hoisted(() => ({
     findDoctorAvailabilityPeriods: vi.fn(),
     getClinicLocalAppointmentParts: vi.fn(),
     acquireDoctorScheduleLock: vi.fn(),
+    lockBookingMemberships: vi.fn(),
     findOverlappingDoctorAppointment: vi.fn(),
     findDoctorSchedulingAppointmentsForDate: vi.fn(),
     getClinicLocalDateWeekday: vi.fn(),
@@ -144,6 +145,11 @@ describe('appointmentService.createAppointment', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockAccessService.requireClinicStaff.mockReturnValue(authenticatedUser);
+        mockAppointmentRepository.lockBookingMemberships.mockResolvedValue({
+            clinicActive: true,
+            doctorActive: true,
+            patientActive: true,
+        });
 
         mockAppointmentRepository.runInTransaction.mockImplementation(async (operation) => {
             return operation(mockTx);
@@ -790,6 +796,11 @@ describe('appointmentService.rescheduleAppointment', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockAccessService.requireClinicStaff.mockReturnValue(authenticatedUser);
+        mockAppointmentRepository.lockBookingMemberships.mockResolvedValue({
+            clinicActive: true,
+            doctorActive: true,
+            patientActive: true,
+        });
         mockAccessService.verifyAppointmentClinicAccess.mockResolvedValue({
             id: 'appointment-id',
             clinicId: 'clinic-id',

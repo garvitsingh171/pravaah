@@ -8,6 +8,8 @@ import { adminActiveClinic, renderWithProviders } from '../../test/renderWithPro
 
 const mockListDoctors = vi.hoisted(() => vi.fn());
 const mockUpdateDoctor = vi.hoisted(() => vi.fn());
+const mockArchiveDoctor = vi.hoisted(() => vi.fn());
+const mockGetDoctorLifecycleImpact = vi.hoisted(() => vi.fn());
 const mockGetDoctorAvailability = vi.hoisted(() => vi.fn());
 const mockReplaceDoctorAvailability = vi.hoisted(() => vi.fn());
 
@@ -18,6 +20,8 @@ vi.mock('./doctorApi', async (importOriginal) => {
         ...actual,
         listDoctors: mockListDoctors,
         updateDoctor: mockUpdateDoctor,
+        archiveDoctor: mockArchiveDoctor,
+        getDoctorLifecycleImpact: mockGetDoctorLifecycleImpact,
         getDoctorAvailability: mockGetDoctorAvailability,
         replaceDoctorAvailability: mockReplaceDoctorAvailability,
     };
@@ -81,6 +85,11 @@ describe('DoctorsPage edit workflow', () => {
     beforeEach(() => {
         mockListDoctors.mockReset();
         mockUpdateDoctor.mockReset();
+        mockArchiveDoctor.mockReset();
+        mockGetDoctorLifecycleImpact.mockReset();
+        mockGetDoctorLifecycleImpact.mockResolvedValue({
+            impact: { futureAppointments: 0, activeAppointments: 0, activeQueueEntries: 0 },
+        });
         mockGetDoctorAvailability.mockReset();
         mockReplaceDoctorAvailability.mockReset();
         mockGetDoctorAvailability.mockResolvedValue(emptyAvailabilityResponse);
@@ -273,7 +282,7 @@ describe('DoctorsPage edit workflow', () => {
         expect(screen.getByLabelText(/phone/i)).toHaveValue('+91 90000 09999');
     });
 
-    it('confirms deactivation and blocks repeated status submissions while saving', async () => {
+    it('confirms clinic archive and blocks repeated submissions while saving', async () => {
         const user = userEvent.setup();
         let resolveUpdate: (value: unknown) => void = () => {};
         const updatePromise = new Promise((resolve) => {
@@ -288,37 +297,38 @@ describe('DoctorsPage edit workflow', () => {
                 doctors: [
                     {
                         ...doctor,
-                        isActive: false,
+                        clinicLinkIsActive: false,
                     },
                 ],
             });
-        mockUpdateDoctor.mockReturnValue(updatePromise);
+        mockArchiveDoctor.mockReturnValue(updatePromise);
 
         renderDoctorsPage();
 
         await user.click(
-            await screen.findByRole('button', { name: /deactivate dr\. asha raman/i })
+            await screen.findByRole('button', { name: /archive dr\. asha raman from this clinic/i })
         );
 
-        expect(screen.getByRole('dialog', { name: /deactivate doctor record/i })).toBeVisible();
+        expect(
+            screen.getByRole('dialog', { name: /archive doctor from this clinic/i })
+        ).toBeVisible();
 
-        const confirmButton = screen.getByRole('button', { name: /^deactivate doctor$/i });
+        const confirmButton = screen.getByRole('button', { name: /^archive doctor$/i });
+        await waitFor(() => expect(confirmButton).toBeEnabled());
         await user.click(confirmButton);
         await user.click(confirmButton);
 
-        expect(mockUpdateDoctor).toHaveBeenCalledTimes(1);
-        expect(mockUpdateDoctor).toHaveBeenCalledWith(adminActiveClinic.clinicId, doctor.id, {
-            isActive: false,
-        });
-        expect(screen.getByRole('button', { name: /deactivating doctor/i })).toBeDisabled();
+        expect(mockArchiveDoctor).toHaveBeenCalledTimes(1);
+        expect(mockArchiveDoctor).toHaveBeenCalledWith(adminActiveClinic.clinicId, doctor.id);
+        expect(screen.getByRole('button', { name: /archiving doctor/i })).toBeDisabled();
 
         resolveUpdate({
             doctor: {
                 ...doctor,
-                isActive: false,
+                clinicLinkIsActive: false,
             },
         });
 
-        expect(await screen.findByText('Inactive')).toBeInTheDocument();
+        await waitFor(() => expect(screen.queryByText('Dr. Asha Raman')).not.toBeInTheDocument());
     });
 });

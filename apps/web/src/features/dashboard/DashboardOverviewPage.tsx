@@ -2,7 +2,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useActiveClinic } from '../../app/activeClinicContext';
 import { EmptyState, ErrorMessage, LoadingState } from '../../components/feedback';
-import { Badge, Button, Card, PageHeader, RiskBadge, type BadgeTone } from '../../components/ui';
+import {
+    Badge,
+    Button,
+    Card,
+    PageHeader,
+    RiskExplanation,
+    type BadgeTone,
+} from '../../components/ui';
 import { isApiClientError } from '../../lib';
 import { appRoutePaths } from '../../routes/dashboardRoutes';
 import {
@@ -47,6 +54,7 @@ type SummaryCard = {
     helper: string;
     accentClassName: string;
     toneClassName: string;
+    icon: 'calendar' | 'queue' | 'check' | 'alert';
 };
 
 const emptyDashboardState: DashboardState = {
@@ -110,24 +118,33 @@ const getDashboardErrorState = (
     };
 };
 
-const formatTime = (value: string): string => {
+const formatTime = (value: string, timezone?: string | null): string => {
     const date = new Date(value);
 
     if (Number.isNaN(date.getTime())) {
         return value;
     }
 
-    return new Intl.DateTimeFormat('en-IN', {
-        timeStyle: 'short',
-    }).format(date);
+    try {
+        return new Intl.DateTimeFormat('en-IN', {
+            timeStyle: 'short',
+            timeZone: timezone || undefined,
+        }).format(date);
+    } catch {
+        return new Intl.DateTimeFormat('en-IN', { timeStyle: 'short' }).format(date);
+    }
 };
 
-const getOptionalText = (value: string | number | null | undefined): string => {
-    if (value === undefined || value === null) {
-        return 'Not added';
-    }
-
-    return String(value).trim() || 'Not added';
+const formatClinicDate = (date: string): string => {
+    const parsed = new Date(`${date}T12:00:00Z`);
+    if (Number.isNaN(parsed.getTime())) return date;
+    return new Intl.DateTimeFormat('en-IN', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        timeZone: 'UTC',
+    }).format(parsed);
 };
 
 const buildSummaryCards = (summary: DashboardSummary): SummaryCard[] => {
@@ -141,6 +158,7 @@ const buildSummaryCards = (summary: DashboardSummary): SummaryCard[] => {
             helper: `${summary.appointmentSummary.scheduled} scheduled, ${summary.appointmentSummary.confirmed} confirmed`,
             accentClassName: 'border-l-brand',
             toneClassName: 'bg-brand-subtle',
+            icon: 'calendar',
         },
         {
             label: 'Waiting queue',
@@ -148,6 +166,7 @@ const buildSummaryCards = (summary: DashboardSummary): SummaryCard[] => {
             helper: `${summary.queueSummary.total} queue entries today`,
             accentClassName: 'border-l-[var(--color-status-warning-text)]',
             toneClassName: 'bg-[var(--color-status-warning-bg)]',
+            icon: 'queue',
         },
         {
             label: 'Completed visits',
@@ -155,6 +174,7 @@ const buildSummaryCards = (summary: DashboardSummary): SummaryCard[] => {
             helper: `${summary.queueSummary.completed} queue visits completed`,
             accentClassName: 'border-l-[var(--color-status-success-text)]',
             toneClassName: 'bg-[var(--color-status-success-bg)]',
+            icon: 'check',
         },
         {
             label: 'Cancelled / no-show',
@@ -162,6 +182,7 @@ const buildSummaryCards = (summary: DashboardSummary): SummaryCard[] => {
             helper: `${summary.appointmentSummary.cancelled} cancelled, ${summary.appointmentSummary.noShow} no-show`,
             accentClassName: 'border-l-[var(--color-status-danger-text)]',
             toneClassName: 'bg-[var(--color-status-danger-bg)]',
+            icon: 'alert',
         },
     ];
 };
@@ -181,9 +202,16 @@ const hasUsefulDashboardData = (data: DashboardData): boolean => {
 };
 
 function SummaryCardItem({ card }: { card: SummaryCard }) {
+    const iconPath = {
+        calendar:
+            'M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z',
+        queue: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
+        check: 'M20 6 9 17l-5-5',
+        alert: 'M12 9v4m0 4h.01M10.3 3.8 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3l-8.3-14.2a2 2 0 0 0-3.4 0Z',
+    }[card.icon];
     return (
         <article
-            className={`rounded-lg border-l-4 bg-white p-4 shadow-[var(--shadow-soft)] ring-1 ring-slate-200/70 transition duration-[var(--motion-fast)] ease-[var(--motion-ease)] hover:-translate-y-0.5 hover:shadow-[var(--shadow-raised)] ${card.accentClassName}`}
+            className={`rounded-app-lg border border-app-border border-l-[3px] bg-white p-4 shadow-[var(--shadow-soft)] ${card.accentClassName}`}
         >
             <div className="flex items-start justify-between gap-4">
                 <div>
@@ -193,9 +221,21 @@ function SummaryCardItem({ card }: { card: SummaryCard }) {
                     <p className="mt-2 text-2xl font-bold text-slate-900">{card.value}</p>
                 </div>
                 <span
-                    className={`h-8 w-8 rounded-md ${card.toneClassName} ring-1 ring-slate-200/60`}
+                    className={`flex h-9 w-9 items-center justify-center rounded-app ${card.toneClassName} text-app-text`}
                     aria-hidden="true"
-                />
+                >
+                    <svg
+                        className="h-5 w-5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                    >
+                        <path d={iconPath} />
+                    </svg>
+                </span>
             </div>
             <p className="mt-2 text-xs leading-5 text-slate-500">{card.helper}</p>
         </article>
@@ -254,23 +294,6 @@ function OperationalPulsePanel({ data }: { data: DashboardData }) {
         appointmentSummary.completed + appointmentSummary.cancelled + appointmentSummary.noShow;
     const activeQueue = queueSummary.waiting + queueSummary.arrived + queueSummary.called;
     const needsAttention = activeAppointments > 0 || activeQueue > 0 || noShowRiskSummary.high > 0;
-    const attentionItems = [
-        {
-            label: 'Appointments',
-            value: activeAppointments,
-            helper: `${finalAppointments} final today`,
-        },
-        {
-            label: 'Queue',
-            value: activeQueue,
-            helper: `${queueSummary.waiting} waiting, ${queueSummary.called} called`,
-        },
-        {
-            label: 'High risk',
-            value: noShowRiskSummary.high,
-            helper: `${noShowRiskSummary.medium} medium, ${noShowRiskSummary.low} low risk`,
-        },
-    ];
     const flowNodes = [
         {
             label: 'Scheduled',
@@ -291,8 +314,8 @@ function OperationalPulsePanel({ data }: { data: DashboardData }) {
     ];
 
     return (
-        <section className="rounded-lg border border-slate-800 bg-slate-950 p-5 text-white shadow-[var(--shadow-command)]">
-            <div className="grid gap-6 xl:grid-cols-[0.7fr_1.3fr] xl:items-center">
+        <section className="rounded-lg border border-slate-800 bg-slate-950 p-5 text-white shadow-[var(--shadow-soft)] sm:p-6">
+            <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
                 <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-brand">
                         Operational pulse
@@ -301,9 +324,13 @@ function OperationalPulsePanel({ data }: { data: DashboardData }) {
                         {needsAttention ? 'Staff attention now' : 'Clinic flow is clear'}
                     </h2>
                     <p className="mt-3 max-w-md text-sm leading-6 text-slate-200">
-                        {needsAttention
-                            ? 'Review the live appointment flow, queue, and no-show risk before the day backs up.'
-                            : 'No active appointments, queue pressure, or high-risk flags are waiting.'}
+                        {activeQueue > 0
+                            ? `${queueSummary.waiting} waiting and ${queueSummary.called} called. Open the queue to see who is next.`
+                            : noShowRiskSummary.high > 0
+                              ? `${noShowRiskSummary.high} appointment${noShowRiskSummary.high === 1 ? '' : 's'} flagged for staff review.`
+                              : needsAttention
+                                ? 'Scheduled appointments are still in progress today.'
+                                : 'No active appointments or queue entries need attention right now.'}
                     </p>
                     <div className="mt-5 flex flex-col gap-3 sm:flex-row">
                         <Link
@@ -321,32 +348,15 @@ function OperationalPulsePanel({ data }: { data: DashboardData }) {
                     </div>
                 </div>
 
-                <div className="space-y-4">
-                    <div className="grid gap-3 sm:grid-cols-3">
-                        {attentionItems.map((item) => (
-                            <div
-                                key={item.label}
-                                className="rounded-lg border border-white/15 border-t-brand bg-white/[0.08] p-4 shadow-[0_1px_0_rgba(255,255,255,0.08)_inset]"
-                            >
-                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-200">
-                                    {item.label}
-                                </p>
-                                <p className="mt-2 text-3xl font-bold text-white">{item.value}</p>
-                                <p className="mt-2 text-xs leading-5 text-slate-200">
-                                    {item.helper}
-                                </p>
-                            </div>
-                        ))}
-                    </div>
-
+                <div>
                     <ol
-                        className="grid gap-3 rounded-lg border border-white/10 bg-white/[0.05] p-3 sm:grid-cols-4"
+                        className="grid grid-cols-2 gap-2 rounded-lg border border-white/10 bg-white/[0.04] p-3 sm:grid-cols-4"
                         aria-label="Appointment flow status summary"
                     >
                         {flowNodes.map((node, index) => (
                             <li
                                 key={node.label}
-                                className="relative rounded-md border border-white/15 bg-white/[0.08] p-3 shadow-[0_1px_0_rgba(255,255,255,0.08)_inset]"
+                                className="relative rounded-md border border-white/15 bg-white/[0.08] p-3"
                             >
                                 {index < flowNodes.length - 1 ? (
                                     <span
@@ -367,8 +377,10 @@ function OperationalPulsePanel({ data }: { data: DashboardData }) {
 
 function HighRiskAppointmentsCard({
     appointments,
+    timezone,
 }: {
     appointments: DashboardHighRiskAppointment[];
+    timezone?: string | null;
 }) {
     return (
         <Card>
@@ -398,7 +410,7 @@ function HighRiskAppointmentsCard({
                                     {item.patient.fullName}
                                 </p>
                                 <p className="mt-1 text-sm text-slate-600">
-                                    {getOptionalText(item.patient.phone)}
+                                    Appointment needs staff review
                                 </p>
                             </div>
 
@@ -407,11 +419,24 @@ function HighRiskAppointmentsCard({
                                     {item.doctor.fullName}
                                 </p>
                                 <p className="mt-1 text-sm text-slate-600">
-                                    {formatTime(item.appointment.scheduledAt)}
+                                    {formatTime(item.appointment.scheduledAt, timezone)}
                                 </p>
                             </div>
 
-                            <RiskBadge riskLevel={item.noShowPrediction.riskLevel} />
+                            <div className="md:text-right">
+                                <Link
+                                    to={appRoutePaths.appointments}
+                                    className="block text-sm font-semibold text-action underline-offset-2 hover:underline"
+                                >
+                                    Review appointment
+                                </Link>
+                            </div>
+                            <div className="md:col-span-3">
+                                <RiskExplanation
+                                    prediction={item.noShowPrediction}
+                                    subjectName={item.patient.fullName}
+                                />
+                            </div>
                         </article>
                     ))}
                 </div>
@@ -424,7 +449,13 @@ function ActivityBadge({ type }: { type: DashboardActivityType }) {
     return <Badge tone={activityBadgeTones[type]}>{activityLabels[type]}</Badge>;
 }
 
-function TodayActivitySection({ activityItems }: { activityItems: DashboardActivityItem[] }) {
+function TodayActivitySection({
+    activityItems,
+    timezone,
+}: {
+    activityItems: DashboardActivityItem[];
+    timezone?: string | null;
+}) {
     return (
         <Card>
             <div>
@@ -456,7 +487,7 @@ function TodayActivitySection({ activityItems }: { activityItems: DashboardActiv
                                 </p>
                                 <p className="mt-1 text-sm text-slate-600">
                                     {activityItem.doctor.fullName} at{' '}
-                                    {formatTime(activityItem.appointment.scheduledAt)}
+                                    {formatTime(activityItem.appointment.scheduledAt, timezone)}
                                 </p>
                                 {activityItem.appointment.reason ? (
                                     <p className="mt-1 text-xs text-slate-500">
@@ -466,7 +497,7 @@ function TodayActivitySection({ activityItems }: { activityItems: DashboardActiv
                             </div>
 
                             <p className="text-sm font-medium text-slate-600">
-                                {formatTime(activityItem.timestamp)}
+                                {formatTime(activityItem.timestamp, timezone)}
                             </p>
                         </article>
                     ))}
@@ -636,21 +667,62 @@ function DashboardOverviewPage() {
     const dashboardData = dashboardState.data;
     const summaryCards = dashboardData ? buildSummaryCards(dashboardData.summary) : [];
     const hasDashboardData = dashboardData ? hasUsefulDashboardData(dashboardData) : false;
+    const clinicTimezone = activeClinic.clinic?.timezone;
+    const clinicName = activeClinic.clinic?.name ?? 'your clinic';
+    const firstName = activeClinic.currentUser?.fullName?.trim().split(/\s+/)[0];
+    const waitingCount = dashboardData?.summary.queueSummary.waiting ?? 0;
+    const highRiskCount = dashboardData?.summary.noShowRiskSummary.high ?? 0;
 
     return (
         <section className="space-y-6">
             <PageHeader
                 actions={
-                    <Button
-                        variant="outline"
-                        onClick={refreshDashboard}
-                        isLoading={dashboardState.status === 'loading'}
-                        loadingText="Refreshing..."
-                    >
-                        Refresh
-                    </Button>
+                    <>
+                        <Button
+                            variant="outline"
+                            onClick={refreshDashboard}
+                            isLoading={dashboardState.status === 'loading'}
+                            loadingText="Refreshing..."
+                        >
+                            Refresh
+                        </Button>
+                        <Link
+                            to={`${appRoutePaths.appointments}#book-appointment`}
+                            className="inline-flex min-h-10 items-center justify-center rounded-md bg-action px-4 py-2 text-sm font-semibold text-white transition hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+                        >
+                            Book appointment
+                        </Link>
+                    </>
                 }
             />
+
+            {dashboardData ? (
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-brand-foreground">
+                            {formatClinicDate(dashboardData.summary.date)}
+                        </p>
+                        <h2 className="mt-1 text-xl font-semibold tracking-tight text-app-text sm:text-2xl">
+                            {firstName ? `Good day, ${firstName}` : 'Clinic overview'}
+                        </h2>
+                        <p className="mt-1 text-sm text-app-muted">
+                            {clinicName} ·{' '}
+                            {waitingCount > 0
+                                ? `${waitingCount} waiting in the queue`
+                                : 'No patients waiting'}
+                            {highRiskCount > 0
+                                ? ` · ${highRiskCount} risk flag${highRiskCount === 1 ? '' : 's'} to review`
+                                : ''}
+                        </p>
+                    </div>
+                    <Link
+                        to={appRoutePaths.queue}
+                        className="text-sm font-semibold text-action underline-offset-4 hover:underline"
+                    >
+                        Open live queue →
+                    </Link>
+                </div>
+            ) : null}
 
             {dashboardState.status === 'loading' ? (
                 <LoadingState message="Loading dashboard summary..." variant="panel" />
@@ -667,16 +739,13 @@ function DashboardOverviewPage() {
 
             {dashboardData ? (
                 <>
-                    <OperationalPulsePanel data={dashboardData} />
-
-                    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(22rem,0.95fr)]">
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            {summaryCards.map((card) => (
-                                <SummaryCardItem key={card.label} card={card} />
-                            ))}
-                        </div>
-                        <OperationalDistributionCard data={dashboardData} />
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        {summaryCards.map((card) => (
+                            <SummaryCardItem key={card.label} card={card} />
+                        ))}
                     </div>
+
+                    <OperationalPulsePanel data={dashboardData} />
 
                     {!hasDashboardData ? (
                         <EmptyState
@@ -693,12 +762,17 @@ function DashboardOverviewPage() {
                         />
                     ) : null}
 
-                    <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+                    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                         <HighRiskAppointmentsCard
                             appointments={dashboardData.highRiskAppointments}
+                            timezone={clinicTimezone}
                         />
-                        <TodayActivitySection activityItems={dashboardData.activityItems} />
+                        <TodayActivitySection
+                            activityItems={dashboardData.activityItems}
+                            timezone={clinicTimezone}
+                        />
                     </div>
+                    <OperationalDistributionCard data={dashboardData} />
                 </>
             ) : null}
         </section>

@@ -8,6 +8,7 @@ import { applyPatientAppointmentOutcome } from '../patients/patient.statistics.r
 import { isPresenceEstablishingAppointmentStatus } from './appointment.arrival.js';
 import { establishAppointmentArrivalIfNeeded } from './appointment.arrival.repository.js';
 import type { EstablishAppointmentArrivalResult } from './appointment.arrival.repository.js';
+import { registerPredictionRefreshWork } from '../predictions/prediction.recalculation.service.js';
 import { appointmentActivityRepository } from './appointment.activity.repository.js';
 import {
     withTransientDatabaseRetry,
@@ -371,6 +372,34 @@ export const appointmentRepository = {
         `;
     },
 
+    async lockBookingMemberships(
+        tx: Prisma.TransactionClient,
+        clinicId: string,
+        doctorId: string,
+        patientId: string
+    ) {
+        const clinics = await tx.$queryRaw<Array<{ isActive: boolean }>>`
+            SELECT "isActive" FROM "clinics" WHERE "id" = ${clinicId}::uuid FOR SHARE
+        `;
+        const doctors = await tx.$queryRaw<Array<{ linkActive: boolean; profileActive: boolean }>>`
+            SELECT dc."isActive" AS "linkActive", d."isActive" AS "profileActive"
+            FROM "doctor_clinics" dc JOIN "doctors" d ON d."id" = dc."doctorId"
+            WHERE dc."clinicId" = ${clinicId}::uuid AND dc."doctorId" = ${doctorId}::uuid
+            FOR SHARE OF dc, d
+        `;
+        const patients = await tx.$queryRaw<Array<{ linkActive: boolean; profileActive: boolean }>>`
+            SELECT pc."isActive" AS "linkActive", p."isActive" AS "profileActive"
+            FROM "patient_clinics" pc JOIN "patients" p ON p."id" = pc."patientId"
+            WHERE pc."clinicId" = ${clinicId}::uuid AND pc."patientId" = ${patientId}::uuid
+            FOR SHARE OF pc, p
+        `;
+        return {
+            clinicActive: clinics[0]?.isActive === true,
+            doctorActive: doctors[0]?.linkActive === true && doctors[0]?.profileActive === true,
+            patientActive: patients[0]?.linkActive === true && patients[0]?.profileActive === true,
+        };
+    },
+
     findOverlappingDoctorAppointment(
         tx: Prisma.TransactionClient,
         clinicId: string,
@@ -697,6 +726,24 @@ export const appointmentRepository = {
                     });
                 }
 
+                if (
+                    (didTransition &&
+                        (status === AppointmentStatus.COMPLETED ||
+                            status === AppointmentStatus.NO_SHOW)) ||
+                    (arrivalResult?.wasEstablished === true &&
+                        arrivalResult.outcome?.isLateArrival === true)
+                ) {
+                    // One coalesced request covers a late arrival plus terminal
+                    // outcome when both happen in this transaction.
+                    await registerPredictionRefreshWork({
+                        tx,
+                        clinicId: existingAppointment.clinicId,
+                        patientId: existingAppointment.patientId,
+                        trigger: 'PATIENT_HISTORY_CHANGED',
+                        now,
+                    });
+                }
+
                 await appointmentActivityRepository.recordAppointmentTransitionActivities({
                     tx,
                     appointmentId,
@@ -781,7 +828,7 @@ export const appointmentRepository = {
                 riskLevel: prediction.riskLevel,
                 score: prediction.score,
                 featureSchemaVersion: prediction.featureSchemaVersion ?? null,
-                featureSnapshot: prediction.featureSnapshot ?? null,
+                featureSnapshot: prediction.featureSnapshot ?? Prisma.JsonNull,
                 ruleVersion: prediction.ruleVersion ?? null,
                 generationSource: prediction.generationSource ?? 'APPOINTMENT_CREATION',
                 runKey: prediction.runKey ?? `baseline:${appointmentId}`,

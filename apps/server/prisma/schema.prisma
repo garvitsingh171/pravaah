@@ -21,6 +21,7 @@ enum UserStatus {
   INVITED
   ACTIVE
   SUSPENDED
+  REMOVED
 }
 
 enum StaffInvitationStatus {
@@ -118,6 +119,17 @@ enum PredictionGenerationSource {
   APPOINTMENT_CREATION
   BACKFILL
   LEGACY_EXISTING
+  APPOINTMENT_RESCHEDULED
+  PATIENT_HISTORY_CHANGED
+  TRAVEL_DISTANCE_CHANGED
+}
+
+enum PredictionRefreshStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  RETRYABLE_FAILURE
+  NEEDS_ATTENTION
 }
 
 enum BookingSource {
@@ -189,8 +201,10 @@ model Clinic {
   appointments          Appointment[]
   queueEntries          QueueEntry[]
   noShowPredictions     NoShowPrediction[]
+  predictionRefreshWork PredictionRefreshWork[]
   appointmentActivities AppointmentActivity[]
   staffInvitations      StaffInvitation[]
+  lifecycleEvents       LifecycleEvent[]
 
   @@index([isActive])
   @@index([city])
@@ -214,6 +228,7 @@ model User {
   appointmentActivities    AppointmentActivity[] @relation("AppointmentActivityActor")
   staffInvitationsSent     StaffInvitation[]     @relation("StaffInvitationInvitedBy")
   staffInvitationsAccepted StaffInvitation[]     @relation("StaffInvitationAcceptedBy")
+  lifecycleEvents          LifecycleEvent[]      @relation("LifecycleEventActor")
 
   @@index([clinicId])
   @@index([role])
@@ -244,6 +259,24 @@ model StaffInvitation {
   @@index([email, status])
   @@index([expiresAt])
   @@map("staff_invitations")
+}
+
+model LifecycleEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  clinicId    String   @db.Uuid
+  actorUserId String   @db.Uuid
+  entityType  String
+  entityId    String   @db.Uuid
+  action      String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  actor  User   @relation("LifecycleEventActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([clinicId, createdAt])
+  @@index([entityType, entityId, createdAt])
+  @@map("lifecycle_events")
 }
 
 model Doctor {
@@ -340,10 +373,11 @@ model Patient {
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
 
-  patientClinics    PatientClinic[]
-  appointments      Appointment[]
-  queueEntries      QueueEntry[]
-  noShowPredictions NoShowPrediction[]
+  patientClinics        PatientClinic[]
+  appointments          Appointment[]
+  queueEntries          QueueEntry[]
+  noShowPredictions     NoShowPrediction[]
+  predictionRefreshWork PredictionRefreshWork[]
 
   @@index([phone])
   @@index([fullName])
@@ -490,4 +524,33 @@ model NoShowPrediction {
   @@index([clinicId])
   @@index([patientId])
   @@map("no_show_predictions")
+}
+
+// A coalesced, clinic-scoped request to refresh future appointment predictions.
+// It is deliberately separate from NoShowPrediction so prediction runs remain
+// immutable audit records rather than mutable job state.
+model PredictionRefreshWork {
+  id                String                     @id @default(uuid()) @db.Uuid
+  clinicId          String                     @db.Uuid
+  patientId         String                     @db.Uuid
+  requestedRevision Int                        @default(1)
+  processedRevision Int                        @default(0)
+  latestTrigger     PredictionGenerationSource
+  status            PredictionRefreshStatus    @default(PENDING)
+  requestedAt       DateTime                   @default(now())
+  leaseOwner        String?
+  leaseExpiresAt    DateTime?
+  attemptCount      Int                        @default(0)
+  nextAttemptAt     DateTime                   @default(now())
+  lastErrorCode     String?
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+
+  clinic  Clinic  @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Restrict)
+
+  @@unique([clinicId, patientId])
+  @@index([status, nextAttemptAt])
+  @@index([clinicId, patientId, requestedRevision])
+  @@map("prediction_refresh_work")
 }

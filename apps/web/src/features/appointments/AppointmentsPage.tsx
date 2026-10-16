@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useActiveClinic } from '../../app/activeClinicContext';
 import { EmptyState, ErrorMessage, LoadingState, useToast } from '../../components/feedback';
 import {
@@ -14,6 +14,8 @@ import {
     getQueueStatusLabel,
 } from '../../components/ui';
 import { isApiClientError } from '../../lib';
+import { formatClinicDateTime, getClinicDateInputValue } from '../../lib/clinicDateTime';
+import useModalFocus from '../../components/ui/useModalFocus';
 import { AppointmentStatus, BookingSource } from '../../types';
 import type { DoctorSummary, PatientSummary, RiskLevel } from '../../types';
 import { listDoctors } from '../doctors/doctorApi';
@@ -322,15 +324,6 @@ const isActivePatient = (patient: PatientSummary): boolean => {
     return patient.isActive && patient.clinicLinkIsActive !== false;
 };
 
-const getTodayDateInputValue = (): string => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-
-    return `${year}-${month}-${day}`;
-};
-
 const dateInputPattern = /^\d{4}-\d{2}-\d{2}$/;
 
 const isValidDateInputValue = (value: string): boolean => {
@@ -527,19 +520,6 @@ const getAppointmentListErrorState = (
             code: 'APPOINTMENT_LIST_FAILED',
         },
     };
-};
-
-const formatAppointmentDateTime = (value: string): string => {
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return value;
-    }
-
-    return new Intl.DateTimeFormat('en-IN', {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-    }).format(date);
 };
 
 const formatAppointmentTime = (
@@ -848,7 +828,13 @@ function RiskBadge({
     );
 }
 
-function PredictionDetailPanel({ appointment }: { appointment: AppointmentListItem }) {
+function PredictionDetailPanel({
+    appointment,
+    timezone,
+}: {
+    appointment: AppointmentListItem;
+    timezone?: string | null;
+}) {
     const prediction = appointment.noShowPrediction;
 
     if (!prediction) {
@@ -913,7 +899,9 @@ function PredictionDetailPanel({ appointment }: { appointment: AppointmentListIt
                         Generated
                     </dt>
                     <dd className="mt-1 text-sm font-semibold text-slate-900">
-                        {generatedAt ? formatAppointmentDateTime(generatedAt) : 'Not available'}
+                        {generatedAt
+                            ? formatClinicDateTime(generatedAt, timezone)
+                            : 'Not available'}
                     </dd>
                 </div>
             </dl>
@@ -997,7 +985,7 @@ function AppointmentDetailPanel({
                             {appointment.patient.fullName} with {appointment.doctor.fullName}
                         </h3>
                         <p className="mt-2 text-sm text-slate-600">
-                            {formatAppointmentDateTime(appointment.scheduledAt)} for{' '}
+                            {formatClinicDateTime(appointment.scheduledAt, timezone)} for{' '}
                             {formatDuration(appointment.durationMinutes)}
                         </p>
                         <AppointmentArrivalSummary appointment={appointment} timezone={timezone} />
@@ -1077,7 +1065,7 @@ function AppointmentDetailPanel({
                 ) : null}
             </div>
 
-            <PredictionDetailPanel appointment={appointment} />
+            <PredictionDetailPanel appointment={appointment} timezone={timezone} />
         </div>
     );
 }
@@ -1111,12 +1099,14 @@ function AppointmentListInsightsStrip({ insights }: { insights: AppointmentListI
 
 function RescheduleAppointmentDialog({
     state,
+    timezone,
     onDateChange,
     onSlotChange,
     onConfirm,
     onCancel,
 }: {
     state: RescheduleFlowState;
+    timezone?: string | null;
     onDateChange: (value: string) => void;
     onSlotChange: (value: string) => void;
     onConfirm: () => void;
@@ -1126,13 +1116,16 @@ function RescheduleAppointmentDialog({
         state.availability?.slots.find((slot) => slot.scheduledAt === state.selectedScheduledAt) ??
         null;
     const canConfirm = Boolean(selectedSlot) && !state.isSaving;
+    const dialogRef = useModalFocus(onCancel, state.isSaving);
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 py-6">
             <div
+                ref={dialogRef}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="appointment-reschedule-title"
+                tabIndex={-1}
                 className="max-h-full w-full max-w-2xl overflow-y-auto rounded-lg border border-app-border bg-white p-6 shadow-xl"
             >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -1177,7 +1170,7 @@ function RescheduleAppointmentDialog({
                             Current
                         </dt>
                         <dd className="mt-1 text-sm font-semibold text-slate-900">
-                            {formatAppointmentDateTime(state.appointment.scheduledAt)}
+                            {formatClinicDateTime(state.appointment.scheduledAt, timezone)}
                         </dd>
                     </div>
                 </dl>
@@ -1229,7 +1222,10 @@ function RescheduleAppointmentDialog({
                 </div>
 
                 {state.slotsState.status === 'error' ? (
-                    <p className="mt-4 rounded-md border border-[var(--color-status-danger-border)] bg-[var(--color-status-danger-bg)] px-3 py-2 text-sm text-[var(--color-status-danger-text)]">
+                    <p
+                        role="alert"
+                        className="mt-4 rounded-md border border-[var(--color-status-danger-border)] bg-[var(--color-status-danger-bg)] px-3 py-2 text-sm text-[var(--color-status-danger-text)]"
+                    >
                         {state.slotsState.error.message}
                     </p>
                 ) : null}
@@ -1241,7 +1237,10 @@ function RescheduleAppointmentDialog({
                 ) : null}
 
                 {state.error ? (
-                    <p className="mt-4 rounded-md border border-[var(--color-status-danger-border)] bg-[var(--color-status-danger-bg)] px-3 py-2 text-sm text-[var(--color-status-danger-text)]">
+                    <p
+                        role="alert"
+                        className="mt-4 rounded-md border border-[var(--color-status-danger-border)] bg-[var(--color-status-danger-bg)] px-3 py-2 text-sm text-[var(--color-status-danger-text)]"
+                    >
                         {state.error.message}
                     </p>
                 ) : null}
@@ -1257,7 +1256,7 @@ function RescheduleAppointmentDialog({
                                     From
                                 </dt>
                                 <dd className="mt-1 text-sm font-semibold text-slate-900">
-                                    {formatAppointmentDateTime(state.appointment.scheduledAt)}
+                                    {formatClinicDateTime(state.appointment.scheduledAt, timezone)}
                                 </dd>
                             </div>
                             <div>
@@ -1292,10 +1291,11 @@ function RescheduleAppointmentDialog({
 
 function AppointmentsPage() {
     const activeClinic = useActiveClinic();
+    const location = useLocation();
     const { clinicId } = activeClinic;
     const clinicTimezone = activeClinic.clinic?.timezone;
     const { showErrorToast, showSuccessToast } = useToast();
-    const [selectedDate, setSelectedDate] = useState(getTodayDateInputValue);
+    const [selectedDate, setSelectedDate] = useState(() => getClinicDateInputValue(clinicTimezone));
     const [selectedDoctorId, setSelectedDoctorId] = useState('');
     const [selectedPatientId, setSelectedPatientId] = useState('');
     const [selectedStatus, setSelectedStatus] = useState<AppointmentStatus | ''>('');
@@ -1323,6 +1323,16 @@ function AppointmentsPage() {
     const [successState, setSuccessState] = useState<SuccessState | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [rescheduleFlow, setRescheduleFlow] = useState<RescheduleFlowState | null>(null);
+
+    useEffect(() => {
+        if (location.hash !== '#book-appointment') return;
+        const frame = window.requestAnimationFrame(() => {
+            const target = document.getElementById('book-appointment');
+            if (typeof target?.scrollIntoView === 'function')
+                target.scrollIntoView({ block: 'start' });
+        });
+        return () => window.cancelAnimationFrame(frame);
+    }, [location.hash]);
     const [activityAppointment, setActivityAppointment] = useState<AppointmentListItem | null>(
         null
     );
@@ -1450,7 +1460,7 @@ function AppointmentsPage() {
 
     const handleTodayFilterClick = () => {
         prepareAppointmentFilterChange();
-        setSelectedDate(getTodayDateInputValue());
+        setSelectedDate(getClinicDateInputValue(clinicTimezone));
     };
 
     const handleClearAppointmentFilters = () => {
@@ -2288,14 +2298,14 @@ function AppointmentsPage() {
             ) : null}
 
             {hasAppointments ? (
-                <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+                <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[var(--shadow-soft)]">
                     <div
                         className="overflow-x-auto"
                         tabIndex={0}
                         aria-label="Appointments table, horizontally scrollable on small screens"
                     >
                         <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-                            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                            <thead className="sticky top-0 z-10 bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                                 <tr>
                                     <th className="px-4 py-3 font-semibold">Time</th>
                                     <th className="px-4 py-3 font-semibold">Patient</th>
@@ -2321,10 +2331,11 @@ function AppointmentsPage() {
                                     return (
                                         <Fragment key={appointment.id}>
                                             <tr className="align-top transition hover:bg-slate-50/70">
-                                                <td className="min-w-44 px-4 py-5 text-slate-700">
+                                                <td className="min-w-44 px-4 py-3.5 text-slate-700">
                                                     <p className="font-semibold text-slate-900">
-                                                        {formatAppointmentDateTime(
-                                                            appointment.scheduledAt
+                                                        {formatClinicDateTime(
+                                                            appointment.scheduledAt,
+                                                            clinicTimezone
                                                         )}
                                                     </p>
                                                     <p className="mt-1 text-xs text-slate-500">
@@ -2333,20 +2344,15 @@ function AppointmentsPage() {
                                                         )}
                                                     </p>
                                                 </td>
-                                                <td className="min-w-44 px-4 py-5">
+                                                <td className="min-w-44 px-4 py-3.5">
                                                     <p className="font-semibold text-slate-900">
                                                         {appointment.patient.fullName}
                                                     </p>
                                                     <p className="mt-1 text-slate-600">
                                                         {getOptionalText(appointment.patient.phone)}
                                                     </p>
-                                                    {appointment.patient.email ? (
-                                                        <p className="mt-1 text-xs text-slate-500">
-                                                            {appointment.patient.email}
-                                                        </p>
-                                                    ) : null}
                                                 </td>
-                                                <td className="min-w-44 px-4 py-5">
+                                                <td className="min-w-44 px-4 py-3.5">
                                                     <p className="font-semibold text-slate-900">
                                                         {appointment.doctor.fullName}
                                                     </p>
@@ -2356,7 +2362,7 @@ function AppointmentsPage() {
                                                         )}
                                                     </p>
                                                 </td>
-                                                <td className="min-w-32 px-4 py-5">
+                                                <td className="min-w-32 px-4 py-3.5">
                                                     <StatusBadge
                                                         kind="appointment"
                                                         status={appointment.status}
@@ -2371,7 +2377,7 @@ function AppointmentsPage() {
                                                         timezone={clinicTimezone}
                                                     />
                                                 </td>
-                                                <td className="min-w-56 px-4 py-5 text-slate-700">
+                                                <td className="min-w-56 px-4 py-3.5 text-slate-700">
                                                     <p className="font-medium text-slate-900">
                                                         {getOptionalText(appointment.reason)}
                                                     </p>
@@ -2393,7 +2399,7 @@ function AppointmentsPage() {
                                                         </div>
                                                     ) : null}
                                                 </td>
-                                                <td className="min-w-48 px-4 py-5">
+                                                <td className="min-w-48 px-4 py-3.5">
                                                     <RiskBadge
                                                         appointment={appointment}
                                                         isExpanded={isRiskExpanded}
@@ -2406,8 +2412,23 @@ function AppointmentsPage() {
                                                         }
                                                     />
                                                 </td>
-                                                <td className="min-w-44 px-4 py-5">
+                                                <td className="min-w-44 px-4 py-3.5">
                                                     <div className="flex flex-col gap-2">
+                                                        {statusActions[0] ? (
+                                                            <Button
+                                                                onClick={() =>
+                                                                    void handleStatusUpdate(
+                                                                        appointment,
+                                                                        statusActions[0].status
+                                                                    )
+                                                                }
+                                                                disabled={isUpdating}
+                                                                isLoading={isUpdating}
+                                                                loadingText="Updating..."
+                                                            >
+                                                                {statusActions[0].label}
+                                                            </Button>
+                                                        ) : null}
                                                         <Button
                                                             variant="outline"
                                                             onClick={() =>
@@ -2433,7 +2454,7 @@ function AppointmentsPage() {
                                                             </Button>
                                                         ) : null}
 
-                                                        {statusActions.length > 0 ? (
+                                                        {statusActions.length > 1 ? (
                                                             <select
                                                                 className={`${fieldControlClassName} w-40`}
                                                                 value=""
@@ -2454,22 +2475,24 @@ function AppointmentsPage() {
                                                                 <option value="">
                                                                     {isUpdating
                                                                         ? 'Updating...'
-                                                                        : 'Update status'}
+                                                                        : 'More actions'}
                                                                 </option>
-                                                                {statusActions.map((action) => (
-                                                                    <option
-                                                                        key={action.status}
-                                                                        value={action.status}
-                                                                    >
-                                                                        {action.label}
-                                                                    </option>
-                                                                ))}
+                                                                {statusActions
+                                                                    .slice(1)
+                                                                    .map((action) => (
+                                                                        <option
+                                                                            key={action.status}
+                                                                            value={action.status}
+                                                                        >
+                                                                            {action.label}
+                                                                        </option>
+                                                                    ))}
                                                             </select>
-                                                        ) : (
+                                                        ) : statusActions.length === 0 ? (
                                                             <span className="text-sm text-slate-500">
                                                                 Final status
                                                             </span>
-                                                        )}
+                                                        ) : null}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -2498,7 +2521,7 @@ function AppointmentsPage() {
 
             <div
                 id="book-appointment"
-                className="rounded-lg border border-slate-200 bg-white p-6 md:p-8"
+                className="scroll-mt-6 rounded-lg border border-slate-200 bg-white p-4 shadow-[var(--shadow-soft)] sm:p-6"
             >
                 <div className="mb-6">
                     <p className="text-sm font-medium uppercase tracking-wide text-brand-foreground">
@@ -2561,7 +2584,8 @@ function AppointmentsPage() {
                     >
                         <p className="font-semibold">{successState.message}</p>
                         <p className="mt-1">
-                            Scheduled for {formatAppointmentDateTime(successState.scheduledAt)}
+                            Scheduled for{' '}
+                            {formatClinicDateTime(successState.scheduledAt, clinicTimezone)}
                             {successState.riskLevel
                                 ? ` with ${successState.riskLevel.toLowerCase()} no-show risk.`
                                 : '.'}
@@ -2598,6 +2622,7 @@ function AppointmentsPage() {
             {rescheduleFlow ? (
                 <RescheduleAppointmentDialog
                     state={rescheduleFlow}
+                    timezone={clinicTimezone}
                     onDateChange={handleRescheduleDateChange}
                     onSlotChange={handleRescheduleSlotChange}
                     onConfirm={handleConfirmReschedule}
@@ -2618,8 +2643,9 @@ function AppointmentsPage() {
                     mode={terminalReasonFlow.mode}
                     patientName={terminalReasonFlow.appointment.patient.fullName}
                     doctorName={terminalReasonFlow.appointment.doctor.fullName}
-                    scheduledAtLabel={formatAppointmentDateTime(
-                        terminalReasonFlow.appointment.scheduledAt
+                    scheduledAtLabel={formatClinicDateTime(
+                        terminalReasonFlow.appointment.scheduledAt,
+                        clinicTimezone
                     )}
                     isSubmitting={terminalReasonFlow.isSubmitting}
                     error={terminalReasonFlow.error}

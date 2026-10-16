@@ -25,6 +25,7 @@ export type ManageableStaffStatus = Extract<UserStatus, 'ACTIVE' | 'SUSPENDED'>;
 export type UpdateStaffStatusInput = {
     clinicId: string;
     userId: string;
+    actorUserId: string;
     status: ManageableStaffStatus;
 };
 

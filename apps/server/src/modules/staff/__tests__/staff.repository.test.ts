@@ -17,6 +17,7 @@ const { mockPrisma, mockTx } = vi.hoisted(() => {
             create: vi.fn(),
             update: vi.fn(),
         },
+        lifecycleEvent: { create: vi.fn() },
     };
 
     return {
@@ -48,7 +49,7 @@ const pendingInvitation = {
     revokedAt: null,
     createdAt: new Date('2099-01-01T00:00:00.000Z'),
     updatedAt: new Date('2099-01-01T00:00:00.000Z'),
-    clinic: { id: 'clinic-id', name: 'Clinic A' },
+    clinic: { id: 'clinic-id', name: 'Clinic A', isActive: true },
     acceptedBy: null,
     invitedBy: { id: 'admin-id', fullName: 'Clinic Admin' },
 };
@@ -86,6 +87,11 @@ describe('staffRepository transaction ownership', () => {
             select: { id: true },
         });
         expect(result.outcome).toBe('CREATED');
+        expect(mockTx.lifecycleEvent.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({ actorUserId: 'admin-id', action: 'CREATED' }),
+            })
+        );
     });
 
     it('creates Staff and claims the locked invitation in one transaction', async () => {
@@ -140,6 +146,34 @@ describe('staffRepository transaction ownership', () => {
             },
         });
         expect(result.outcome).toBe('ACCEPTED');
+        expect(mockTx.lifecycleEvent.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({ actorUserId: 'staff-id', action: 'ACCEPTED' }),
+            })
+        );
+    });
+
+    it('does not accept a pending invitation while its clinic is inactive', async () => {
+        mockTx.$queryRaw.mockResolvedValueOnce([{ id: pendingInvitation.id }]);
+        mockTx.staffInvitation.findUnique.mockResolvedValue({
+            ...pendingInvitation,
+            clinic: { ...pendingInvitation.clinic, isActive: false },
+        });
+
+        const result = await staffRepository.acceptInvitation({
+            tokenHash: 'token-hash',
+            identity: {
+                clerkUserId: 'clerk-staff',
+                email: 'staff@example.com',
+                fullName: 'Staff Member',
+            },
+            normalizedEmail: 'staff@example.com',
+            now: new Date('2099-01-02T00:00:00.000Z'),
+        });
+
+        expect(result).toEqual({ outcome: 'CLINIC_INACTIVE' });
+        expect(mockTx.user.create).not.toHaveBeenCalled();
+        expect(mockTx.staffInvitation.updateMany).not.toHaveBeenCalled();
     });
 
     it('revokes only through a guarded PENDING claim after taking the row lock', async () => {
@@ -151,6 +185,7 @@ describe('staffRepository transaction ownership', () => {
         const result = await staffRepository.revokeInvitation({
             clinicId: 'clinic-id',
             invitationId: 'invite-id',
+            actorUserId: 'admin-id',
             now,
         });
 
@@ -167,5 +202,56 @@ describe('staffRepository transaction ownership', () => {
             },
         });
         expect(result.outcome).toBe('REVOKED');
+        expect(mockTx.lifecycleEvent.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({ actorUserId: 'admin-id', action: 'REVOKED' }),
+            })
+        );
+    });
+
+    it('removes a Staff member without deleting their identity or attribution', async () => {
+        mockTx.user.findFirst.mockResolvedValue({
+            id: 'staff-id',
+            role: UserRole.STAFF,
+            status: UserStatus.ACTIVE,
+        });
+        mockTx.user.update.mockResolvedValue({
+            id: 'staff-id',
+            role: UserRole.STAFF,
+            status: UserStatus.REMOVED,
+        });
+
+        const result = await staffRepository.setStaffRemoved({
+            clinicId: 'clinic-id',
+            userId: 'staff-id',
+            actorUserId: 'admin-id',
+            restore: false,
+        });
+
+        expect(result).toMatchObject({ outcome: 'UPDATED', user: { status: UserStatus.REMOVED } });
+        expect(mockTx.user.update).toHaveBeenCalledWith(
+            expect.objectContaining({ data: { status: UserStatus.REMOVED } })
+        );
+        expect(mockTx.lifecycleEvent.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({ action: 'REMOVED', actorUserId: 'admin-id' }),
+        });
+    });
+
+    it('protects Admin accounts from the Staff removal endpoint', async () => {
+        mockTx.user.findFirst.mockResolvedValue({
+            id: 'admin-id',
+            role: UserRole.ADMIN,
+            status: UserStatus.ACTIVE,
+        });
+
+        const result = await staffRepository.setStaffRemoved({
+            clinicId: 'clinic-id',
+            userId: 'admin-id',
+            actorUserId: 'admin-id',
+            restore: false,
+        });
+
+        expect(result).toEqual({ outcome: 'STAFF_REQUIRED' });
+        expect(mockTx.user.update).not.toHaveBeenCalled();
     });
 });

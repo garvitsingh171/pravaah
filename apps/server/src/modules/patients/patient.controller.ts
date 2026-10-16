@@ -122,3 +122,85 @@ export async function listPatientsByClinicController(
         next(error);
     }
 }
+
+export async function getPatientByClinicController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { clinicId, patientId } = req.params as { clinicId: string; patientId: string };
+        const patient = await patientService.getPatientByClinic(clinicId, patientId);
+        res.status(200).json({
+            success: true,
+            message: 'Patient fetched successfully',
+            data: { patient },
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function getPatientLifecycleImpactController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { clinicId, patientId } = req.params as { clinicId: string; patientId: string };
+        const data = await patientService.getLifecycleImpact(clinicId, patientId);
+        res.status(200).json({
+            success: true,
+            message: 'Patient impact fetched successfully',
+            data,
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function archivePatientController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { clinicId, patientId } = req.params as { clinicId: string; patientId: string };
+        const patient = await patientService.setClinicLinkActive({
+            clinicId,
+            patientId,
+            actorUserId: req.user!.id,
+            isActive: false,
+        });
+        res.status(200).json({
+            success: true,
+            message: 'Patient archived from this clinic',
+            data: { patient },
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function restorePatientController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { clinicId, patientId } = req.params as { clinicId: string; patientId: string };
+        const patient = await patientService.setClinicLinkActive({
+            clinicId,
+            patientId,
+            actorUserId: req.user!.id,
+            isActive: true,
+        });
+        res.status(200).json({
+            success: true,
+            message: 'Patient restored to this clinic',
+            data: { patient },
+        });
+    } catch (error) {
+        next(error);
+    }
+}

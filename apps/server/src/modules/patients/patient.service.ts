@@ -86,6 +86,69 @@ const calculateRouteForCurrentClinic = async (
 };
 
 export const patientService = {
+    async getPatientByClinic(clinicId: string, patientId: string) {
+        const patient = await patientRepository.findPatientByIdWithClinic(patientId, clinicId);
+        if (!patient || patient.patientClinics.length === 0) {
+            throw new AppError(404, 'PATIENT_NOT_FOUND', 'Patient not found in this clinic');
+        }
+        return { ...patient, clinicLinkIsActive: patient.patientClinics[0]!.isActive };
+    },
+
+    async getLifecycleImpact(clinicId: string, patientId: string) {
+        const result = await patientRepository.getLifecycleImpact(clinicId, patientId);
+        if (!result)
+            throw new AppError(404, 'PATIENT_NOT_FOUND', 'Patient not found in this clinic');
+        return result;
+    },
+
+    async setClinicLinkActive(input: {
+        clinicId: string;
+        patientId: string;
+        actorUserId: string;
+        isActive: boolean;
+    }) {
+        const result = await patientRepository.setClinicLinkActive(input);
+        if (result.outcome === 'NOT_FOUND') {
+            throw new AppError(404, 'PATIENT_NOT_FOUND', 'Patient not found in this clinic');
+        }
+        if (result.outcome === 'ALREADY_SET') {
+            throw new AppError(
+                409,
+                'PATIENT_LIFECYCLE_CONFLICT',
+                'Patient status has already changed. Refresh the list.'
+            );
+        }
+        if (result.outcome === 'PROFILE_INACTIVE') {
+            throw new AppError(
+                409,
+                'PATIENT_PROFILE_INACTIVE',
+                'This patient profile is inactive and cannot be restored here.'
+            );
+        }
+        if (result.outcome === 'ACTIVE_VISITS') {
+            throw new AppError(
+                409,
+                'PATIENT_HAS_ACTIVE_VISITS',
+                'Resolve this patient’s active appointments and queue entries before archiving.',
+                [
+                    {
+                        field: 'futureAppointments',
+                        message: String(result.impact.futureAppointments),
+                    },
+                    {
+                        field: 'activeAppointments',
+                        message: String(result.impact.activeAppointments),
+                    },
+                    {
+                        field: 'activeQueueEntries',
+                        message: String(result.impact.activeQueueEntries),
+                    },
+                ]
+            );
+        }
+        return result.patient;
+    },
+
     async createPatient(clinicId: string, input: CreatePatientInput) {
         const existingClinic = await patientRepository.findClinicById(clinicId);
 

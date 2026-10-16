@@ -1,4 +1,5 @@
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { AppRoutes } from './App';
 import { renderWithProviders } from './test/renderWithProviders';
@@ -16,6 +17,37 @@ vi.mock('./features/onboarding/onboardingApi', async (importOriginal) => {
 });
 
 describe('App routes', () => {
+    it('loads the protected route boundary and sends signed-out users to sign-in', async () => {
+        setClerkSignedOut();
+        renderWithProviders(<AppRoutes />, { route: '/dashboard' });
+
+        expect(
+            await screen.findByRole('heading', { name: 'Sign in to Pravaah' }, { timeout: 5000 })
+        ).toBeInTheDocument();
+        expect(mockGetOnboardingStatus).not.toHaveBeenCalled();
+    });
+
+    it('opens and closes the public menu with keyboard access', async () => {
+        setClerkSignedOut();
+        const user = userEvent.setup();
+        renderWithProviders(<AppRoutes />, { route: '/' });
+
+        const menu = await screen.findByRole('button', { name: 'Menu' }, { timeout: 5000 });
+        await user.click(menu);
+        const productLink = screen.getByRole('link', { name: 'Product' });
+        productLink.focus();
+        expect(screen.getByRole('button', { name: 'Close' })).toHaveAttribute(
+            'aria-expanded',
+            'true'
+        );
+        await user.keyboard('{Escape}');
+        expect(menu).toHaveFocus();
+        expect(screen.getByRole('button', { name: 'Menu' })).toHaveAttribute(
+            'aria-expanded',
+            'false'
+        );
+    });
+
     it('renders the public landing page for signed-out visitors without requesting onboarding status', async () => {
         setClerkSignedOut();
 
@@ -25,7 +57,7 @@ describe('App routes', () => {
 
         expect(
             await screen.findByRole('heading', {
-                name: /keep your clinic day moving/i,
+                name: /from appointment to consultation. keep your clinic moving/i,
             })
         ).toBeInTheDocument();
         expect(screen.getAllByRole('link', { name: /^sign in$/i })[0]).toHaveAttribute(
@@ -48,7 +80,7 @@ describe('App routes', () => {
 
         expect(
             await screen.findByRole('heading', {
-                name: /keep your clinic day moving/i,
+                name: /from appointment to consultation. keep your clinic moving/i,
             })
         ).toBeInTheDocument();
         expect(screen.getAllByRole('link', { name: /pravaah home/i })[0]).toHaveAttribute(
@@ -66,7 +98,7 @@ describe('App routes', () => {
 
         expect(
             await screen.findByRole('heading', {
-                name: /keep your clinic day moving/i,
+                name: /from appointment to consultation. keep your clinic moving/i,
             })
         ).toBeInTheDocument();
         expect(screen.getAllByRole('link', { name: /pravaah home/i })[0]).toHaveAttribute(

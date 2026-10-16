@@ -6,6 +6,7 @@ import { ApiClientError } from '../../lib';
 import { AppointmentStatus, BookingSource, QueueStatus, RiskLevel } from '../../types';
 import { adminActiveClinic, renderWithProviders } from '../../test/renderWithProviders';
 import type { QueueListItem } from './queueApi';
+import { getClinicDateInputValue } from '../../lib/clinicDateTime';
 
 const mockListTodayQueue = vi.hoisted(() => vi.fn());
 const mockReorderQueue = vi.hoisted(() => vi.fn());
@@ -21,15 +22,6 @@ vi.mock('./queueApi', async (importOriginal) => {
         updateQueueStatus: mockUpdateQueueStatus,
     };
 });
-
-const getTodayDateInputValue = (): string => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-
-    return `${year}-${month}-${day}`;
-};
 
 const createQueueEntry = (
     overrides: Partial<QueueListItem> & {
@@ -171,7 +163,7 @@ describe('QueuePage manual reorder controls', () => {
 
         await waitFor(() => {
             expect(mockReorderQueue).toHaveBeenCalledWith(adminActiveClinic.clinicId, {
-                date: getTodayDateInputValue(),
+                date: getClinicDateInputValue(adminActiveClinic.clinic?.timezone),
                 queueEntryIds: [secondEntry.id, firstEntry.id],
             });
         });

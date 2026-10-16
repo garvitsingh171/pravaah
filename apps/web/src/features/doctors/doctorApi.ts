@@ -25,7 +25,6 @@ export type UpdateDoctorRequest = {
     email?: string | null;
     gender?: Gender | null;
     experienceYears?: number | null;
-    isActive?: boolean;
 };
 
 export type CreateDoctorResponseData = {
@@ -62,6 +61,34 @@ export const updateDoctor = (clinicId: string, doctorId: string, payload: Update
         payload
     );
 };
+
+export type LifecycleImpact = {
+    futureAppointments: number;
+    activeAppointments: number;
+    activeQueueEntries: number;
+};
+
+export const getDoctor = (clinicId: string, doctorId: string, signal?: AbortSignal) =>
+    apiClient.get<{ doctor: DoctorSummary }>(
+        `${getDoctorCollectionPath(clinicId)}/${encodeURIComponent(doctorId)}`,
+        { signal }
+    );
+
+export const getDoctorLifecycleImpact = (clinicId: string, doctorId: string) =>
+    apiClient.get<{ doctor: DoctorSummary; impact: LifecycleImpact }>(
+        `${getDoctorCollectionPath(clinicId)}/${encodeURIComponent(doctorId)}/lifecycle-impact`
+    );
+
+export const archiveDoctor = (clinicId: string, doctorId: string) =>
+    apiClient.delete<{ doctor: DoctorSummary }>(
+        `${getDoctorCollectionPath(clinicId)}/${encodeURIComponent(doctorId)}`
+    );
+
+export const restoreDoctor = (clinicId: string, doctorId: string) =>
+    apiClient.post<{ doctor: DoctorSummary }>(
+        `${getDoctorCollectionPath(clinicId)}/${encodeURIComponent(doctorId)}/restore`,
+        {}
+    );
 
 const getDoctorAvailabilityPath = (clinicId: string, doctorId: string): string => {
     return `${getDoctorCollectionPath(clinicId)}/${encodeURIComponent(doctorId)}/availability`;

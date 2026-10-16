@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const findUnique = vi.hoisted(() => vi.fn());
 const update = vi.hoisted(() => vi.fn());
 const updateMany = vi.hoisted(() => vi.fn());
+const upsertRefreshWork = vi.hoisted(() => vi.fn());
 
 vi.mock('../../../config/prisma.js', () => ({
     prisma: {
@@ -11,6 +12,7 @@ vi.mock('../../../config/prisma.js', () => ({
             update,
             updateMany,
         },
+        predictionRefreshWork: { upsert: upsertRefreshWork },
     },
 }));
 
@@ -21,6 +23,7 @@ describe('routingRepository concurrency guards', () => {
         vi.clearAllMocks();
         update.mockResolvedValue({});
         updateMany.mockResolvedValue({ count: 1 });
+        findUnique.mockResolvedValue({ distanceFromClinicKm: null });
     });
 
     it('clears legacy/current route values and records both attempt guards', async () => {
@@ -93,6 +96,38 @@ describe('routingRepository concurrency guards', () => {
                 data: expect.objectContaining({ routingStatus: 'FAILED' }),
             })
         );
+    });
+
+    it('queues a refresh after a current failed recalculation even though the begin step cleared the old distance', async () => {
+        await routingRepository.markRoutingFailedIfCurrent(
+            'patient-id',
+            'clinic-id',
+            'source-a',
+            'attempt-a'
+        );
+
+        expect(upsertRefreshWork).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: { clinicId_patientId: { clinicId: 'clinic-id', patientId: 'patient-id' } },
+                update: expect.objectContaining({
+                    latestTrigger: 'TRAVEL_DISTANCE_CHANGED',
+                    status: 'PENDING',
+                }),
+            })
+        );
+    });
+
+    it('does not queue a refresh for a stale failed attempt', async () => {
+        updateMany.mockResolvedValue({ count: 0 });
+
+        await routingRepository.markRoutingFailedIfCurrent(
+            'patient-id',
+            'clinic-id',
+            'source-a',
+            'stale-attempt'
+        );
+
+        expect(upsertRefreshWork).not.toHaveBeenCalled();
     });
 
     it('invalidates active and in-flight derived attempts without touching legacy rows', async () => {

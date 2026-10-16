@@ -1,5 +1,5 @@
 import { useAuth } from '@clerk/react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PravaahLogo, PravaahLogoLink } from '../../components/brand';
 import { Badge } from '../../components/ui';
@@ -77,34 +77,6 @@ const outcomeItems = [
     },
 ];
 
-const timeSavingItems = [
-    'Finding appointment information',
-    'Checking whether a patient has arrived',
-    'Reconstructing the queue order',
-    'Switching between records and manual notes',
-    'Understanding which appointments need attention',
-    'Updating the doctor-facing flow around consultations',
-];
-
-const valueChainItems = [
-    {
-        cause: 'Less manual coordination',
-        effect: 'More staff capacity',
-    },
-    {
-        cause: 'Better appointment visibility',
-        effect: 'Fewer avoidable operational gaps',
-    },
-    {
-        cause: 'Clearer queue flow',
-        effect: 'Better use of clinic time',
-    },
-    {
-        cause: 'Earlier risk awareness',
-        effect: 'More informed staff follow-up',
-    },
-];
-
 const productivityItems = [
     {
         role: 'Reception and Staff',
@@ -120,6 +92,11 @@ const productivityItems = [
         role: 'Doctors',
         description:
             'Benefit indirectly when the staff workflow around scheduled consultation time, patient order, and queue progression is clearer.',
+    },
+    {
+        role: 'Patients',
+        description:
+            'Experience a clearer arrival and waiting process when reception can see and update the queue in one place.',
     },
 ];
 
@@ -323,55 +300,87 @@ const faqItems = [
 
 function PublicHeader() {
     const { isLoaded, isSignedIn } = useAuth();
+    const [menuOpen, setMenuOpen] = useState(false);
+    const menuButtonRef = useRef<HTMLButtonElement>(null);
+
+    useEffect(() => {
+        if (!menuOpen) return undefined;
+        const closeOnEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setMenuOpen(false);
+                menuButtonRef.current?.focus();
+            }
+        };
+        document.addEventListener('keydown', closeOnEscape);
+        return () => document.removeEventListener('keydown', closeOnEscape);
+    }, [menuOpen]);
 
     return (
         <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
-            <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between gap-4">
+            <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
+                <div className="flex min-w-0 flex-1 items-center justify-between gap-4 lg:flex-none">
                     <PravaahLogoLink layout="horizontal" surface="light" size="sm">
-                        <span className="hidden text-sm font-semibold text-slate-500 sm:inline">
-                            Clinic Operations
-                        </span>
+                        <span className="sr-only">Clinic operations</span>
                     </PravaahLogoLink>
-
-                    <div className="flex shrink-0 items-center gap-2">
-                        {isLoaded && isSignedIn ? (
-                            <Link
-                                to={dashboardPath}
-                                className="inline-flex min-h-10 items-center justify-center rounded-lg bg-action px-4 py-2 text-sm font-semibold text-white transition hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
-                            >
-                                Open workspace
-                            </Link>
-                        ) : (
-                            <>
-                                <Link
-                                    to="/login"
-                                    className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-soft hover:bg-brand-subtle hover:text-brand-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
-                                >
-                                    Sign in
-                                </Link>
-                                <Link
-                                    to="/sign-up"
-                                    className="hidden min-h-10 items-center justify-center rounded-lg bg-action px-4 py-2 text-sm font-semibold text-white transition hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action sm:inline-flex"
-                                >
-                                    Explore Pravaah
-                                </Link>
-                            </>
-                        )}
-                    </div>
+                    <button
+                        ref={menuButtonRef}
+                        type="button"
+                        className="inline-flex min-h-11 items-center rounded-md border border-app-border px-3 text-sm font-semibold text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action lg:hidden"
+                        aria-expanded={menuOpen}
+                        aria-controls="public-navigation"
+                        onClick={() => setMenuOpen((open) => !open)}
+                    >
+                        {menuOpen ? 'Close' : 'Menu'}
+                    </button>
                 </div>
-
-                <nav className="flex flex-wrap gap-2 pb-1" aria-label="Public navigation">
+                <nav
+                    id="public-navigation"
+                    className={`${menuOpen ? 'flex' : 'hidden'} order-3 w-full flex-col gap-1 border-t border-app-border pt-3 lg:order-none lg:flex lg:w-auto lg:flex-row lg:flex-wrap lg:items-center lg:border-0 lg:pt-0`}
+                    aria-label="Public navigation"
+                >
                     {publicNavigationItems.map((item) => (
                         <a
                             key={item.href}
                             href={item.href}
-                            className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+                            onClick={() => setMenuOpen(false)}
+                            className="rounded-md px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
                         >
                             {item.label}
                         </a>
                     ))}
+                    <Link
+                        to={isLoaded && isSignedIn ? dashboardPath : '/login'}
+                        onClick={() => setMenuOpen(false)}
+                        className="mt-2 rounded-md border border-app-border px-3 py-2 text-sm font-semibold text-action lg:hidden"
+                    >
+                        {isLoaded && isSignedIn ? 'Open workspace' : 'Sign in'}
+                    </Link>
                 </nav>
+                <div className="hidden shrink-0 items-center gap-2 sm:flex">
+                    {isLoaded && isSignedIn ? (
+                        <Link
+                            to={dashboardPath}
+                            className="inline-flex min-h-10 items-center justify-center rounded-lg bg-action px-4 py-2 text-sm font-semibold text-white transition hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+                        >
+                            Open workspace
+                        </Link>
+                    ) : (
+                        <>
+                            <Link
+                                to="/login"
+                                className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-soft hover:bg-brand-subtle hover:text-brand-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+                            >
+                                Sign in
+                            </Link>
+                            <Link
+                                to="/sign-up"
+                                className="hidden min-h-10 items-center justify-center rounded-lg bg-action px-4 py-2 text-sm font-semibold text-white transition hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action sm:inline-flex"
+                            >
+                                Explore Pravaah
+                            </Link>
+                        </>
+                    )}
+                </div>
             </div>
         </header>
     );
@@ -467,16 +476,16 @@ function HeroFlowPreview() {
                 </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-3">
                     <div>
-                        <p className="text-2xl font-bold text-white">12</p>
-                        <p className="text-xs text-slate-300">appointments</p>
+                        <p className="text-sm font-semibold text-white">Appointments</p>
+                        <p className="mt-1 text-xs text-slate-300">See what is due today</p>
                     </div>
                     <div>
-                        <p className="text-2xl font-bold text-white">5</p>
-                        <p className="text-xs text-slate-300">active queue</p>
+                        <p className="text-sm font-semibold text-white">Live queue</p>
+                        <p className="mt-1 text-xs text-slate-300">Track arrival and order</p>
                     </div>
                     <div>
-                        <p className="text-2xl font-bold text-white">2</p>
-                        <p className="text-xs text-slate-300">need review</p>
+                        <p className="text-sm font-semibold text-white">Staff attention</p>
+                        <p className="mt-1 text-xs text-slate-300">Review risk with context</p>
                     </div>
                 </div>
             </div>
@@ -625,7 +634,7 @@ function PublicLandingPage() {
 
             <main>
                 <section className="relative overflow-hidden bg-slate-950">
-                    <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-12 text-white sm:px-6 md:py-14 lg:min-h-[calc(100vh-6.5rem)] lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:px-8">
+                    <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-12 text-white sm:px-6 md:py-16 xl:grid-cols-[0.9fr_1.1fr] xl:items-center lg:px-8">
                         <div className="max-w-3xl">
                             <PravaahLogo
                                 layout="horizontal"
@@ -637,7 +646,7 @@ function PublicLandingPage() {
                                 Clinic flow and operations for small and growing clinics
                             </p>
                             <h1 className="mt-4 text-4xl font-bold leading-tight sm:text-5xl">
-                                Keep your clinic day moving.
+                                From appointment to consultation. Keep your clinic moving.
                             </h1>
                             <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-200">
                                 Pravaah brings appointments, patient arrival, live queues,
@@ -663,7 +672,12 @@ function PublicLandingPage() {
                             </div>
                         </div>
 
-                        <HeroFlowPreview />
+                        <div>
+                            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-300">
+                                Illustrative clinic workflow
+                            </p>
+                            <HeroFlowPreview />
+                        </div>
                     </div>
                 </section>
 
@@ -757,93 +771,25 @@ function PublicLandingPage() {
                                 </article>
                             ))}
                         </div>
-                    </div>
-                </section>
-
-                <section className="border-b border-slate-200 bg-white">
-                    <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
-                        <SectionHeading
-                            eyebrow="Time and capacity"
-                            title="Give clinic teams more time back."
-                            description="Time savings in clinic operations usually come from removing repeated coordination, not asking staff to rush. Pravaah is designed to keep common reception and operations information visible in one workflow."
-                        />
-
-                        <div>
-                            <div className="grid gap-3 sm:grid-cols-2">
-                                {timeSavingItems.map((item) => (
-                                    <div
-                                        key={item}
-                                        className="rounded-md border border-slate-200 bg-[#F8FAFC] p-4"
+                        <div className="mt-12 border-t border-slate-200 pt-8">
+                            <h3 className="text-lg font-semibold text-slate-950">
+                                One clearer day for everyone in the clinic
+                            </h3>
+                            <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                                {productivityItems.map((item) => (
+                                    <article
+                                        key={item.role}
+                                        className="rounded-lg border border-slate-200 bg-white p-4"
                                     >
-                                        <p className="text-sm font-semibold text-slate-800">
-                                            {item}
+                                        <h4 className="font-semibold text-slate-950">
+                                            {item.role}
+                                        </h4>
+                                        <p className="mt-2 text-sm leading-6 text-slate-600">
+                                            {item.description}
                                         </p>
-                                    </div>
+                                    </article>
                                 ))}
                             </div>
-                            <p className="mt-5 rounded-lg border border-brand-soft bg-brand-subtle p-4 text-sm leading-6 text-app-text">
-                                The value is practical: staff spend less time reconstructing the
-                                clinic day and more time handling patient-facing work, follow-up,
-                                and the next operational action.
-                            </p>
-                        </div>
-                    </div>
-                </section>
-
-                <section className="border-b border-slate-200 bg-[#F8FAFC]">
-                    <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
-                        <SectionHeading
-                            eyebrow="Financial impact"
-                            title="Better flow can mean less operational waste."
-                            description="Pravaah does not promise fixed hours saved or guaranteed financial returns. The commercial value comes from improving visibility around staff time, doctor capacity, appointment gaps, and queue movement."
-                        />
-
-                        <div className="grid gap-4">
-                            {valueChainItems.map((item) => (
-                                <article
-                                    key={item.cause}
-                                    className="grid gap-3 rounded-lg border border-slate-200 bg-white p-5 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center"
-                                >
-                                    <p className="text-base font-bold text-slate-950">
-                                        {item.cause}
-                                    </p>
-                                    <span
-                                        className="text-lg font-bold text-brand-foreground"
-                                        aria-hidden="true"
-                                    >
-                                        -&gt;
-                                    </span>
-                                    <p className="text-base font-semibold text-slate-700">
-                                        {item.effect}
-                                    </p>
-                                </article>
-                            ))}
-                        </div>
-                    </div>
-                </section>
-
-                <section className="border-b border-slate-200 bg-white">
-                    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-                        <SectionHeading
-                            eyebrow="Productivity"
-                            title="Less coordination. More clinic work."
-                            description="Productivity is not about forcing staff to move faster. It is about giving each person a clearer operating picture so fewer actions depend on memory, repeated checks, or manual reconciliation."
-                        />
-
-                        <div className="mt-10 grid gap-4 md:grid-cols-3">
-                            {productivityItems.map((item) => (
-                                <article
-                                    key={item.role}
-                                    className="rounded-lg border border-slate-200 bg-[#F8FAFC] p-5"
-                                >
-                                    <h3 className="text-lg font-bold text-slate-950">
-                                        {item.role}
-                                    </h3>
-                                    <p className="mt-3 text-sm leading-6 text-slate-600">
-                                        {item.description}
-                                    </p>
-                                </article>
-                            ))}
                         </div>
                     </div>
                 </section>
@@ -986,64 +932,6 @@ function PublicLandingPage() {
                                         ))}
                                     </ul>
                                 </article>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <section className="border-b border-slate-200 bg-white">
-                    <div className="mx-auto grid max-w-7xl gap-8 px-4 py-16 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
-                        <SectionHeading
-                            eyebrow="Doctor time"
-                            title="Better operations around the doctor."
-                            description="Doctors do not need to become receptionists. In the current product, doctors are records rather than logged-in users, but they benefit when the operational workflow around them is clearer."
-                        />
-
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            {[
-                                'Clearer patient order around scheduled consultation time',
-                                'Fewer avoidable interruptions caused by queue uncertainty',
-                                'Better visibility from reception and clinic staff',
-                                'More structured movement from waiting to consultation',
-                            ].map((item) => (
-                                <div
-                                    key={item}
-                                    className="rounded-lg border border-slate-200 bg-[#F8FAFC] p-5"
-                                >
-                                    <p className="text-sm font-semibold leading-6 text-slate-800">
-                                        {item}
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </section>
-
-                <section className="border-b border-slate-200 bg-[#F8FAFC]">
-                    <div className="mx-auto grid max-w-7xl gap-8 px-4 py-16 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
-                        <SectionHeading
-                            eyebrow="Responsible assistance"
-                            title="Assistance where it helps. Humans where it matters."
-                            description="Pravaah can surface operational signals, appointment status, queue state, and no-show risk. It does not silently make sensitive operational decisions for the clinic."
-                        />
-
-                        <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm md:p-6">
-                            <div className="grid gap-3 sm:grid-cols-2">
-                                {[
-                                    'Explainable risk reasons',
-                                    'Visible staff actions',
-                                    'Human-controlled queue movement',
-                                    'No automatic patient contact',
-                                    'No automatic appointment cancellation',
-                                    'No clinical decision-making',
-                                ].map((item) => (
-                                    <div
-                                        key={item}
-                                        className="rounded-md border border-slate-200 bg-slate-50 p-4"
-                                    >
-                                        <p className="text-sm leading-6 text-slate-700">{item}</p>
-                                    </div>
-                                ))}
                             </div>
                         </div>
                     </div>

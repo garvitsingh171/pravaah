@@ -716,6 +716,15 @@ Rule behavior:
 
 Storage: `NoShowPrediction` stores an immutable run with appointment, clinic, patient, risk level, score, reasons, feature snapshot, separate feature and rule versions, provenance, and timestamps. Suggested actions remain response-time guidance. There is no trained ML model, accuracy claim, or automatic action.
 
+Input-change synchronization is owned by `prediction.recalculation.service.ts`. A
+reschedule recalculates its one appointment in the enclosing transaction. Genuine
+completed/no-show and first-late-arrival transitions, plus stable routing distance
+success/failure/invalidation, transactionally coalesce `PredictionRefreshWork` per
+clinic/patient. A bounded worker uses leases and revisions to recover pending work
+after restart. It revalidates each future `SCHEDULED`/`CONFIRMED` appointment under
+an advisory transaction lock before appending a changed snapshot. It calls no
+geocoding or routing provider and never refreshes merely because an API is read.
+
 ## Security Architecture
 
 - `VITE_CLERK_PUBLISHABLE_KEY` is public frontend configuration.

@@ -179,7 +179,7 @@ const backfillMissingNoShowPredictions = async (
             featureSnapshot: prediction.featureSnapshot,
             ruleVersion: prediction.ruleVersion,
             generationSource: prediction.generationSource,
-            runKey: prediction.runKey,
+            runKey: prediction.runKey ?? null,
             reasons: prediction.reasons,
         };
     });

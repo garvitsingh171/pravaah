@@ -1,13 +1,12 @@
-import { MotionConfig } from 'motion/react';
 import { lazy, Suspense, useEffect, useRef, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import ProtectedAppShell from './app/ProtectedAppShell';
 import { LoadingState } from './components/feedback';
 import PublicErrorBoundary from './components/public/PublicErrorBoundary';
 import { dashboardRoutes, isProtectedWorkspacePath } from './routes/dashboardRoutes';
 import RouteMetadata from './routes/RouteMetadata';
 
 const PublicLandingPage = lazy(() => import('./features/public/PublicLandingPage'));
+const ProtectedAppShell = lazy(() => import('./app/ProtectedAppShell'));
 const LoginPage = lazy(() => import('./features/auth/LoginPage'));
 const SignUpPage = lazy(() => import('./features/auth/SignUpPage'));
 const ClinicOnboardingPage = lazy(() => import('./features/onboarding/ClinicOnboardingPage'));
@@ -101,7 +100,13 @@ export function AppRoutes() {
                     </PublicRouteBoundary>
                 }
             />
-            <Route element={<ProtectedAppShell />}>
+            <Route
+                element={
+                    <Suspense fallback={<RouteLoadingFallback message="Preparing workspace..." />}>
+                        <ProtectedAppShell />
+                    </Suspense>
+                }
+            >
                 {dashboardRoutes.map((route) => (
                     <Route
                         key={route.path}
@@ -125,11 +130,9 @@ export function AppRoutes() {
 function App() {
     return (
         <BrowserRouter>
-            <MotionConfig reducedMotion="user">
-                <RouteMetadata />
-                <RouteScrollRestoration />
-                <AppRoutes />
-            </MotionConfig>
+            <RouteMetadata />
+            <RouteScrollRestoration />
+            <AppRoutes />
         </BrowserRouter>
     );
 }

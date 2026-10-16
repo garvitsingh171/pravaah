@@ -9,10 +9,14 @@ import {
 import {
     acceptStaffInvitationController,
     createStaffInvitationController,
+    getStaffMemberController,
     listStaffController,
     listStaffInvitationsController,
     previewStaffInvitationController,
     revokeStaffInvitationController,
+    removeStaffMemberController,
+    restoreStaffMemberController,
+    updateStaffProfileController,
     updateStaffStatusController,
 } from './staff.controller.js';
 import {
@@ -23,6 +27,7 @@ import {
     staffInvitationTokenParamsSchema,
     staffMemberParamsSchema,
     updateStaffStatusSchema,
+    updateStaffProfileSchema,
 } from './staff.validation.js';
 
 const adminClinicMiddleware = [authenticateRequest, requireAdminRole] as const;
@@ -67,6 +72,38 @@ staffRouter.patch(
     validateRequest({ params: staffInvitationManagementParamsSchema }),
     requireClinicAccess,
     revokeStaffInvitationController
+);
+
+staffRouter.get(
+    '/:clinicId/staff/:userId',
+    ...adminClinicMiddleware,
+    validateRequest({ params: staffMemberParamsSchema }),
+    requireClinicAccess,
+    getStaffMemberController
+);
+
+staffRouter.patch(
+    '/:clinicId/staff/:userId',
+    ...adminClinicMiddleware,
+    validateRequest({ params: staffMemberParamsSchema, body: updateStaffProfileSchema }),
+    requireClinicAccess,
+    updateStaffProfileController
+);
+
+staffRouter.delete(
+    '/:clinicId/staff/:userId',
+    ...adminClinicMiddleware,
+    validateRequest({ params: staffMemberParamsSchema }),
+    requireClinicAccess,
+    removeStaffMemberController
+);
+
+staffRouter.post(
+    '/:clinicId/staff/:userId/restore',
+    ...adminClinicMiddleware,
+    validateRequest({ params: staffMemberParamsSchema }),
+    requireClinicAccess,
+    restoreStaffMemberController
 );
 
 const staffInvitationRouter = Router();

@@ -6,6 +6,7 @@ import {
 } from '../../generated/prisma/client.js';
 import { prisma } from '../../config/prisma.js';
 import { withTransientDatabaseTransactionRetry } from '../../utils/databaseRetry.js';
+import { lifecycleRepository } from '../lifecycle/lifecycle.repository.js';
 import type { TrustedClerkUserIdentity } from '../auth/auth.types.js';
 import type { ManageableStaffStatus } from './staff.types.js';
 
@@ -109,7 +110,9 @@ export type AcceptInvitationRepositoryResult =
     | { outcome: 'IDENTITY_CONFLICT' }
     | { outcome: 'ADMIN_CONFLICT' }
     | { outcome: 'OTHER_CLINIC' }
-    | { outcome: 'SUSPENDED' };
+    | { outcome: 'SUSPENDED' }
+    | { outcome: 'REMOVED' }
+    | { outcome: 'CLINIC_INACTIVE' };
 
 export type RevokeInvitationRepositoryResult =
     | { outcome: 'REVOKED'; invitation: Awaited<ReturnType<typeof createInvitationRecord>> }
@@ -154,6 +157,13 @@ export const staffRepository = {
                 }
 
                 const invitation = await createInvitationRecord(tx, input);
+                await lifecycleRepository.createEvent(tx, {
+                    clinicId: input.clinicId,
+                    actorUserId: input.invitedByUserId,
+                    entityType: 'STAFF_INVITATION',
+                    entityId: invitation.id,
+                    action: 'CREATED',
+                });
 
                 return { outcome: 'CREATED', invitation };
             }
@@ -169,6 +179,7 @@ export const staffRepository = {
             select: {
                 id: true,
                 fullName: true,
+                phone: true,
                 email: true,
                 role: true,
                 status: true,
@@ -176,6 +187,120 @@ export const staffRepository = {
             },
             orderBy: [{ role: 'asc' }, { fullName: 'asc' }],
         });
+    },
+
+    findClinicMember(clinicId: string, userId: string) {
+        return prisma.user.findFirst({
+            where: { id: userId, clinicId },
+            select: {
+                id: true,
+                fullName: true,
+                phone: true,
+                email: true,
+                role: true,
+                status: true,
+                createdAt: true,
+            },
+        });
+    },
+
+    updateStaffProfile(input: {
+        clinicId: string;
+        userId: string;
+        actorUserId: string;
+        fullName?: string;
+        phone?: string | null;
+    }) {
+        return withTransientDatabaseTransactionRetry(
+            (callback) => prisma.$transaction(callback),
+            async (tx) => {
+                await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${input.userId}::uuid AND "clinicId" = ${input.clinicId}::uuid FOR UPDATE`;
+                const user = await tx.user.findFirst({
+                    where: { id: input.userId, clinicId: input.clinicId },
+                });
+                if (!user) return { outcome: 'NOT_FOUND' as const };
+                if (user.role !== UserRole.STAFF) return { outcome: 'STAFF_REQUIRED' as const };
+                if (user.status === UserStatus.REMOVED) return { outcome: 'REMOVED' as const };
+                const updated = await tx.user.update({
+                    where: { id: user.id },
+                    data: {
+                        ...(input.fullName === undefined ? {} : { fullName: input.fullName }),
+                        ...(input.phone === undefined ? {} : { phone: input.phone }),
+                    },
+                    select: {
+                        id: true,
+                        fullName: true,
+                        phone: true,
+                        email: true,
+                        role: true,
+                        status: true,
+                        createdAt: true,
+                    },
+                });
+                await lifecycleRepository.createEvent(tx, {
+                    clinicId: input.clinicId,
+                    actorUserId: input.actorUserId,
+                    entityType: 'STAFF',
+                    entityId: user.id,
+                    action: 'PROFILE_UPDATED',
+                    metadata: {
+                        fields: [
+                            input.fullName !== undefined ? 'fullName' : null,
+                            input.phone !== undefined ? 'phone' : null,
+                        ].filter(Boolean) as string[],
+                    },
+                });
+                return { outcome: 'UPDATED' as const, user: updated };
+            }
+        );
+    },
+
+    setStaffRemoved(input: {
+        clinicId: string;
+        userId: string;
+        actorUserId: string;
+        restore: boolean;
+    }) {
+        return withTransientDatabaseTransactionRetry(
+            (callback) => prisma.$transaction(callback),
+            async (tx) => {
+                await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${input.userId}::uuid AND "clinicId" = ${input.clinicId}::uuid FOR UPDATE`;
+                const user = await tx.user.findFirst({
+                    where: { id: input.userId, clinicId: input.clinicId },
+                });
+                if (!user) return { outcome: 'NOT_FOUND' as const };
+                if (user.role !== UserRole.STAFF) return { outcome: 'STAFF_REQUIRED' as const };
+                if (
+                    input.restore
+                        ? user.status !== UserStatus.REMOVED
+                        : user.status === UserStatus.REMOVED
+                ) {
+                    return { outcome: 'INVALID_TRANSITION' as const };
+                }
+                const updated = await tx.user.update({
+                    where: { id: user.id },
+                    data: { status: input.restore ? UserStatus.ACTIVE : UserStatus.REMOVED },
+                    select: {
+                        id: true,
+                        fullName: true,
+                        phone: true,
+                        email: true,
+                        role: true,
+                        status: true,
+                        createdAt: true,
+                    },
+                });
+                await lifecycleRepository.createEvent(tx, {
+                    clinicId: input.clinicId,
+                    actorUserId: input.actorUserId,
+                    entityType: 'STAFF',
+                    entityId: user.id,
+                    action: input.restore ? 'RESTORED' : 'REMOVED',
+                    metadata: { previousStatus: user.status },
+                });
+                return { outcome: 'UPDATED' as const, user: updated };
+            }
+        );
     },
 
     listClinicInvitations(clinicId: string) {
@@ -190,7 +315,7 @@ export const staffRepository = {
         return prisma.staffInvitation.findUnique({
             where: { tokenHash },
             include: {
-                clinic: { select: { id: true, name: true } },
+                clinic: { select: { id: true, name: true, isActive: true } },
                 acceptedBy: { select: { id: true, clerkUserId: true } },
             },
         });
@@ -219,7 +344,7 @@ export const staffRepository = {
                 const invitation = await tx.staffInvitation.findUnique({
                     where: { id: lockedRows[0].id },
                     include: {
-                        clinic: { select: { id: true, name: true } },
+                        clinic: { select: { id: true, name: true, isActive: true } },
                         acceptedBy: { select: { id: true, clerkUserId: true } },
                     },
                 });
@@ -230,6 +355,10 @@ export const staffRepository = {
 
                 if (invitation.email !== input.normalizedEmail) {
                     return { outcome: 'IDENTITY_MISMATCH' };
+                }
+
+                if (!invitation.clinic.isActive) {
+                    return { outcome: 'CLINIC_INACTIVE' };
                 }
 
                 if (invitation.status === StaffInvitationStatus.REVOKED) {
@@ -316,6 +445,10 @@ export const staffRepository = {
                         return { outcome: 'SUSPENDED' };
                     }
 
+                    if (existingUser.status === UserStatus.REMOVED) {
+                        return { outcome: 'REMOVED' };
+                    }
+
                     staffUser =
                         existingUser.status === UserStatus.INVITED
                             ? await tx.user.update({
@@ -373,6 +506,15 @@ export const staffRepository = {
                     throw new Error('Staff invitation claim lost after row lock');
                 }
 
+                await lifecycleRepository.createEvent(tx, {
+                    clinicId: invitation.clinicId,
+                    actorUserId: staffUser.id,
+                    entityType: 'STAFF_INVITATION',
+                    entityId: invitation.id,
+                    action: 'ACCEPTED',
+                    metadata: { staffUserId: staffUser.id },
+                });
+
                 return { outcome: 'ACCEPTED', user: staffUser, clinic: invitation.clinic };
             }
         );
@@ -381,6 +523,7 @@ export const staffRepository = {
     revokeInvitation(input: {
         clinicId: string;
         invitationId: string;
+        actorUserId: string;
         now: Date;
     }): Promise<RevokeInvitationRepositoryResult> {
         return withTransientDatabaseTransactionRetry(
@@ -436,6 +579,14 @@ export const staffRepository = {
                     throw new Error('Staff invitation revoke claim lost after row lock');
                 }
 
+                await lifecycleRepository.createEvent(tx, {
+                    clinicId: input.clinicId,
+                    actorUserId: input.actorUserId,
+                    entityType: 'STAFF_INVITATION',
+                    entityId: invitation.id,
+                    action: 'REVOKED',
+                });
+
                 return {
                     outcome: 'REVOKED',
                     invitation: {
@@ -448,7 +599,12 @@ export const staffRepository = {
         );
     },
 
-    updateStaffStatus(input: { clinicId: string; userId: string; status: ManageableStaffStatus }) {
+    updateStaffStatus(input: {
+        clinicId: string;
+        userId: string;
+        actorUserId: string;
+        status: ManageableStaffStatus;
+    }) {
         return withTransientDatabaseTransactionRetry(
             (callback) => prisma.$transaction(callback),
             async (tx) => {
@@ -500,6 +656,15 @@ export const staffRepository = {
                         status: true,
                         createdAt: true,
                     },
+                });
+
+                await lifecycleRepository.createEvent(tx, {
+                    clinicId: input.clinicId,
+                    actorUserId: input.actorUserId,
+                    entityType: 'STAFF',
+                    entityId: user.id,
+                    action: input.status === UserStatus.SUSPENDED ? 'SUSPENDED' : 'REACTIVATED',
+                    metadata: { previousStatus: user.status },
                 });
 
                 return { outcome: 'UPDATED' as const, user: updatedUser };

@@ -77,42 +77,15 @@ function Topbar({ clinicName, supportingText, title, userName, userEmail, userRo
     };
 
     return (
-        <header className="relative z-40 shrink-0 border-b border-slate-200/80 bg-white/95 px-4 py-3.5 shadow-[0_8px_24px_rgba(15,23,42,0.04)] backdrop-blur md:px-6">
-            <div
-                className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand to-transparent"
-                aria-hidden="true"
-            />
-            <div className="mx-auto flex w-full max-w-screen-2xl items-center justify-between gap-3">
+        <header className="relative z-40 shrink-0 border-b border-app-border bg-white px-4 py-3 md:px-6">
+            <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
-                    <div
-                        className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-400 to-teal-700 text-white shadow-[0_6px_16px_rgba(20,184,166,0.24)] sm:flex"
-                        aria-hidden="true"
-                    >
-                        <svg
-                            className="h-5 w-5"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                        >
-                            <path d="M4 12h4l2-7 4 14 2-7h4" />
-                        </svg>
-                    </div>
                     <div className="min-w-0">
-                        <div className="flex min-w-0 items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
-                            <span className="shrink-0 text-brand-foreground">Workspace</span>
-                            <span
-                                className="h-1 w-1 shrink-0 rounded-full bg-brand"
-                                aria-hidden="true"
-                            />
-                            <span className="truncate normal-case tracking-normal text-slate-500">
-                                Clinic workspace
-                            </span>
-                        </div>
+                        <p className="truncate text-xs font-medium text-app-muted">
+                            {clinicName} <span aria-hidden="true">/</span> Workspace
+                        </p>
                         <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-                            <h1 className="truncate text-xl font-bold leading-none tracking-tight text-slate-950 sm:text-2xl">
+                            <h1 className="truncate text-lg font-semibold leading-tight tracking-tight text-app-text sm:text-xl">
                                 {title}
                             </h1>
                             {supportingText ? (

@@ -8,6 +8,7 @@ import { appointmentActivityRepository } from '../appointments/appointment.activ
 import { isAppointmentStatusTransitionAllowed } from '../appointments/appointment.lifecycle.js';
 import type { AppointmentTerminalReasonContext } from '../appointments/appointment.terminal-reason.js';
 import { applyPatientAppointmentOutcome } from '../patients/patient.statistics.repository.js';
+import { registerPredictionRefreshWork } from '../predictions/prediction.recalculation.service.js';
 import { isQueueStatusTransitionAllowed } from './queue.lifecycle.js';
 
 const noShowPredictionQueueSelect = {
@@ -445,6 +446,22 @@ export const queueRepository = {
                         previousStatus: existingQueueEntry.appointment.status,
                         newStatus: appointmentStatus,
                         eventTimestamp,
+                    });
+                }
+
+                if (
+                    (didAppointmentTransition &&
+                        (appointmentStatus === AppointmentStatus.COMPLETED ||
+                            appointmentStatus === AppointmentStatus.NO_SHOW)) ||
+                    (arrivalResult?.wasEstablished === true &&
+                        arrivalResult.outcome?.isLateArrival === true)
+                ) {
+                    await registerPredictionRefreshWork({
+                        tx,
+                        clinicId,
+                        patientId: existingQueueEntry.patientId,
+                        trigger: 'PATIENT_HISTORY_CHANGED',
+                        now: eventTimestamp,
                     });
                 }
 

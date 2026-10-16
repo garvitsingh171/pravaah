@@ -21,11 +21,11 @@
 | Database models       | `NoShowPrediction`, `Appointment`, `Patient`, `PatientClinic`                                                                                                |
 | Prisma operations     | `noShowPrediction.create`, `noShowPrediction.createMany({ skipDuplicates: true })`, response selects                                                         |
 | Transaction           | Booking prediction is inside appointment transaction. Dashboard backfill is not wrapped in a larger transaction                                              |
-| Concurrency control   | nullable unique baseline `runKey`; dashboard backfill uses `skipDuplicates`                                                                         |
-| State changes         | append-only `NoShowPrediction` runs; frontend displays only the latest run                                                                                                        |
+| Concurrency control   | nullable unique baseline `runKey`; dashboard backfill uses `skipDuplicates`                                                                                  |
+| State changes         | append-only `NoShowPrediction` runs; frontend displays only the latest run                                                                                   |
 | Errors                | Prediction service does not throw domain errors; parent appointment/dashboard errors apply                                                                   |
 | Tests                 | `prediction.service.test.ts`, appointment/dashboard tests                                                                                                    |
-| Known gaps            | Stored predictions are not recalculated after later lifecycle events                                                                                         |
+| Known gaps            | Refresh is deferred through durable work; it is not a request-time guarantee.                                                                                |
 
 ## Important Language
 
@@ -158,3 +158,21 @@ Geoapify-derived coordinates are not an input to no-show risk. Existing
 `PatientClinic.distanceFromClinicKm` behavior, thresholds, scores, reasons,
 versions, and prediction timing remain unchanged. Prediction never calls
 Geoapify or calculates distance.
+
+## Input-Change Refresh
+
+Refresh is event-driven, never triggered by an Appointment, Queue, or Dashboard GET.
+Successful rescheduling appends `APPOINTMENT_RESCHEDULED` in its transaction.
+First `COMPLETED`/`NO_SHOW` transitions and first late arrivals register coalesced
+clinic-and-patient `PredictionRefreshWork` as `PATIENT_HISTORY_CHANGED`; stable
+routing success, failure, and invalidation register `TRAVEL_DISTANCE_CHANGED`.
+Starting a route attempt does not register work.
+
+The worker processes only future `SCHEDULED`/`CONFIRMED` appointments for that
+same clinic/patient in bounded batches. Each run takes an appointment advisory
+transaction lock, revalidates eligibility, compares all six normalized features
+plus rule version, and appends only changed state. `Appointment.createdAt` remains
+`bookedAt` after rescheduling. Stable null distance is represented honestly;
+transient routing nulls are not refresh triggers. Leases, revisions, retryable
+failures, expired-lease reclamation, and startup recovery protect durable work without a time-based refresh.
+No address, coordinates, or other PII is captured or logged by this workflow.

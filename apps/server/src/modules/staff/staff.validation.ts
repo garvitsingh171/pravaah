@@ -45,7 +45,16 @@ export const updateStaffStatusSchema = z
     })
     .strict();
 
+export const updateStaffProfileSchema = z
+    .object({
+        fullName: z.string().trim().min(2).max(120).optional(),
+        phone: z.string().trim().max(30).nullable().optional(),
+    })
+    .strict()
+    .refine((value) => Object.keys(value).length > 0, 'At least one field is required');
+
 export const acceptStaffInvitationBodySchema = z.object({}).strict().default({});
 
 export type CreateStaffInvitationRequest = z.infer<typeof createStaffInvitationSchema>;
 export type UpdateStaffStatusRequest = z.infer<typeof updateStaffStatusSchema>;
+export type UpdateStaffProfileRequest = z.infer<typeof updateStaffProfileSchema>;

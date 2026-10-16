@@ -66,6 +66,11 @@ describe('DashboardOverviewPage', () => {
         expect(screen.getByText('Today by status')).toBeInTheDocument();
         expect(screen.getAllByText('Riya Sharma').length).toBeGreaterThan(0);
         expect(screen.getByText('Appointment booked')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Book appointment' })).toHaveAttribute(
+            'href',
+            '/appointments#book-appointment'
+        );
+        expect(screen.getByText('Risk explanation')).toBeInTheDocument();
         expect(screen.queryByText('First-run setup')).not.toBeInTheDocument();
     });
 

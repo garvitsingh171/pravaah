@@ -51,6 +51,88 @@ export async function listDoctorsByClinicController(
     }
 }
 
+export async function getDoctorByClinicController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { clinicId, doctorId } = req.params as { clinicId: string; doctorId: string };
+        const doctor = await doctorService.getDoctorByClinic(clinicId, doctorId);
+        res.status(200).json({
+            success: true,
+            message: 'Doctor fetched successfully',
+            data: { doctor },
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function getDoctorLifecycleImpactController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { clinicId, doctorId } = req.params as { clinicId: string; doctorId: string };
+        const data = await doctorService.getLifecycleImpact(clinicId, doctorId);
+        res.status(200).json({
+            success: true,
+            message: 'Doctor impact fetched successfully',
+            data,
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function archiveDoctorController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { clinicId, doctorId } = req.params as { clinicId: string; doctorId: string };
+        const doctor = await doctorService.setClinicLinkActive({
+            clinicId,
+            doctorId,
+            actorUserId: req.user!.id,
+            isActive: false,
+        });
+        res.status(200).json({
+            success: true,
+            message: 'Doctor archived from this clinic',
+            data: { doctor },
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function restoreDoctorController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { clinicId, doctorId } = req.params as { clinicId: string; doctorId: string };
+        const doctor = await doctorService.setClinicLinkActive({
+            clinicId,
+            doctorId,
+            actorUserId: req.user!.id,
+            isActive: true,
+        });
+        res.status(200).json({
+            success: true,
+            message: 'Doctor restored to this clinic',
+            data: { doctor },
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
 export async function updateDoctorController(
     req: Request,
     res: Response,

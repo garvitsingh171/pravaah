@@ -34,7 +34,7 @@ The generated Prisma client lives in `apps/server/src/generated/prisma` and is i
 | Enum                      | Values                                                                                                                                                                                                   |
 | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `UserRole`                | `ADMIN`, `STAFF`                                                                                                                                                                                         |
-| `UserStatus`              | `INVITED`, `ACTIVE`, `SUSPENDED`                                                                                                                                                                         |
+| `UserStatus`              | `INVITED`, `ACTIVE`, `SUSPENDED`, `REMOVED`                                                                                                                                                              |
 | `StaffInvitationStatus`   | `PENDING`, `ACCEPTED`, `REVOKED`; expiry is derived from `PENDING` plus `expiresAt`                                                                                                                      |
 | `Gender`                  | `MALE`, `FEMALE`, `OTHER`, `PREFER_NOT_TO_SAY`                                                                                                                                                           |
 | `AppointmentStatus`       | `SCHEDULED`, `CONFIRMED`, `ARRIVED`, `IN_QUEUE`, `CALLED`, `COMPLETED`, `CANCELLED`, `NO_SHOW`                                                                                                           |
@@ -51,6 +51,7 @@ The generated Prisma client lives in `apps/server/src/generated/prisma` and is i
 | `Clinic`                   | `clinics`                     | Operational clinic boundary and settings.                     |
 | `User`                     | `users`                       | Internal app user mapped to Clerk identity.                   |
 | `StaffInvitation`          | `staff_invitations`           | Durable Admin authorization for a person to join one clinic.  |
+| `LifecycleEvent`           | `lifecycle_events`            | Durable clinic-scoped actor and lifecycle history.            |
 | `Doctor`                   | `doctors`                     | Doctor record; does not log in.                               |
 | `DoctorClinic`             | `doctor_clinics`              | Join table linking doctors to clinics.                        |
 | `DoctorAvailabilityPeriod` | `doctor_availability_periods` | Clinic-specific recurring weekly doctor working periods.      |
@@ -124,6 +125,10 @@ Important fields:
 - `expiresAt`, `acceptedAt`, and `revokedAt` record lifecycle timing.
 
 Indexes cover `(clinicId, status)`, `(clinicId, email)`, `(email, status)`, and `expiresAt`. There is intentionally no unique clinic/email constraint because accepted, revoked, and expired historical rows must coexist with later reinvitations.
+
+### LifecycleEvent
+
+`clinicId` and `actorUserId` are restrictive foreign keys. `entityType`, `entityId`, `action`, `createdAt`, and optional safe JSON metadata record clinic, Staff, invitation, and clinic association changes. Indexes support clinic timeline and entity history queries. The event is inserted in the same transaction as the lifecycle change. See the [entity lifecycle audit](../audits/ENTITY_LIFECYCLE_2026_10.md) for current API and retention decisions.
 
 ### Doctor
 
@@ -386,7 +391,7 @@ WAITING -> ARRIVED -> WAITING -> CALLED -> COMPLETED
 
 The appointment creation workflow currently creates a `QueueEntry` immediately, including for future appointments, with initial status `WAITING`. That initial row supports ordering and does not by itself record `Appointment.arrivedAt`. Queue list APIs filter by the appointment's clinic-local date.
 
-Appointment rescheduling updates the existing `Appointment.scheduledAt` value in place. It does not create a replacement appointment row. The linked `QueueEntry.appointmentId` remains unchanged; if the appointment moves to another clinic-local date, that same queue row becomes part of the destination doctor/date queue and receives a destination position. The linked `NoShowPrediction.appointmentId` also remains unchanged; rescheduling does not create a new prediction run under the current policy.
+Appointment rescheduling updates the existing `Appointment.scheduledAt` value in place. It does not create a replacement appointment row. The linked `QueueEntry.appointmentId` remains unchanged; if the appointment moves to another clinic-local date, that same queue row becomes part of the destination doctor/date queue and receives a destination position. The linked `NoShowPrediction.appointmentId` also remains unchanged; successful rescheduling appends a new immutable prediction run under the current policy.
 
 ### NoShowPrediction
 
@@ -401,6 +406,14 @@ Important fields:
 - `score`
 - `reasons` JSON
 
+### PredictionRefreshWork
+
+`prediction_refresh_work` is durable coordination state, not prediction history.
+It is unique per `(clinicId, patientId)` and records requested/processed revisions,
+the latest trigger, status, lease, retry timing, and a bounded error code. It
+coalesces attendance and stable-routing events while preserving immutable
+`NoShowPrediction` runs as the audit record.
+
 Indexes:
 
 - `clinicId`
@@ -412,19 +425,21 @@ Deletion behavior:
 - restricts deletion of linked Appointment, Clinic, and Patient.
 
 Storage notes:
+
 - The database stores score, risk level, reasons, separate feature/rule versions, bounded provenance, and a narrow JSON feature snapshot for new runs.
 - `suggestedActions` remain response-time presentation guidance; `generatedAt` is mapped from `createdAt`.
 - Pre-#273 rows use `LEGACY_EXISTING` with null snapshot/version metadata when those facts cannot be proven.
 - `PatientClinic` aggregates remain mutable operational state; `featureSnapshot` is immutable historical evidence.
-
 
 ## Relationships
 
 ```txt
 Clinic 1 -> many User
 Clinic 1 -> many StaffInvitation
+Clinic 1 -> many LifecycleEvent
 User 1 -> many StaffInvitation as invitedBy
 User 1 -> many StaffInvitation as acceptedBy (optional relation)
+User 1 -> many LifecycleEvent as actor
 Clinic many <-> many Doctor through DoctorClinic
 DoctorClinic 1 -> many DoctorAvailabilityPeriod
 Clinic many <-> many Patient through PatientClinic

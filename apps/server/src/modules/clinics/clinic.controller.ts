@@ -63,6 +63,53 @@ export async function updateClinicController(
     }
 }
 
+export async function getClinicLifecycleImpactController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { clinicId } = req.params as { clinicId: string };
+        const data = await clinicService.getLifecycleImpact(clinicId, req.user);
+        res.status(200).json({ success: true, message: 'Clinic impact fetched', data });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function deactivateClinicController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { clinicId } = req.params as { clinicId: string };
+        const clinic = await clinicService.setActive(
+            clinicId,
+            req.user,
+            false,
+            (req.body as { confirmClinicName: string }).confirmClinicName
+        );
+        res.status(200).json({ success: true, message: 'Clinic deactivated', data: { clinic } });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function restoreClinicController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { clinicId } = req.params as { clinicId: string };
+        const clinic = await clinicService.setActive(clinicId, req.user, true);
+        res.status(200).json({ success: true, message: 'Clinic restored', data: { clinic } });
+    } catch (error) {
+        next(error);
+    }
+}
+
 export async function retryClinicGeocodingController(
     req: Request,
     res: Response,

@@ -12,6 +12,8 @@ import { predictNoShowRisk } from '../predictions/prediction.service.js';
 import { haveCoordinatesChanged } from '../routing/routing.location.js';
 import { routingRepository } from '../routing/routing.repository.js';
 import { clinicRepository } from './clinic.repository.js';
+import { accessService } from '../auth/access.service.js';
+import type { AuthenticatedUser } from '../auth/auth.types.js';
 import type { ProvisionSampleDataServiceInput, UpdateClinicInput } from './clinic.types.js';
 
 const toClinicAddress = (clinic: StructuredAddress): StructuredAddress => ({
@@ -45,6 +47,74 @@ const applyClinicGeocodingAttempt = async (
 };
 
 export const clinicService = {
+    async getLifecycleImpact(clinicId: string, user: AuthenticatedUser | undefined) {
+        const admin = accessService.requireAdmin(user);
+        if (admin.clinicId !== clinicId)
+            throw new AppError(
+                403,
+                'CLINIC_ACCESS_DENIED',
+                'You do not have access to this clinic'
+            );
+        const result = await clinicRepository.getLifecycleImpact(clinicId);
+        if (!result) throw new AppError(404, 'CLINIC_NOT_FOUND', 'Clinic not found');
+        return result;
+    },
+
+    async setActive(
+        clinicId: string,
+        user: AuthenticatedUser | undefined,
+        isActive: boolean,
+        confirmClinicName?: string
+    ) {
+        const admin = accessService.requireAdmin(user);
+        if (admin.clinicId !== clinicId)
+            throw new AppError(
+                403,
+                'CLINIC_ACCESS_DENIED',
+                'You do not have access to this clinic'
+            );
+        const result = await clinicRepository.setActive({
+            clinicId,
+            actorUserId: admin.id,
+            isActive,
+            ...(confirmClinicName === undefined ? {} : { confirmClinicName }),
+        });
+        if (result.outcome === 'NOT_FOUND')
+            throw new AppError(404, 'CLINIC_NOT_FOUND', 'Clinic not found');
+        if (result.outcome === 'CONFIRMATION_MISMATCH')
+            throw new AppError(
+                409,
+                'CLINIC_CONFIRMATION_MISMATCH',
+                'Clinic name did not match. Refresh the page and try again.'
+            );
+        if (result.outcome === 'ALREADY_SET')
+            throw new AppError(
+                409,
+                'CLINIC_LIFECYCLE_CONFLICT',
+                'Clinic status has already changed. Refresh the page.'
+            );
+        if (result.outcome === 'ACTIVE_VISITS')
+            throw new AppError(
+                409,
+                'CLINIC_HAS_ACTIVE_VISITS',
+                'Resolve active appointments and queue entries before deactivating this clinic.',
+                [
+                    {
+                        field: 'futureAppointments',
+                        message: String(result.impact.futureAppointments),
+                    },
+                    {
+                        field: 'activeAppointments',
+                        message: String(result.impact.activeAppointments),
+                    },
+                    {
+                        field: 'activeQueueEntries',
+                        message: String(result.impact.activeQueueEntries),
+                    },
+                ]
+            );
+        return result.clinic;
+    },
     async getClinicSettings(clinicId: string) {
         const clinic = await clinicRepository.findSettingsById(clinicId);
 

@@ -2,6 +2,7 @@ import { prisma } from '../../config/prisma.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type { GeocodingResult } from '../../integrations/geoapify/geoapify.types.js';
 import { withTransientDatabaseTransactionRetry } from '../../utils/databaseRetry.js';
+import { lifecycleRepository } from '../lifecycle/lifecycle.repository.js';
 import type {
     CreatePatientInput,
     ListPatientsQueryInput,
@@ -123,6 +124,76 @@ export const patientRepository = {
         });
     },
 
+    getLifecycleImpact(clinicId: string, patientId: string) {
+        return prisma.$transaction(async (tx) => {
+            const link = await tx.patientClinic.findUnique({
+                where: { patientId_clinicId: { patientId, clinicId } },
+                include: { patient: { select: patientResponseSelect } },
+            });
+            if (!link) return null;
+            const impact = await lifecycleRepository.countImpact(tx, clinicId, { patientId });
+            return { patient: { ...link.patient, clinicLinkIsActive: link.isActive }, impact };
+        });
+    },
+
+    setClinicLinkActive(input: {
+        clinicId: string;
+        patientId: string;
+        actorUserId: string;
+        isActive: boolean;
+    }) {
+        return withTransientDatabaseTransactionRetry(
+            (callback) => prisma.$transaction(callback),
+            async (tx) => {
+                await tx.$queryRaw`
+                    SELECT "id" FROM "patient_clinics"
+                    WHERE "clinicId" = ${input.clinicId}::uuid AND "patientId" = ${input.patientId}::uuid
+                    FOR UPDATE
+                `;
+                const link = await tx.patientClinic.findUnique({
+                    where: {
+                        patientId_clinicId: {
+                            patientId: input.patientId,
+                            clinicId: input.clinicId,
+                        },
+                    },
+                    include: { patient: { select: patientResponseSelect } },
+                });
+                if (!link) return { outcome: 'NOT_FOUND' as const };
+                if (link.isActive === input.isActive) return { outcome: 'ALREADY_SET' as const };
+                if (input.isActive && !link.patient.isActive) {
+                    return { outcome: 'PROFILE_INACTIVE' as const };
+                }
+                const impact = await lifecycleRepository.countImpact(tx, input.clinicId, {
+                    patientId: input.patientId,
+                });
+                if (
+                    !input.isActive &&
+                    (impact.activeAppointments > 0 || impact.activeQueueEntries > 0)
+                ) {
+                    return { outcome: 'ACTIVE_VISITS' as const, impact };
+                }
+                await tx.patientClinic.update({
+                    where: { id: link.id },
+                    data: { isActive: input.isActive },
+                });
+                await lifecycleRepository.createEvent(tx, {
+                    clinicId: input.clinicId,
+                    actorUserId: input.actorUserId,
+                    entityType: 'PATIENT_CLINIC',
+                    entityId: link.id,
+                    action: input.isActive ? 'RESTORED' : 'ARCHIVED',
+                    metadata: { patientId: input.patientId, ...impact },
+                });
+                return {
+                    outcome: 'UPDATED' as const,
+                    patient: { ...link.patient, clinicLinkIsActive: input.isActive },
+                    impact,
+                };
+            }
+        );
+    },
+
     createPatientWithClinicLink(
         clinicId: string,
         data: CreatePatientInput,
@@ -204,7 +275,6 @@ export const patientRepository = {
         if (data.emergencyContactPhone !== undefined) {
             patientUpdateData.emergencyContactPhone = data.emergencyContactPhone;
         }
-        if (data.isActive !== undefined) patientUpdateData.isActive = data.isActive;
 
         if (geocodingInvalidation) {
             Object.assign(
@@ -332,14 +402,15 @@ export const patientRepository = {
             ];
         }
 
-        if (query.isActive !== undefined) {
-            patientWhere.isActive = query.isActive;
-        }
-
         return prisma.patientClinic.findMany({
             where: {
                 clinicId,
                 patient: patientWhere,
+                ...(query.isActive === true
+                    ? { isActive: true, patient: { ...patientWhere, isActive: true } }
+                    : query.isActive === false
+                      ? { OR: [{ isActive: false }, { patient: { isActive: false } }] }
+                      : {}),
             },
             select: {
                 ...patientClinicResponseSelect,

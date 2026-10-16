@@ -81,11 +81,7 @@ function ProductFrame({
                     </p>
                     <h3 className="truncate text-base font-bold text-app-text">{title}</h3>
                 </div>
-                <div className="flex shrink-0 gap-1.5" aria-hidden="true">
-                    <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-status-danger-border)]" />
-                    <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-status-warning-border)]" />
-                    <span className="h-2.5 w-2.5 rounded-full bg-action-soft" />
-                </div>
+                <span className="shrink-0 text-xs font-medium text-app-subtle">Illustrative</span>
             </div>
             <div className="p-4">{children}</div>
         </article>
@@ -218,10 +214,12 @@ function ProductShowcase() {
     return (
         <div className="rounded-lg border border-app-border bg-white p-3 shadow-[var(--shadow-soft)] md:p-4">
             <WorkflowDiagram />
-            <div className="mt-4 grid gap-4 xl:grid-cols-3">
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
                 <AppointmentPreview />
                 <QueuePreview />
-                <RiskPreview />
+                <div className="lg:col-span-2">
+                    <RiskPreview />
+                </div>
             </div>
         </div>
     );

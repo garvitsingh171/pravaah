@@ -3,7 +3,13 @@ export type NoShowRiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';
 export const NO_SHOW_FEATURE_SCHEMA_VERSION = 'no-show-features-v1';
 export const NO_SHOW_RULE_VERSION = 'starter-rule-v1';
 
-export type PredictionGenerationSource = 'APPOINTMENT_CREATION' | 'BACKFILL' | 'LEGACY_EXISTING';
+export type PredictionGenerationSource =
+    | 'APPOINTMENT_CREATION'
+    | 'BACKFILL'
+    | 'LEGACY_EXISTING'
+    | 'APPOINTMENT_RESCHEDULED'
+    | 'PATIENT_HISTORY_CHANGED'
+    | 'TRAVEL_DISTANCE_CHANGED';
 
 export type NoShowPredictionReasonCode =
     | 'PREVIOUS_NO_SHOW_HISTORY'

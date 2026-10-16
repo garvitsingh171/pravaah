@@ -99,6 +99,18 @@ const invitationOutcomeError = (outcome: string): AppError => {
                 'STAFF_REACTIVATION_REQUIRED',
                 'A suspended Staff member must be reactivated by an Admin'
             );
+        case 'REMOVED':
+            return new AppError(
+                409,
+                'STAFF_RESTORATION_REQUIRED',
+                'A removed Staff member must be restored by an Admin'
+            );
+        case 'CLINIC_INACTIVE':
+            return new AppError(
+                409,
+                'CLINIC_INACTIVE',
+                'This clinic is inactive. Ask an Admin to restore it before accepting the invitation.'
+            );
         default:
             return invalidInvitationError();
     }
@@ -160,6 +172,14 @@ export const staffService = {
                 );
             }
 
+            if (result.user.role === UserRole.STAFF && result.user.status === UserStatus.REMOVED) {
+                throw new AppError(
+                    409,
+                    'STAFF_RESTORATION_REQUIRED',
+                    'This Staff member was removed; use Restore instead'
+                );
+            }
+
             throw new AppError(
                 409,
                 'STAFF_ALREADY_MEMBER',
@@ -180,6 +200,61 @@ export const staffService = {
 
     async listMembers(clinicId: string) {
         return staffRepository.listClinicMembers(clinicId);
+    },
+
+    async getMember(clinicId: string, userId: string) {
+        const member = await staffRepository.findClinicMember(clinicId, userId);
+        if (!member) throw new AppError(404, 'STAFF_MEMBER_NOT_FOUND', 'Team member not found');
+        return member;
+    },
+
+    async updateMemberProfile(input: {
+        clinicId: string;
+        userId: string;
+        actorUserId: string;
+        fullName?: string;
+        phone?: string | null;
+    }) {
+        const result = await staffRepository.updateStaffProfile(input);
+        if (result.outcome === 'NOT_FOUND')
+            throw new AppError(404, 'STAFF_MEMBER_NOT_FOUND', 'Team member not found');
+        if (result.outcome === 'STAFF_REQUIRED')
+            throw new AppError(
+                403,
+                'STAFF_MEMBER_REQUIRED',
+                'Admin profiles cannot be changed here'
+            );
+        if (result.outcome === 'REMOVED')
+            throw new AppError(
+                409,
+                'STAFF_MEMBER_REMOVED',
+                'Restore this Staff member before editing'
+            );
+        return result.user;
+    },
+
+    async setMemberRemoved(input: {
+        clinicId: string;
+        userId: string;
+        actorUserId: string;
+        restore: boolean;
+    }) {
+        const result = await staffRepository.setStaffRemoved(input);
+        if (result.outcome === 'NOT_FOUND')
+            throw new AppError(404, 'STAFF_MEMBER_NOT_FOUND', 'Team member not found');
+        if (result.outcome === 'STAFF_REQUIRED')
+            throw new AppError(
+                403,
+                'STAFF_MEMBER_REQUIRED',
+                'Admin accounts cannot be removed here'
+            );
+        if (result.outcome === 'INVALID_TRANSITION')
+            throw new AppError(
+                409,
+                'STAFF_STATUS_TRANSITION_INVALID',
+                'Staff access has already changed. Refresh the list.'
+            );
+        return result.user;
     },
 
     async listInvitations(clinicId: string) {
@@ -248,13 +323,18 @@ export const staffService = {
                 status: result.user.status,
                 createdAt: result.user.createdAt,
             },
-            clinic: result.clinic,
+            clinic: { id: result.clinic.id, name: result.clinic.name },
         };
     },
 
-    async revokeInvitation(clinicId: string, invitationId: string) {
+    async revokeInvitation(clinicId: string, invitationId: string, actorUserId: string) {
         const now = new Date();
-        const result = await staffRepository.revokeInvitation({ clinicId, invitationId, now });
+        const result = await staffRepository.revokeInvitation({
+            clinicId,
+            invitationId,
+            actorUserId,
+            now,
+        });
 
         if (result.outcome === 'NOT_FOUND') {
             throw new AppError(404, 'STAFF_INVITATION_NOT_FOUND', 'Staff invitation not found');

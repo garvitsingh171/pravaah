@@ -247,6 +247,7 @@ describe('staffService', () => {
             staffService.updateStaffStatus({
                 clinicId: 'clinic-id',
                 userId: 'admin-id',
+                actorUserId: 'actor-id',
                 status: UserStatus.SUSPENDED,
             })
         ).rejects.toMatchObject({ code: 'STAFF_MEMBER_REQUIRED' });

@@ -14,9 +14,13 @@ import { isApiClientError } from '../../lib';
 import { UserRole, UserStatus } from '../../types';
 import {
     createStaffInvitation,
+    getStaffMember,
     listClinicTeam,
     listStaffInvitations,
+    removeStaffMember,
+    restoreStaffMember,
     revokeStaffInvitation,
+    updateStaffProfile,
     updateStaffStatus,
 } from './staffApi';
 import { StaffInvitationStatus, type ClinicTeamMember, type StaffInvitation } from './staffTypes';
@@ -39,6 +43,8 @@ type PageState =
 type ConfirmationTarget =
     | { kind: 'status'; member: ClinicTeamMember; nextStatus: 'ACTIVE' | 'SUSPENDED' }
     | { kind: 'revoke'; invitation: StaffInvitation }
+    | { kind: 'remove'; member: ClinicTeamMember }
+    | { kind: 'restore'; member: ClinicTeamMember }
     | null;
 
 const initialState: PageState = { status: 'loading', members: [], invitations: [], error: null };
@@ -56,9 +62,13 @@ const invitationTone = (status: StaffInvitation['status']) => {
 function MemberCard({
     member,
     onManage,
+    onDetails,
+    onLifecycle,
 }: {
     member: ClinicTeamMember;
     onManage: (member: ClinicTeamMember, status: 'ACTIVE' | 'SUSPENDED') => void;
+    onDetails: (member: ClinicTeamMember) => void;
+    onLifecycle: (member: ClinicTeamMember, kind: 'remove' | 'restore') => void;
 }) {
     const isStaff = member.role === UserRole.STAFF;
     const isActive = member.status === UserStatus.ACTIVE;
@@ -86,21 +96,51 @@ function MemberCard({
                                 ? 'Active'
                                 : member.status === UserStatus.SUSPENDED
                                   ? 'Suspended'
-                                  : 'Invited'}
+                                  : member.status === UserStatus.REMOVED
+                                    ? 'Removed'
+                                    : 'Invited'}
                         </Badge>
                     </div>
                     <p className="mt-3 text-xs text-app-subtle">
                         Joined {formatDate(member.createdAt)}
                     </p>
                 </div>
-                {isStaff && member.status !== UserStatus.INVITED ? (
-                    <Button
-                        size="sm"
-                        variant={isActive ? 'danger' : 'outline'}
-                        onClick={() => onManage(member, isActive ? 'SUSPENDED' : 'ACTIVE')}
-                    >
-                        {isActive ? 'Suspend' : 'Reactivate'}
-                    </Button>
+                {isStaff ? (
+                    <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="outline" onClick={() => onDetails(member)}>
+                            Details / Edit
+                        </Button>
+                        {member.status === UserStatus.REMOVED ? (
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => onLifecycle(member, 'restore')}
+                            >
+                                Restore
+                            </Button>
+                        ) : (
+                            <>
+                                {member.status !== UserStatus.INVITED ? (
+                                    <Button
+                                        size="sm"
+                                        variant={isActive ? 'danger' : 'outline'}
+                                        onClick={() =>
+                                            onManage(member, isActive ? 'SUSPENDED' : 'ACTIVE')
+                                        }
+                                    >
+                                        {isActive ? 'Suspend' : 'Reactivate'}
+                                    </Button>
+                                ) : null}
+                                <Button
+                                    size="sm"
+                                    variant="danger"
+                                    onClick={() => onLifecycle(member, 'remove')}
+                                >
+                                    Remove
+                                </Button>
+                            </>
+                        )}
+                    </div>
                 ) : null}
             </div>
         </article>
@@ -118,6 +158,13 @@ function StaffManagementPage() {
     const [confirmationTarget, setConfirmationTarget] = useState<ConfirmationTarget>(null);
     const [isConfirming, setIsConfirming] = useState(false);
     const [confirmationError, setConfirmationError] = useState<string | null>(null);
+    const [search, setSearch] = useState('');
+    const [statusFilter, setStatusFilter] = useState('ALL');
+    const [selectedMember, setSelectedMember] = useState<ClinicTeamMember | null>(null);
+    const [editName, setEditName] = useState('');
+    const [editPhone, setEditPhone] = useState('');
+    const [editError, setEditError] = useState<string | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
 
     const loadPage = useCallback(
         async (signal?: AbortSignal) => {
@@ -162,6 +209,61 @@ function StaffManagementPage() {
         () => state.members.filter((member) => member.role === UserRole.STAFF),
         [state.members]
     );
+    const visibleMembers = useMemo(
+        () =>
+            state.members.filter((member) => {
+                const matchesSearch = `${member.fullName} ${member.email}`
+                    .toLowerCase()
+                    .includes(search.trim().toLowerCase());
+                return matchesSearch && (statusFilter === 'ALL' || member.status === statusFilter);
+            }),
+        [state.members, search, statusFilter]
+    );
+
+    const openDetails = async (member: ClinicTeamMember) => {
+        setEditError(null);
+        try {
+            const result = await getStaffMember(clinicId, member.id);
+            setSelectedMember(result.member);
+            setEditName(result.member.fullName);
+            setEditPhone(result.member.phone ?? '');
+        } catch (error) {
+            showErrorToast(
+                isApiClientError(error) ? error.message : 'Staff details could not be loaded.'
+            );
+        }
+    };
+
+    const saveProfile = async (event: FormEvent) => {
+        event.preventDefault();
+        if (!selectedMember) return;
+        if (!editName.trim()) {
+            setEditError('Enter a staff name.');
+            return;
+        }
+        setIsSaving(true);
+        setEditError(null);
+        try {
+            const result = await updateStaffProfile(clinicId, selectedMember.id, {
+                fullName: editName.trim(),
+                phone: editPhone.trim() || null,
+            });
+            setSelectedMember(result.member);
+            setState((current) => ({
+                ...current,
+                members: current.members.map((member) =>
+                    member.id === result.member.id ? result.member : member
+                ),
+            }));
+            showSuccessToast('Staff profile updated.');
+        } catch (error) {
+            setEditError(
+                isApiClientError(error) ? error.message : 'Staff profile could not be saved.'
+            );
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     const handleCreateInvitation = async (event: FormEvent) => {
         event.preventDefault();
@@ -238,6 +340,24 @@ function StaffManagementPage() {
                         ? 'Staff access suspended.'
                         : 'Staff access restored.'
                 );
+            } else if (
+                confirmationTarget.kind === 'remove' ||
+                confirmationTarget.kind === 'restore'
+            ) {
+                const { member } =
+                    confirmationTarget.kind === 'remove'
+                        ? await removeStaffMember(clinicId, confirmationTarget.member.id)
+                        : await restoreStaffMember(clinicId, confirmationTarget.member.id);
+                setState((current) => ({
+                    ...current,
+                    members: current.members.map((item) => (item.id === member.id ? member : item)),
+                }));
+                if (selectedMember?.id === member.id) setSelectedMember(member);
+                showSuccessToast(
+                    confirmationTarget.kind === 'remove'
+                        ? 'Staff access removed.'
+                        : 'Staff access restored.'
+                );
             } else {
                 const { invitation } = await revokeStaffInvitation(
                     clinicId,
@@ -263,27 +383,43 @@ function StaffManagementPage() {
     };
 
     const confirmationCopy = confirmationTarget
-        ? confirmationTarget.kind === 'revoke'
+        ? confirmationTarget.kind === 'remove'
             ? {
-                  title: 'Revoke invitation?',
-                  description: `The link for ${confirmationTarget.invitation.email} will stop working immediately.`,
-                  confirmLabel: 'Revoke invitation',
-                  loadingText: 'Revoking...',
+                  title: `Remove ${confirmationTarget.member.fullName}?`,
+                  description:
+                      'Their clinic access will end immediately. Their historical attribution and Clerk identity will be preserved.',
+                  confirmLabel: 'Remove staff',
+                  loadingText: 'Removing...',
               }
-            : confirmationTarget.nextStatus === 'SUSPENDED'
+            : confirmationTarget.kind === 'restore'
               ? {
-                    title: `Suspend ${confirmationTarget.member.fullName}?`,
+                    title: `Restore ${confirmationTarget.member.fullName}?`,
                     description:
-                        'They will lose access to this clinic immediately. Historical activity will remain unchanged.',
-                    confirmLabel: 'Suspend staff',
-                    loadingText: 'Suspending...',
+                        'This restores their clinic access. Confirm that they should have Staff permissions again.',
+                    confirmLabel: 'Restore staff',
+                    loadingText: 'Restoring...',
                 }
-              : {
-                    title: `Reactivate ${confirmationTarget.member.fullName}?`,
-                    description: 'Their access to this clinic workspace will be restored.',
-                    confirmLabel: 'Reactivate staff',
-                    loadingText: 'Reactivating...',
-                }
+              : confirmationTarget.kind === 'revoke'
+                ? {
+                      title: 'Revoke invitation?',
+                      description: `The link for ${confirmationTarget.invitation.email} will stop working immediately.`,
+                      confirmLabel: 'Revoke invitation',
+                      loadingText: 'Revoking...',
+                  }
+                : confirmationTarget.nextStatus === 'SUSPENDED'
+                  ? {
+                        title: `Suspend ${confirmationTarget.member.fullName}?`,
+                        description:
+                            'They will lose access to this clinic immediately. Historical activity will remain unchanged.',
+                        confirmLabel: 'Suspend staff',
+                        loadingText: 'Suspending...',
+                    }
+                  : {
+                        title: `Reactivate ${confirmationTarget.member.fullName}?`,
+                        description: 'Their access to this clinic workspace will be restored.',
+                        confirmLabel: 'Reactivate staff',
+                        loadingText: 'Reactivating...',
+                    }
         : null;
 
     if (state.status === 'loading' && state.members.length === 0) {
@@ -359,6 +495,26 @@ function StaffManagementPage() {
                 title="Clinic team"
                 description="Admin accounts are shown for context and cannot be changed here."
             >
+                <div className="mb-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
+                    <Input
+                        aria-label="Search team"
+                        placeholder="Search by name or email"
+                        value={search}
+                        onChange={(event) => setSearch(event.target.value)}
+                    />
+                    <select
+                        aria-label="Filter team by status"
+                        className="min-h-11 rounded-md border border-app-border-strong bg-white px-3 text-sm"
+                        value={statusFilter}
+                        onChange={(event) => setStatusFilter(event.target.value)}
+                    >
+                        <option value="ALL">All statuses</option>
+                        <option value="ACTIVE">Active</option>
+                        <option value="SUSPENDED">Suspended</option>
+                        <option value="REMOVED">Removed</option>
+                        <option value="INVITED">Invited</option>
+                    </select>
+                </div>
                 {state.members.length === 0 ? (
                     <EmptyState
                         title="No clinic members found"
@@ -366,7 +522,7 @@ function StaffManagementPage() {
                     />
                 ) : (
                     <div className="grid gap-3 lg:grid-cols-2">
-                        {state.members.map((member) => (
+                        {visibleMembers.map((member) => (
                             <MemberCard
                                 key={member.id}
                                 member={member}
@@ -378,16 +534,86 @@ function StaffManagementPage() {
                                         nextStatus,
                                     });
                                 }}
+                                onDetails={(target) => void openDetails(target)}
+                                onLifecycle={(target, kind) => {
+                                    setConfirmationError(null);
+                                    setConfirmationTarget(
+                                        kind === 'remove'
+                                            ? { kind: 'remove', member: target }
+                                            : { kind: 'restore', member: target }
+                                    );
+                                }}
                             />
                         ))}
                     </div>
                 )}
+                {state.members.length > 0 && visibleMembers.length === 0 ? (
+                    <p className="mt-4 text-sm text-app-muted">
+                        No team members match these filters.
+                    </p>
+                ) : null}
                 {staffMembers.length === 0 && state.members.length > 0 ? (
                     <p className="mt-4 rounded-lg bg-app-surface-muted p-4 text-sm text-app-muted">
                         No Staff members yet. Create an invitation to add the first Staff member.
                     </p>
                 ) : null}
             </Card>
+
+            {selectedMember ? (
+                <Card
+                    title={`${selectedMember.fullName} · Staff details`}
+                    description={`Joined ${formatDate(selectedMember.createdAt)} · ${selectedMember.status.toLowerCase()}`}
+                >
+                    <p className="mb-4 text-sm text-app-muted">
+                        {selectedMember.email} · {selectedMember.role}
+                    </p>
+                    <form
+                        className="grid gap-4 sm:grid-cols-2"
+                        onSubmit={(event) => void saveProfile(event)}
+                    >
+                        <FormField label="Full name">
+                            <Input
+                                value={editName}
+                                onChange={(event) => setEditName(event.target.value)}
+                                required
+                                disabled={isSaving || selectedMember.status === UserStatus.REMOVED}
+                            />
+                        </FormField>
+                        <FormField label="Phone">
+                            <Input
+                                type="tel"
+                                value={editPhone}
+                                onChange={(event) => setEditPhone(event.target.value)}
+                                disabled={isSaving || selectedMember.status === UserStatus.REMOVED}
+                            />
+                        </FormField>
+                        {editError ? (
+                            <p
+                                role="alert"
+                                className="text-sm text-[var(--color-status-danger-text)] sm:col-span-2"
+                            >
+                                {editError}
+                            </p>
+                        ) : null}
+                        <div className="flex gap-2 sm:col-span-2">
+                            <Button
+                                type="submit"
+                                isLoading={isSaving}
+                                disabled={selectedMember.status === UserStatus.REMOVED}
+                            >
+                                Save changes
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setSelectedMember(null)}
+                            >
+                                Close details
+                            </Button>
+                        </div>
+                    </form>
+                </Card>
+            ) : null}
 
             <Card
                 title="Staff invitations"
@@ -463,8 +689,9 @@ function StaffManagementPage() {
                     confirmLabel={confirmationCopy.confirmLabel}
                     cancelLabel="Cancel"
                     confirmVariant={
-                        confirmationTarget?.kind === 'status' &&
-                        confirmationTarget.nextStatus === 'ACTIVE'
+                        (confirmationTarget?.kind === 'status' &&
+                            confirmationTarget.nextStatus === 'ACTIVE') ||
+                        confirmationTarget?.kind === 'restore'
                             ? 'primary'
                             : 'danger'
                     }
