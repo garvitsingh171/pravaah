@@ -1,7 +1,14 @@
 import { useAuth, useClerk } from '@clerk/react';
+import { MotionConfig } from 'motion/react';
 import { useCallback, useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { ErrorMessage, LoadingState } from '../components/feedback';
+import { Button, ConfirmationDialog } from '../components/ui';
+import {
+    getClinicLifecycleImpact,
+    restoreClinic,
+    type ClinicLifecycleImpact,
+} from '../features/clinics/clinicApi';
 import ActiveClinicProvider from './ActiveClinicProvider';
 import AppLayout from './AppLayout';
 import {
@@ -28,6 +35,7 @@ type ProtectedAppShellState =
       }
     | {
           status: 'recoveryRequired';
+          data: OnboardingStatusResponseData;
           error: null;
       }
     | {
@@ -104,6 +112,92 @@ function RecoveryRequiredState() {
     );
 }
 
+function InactiveClinicRecovery({
+    data,
+    onRestored,
+}: {
+    data: OnboardingStatusResponseData;
+    onRestored: () => void;
+}) {
+    const clinic = data.clinic!;
+    const isAdmin = data.user?.role === UserRole.ADMIN;
+    const [impact, setImpact] = useState<ClinicLifecycleImpact | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [isRestoring, setIsRestoring] = useState(false);
+
+    useEffect(() => {
+        if (!isAdmin) return;
+        void getClinicLifecycleImpact(clinic.id)
+            .then((result) => setImpact(result.impact))
+            .catch((failure: unknown) =>
+                setError(
+                    isApiClientError(failure)
+                        ? failure.message
+                        : 'Clinic status could not be loaded.'
+                )
+            );
+    }, [clinic.id, isAdmin]);
+
+    const handleRestore = async () => {
+        setIsRestoring(true);
+        setError(null);
+        try {
+            await restoreClinic(clinic.id);
+            setConfirmOpen(false);
+            onRestored();
+        } catch (failure) {
+            setError(isApiClientError(failure) ? failure.message : 'Clinic could not be restored.');
+        } finally {
+            setIsRestoring(false);
+        }
+    };
+
+    return (
+        <div className="min-h-screen bg-app-background px-4 py-12 text-app-text">
+            <div className="mx-auto max-w-2xl rounded-lg border border-app-border bg-white p-6 shadow-sm">
+                <h1 className="text-xl font-semibold">{clinic.name} is inactive</h1>
+                <p className="mt-3 text-sm text-app-muted">
+                    Normal clinic operations are paused. Existing appointments and patient history
+                    have been preserved.
+                </p>
+                {isAdmin ? (
+                    <>
+                        {impact ? (
+                            <p className="mt-4 text-sm">
+                                {impact.futureAppointments} future appointments ·{' '}
+                                {impact.activeQueueEntries} active queue entries
+                            </p>
+                        ) : null}
+                        <Button className="mt-5" onClick={() => setConfirmOpen(true)}>
+                            Restore clinic access
+                        </Button>
+                        <ConfirmationDialog
+                            open={confirmOpen}
+                            title={`Restore ${clinic.name}?`}
+                            description="Staff access and normal clinic operations will be available again."
+                            confirmLabel="Restore clinic"
+                            cancelLabel="Cancel"
+                            confirmVariant="primary"
+                            isConfirming={isRestoring}
+                            error={error}
+                            onConfirm={() => void handleRestore()}
+                            onCancel={() => setConfirmOpen(false)}
+                        />
+                    </>
+                ) : (
+                    <p className="mt-4 text-sm">Contact a clinic Admin to restore access.</p>
+                )}
+                {error && !confirmOpen ? (
+                    <p role="alert" className="mt-4 text-sm text-[var(--color-status-danger-text)]">
+                        {error}
+                    </p>
+                ) : null}
+            </div>
+        </div>
+    );
+}
+
 function OnboardingStatusErrorState({
     message,
     code,
@@ -159,6 +253,7 @@ function ProtectedAppShell() {
 
                 setState({
                     status: 'recoveryRequired',
+                    data,
                     error: null,
                 });
             })
@@ -234,6 +329,12 @@ function ProtectedAppShell() {
     }
 
     if (state.status === 'recoveryRequired') {
+        if (
+            state.data.clinic?.isActive === false &&
+            state.data.user?.status === UserStatus.ACTIVE
+        ) {
+            return <InactiveClinicRecovery data={state.data} onRestored={retryOnboardingStatus} />;
+        }
         return <RecoveryRequiredState />;
     }
 
@@ -249,7 +350,9 @@ function ProtectedAppShell() {
 
     return (
         <ActiveClinicProvider>
-            <AppLayout initialSetup={state.data.setup} />
+            <MotionConfig reducedMotion="user">
+                <AppLayout initialSetup={state.data.setup} />
+            </MotionConfig>
         </ActiveClinicProvider>
     );
 }

@@ -10,6 +10,7 @@ type ConfirmationDialogProps = {
     confirmVariant?: 'primary' | 'danger';
     isConfirming?: boolean;
     confirmLoadingText?: string;
+    confirmDisabled?: boolean;
     error?: string | null;
     onConfirm: () => void;
     onCancel: () => void;
@@ -33,6 +34,7 @@ function ConfirmationDialog({
     confirmVariant = 'danger',
     isConfirming = false,
     confirmLoadingText,
+    confirmDisabled = false,
     error,
     onConfirm,
     onCancel,
@@ -139,7 +141,10 @@ function ConfirmationDialog({
                         {description}
                     </p>
                     {error ? (
-                        <p className="rounded-md border border-[var(--color-status-danger-border)] bg-[var(--color-status-danger-bg)] px-3 py-2 text-sm text-[var(--color-status-danger-text)]">
+                        <p
+                            role="alert"
+                            className="rounded-md border border-[var(--color-status-danger-border)] bg-[var(--color-status-danger-bg)] px-3 py-2 text-sm text-[var(--color-status-danger-text)]"
+                        >
                             {error}
                         </p>
                     ) : null}
@@ -157,6 +162,7 @@ function ConfirmationDialog({
                     <Button
                         variant={confirmVariant}
                         onClick={onConfirm}
+                        disabled={confirmDisabled}
                         isLoading={isConfirming}
                         loadingText={confirmLoadingText}
                     >

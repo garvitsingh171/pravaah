@@ -28,7 +28,7 @@
 | Side effects          | Booking creates a queue entry and prediction and atomically increments `PatientClinic.totalAppointments`                                                                                                                                                                                                        |
 | Errors                | `APPOINTMENT_SLOT_UNAVAILABLE`, `APPOINTMENT_SLOT_CONFLICT`, `DOCTOR_NOT_LINKED_TO_CLINIC`, `PATIENT_NOT_LINKED_TO_CLINIC`, `APPOINTMENT_STATUS_FINAL`, `STATUS_SYNC_CONFLICT`, `QUEUE_ENTRY_NOT_FOUND`                                                                                                         |
 | Tests                 | Appointment service/controller/validation tests; `AppointmentsPage` has no dedicated test file in current tree                                                                                                                                                                                                  |
-| Known gaps            | Booking now enforces weekly availability, clinic hours, slot duration, duration overlap, and buffer conflicts. Past-date booking remains a business-rule gap. Rescheduling does not recalculate no-show prediction; generalized prediction refresh is deferred                                                  |
+| Known gaps            | Booking now enforces weekly availability, clinic hours, slot duration, duration overlap, and buffer conflicts. Past-date booking remains a business-rule gap. Prediction refresh is durable deferred work for history/routing fan-out. |
 
 ## Appointment Booking Trace
 
@@ -159,7 +159,7 @@ Not implemented in current service:
 
 ## Appointment Rescheduling
 
-Rescheduling changes when the same appointment will happen. It does not create a replacement appointment, does not reset lifecycle status, does not recreate the queue entry, and does not recalculate or duplicate the no-show prediction.
+Rescheduling changes when the same appointment will happen. It does not create a replacement appointment, reset lifecycle status, or recreate the queue entry. A successful change appends one revalidated no-show prediction run; a no-op, conflict, or failed transaction appends none.
 
 Eligible appointment statuses are centralized in `appointment.lifecycle.ts -> reschedulableAppointmentStatuses`:
 
@@ -467,4 +467,4 @@ The status controller passes the complete validated payload through the service.
 
 Booking and dashboard backfill both persist the exact normalized feature snapshot used by the deterministic evaluator. Booking writes `APPOINTMENT_CREATION`; backfill writes `BACKFILL` and records the execution-time inputs. Both use the baseline idempotency key `baseline:<appointmentId>`, so concurrent dashboard reads cannot create duplicate baseline rows. The existing booking transaction remains atomic across Appointment, QueueEntry, prediction run, patient statistics, and activity.
 
-An appointment may have many historical runs, but current appointment, queue, and dashboard APIs adapt the deterministically latest run (`createdAt DESC`, `id DESC`) to their existing singular `noShowPrediction` contract. Rescheduling does not recalculate predictions.
+An appointment may have many historical runs, but current appointment, queue, and dashboard APIs adapt the deterministically latest run (`createdAt DESC`, `id DESC`) to their existing singular `noShowPrediction` contract. Successful rescheduling recalculates using its original booking time and new scheduled time.

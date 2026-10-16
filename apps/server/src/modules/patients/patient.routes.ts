@@ -2,15 +2,20 @@ import { Router } from 'express';
 import { validateRequest } from '../../utils/validateRequest.js';
 import {
     authenticateRequest,
+    requireAdminRole,
     requireClinicAccess,
     requireClinicStaffRole,
 } from '../auth/auth.middleware.js';
 import {
     createPatientController,
+    archivePatientController,
+    getPatientByClinicController,
+    getPatientLifecycleImpactController,
     listPatientsByClinicController,
     retryPatientGeocodingController,
     retryPatientRoutingController,
     updatePatientController,
+    restorePatientController,
 } from './patient.controller.js';
 import {
     clinicIdParamsSchema,
@@ -82,6 +87,42 @@ patientRouter.get(
     requireClinicAccess,
     requireClinicStaffRole,
     listPatientsByClinicController
+);
+
+patientRouter.get(
+    '/:clinicId/patients/:patientId',
+    authenticateRequest,
+    validateRequest({ params: clinicPatientIdParamsSchema }),
+    requireClinicAccess,
+    requireClinicStaffRole,
+    getPatientByClinicController
+);
+
+patientRouter.get(
+    '/:clinicId/patients/:patientId/lifecycle-impact',
+    authenticateRequest,
+    validateRequest({ params: clinicPatientIdParamsSchema }),
+    requireClinicAccess,
+    requireAdminRole,
+    getPatientLifecycleImpactController
+);
+
+patientRouter.delete(
+    '/:clinicId/patients/:patientId',
+    authenticateRequest,
+    validateRequest({ params: clinicPatientIdParamsSchema }),
+    requireClinicAccess,
+    requireAdminRole,
+    archivePatientController
+);
+
+patientRouter.post(
+    '/:clinicId/patients/:patientId/restore',
+    authenticateRequest,
+    validateRequest({ params: clinicPatientIdParamsSchema }),
+    requireClinicAccess,
+    requireAdminRole,
+    restorePatientController
 );
 
 export { patientRouter };

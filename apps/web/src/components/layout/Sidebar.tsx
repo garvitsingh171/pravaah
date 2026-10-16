@@ -85,66 +85,88 @@ function WorkspaceNavigation({
     onNavigate?: () => void;
     surface?: 'light' | 'dark';
 }) {
+    const getGroup = (path: string) => {
+        if (['/dashboard', '/appointments', '/queue'].includes(path)) return 'Daily operations';
+        if (['/doctors', '/patients'].includes(path)) return 'Clinic directory';
+        return 'Administration';
+    };
+    const orderedItems = [...navigationItems].sort((a, b) => {
+        const rank = (path: string) =>
+            ['Daily operations', 'Clinic directory', 'Administration'].indexOf(getGroup(path));
+        return rank(a.path) - rank(b.path);
+    });
     return (
-        <nav className="flex flex-col gap-1.5" aria-label="Clinic workspace navigation">
-            {navigationItems.map((item) => {
+        <nav className="flex flex-col gap-1" aria-label="Clinic workspace navigation">
+            {orderedItems.map((item, index) => {
                 const label = item.navigationLabel ?? item.title;
                 const darkSurface = surface === 'dark';
+                const group = getGroup(item.path);
+                const beginsGroup = index === 0 || getGroup(orderedItems[index - 1].path) !== group;
 
                 return (
-                    <NavLink
-                        key={item.path}
-                        to={item.path}
-                        end={item.path === '/dashboard'}
-                        onClick={onNavigate}
-                        title={item.navigationDescription}
-                        className={({ isActive }) =>
-                            `group relative flex min-w-0 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition duration-[var(--motion-fast)] ease-[var(--motion-ease)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-500 ${
-                                isActive
-                                    ? darkSurface
-                                        ? 'bg-white/10 text-white'
-                                        : 'bg-slate-950 text-white shadow-sm'
-                                    : darkSurface
-                                      ? 'text-slate-300 hover:bg-white/5 hover:text-white'
-                                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
-                            }`
-                        }
-                    >
-                        {({ isActive }) => (
-                            <>
-                                {isActive ? (
-                                    <motion.span
-                                        layoutId={`workspace-active-indicator-${surface}`}
-                                        transition={{ duration: 0.18 }}
-                                        className="absolute left-1 h-6 w-1 rounded-full bg-brand"
-                                        aria-hidden="true"
-                                    />
-                                ) : (
+                    <div key={item.path}>
+                        {beginsGroup ? (
+                            <p
+                                className={`mb-2 px-3 text-[11px] font-bold uppercase tracking-[0.12em] ${index === 0 ? 'mt-0' : 'mt-5'} ${darkSurface ? 'text-slate-400' : 'text-slate-500'}`}
+                            >
+                                {group}
+                            </p>
+                        ) : null}
+                        <NavLink
+                            to={item.path}
+                            end={item.path === '/dashboard'}
+                            onClick={onNavigate}
+                            title={item.navigationDescription}
+                            className={({ isActive }) =>
+                                `group relative flex min-w-0 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition duration-[var(--motion-fast)] ease-[var(--motion-ease)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-500 ${
+                                    isActive
+                                        ? darkSurface
+                                            ? 'bg-white/10 text-white'
+                                            : 'bg-slate-950 text-white shadow-sm'
+                                        : darkSurface
+                                          ? 'text-slate-300 hover:bg-white/5 hover:text-white'
+                                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
+                                }`
+                            }
+                        >
+                            {({ isActive }) => (
+                                <>
+                                    {isActive ? (
+                                        <motion.span
+                                            layoutId={`workspace-active-indicator-${surface}`}
+                                            transition={{ duration: 0.18 }}
+                                            className="absolute left-1 h-6 w-1 rounded-full bg-brand"
+                                            aria-hidden="true"
+                                        />
+                                    ) : (
+                                        <span
+                                            className="absolute left-1 h-6 w-1 rounded-full bg-transparent"
+                                            aria-hidden="true"
+                                        />
+                                    )}
                                     <span
-                                        className="absolute left-1 h-6 w-1 rounded-full bg-transparent"
-                                        aria-hidden="true"
-                                    />
-                                )}
-                                <span
-                                    className={`ml-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${
-                                        isActive
-                                            ? darkSurface
-                                                ? 'bg-brand text-slate-950'
-                                                : 'bg-white/10 text-brand'
-                                            : darkSurface
-                                              ? 'bg-white/5 text-slate-400 group-hover:text-slate-100'
-                                              : 'bg-slate-100 text-slate-500 group-hover:text-slate-800'
-                                    }`}
-                                >
-                                    <NavigationIcon name={item.navigationIcon} />
-                                </span>
-                                <span className="min-w-0 truncate">
-                                    {label}
-                                    <span className="sr-only">, {item.navigationDescription}</span>
-                                </span>
-                            </>
-                        )}
-                    </NavLink>
+                                        className={`ml-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${
+                                            isActive
+                                                ? darkSurface
+                                                    ? 'bg-brand text-slate-950'
+                                                    : 'bg-white/10 text-brand'
+                                                : darkSurface
+                                                  ? 'bg-white/5 text-slate-400 group-hover:text-slate-100'
+                                                  : 'bg-slate-100 text-slate-500 group-hover:text-slate-800'
+                                        }`}
+                                    >
+                                        <NavigationIcon name={item.navigationIcon} />
+                                    </span>
+                                    <span className="min-w-0 truncate">
+                                        {label}
+                                        <span className="sr-only">
+                                            , {item.navigationDescription}
+                                        </span>
+                                    </span>
+                                </>
+                            )}
+                        </NavLink>
+                    </div>
                 );
             })}
         </nav>

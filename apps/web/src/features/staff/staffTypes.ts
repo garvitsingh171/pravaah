@@ -13,6 +13,7 @@ export type StaffInvitationStatus =
 export type ClinicTeamMember = {
     id: string;
     fullName: string;
+    phone: string | null;
     email: string;
     role: UserRole;
     status: UserStatus;

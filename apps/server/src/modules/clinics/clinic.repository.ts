@@ -32,6 +32,7 @@ import type {
     UpdateClinicInput,
 } from './clinic.types.js';
 import { isSupportedClinicTimezone } from './clinicTimezone.js';
+import { lifecycleRepository } from '../lifecycle/lifecycle.repository.js';
 import type { GeocodingResult } from '../../integrations/geoapify/geoapify.types.js';
 
 type SampleAppointmentDefinition = {
@@ -327,6 +328,7 @@ const clinicSettingsSelect = {
     slotDurationMinutes: true,
     bufferMinutes: true,
     lateArrivalGraceMinutes: true,
+    isActive: true,
     createdAt: true,
     updatedAt: true,
 } satisfies Prisma.ClinicSelect;
@@ -352,6 +354,57 @@ const geocodingInvalidationData = (sourceHash: string, attemptId: string) => ({
 });
 
 export const clinicRepository = {
+    getLifecycleImpact(clinicId: string) {
+        return prisma.$transaction(async (tx) => {
+            const clinic = await tx.clinic.findUnique({
+                where: { id: clinicId },
+                select: { id: true, name: true, isActive: true },
+            });
+            if (!clinic) return null;
+            const impact = await lifecycleRepository.countImpact(tx, clinicId);
+            return { clinic, impact };
+        });
+    },
+
+    setActive(input: {
+        clinicId: string;
+        actorUserId: string;
+        isActive: boolean;
+        confirmClinicName?: string;
+    }) {
+        return withTransientDatabaseTransactionRetry(
+            (callback) => prisma.$transaction(callback),
+            async (tx) => {
+                await tx.$queryRaw`SELECT "id" FROM "clinics" WHERE "id" = ${input.clinicId}::uuid FOR UPDATE`;
+                const clinic = await tx.clinic.findUnique({ where: { id: input.clinicId } });
+                if (!clinic) return { outcome: 'NOT_FOUND' as const };
+                if (!input.isActive && clinic.name !== input.confirmClinicName)
+                    return { outcome: 'CONFIRMATION_MISMATCH' as const };
+                if (clinic.isActive === input.isActive) return { outcome: 'ALREADY_SET' as const };
+                const impact = await lifecycleRepository.countImpact(tx, input.clinicId);
+                if (
+                    !input.isActive &&
+                    (impact.activeAppointments > 0 || impact.activeQueueEntries > 0)
+                ) {
+                    return { outcome: 'ACTIVE_VISITS' as const, impact };
+                }
+                const updated = await tx.clinic.update({
+                    where: { id: clinic.id },
+                    data: { isActive: input.isActive },
+                    select: clinicSettingsSelect,
+                });
+                await lifecycleRepository.createEvent(tx, {
+                    clinicId: input.clinicId,
+                    actorUserId: input.actorUserId,
+                    entityType: 'CLINIC',
+                    entityId: clinic.id,
+                    action: input.isActive ? 'RESTORED' : 'DEACTIVATED',
+                    metadata: impact,
+                });
+                return { outcome: 'UPDATED' as const, clinic: updated, impact };
+            }
+        );
+    },
     findById(id: string) {
         return prisma.clinic.findUnique({
             where: {
@@ -710,9 +763,9 @@ export const clinicRepository = {
                             patientId: appointment.patientId,
                             riskLevel: prediction.riskLevel,
                             score: prediction.score,
-                            featureSchemaVersion: prediction.featureSchemaVersion,
-                            featureSnapshot: prediction.featureSnapshot,
-                            ruleVersion: prediction.ruleVersion,
+                            featureSchemaVersion: prediction.featureSchemaVersion ?? null,
+                            featureSnapshot: prediction.featureSnapshot ?? Prisma.JsonNull,
+                            ruleVersion: prediction.ruleVersion ?? null,
                             generationSource: 'APPOINTMENT_CREATION',
                             runKey: `baseline:${appointment.id}`,
                             reasons: prediction.reasons,

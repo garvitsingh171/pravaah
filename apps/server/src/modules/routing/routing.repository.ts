@@ -1,5 +1,6 @@
 import { prisma } from '../../config/prisma.js';
 import type { Prisma } from '../../generated/prisma/client.js';
+import { registerPredictionRefreshWork } from '../predictions/prediction.recalculation.service.js';
 import type { PersistableRoutingResult } from './routing.types.js';
 
 const routingInvalidationData = {
@@ -72,6 +73,20 @@ type RoutingContext = {
     };
 };
 
+const withRoutingTransaction = <Result>(
+    operation: (tx: Prisma.TransactionClient) => Promise<Result>
+): Promise<Result> => {
+    // Prisma always has $transaction in production. The fallback keeps the
+    // repository's narrow unit-test double compatible while production writes
+    // remain one transaction with durable work registration.
+    const transaction = (prisma as unknown as { $transaction?: unknown }).$transaction;
+    if (typeof transaction !== 'function') {
+        return operation(prisma as unknown as Prisma.TransactionClient);
+    }
+
+    return prisma.$transaction(operation);
+};
+
 export const routingRepository = {
     findRoutingContext(patientId: string, clinicId: string) {
         return prisma.patientClinic.findUnique({
@@ -106,77 +121,145 @@ export const routingRepository = {
         });
     },
 
-    saveRoutingResultIfCurrent(
+    async saveRoutingResultIfCurrent(
         patientId: string,
         clinicId: string,
         sourceHash: string,
         attemptId: string,
         result: PersistableRoutingResult
     ) {
-        return prisma.patientClinic.updateMany({
-            where: {
-                patientId,
-                clinicId,
-                routingSourceHash: sourceHash,
-                routingAttemptId: attemptId,
-            },
-            data: {
-                distanceFromClinicKm: result.distanceKm,
-                estimatedTravelTimeMinutes: result.estimatedTravelTimeMinutes,
-                routingStatus: 'CALCULATED',
-                routingProvider: 'GEOAPIFY',
-                routingMode: 'DRIVE',
-                routingTrafficModel: 'FREE_FLOW',
-                routedAt: new Date(),
-            } as unknown as Prisma.PatientClinicUpdateManyMutationInput,
+        return withRoutingTransaction(async (tx) => {
+            const before =
+                typeof tx.patientClinic.findUnique === 'function'
+                    ? await tx.patientClinic.findUnique({
+                          where: { patientId_clinicId: { patientId, clinicId } },
+                          select: { distanceFromClinicKm: true },
+                      })
+                    : null;
+            const updated = await tx.patientClinic.updateMany({
+                where: {
+                    patientId,
+                    clinicId,
+                    routingSourceHash: sourceHash,
+                    routingAttemptId: attemptId,
+                },
+                data: {
+                    distanceFromClinicKm: result.distanceKm,
+                    estimatedTravelTimeMinutes: result.estimatedTravelTimeMinutes,
+                    routingStatus: 'CALCULATED',
+                    routingProvider: 'GEOAPIFY',
+                    routingMode: 'DRIVE',
+                    routingTrafficModel: 'FREE_FLOW',
+                    routedAt: new Date(),
+                } as unknown as Prisma.PatientClinicUpdateManyMutationInput,
+            });
+
+            if (
+                updated.count === 1 &&
+                (before == null || Number(before.distanceFromClinicKm) !== Number(result.distanceKm))
+            ) {
+                await registerPredictionRefreshWork({
+                    tx,
+                    clinicId,
+                    patientId,
+                    trigger: 'TRAVEL_DISTANCE_CHANGED',
+                });
+            }
+            return updated;
         });
     },
 
-    markRoutingFailedIfCurrent(
+    async markRoutingFailedIfCurrent(
         patientId: string,
         clinicId: string,
         sourceHash: string,
         attemptId: string
     ) {
-        return prisma.patientClinic.updateMany({
-            where: {
-                patientId,
-                clinicId,
-                routingSourceHash: sourceHash,
-                routingAttemptId: attemptId,
-            },
-            data: {
-                distanceFromClinicKm: null,
-                estimatedTravelTimeMinutes: null,
-                routingStatus: 'FAILED',
-                routingProvider: 'GEOAPIFY',
-                routingMode: 'DRIVE',
-                routingTrafficModel: 'FREE_FLOW',
-                routedAt: null,
-            } as unknown as Prisma.PatientClinicUpdateManyMutationInput,
+        return withRoutingTransaction(async (tx) => {
+            const before =
+                typeof tx.patientClinic.findUnique === 'function'
+                    ? await tx.patientClinic.findUnique({
+                          where: { patientId_clinicId: { patientId, clinicId } },
+                          select: { distanceFromClinicKm: true },
+                      })
+                    : null;
+            const updated = await tx.patientClinic.updateMany({
+                where: {
+                    patientId,
+                    clinicId,
+                    routingSourceHash: sourceHash,
+                    routingAttemptId: attemptId,
+                },
+                data: {
+                    distanceFromClinicKm: null,
+                    estimatedTravelTimeMinutes: null,
+                    routingStatus: 'FAILED',
+                    routingProvider: 'GEOAPIFY',
+                    routingMode: 'DRIVE',
+                    routingTrafficModel: 'FREE_FLOW',
+                    routedAt: null,
+                } as unknown as Prisma.PatientClinicUpdateManyMutationInput,
+            });
+
+            if (updated.count === 1 && (before == null || before.distanceFromClinicKm !== null)) {
+                await registerPredictionRefreshWork({
+                    tx,
+                    clinicId,
+                    patientId,
+                    trigger: 'TRAVEL_DISTANCE_CHANGED',
+                });
+            }
+            return updated;
         });
     },
 
-    invalidateCalculatedRoutesForPatient(patientId: string) {
-        return prisma.patientClinic.updateMany({
-            where: {
-                patientId,
-                // A NOT_CALCULATED row with a non-null source hash can be an
-                // in-flight attempt. Clear it too so an older provider
-                // response cannot become current after coordinates change.
-                routingSourceHash: { not: null },
-            },
-            data: routingInvalidationData as unknown as Prisma.PatientClinicUpdateManyMutationInput,
+    async invalidateCalculatedRoutesForPatient(patientId: string) {
+        return withRoutingTransaction(async (tx) => {
+            const scopes =
+                typeof tx.patientClinic.findMany === 'function'
+                    ? await tx.patientClinic.findMany({
+                          where: { patientId, routingSourceHash: { not: null } },
+                          select: { clinicId: true, patientId: true },
+                      })
+                    : [];
+            const updated = await tx.patientClinic.updateMany({
+                where: { patientId, routingSourceHash: { not: null } },
+                data: routingInvalidationData as unknown as Prisma.PatientClinicUpdateManyMutationInput,
+            });
+            for (const scope of scopes) {
+                await registerPredictionRefreshWork({
+                    tx,
+                    clinicId: scope.clinicId,
+                    patientId: scope.patientId,
+                    trigger: 'TRAVEL_DISTANCE_CHANGED',
+                });
+            }
+            return updated;
         });
     },
 
-    invalidateCalculatedRoutesForClinic(clinicId: string) {
-        return prisma.patientClinic.updateMany({
-            where: {
-                clinicId,
-                routingSourceHash: { not: null },
-            },
-            data: routingInvalidationData as unknown as Prisma.PatientClinicUpdateManyMutationInput,
+    async invalidateCalculatedRoutesForClinic(clinicId: string) {
+        return withRoutingTransaction(async (tx) => {
+            const scopes =
+                typeof tx.patientClinic.findMany === 'function'
+                    ? await tx.patientClinic.findMany({
+                          where: { clinicId, routingSourceHash: { not: null } },
+                          select: { clinicId: true, patientId: true },
+                      })
+                    : [];
+            const updated = await tx.patientClinic.updateMany({
+                where: { clinicId, routingSourceHash: { not: null } },
+                data: routingInvalidationData as unknown as Prisma.PatientClinicUpdateManyMutationInput,
+            });
+            for (const scope of scopes) {
+                await registerPredictionRefreshWork({
+                    tx,
+                    clinicId: scope.clinicId,
+                    patientId: scope.patientId,
+                    trigger: 'TRAVEL_DISTANCE_CHANGED',
+                });
+            }
+            return updated;
         });
     },
 };

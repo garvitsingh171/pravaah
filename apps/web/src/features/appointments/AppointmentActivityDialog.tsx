@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import useModalFocus from '../../components/ui/useModalFocus';
 import { Button } from '../../components/ui';
 import { AppointmentActivityType, AppointmentStatus, BookingSource } from '../../types';
 import { isApiClientError } from '../../lib';
@@ -223,6 +224,7 @@ export default function AppointmentActivityDialog({
         message: null,
     });
     const [refreshKey, setRefreshKey] = useState(0);
+    const dialogRef = useModalFocus(onClose);
 
     const loadActivities = useCallback(
         async (signal: AbortSignal) => listAppointmentActivities(appointment.id, signal),
@@ -261,9 +263,11 @@ export default function AppointmentActivityDialog({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 py-6">
             <div
+                ref={dialogRef}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="appointment-activity-title"
+                tabIndex={-1}
                 className="max-h-full w-full max-w-2xl overflow-y-auto rounded-lg border border-app-border bg-white p-6 shadow-xl"
             >
                 <div className="flex items-start justify-between gap-4">

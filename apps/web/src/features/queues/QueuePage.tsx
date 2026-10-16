@@ -15,6 +15,7 @@ import {
     getAppointmentStatusLabel,
 } from '../../components/ui';
 import { isApiClientError } from '../../lib';
+import { formatClinicDateTime, getClinicDateInputValue } from '../../lib/clinicDateTime';
 import { appRoutePaths } from '../../routes/dashboardRoutes';
 import { AppointmentStatus, QueueStatus } from '../../types';
 import type {
@@ -158,15 +159,6 @@ const queueArrivalSourceAppointmentStatuses: readonly AppointmentStatusType[] = 
     AppointmentStatus.CONFIRMED,
 ];
 
-const getTodayDateInputValue = (): string => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-
-    return `${year}-${month}-${day}`;
-};
-
 const getQueueListErrorState = (
     error: unknown,
     queueEntries: QueueListItem[] = []
@@ -198,19 +190,6 @@ const getQueueListErrorState = (
             code: 'QUEUE_LIST_FAILED',
         },
     };
-};
-
-const formatDateTime = (value: string): string => {
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return value;
-    }
-
-    return new Intl.DateTimeFormat('en-IN', {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-    }).format(date);
 };
 
 const formatTime = (value: string | null | undefined, timezone?: string | null): string | null => {
@@ -417,10 +396,16 @@ function RiskBadge({ queueEntry }: { queueEntry: QueueListItem }) {
     );
 }
 
-function QueueTimeline({ queueEntry }: { queueEntry: QueueListItem }) {
-    const queuedAt = formatTime(queueEntry.queuedAt);
-    const calledAt = formatTime(queueEntry.calledAt);
-    const completedAt = formatTime(queueEntry.completedAt);
+function QueueTimeline({
+    queueEntry,
+    timezone,
+}: {
+    queueEntry: QueueListItem;
+    timezone?: string | null;
+}) {
+    const queuedAt = formatTime(queueEntry.queuedAt, timezone);
+    const calledAt = formatTime(queueEntry.calledAt, timezone);
+    const completedAt = formatTime(queueEntry.completedAt, timezone);
 
     return (
         <div className="space-y-1 text-xs text-slate-500">
@@ -607,7 +592,7 @@ function QueueEntryCard({
 
     return (
         <li
-            className={`queue-card-confirmed rounded-lg bg-white p-4 shadow-[var(--shadow-soft)] ring-1 ring-slate-200/80 transition duration-[var(--motion-fast)] ease-[var(--motion-ease)] hover:-translate-y-0.5 hover:shadow-[var(--shadow-raised)] ${
+            className={`queue-card-confirmed rounded-lg border border-app-border bg-white p-3 shadow-[var(--shadow-soft)] sm:p-4 ${
                 isWaiting ? 'bg-[var(--color-status-warning-bg)]' : ''
             }`}
             data-testid="active-queue-card"
@@ -674,7 +659,7 @@ function QueueEntryCard({
                                 Appointment
                             </p>
                             <p className="mt-1 font-semibold text-slate-900">
-                                {formatDateTime(queueEntry.appointment.scheduledAt)}
+                                {formatClinicDateTime(queueEntry.appointment.scheduledAt, timezone)}
                             </p>
                             <p className="mt-1 text-xs text-slate-500">
                                 {queueEntry.appointment.durationMinutes} min
@@ -686,7 +671,7 @@ function QueueEntryCard({
                                 Timeline
                             </p>
                             <div className="mt-1">
-                                <QueueTimeline queueEntry={queueEntry} />
+                                <QueueTimeline queueEntry={queueEntry} timezone={timezone} />
                             </div>
                         </div>
                     </div>
@@ -866,7 +851,10 @@ function FinalQueueEntriesSection({
                                     {queueEntry.doctor.fullName}
                                 </p>
                                 <p className="mt-1 text-slate-500">
-                                    {formatDateTime(queueEntry.appointment.scheduledAt)}
+                                    {formatClinicDateTime(
+                                        queueEntry.appointment.scheduledAt,
+                                        timezone
+                                    )}
                                 </p>
                                 <QueueArrivalSummary queueEntry={queueEntry} timezone={timezone} />
                             </div>
@@ -903,7 +891,7 @@ function QueuePage() {
     const { clinicId } = activeClinic;
     const clinicTimezone = activeClinic.clinic?.timezone;
     const { showErrorToast, showSuccessToast } = useToast();
-    const todayDate = getTodayDateInputValue();
+    const todayDate = getClinicDateInputValue(clinicTimezone);
     const [selectedDoctorId, setSelectedDoctorId] = useState('');
     const [selectedStatus, setSelectedStatus] = useState<QueueStatusType | ''>('');
     const [queueListState, setQueueListState] = useState<QueueListState>(emptyQueueListState);
@@ -1456,8 +1444,9 @@ function QueuePage() {
                     mode={terminalReasonFlow.mode}
                     patientName={terminalReasonFlow.queueEntry.patient.fullName}
                     doctorName={terminalReasonFlow.queueEntry.doctor.fullName}
-                    scheduledAtLabel={formatDateTime(
-                        terminalReasonFlow.queueEntry.appointment.scheduledAt
+                    scheduledAtLabel={formatClinicDateTime(
+                        terminalReasonFlow.queueEntry.appointment.scheduledAt,
+                        clinicTimezone
                     )}
                     isSubmitting={terminalReasonFlow.isSubmitting}
                     error={terminalReasonFlow.error}

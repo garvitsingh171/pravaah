@@ -136,6 +136,66 @@ export const doctorService = {
         }));
     },
 
+    async getDoctorByClinic(clinicId: string, doctorId: string) {
+        const link = await doctorRepository.findDoctorByClinic(clinicId, doctorId);
+        if (!link) throw new AppError(404, 'DOCTOR_NOT_FOUND', 'Doctor not found in this clinic');
+        return { ...link.doctor, doctorClinicId: link.id, clinicLinkIsActive: link.isActive };
+    },
+
+    async getLifecycleImpact(clinicId: string, doctorId: string) {
+        const result = await doctorRepository.getLifecycleImpact(clinicId, doctorId);
+        if (!result) throw new AppError(404, 'DOCTOR_NOT_FOUND', 'Doctor not found in this clinic');
+        return result;
+    },
+
+    async setClinicLinkActive(input: {
+        clinicId: string;
+        doctorId: string;
+        actorUserId: string;
+        isActive: boolean;
+    }) {
+        const result = await doctorRepository.setClinicLinkActive(input);
+        if (result.outcome === 'NOT_FOUND') {
+            throw new AppError(404, 'DOCTOR_NOT_FOUND', 'Doctor not found in this clinic');
+        }
+        if (result.outcome === 'ALREADY_SET') {
+            throw new AppError(
+                409,
+                'DOCTOR_LIFECYCLE_CONFLICT',
+                'Doctor status has already changed. Refresh the list.'
+            );
+        }
+        if (result.outcome === 'PROFILE_INACTIVE') {
+            throw new AppError(
+                409,
+                'DOCTOR_PROFILE_INACTIVE',
+                'This doctor profile is inactive and cannot be restored here.'
+            );
+        }
+        if (result.outcome === 'ACTIVE_VISITS') {
+            throw new AppError(
+                409,
+                'DOCTOR_HAS_ACTIVE_VISITS',
+                'Resolve this doctor’s active appointments and queue entries before archiving.',
+                [
+                    {
+                        field: 'futureAppointments',
+                        message: String(result.impact.futureAppointments),
+                    },
+                    {
+                        field: 'activeAppointments',
+                        message: String(result.impact.activeAppointments),
+                    },
+                    {
+                        field: 'activeQueueEntries',
+                        message: String(result.impact.activeQueueEntries),
+                    },
+                ]
+            );
+        }
+        return result.doctor;
+    },
+
     async updateDoctor(clinicId: string, doctorId: string, input: UpdateDoctorInput) {
         const existingClinic = await doctorRepository.findClinicById(clinicId);
 

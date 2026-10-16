@@ -2,13 +2,22 @@ import type { FormEvent } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useActiveClinic } from '../../app/activeClinicContext';
 import { ErrorMessage, FieldError, LoadingState, useToast } from '../../components/feedback';
-import { Badge, Button, PageHeader, fieldControlClassName } from '../../components/ui';
+import {
+    Badge,
+    Button,
+    ConfirmationDialog,
+    PageHeader,
+    fieldControlClassName,
+} from '../../components/ui';
 import { isApiClientError } from '../../lib';
 import {
     getClinicSettings,
+    getClinicLifecycleImpact,
+    deactivateClinic,
     retryClinicGeocoding,
     updateClinicSettings,
     type ClinicSettings,
+    type ClinicLifecycleImpact,
     type UpdateClinicSettingsRequest,
 } from './clinicApi';
 import { UserRole } from '../../types';
@@ -438,6 +447,122 @@ function ClinicSettingsSummary({ clinic }: { clinic: ClinicSettings }) {
     );
 }
 
+function ClinicDangerZone({ clinicId, clinicName }: { clinicId: string; clinicName: string }) {
+    const [impact, setImpact] = useState<ClinicLifecycleImpact | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [typedName, setTypedName] = useState('');
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const reviewImpact = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const data = await getClinicLifecycleImpact(clinicId);
+            setImpact(data.impact);
+        } catch (failure) {
+            setError(
+                isApiClientError(failure) ? failure.message : 'Clinic impact could not be loaded.'
+            );
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const confirmDeactivation = async () => {
+        setIsSubmitting(true);
+        setError(null);
+        try {
+            await deactivateClinic(clinicId, typedName);
+            window.location.replace('/dashboard');
+        } catch (failure) {
+            setError(
+                isApiClientError(failure) ? failure.message : 'Clinic could not be deactivated.'
+            );
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const hasActiveVisits = Boolean(
+        impact && (impact.activeAppointments > 0 || impact.activeQueueEntries > 0)
+    );
+
+    return (
+        <section
+            aria-labelledby="clinic-danger-zone"
+            className="rounded-lg border border-[var(--color-status-danger-border)] bg-white p-5"
+        >
+            <h2 id="clinic-danger-zone" className="text-base font-semibold text-app-text">
+                Danger zone
+            </h2>
+            <p className="mt-2 text-sm text-app-muted">
+                Deactivating this clinic blocks normal staff access and new bookings. Records and
+                visit history remain available after restoration.
+            </p>
+            <Button
+                className="mt-4"
+                variant="outline"
+                onClick={() => void reviewImpact()}
+                isLoading={isLoading}
+                loadingText="Checking impact..."
+            >
+                Review deactivation impact
+            </Button>
+            {impact ? (
+                <div className="mt-4 space-y-3 rounded-md bg-app-surface-muted p-4 text-sm text-app-text">
+                    <p>
+                        {impact.futureAppointments} future appointments ·{' '}
+                        {impact.activeAppointments} unresolved appointments ·{' '}
+                        {impact.activeQueueEntries} active queue entries
+                    </p>
+                    {hasActiveVisits ? (
+                        <p>Resolve all active visits before deactivating the clinic.</p>
+                    ) : (
+                        <>
+                            <label className="block font-medium" htmlFor="clinic-deactivation-name">
+                                Type the clinic name to continue: {clinicName}
+                            </label>
+                            <input
+                                id="clinic-deactivation-name"
+                                className={fieldControlClassName}
+                                value={typedName}
+                                onChange={(event) => setTypedName(event.target.value)}
+                                autoComplete="off"
+                            />
+                            <Button
+                                variant="danger"
+                                disabled={typedName !== clinicName}
+                                onClick={() => setConfirmOpen(true)}
+                            >
+                                Deactivate clinic
+                            </Button>
+                        </>
+                    )}
+                </div>
+            ) : null}
+            {error ? (
+                <p role="alert" className="mt-3 text-sm text-[var(--color-status-danger-text)]">
+                    {error}
+                </p>
+            ) : null}
+            <ConfirmationDialog
+                open={confirmOpen}
+                title={`Deactivate ${clinicName}?`}
+                description="Clinic staff will immediately lose normal workspace access. Existing records are preserved, and an Admin can restore the clinic from the recovery screen."
+                confirmLabel="Deactivate clinic"
+                cancelLabel="Keep clinic active"
+                isConfirming={isSubmitting}
+                confirmDisabled={typedName !== clinicName || hasActiveVisits}
+                error={error}
+                onConfirm={() => void confirmDeactivation()}
+                onCancel={() => setConfirmOpen(false)}
+            />
+        </section>
+    );
+}
+
 function ClinicSettingsPage() {
     const activeClinic = useActiveClinic();
     const { clinicId } = activeClinic;
@@ -748,7 +873,10 @@ function ClinicSettingsPage() {
             ) : null}
 
             {statusMessage ? (
-                <div className="rounded-lg border border-[var(--color-status-success-border)] bg-[var(--color-status-success-bg)] p-4 text-sm font-medium text-[var(--color-status-success-text)]">
+                <div
+                    role="status"
+                    className="rounded-lg border border-[var(--color-status-success-border)] bg-[var(--color-status-success-bg)] p-4 text-sm font-medium text-[var(--color-status-success-text)]"
+                >
                     {statusMessage}
                 </div>
             ) : null}
@@ -764,9 +892,7 @@ function ClinicSettingsPage() {
                 </div>
                 <div className="flex items-center gap-3">
                     {(() => {
-                        const lookupStatus = getLocationLookupStatus(
-                            state.clinic.geocodingStatus
-                        );
+                        const lookupStatus = getLocationLookupStatus(state.clinic.geocodingStatus);
 
                         return <Badge tone={lookupStatus.tone}>{lookupStatus.label}</Badge>;
                     })()}
@@ -786,221 +912,266 @@ function ClinicSettingsPage() {
             </div>
 
             <form
-                className="space-y-6 rounded-lg border border-slate-200 bg-white p-6 md:p-8"
+                className="space-y-8 rounded-lg border border-slate-200 bg-white p-4 shadow-[var(--shadow-soft)] sm:p-6"
                 noValidate
                 onSubmit={handleFormSubmit}
             >
-                <div className="grid gap-5 md:grid-cols-2">
-                    <TextField
-                        field="name"
-                        label="Clinic name"
-                        values={values}
-                        fieldErrors={fieldErrors}
-                        disabled={isSubmitting}
-                        required
-                        autoComplete="organization"
-                        onChange={handleChange}
-                    />
-
-                    <label className="block text-sm font-medium text-slate-700">
-                        Clinic slug
-                        <input
-                            className={`${fieldBaseClass} border-slate-200 bg-slate-100 text-slate-500`}
-                            value={state.clinic.slug}
-                            readOnly
-                        />
-                    </label>
-
-                    <TextField
-                        field="phone"
-                        label="Phone"
-                        values={values}
-                        fieldErrors={fieldErrors}
-                        disabled={isSubmitting}
-                        autoComplete="tel"
-                        inputMode="tel"
-                        onChange={handleChange}
-                    />
-
-                    <TextField
-                        field="email"
-                        label="Email"
-                        values={values}
-                        fieldErrors={fieldErrors}
-                        disabled={isSubmitting}
-                        autoComplete="email"
-                        inputMode="email"
-                        placeholder="frontdesk@example.com"
-                        onChange={handleChange}
-                    />
-
-                    <label className="block text-sm font-medium text-slate-700 md:col-span-2">
-                        Address line 1
-                        <textarea
-                            className={getFieldClassName(Boolean(fieldErrors.addressLine1))}
-                            value={values.addressLine1}
-                            onChange={(event) => handleChange('addressLine1', event.target.value)}
+                <section aria-labelledby="clinic-identity-heading">
+                    <h2
+                        id="clinic-identity-heading"
+                        className="text-base font-semibold text-app-text"
+                    >
+                        Clinic identity and contact
+                    </h2>
+                    <p className="mt-1 text-sm text-app-muted">
+                        Details staff use to identify and contact this clinic.
+                    </p>
+                    <div className="mt-5 grid gap-5 md:grid-cols-2">
+                        <TextField
+                            field="name"
+                            label="Clinic name"
+                            values={values}
+                            fieldErrors={fieldErrors}
                             disabled={isSubmitting}
-                            rows={2}
-                            autoComplete="address-line1"
-                            aria-invalid={Boolean(fieldErrors.addressLine1)}
-                            aria-describedby={getFieldErrorDescriptionId(
-                                'addressLine1',
-                                fieldErrors
-                            )}
-                        />
-                        <FieldError
-                            id={getFieldErrorId('addressLine1')}
-                            message={fieldErrors.addressLine1}
-                        />
-                    </label>
-
-                    <label className="block text-sm font-medium text-slate-700 md:col-span-2">
-                        Address line 2
-                        <textarea
-                            className={getFieldClassName(Boolean(fieldErrors.addressLine2))}
-                            value={values.addressLine2}
-                            onChange={(event) => handleChange('addressLine2', event.target.value)}
-                            disabled={isSubmitting}
-                            rows={2}
-                            autoComplete="address-line2"
-                            aria-invalid={Boolean(fieldErrors.addressLine2)}
-                            aria-describedby={getFieldErrorDescriptionId(
-                                'addressLine2',
-                                fieldErrors
-                            )}
-                        />
-                        <FieldError
-                            id={getFieldErrorId('addressLine2')}
-                            message={fieldErrors.addressLine2}
-                        />
-                    </label>
-
-                    <TextField
-                        field="city"
-                        label="City"
-                        values={values}
-                        fieldErrors={fieldErrors}
-                        disabled={isSubmitting}
-                        autoComplete="address-level2"
-                        onChange={handleChange}
-                    />
-
-                    <TextField
-                        field="state"
-                        label="State"
-                        values={values}
-                        fieldErrors={fieldErrors}
-                        disabled={isSubmitting}
-                        autoComplete="address-level1"
-                        onChange={handleChange}
-                    />
-
-                    <TextField
-                        field="country"
-                        label="Country"
-                        values={values}
-                        fieldErrors={fieldErrors}
-                        disabled={isSubmitting}
-                        required
-                        autoComplete="country-name"
-                        onChange={handleChange}
-                    />
-
-                    <TextField
-                        field="pincode"
-                        label="Pincode"
-                        values={values}
-                        fieldErrors={fieldErrors}
-                        disabled={isSubmitting}
-                        autoComplete="postal-code"
-                        onChange={handleChange}
-                    />
-
-                    <TextField
-                        field="timezone"
-                        label="Timezone"
-                        values={values}
-                        fieldErrors={fieldErrors}
-                        disabled={isSubmitting}
-                        required
-                        placeholder="Asia/Kolkata"
-                        onChange={handleChange}
-                    />
-
-                    <TextField
-                        field="openingTime"
-                        label="Opening time"
-                        values={values}
-                        fieldErrors={fieldErrors}
-                        disabled={isSubmitting}
-                        required
-                        type="time"
-                        onChange={handleChange}
-                    />
-
-                    <TextField
-                        field="closingTime"
-                        label="Closing time"
-                        values={values}
-                        fieldErrors={fieldErrors}
-                        disabled={isSubmitting}
-                        required
-                        type="time"
-                        onChange={handleChange}
-                    />
-
-                    <TextField
-                        field="slotDurationMinutes"
-                        label="Appointment slot duration"
-                        values={values}
-                        fieldErrors={fieldErrors}
-                        disabled={isSubmitting}
-                        required
-                        inputMode="numeric"
-                        onChange={handleChange}
-                    />
-
-                    <TextField
-                        field="bufferMinutes"
-                        label="Buffer minutes"
-                        values={values}
-                        fieldErrors={fieldErrors}
-                        disabled={isSubmitting}
-                        required
-                        inputMode="numeric"
-                        onChange={handleChange}
-                    />
-
-                    <label className="block text-sm font-medium text-slate-700">
-                        Late arrival grace period <RequiredMark />
-                        <input
-                            className={getFieldClassName(
-                                Boolean(fieldErrors.lateArrivalGraceMinutes)
-                            )}
-                            value={values.lateArrivalGraceMinutes}
-                            onChange={(event) =>
-                                handleChange('lateArrivalGraceMinutes', event.target.value)
-                            }
-                            disabled={isSubmitting}
-                            inputMode="numeric"
-                            aria-invalid={Boolean(fieldErrors.lateArrivalGraceMinutes)}
-                            aria-describedby={getFieldErrorDescriptionId(
-                                'lateArrivalGraceMinutes',
-                                fieldErrors
-                            )}
                             required
+                            autoComplete="organization"
+                            onChange={handleChange}
                         />
-                        <p className="mt-1 text-xs text-slate-500">
-                            Patients arriving more than this many minutes after their appointment
-                            time are marked late.
-                        </p>
-                        <FieldError
-                            id={getFieldErrorId('lateArrivalGraceMinutes')}
-                            message={fieldErrors.lateArrivalGraceMinutes}
+
+                        <label className="block text-sm font-medium text-slate-700">
+                            Clinic slug
+                            <input
+                                className={`${fieldBaseClass} border-slate-200 bg-slate-100 text-slate-500`}
+                                value={state.clinic.slug}
+                                readOnly
+                            />
+                        </label>
+
+                        <TextField
+                            field="phone"
+                            label="Phone"
+                            values={values}
+                            fieldErrors={fieldErrors}
+                            disabled={isSubmitting}
+                            autoComplete="tel"
+                            inputMode="tel"
+                            onChange={handleChange}
                         />
-                    </label>
-                </div>
+
+                        <TextField
+                            field="email"
+                            label="Email"
+                            values={values}
+                            fieldErrors={fieldErrors}
+                            disabled={isSubmitting}
+                            autoComplete="email"
+                            inputMode="email"
+                            placeholder="frontdesk@example.com"
+                            onChange={handleChange}
+                        />
+                    </div>
+                </section>
+
+                <section
+                    aria-labelledby="clinic-address-heading"
+                    className="border-t border-app-border pt-6"
+                >
+                    <h2
+                        id="clinic-address-heading"
+                        className="text-base font-semibold text-app-text"
+                    >
+                        Address
+                    </h2>
+                    <p className="mt-1 text-sm text-app-muted">
+                        Keep the saved address accurate for clinic operations and location lookup.
+                    </p>
+                    <div className="mt-5 grid gap-5 md:grid-cols-2">
+                        <label className="block text-sm font-medium text-slate-700 md:col-span-2">
+                            Address line 1
+                            <textarea
+                                className={getFieldClassName(Boolean(fieldErrors.addressLine1))}
+                                value={values.addressLine1}
+                                onChange={(event) =>
+                                    handleChange('addressLine1', event.target.value)
+                                }
+                                disabled={isSubmitting}
+                                rows={2}
+                                autoComplete="address-line1"
+                                aria-invalid={Boolean(fieldErrors.addressLine1)}
+                                aria-describedby={getFieldErrorDescriptionId(
+                                    'addressLine1',
+                                    fieldErrors
+                                )}
+                            />
+                            <FieldError
+                                id={getFieldErrorId('addressLine1')}
+                                message={fieldErrors.addressLine1}
+                            />
+                        </label>
+
+                        <label className="block text-sm font-medium text-slate-700 md:col-span-2">
+                            Address line 2
+                            <textarea
+                                className={getFieldClassName(Boolean(fieldErrors.addressLine2))}
+                                value={values.addressLine2}
+                                onChange={(event) =>
+                                    handleChange('addressLine2', event.target.value)
+                                }
+                                disabled={isSubmitting}
+                                rows={2}
+                                autoComplete="address-line2"
+                                aria-invalid={Boolean(fieldErrors.addressLine2)}
+                                aria-describedby={getFieldErrorDescriptionId(
+                                    'addressLine2',
+                                    fieldErrors
+                                )}
+                            />
+                            <FieldError
+                                id={getFieldErrorId('addressLine2')}
+                                message={fieldErrors.addressLine2}
+                            />
+                        </label>
+
+                        <TextField
+                            field="city"
+                            label="City"
+                            values={values}
+                            fieldErrors={fieldErrors}
+                            disabled={isSubmitting}
+                            autoComplete="address-level2"
+                            onChange={handleChange}
+                        />
+
+                        <TextField
+                            field="state"
+                            label="State"
+                            values={values}
+                            fieldErrors={fieldErrors}
+                            disabled={isSubmitting}
+                            autoComplete="address-level1"
+                            onChange={handleChange}
+                        />
+
+                        <TextField
+                            field="country"
+                            label="Country"
+                            values={values}
+                            fieldErrors={fieldErrors}
+                            disabled={isSubmitting}
+                            required
+                            autoComplete="country-name"
+                            onChange={handleChange}
+                        />
+
+                        <TextField
+                            field="pincode"
+                            label="Pincode"
+                            values={values}
+                            fieldErrors={fieldErrors}
+                            disabled={isSubmitting}
+                            autoComplete="postal-code"
+                            onChange={handleChange}
+                        />
+                    </div>
+                </section>
+
+                <section
+                    aria-labelledby="clinic-hours-heading"
+                    className="border-t border-app-border pt-6"
+                >
+                    <h2 id="clinic-hours-heading" className="text-base font-semibold text-app-text">
+                        Hours and appointment timing
+                    </h2>
+                    <p className="mt-1 text-sm text-app-muted">
+                        These settings describe the clinic day and the available appointment
+                        schedule.
+                    </p>
+                    <div className="mt-5 grid gap-5 md:grid-cols-2">
+                        <TextField
+                            field="timezone"
+                            label="Timezone"
+                            values={values}
+                            fieldErrors={fieldErrors}
+                            disabled={isSubmitting}
+                            required
+                            placeholder="Asia/Kolkata"
+                            onChange={handleChange}
+                        />
+
+                        <TextField
+                            field="openingTime"
+                            label="Opening time"
+                            values={values}
+                            fieldErrors={fieldErrors}
+                            disabled={isSubmitting}
+                            required
+                            type="time"
+                            onChange={handleChange}
+                        />
+
+                        <TextField
+                            field="closingTime"
+                            label="Closing time"
+                            values={values}
+                            fieldErrors={fieldErrors}
+                            disabled={isSubmitting}
+                            required
+                            type="time"
+                            onChange={handleChange}
+                        />
+
+                        <TextField
+                            field="slotDurationMinutes"
+                            label="Appointment slot duration"
+                            values={values}
+                            fieldErrors={fieldErrors}
+                            disabled={isSubmitting}
+                            required
+                            inputMode="numeric"
+                            onChange={handleChange}
+                        />
+
+                        <TextField
+                            field="bufferMinutes"
+                            label="Buffer minutes"
+                            values={values}
+                            fieldErrors={fieldErrors}
+                            disabled={isSubmitting}
+                            required
+                            inputMode="numeric"
+                            onChange={handleChange}
+                        />
+
+                        <label className="block text-sm font-medium text-slate-700">
+                            Late arrival grace period <RequiredMark />
+                            <input
+                                className={getFieldClassName(
+                                    Boolean(fieldErrors.lateArrivalGraceMinutes)
+                                )}
+                                value={values.lateArrivalGraceMinutes}
+                                onChange={(event) =>
+                                    handleChange('lateArrivalGraceMinutes', event.target.value)
+                                }
+                                disabled={isSubmitting}
+                                inputMode="numeric"
+                                aria-invalid={Boolean(fieldErrors.lateArrivalGraceMinutes)}
+                                aria-describedby={getFieldErrorDescriptionId(
+                                    'lateArrivalGraceMinutes',
+                                    fieldErrors
+                                )}
+                                required
+                            />
+                            <p className="mt-1 text-xs text-slate-500">
+                                Patients arriving more than this many minutes after their
+                                appointment time are marked late.
+                            </p>
+                            <FieldError
+                                id={getFieldErrorId('lateArrivalGraceMinutes')}
+                                message={fieldErrors.lateArrivalGraceMinutes}
+                            />
+                        </label>
+                    </div>
+                </section>
 
                 <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
                     <Button
@@ -1021,6 +1192,7 @@ function ClinicSettingsPage() {
                     </Button>
                 </div>
             </form>
+            <ClinicDangerZone clinicId={clinicId} clinicName={state.clinic.name} />
         </section>
     );
 }

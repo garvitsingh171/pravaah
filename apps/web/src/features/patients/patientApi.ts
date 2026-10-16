@@ -35,7 +35,6 @@ export type UpdatePatientRequest = {
     emergencyContactName?: string | null;
     emergencyContactPhone?: string | null;
     notes?: string | null;
-    isActive?: boolean;
 };
 
 export type CreatePatientResponseData = {
@@ -142,6 +141,34 @@ export const updatePatient = (
         payload
     );
 };
+
+export type PatientLifecycleImpact = {
+    futureAppointments: number;
+    activeAppointments: number;
+    activeQueueEntries: number;
+};
+
+export const getPatient = (clinicId: string, patientId: string, signal?: AbortSignal) =>
+    apiClient.get<{ patient: PatientSummary }>(
+        `${getPatientCollectionPath(clinicId)}/${encodeURIComponent(patientId)}`,
+        { signal }
+    );
+
+export const getPatientLifecycleImpact = (clinicId: string, patientId: string) =>
+    apiClient.get<{ patient: PatientSummary; impact: PatientLifecycleImpact }>(
+        `${getPatientCollectionPath(clinicId)}/${encodeURIComponent(patientId)}/lifecycle-impact`
+    );
+
+export const archivePatient = (clinicId: string, patientId: string) =>
+    apiClient.delete<{ patient: PatientSummary }>(
+        `${getPatientCollectionPath(clinicId)}/${encodeURIComponent(patientId)}`
+    );
+
+export const restorePatient = (clinicId: string, patientId: string) =>
+    apiClient.post<{ patient: PatientSummary }>(
+        `${getPatientCollectionPath(clinicId)}/${encodeURIComponent(patientId)}/restore`,
+        {}
+    );
 
 export const retryPatientGeocoding = (clinicId: string, patientId: string) => {
     return apiClient.post<UpdatePatientResponseData>(

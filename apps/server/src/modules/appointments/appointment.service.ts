@@ -14,6 +14,7 @@ import {
     toLatestNoShowPrediction,
     toNoShowPredictionResponse,
 } from '../predictions/prediction.service.js';
+import { recalculateAppointmentIfChanged } from '../predictions/prediction.recalculation.service.js';
 import type { StoredNoShowPredictionForResponse } from '../predictions/prediction.types.js';
 import { queueRepository } from '../queues/queue.repository.js';
 import { queueService } from '../queues/queue.service.js';
@@ -471,6 +472,24 @@ export const appointmentService = {
                     localAppointmentParts.localDate
                 );
 
+                const membership = await appointmentRepository.lockBookingMemberships(
+                    tx,
+                    clinicId,
+                    input.doctorId,
+                    input.patientId
+                );
+                if (
+                    !membership.clinicActive ||
+                    !membership.doctorActive ||
+                    !membership.patientActive
+                ) {
+                    throw new AppError(
+                        409,
+                        'BOOKING_MEMBERSHIP_CHANGED',
+                        'Clinic, doctor, or patient availability changed. Refresh and choose an active record.'
+                    );
+                }
+
                 const existingDoctorAppointments =
                     await appointmentRepository.findOverlappingDoctorAppointment(
                         tx,
@@ -739,6 +758,20 @@ export const appointmentService = {
                 throw new AppError(404, 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
             }
 
+            const membership = await appointmentRepository.lockBookingMemberships(
+                tx,
+                currentAppointment.clinicId,
+                currentAppointment.doctorId,
+                currentAppointment.patientId
+            );
+            if (!membership.clinicActive || !membership.doctorActive || !membership.patientActive) {
+                throw new AppError(
+                    409,
+                    'BOOKING_MEMBERSHIP_CHANGED',
+                    'Clinic, doctor, or patient availability changed. Refresh and choose an active record.'
+                );
+            }
+
             assertAppointmentIsReschedulable(currentAppointment.status);
             assertRescheduleQueueState(currentAppointment.queueEntry);
 
@@ -802,6 +835,16 @@ export const appointmentService = {
             if (updateResult.count !== 1) {
                 throw createAppointmentRescheduleConflictError();
             }
+
+            // Keep the original Appointment.createdAt as bookedAt. The shared
+            // recalculator re-reads the authoritative row under its own
+            // appointment-scoped transaction lock before appending a run.
+            await recalculateAppointmentIfChanged({
+                tx,
+                clinicId: currentAppointment.clinicId,
+                appointmentId: currentAppointment.id,
+                generationSource: 'APPOINTMENT_RESCHEDULED',
+            });
 
             if (sourceDate !== destinationDate) {
                 const queueUpdateResult = await appointmentRepository.updateQueueEntryPosition(

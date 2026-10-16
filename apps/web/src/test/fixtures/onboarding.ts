@@ -10,6 +10,7 @@ export const testClinic = {
     id: testClinicId,
     name: 'Pravaah Test Clinic',
     slug: 'pravaah-test-clinic',
+    isActive: true,
 };
 
 export const setupNoneComplete: SetupStatusSummary = {

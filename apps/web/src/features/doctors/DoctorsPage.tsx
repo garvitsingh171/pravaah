@@ -25,9 +25,17 @@ import {
     isApiClientError,
     type BackendValidationDetail,
 } from '../../lib';
-import { Gender, type DoctorSummary, type Gender as GenderType } from '../../types';
+import { Gender, UserRole, type DoctorSummary, type Gender as GenderType } from '../../types';
 import DoctorAvailabilityEditor from './DoctorAvailabilityEditor';
-import { listDoctors, updateDoctor, type UpdateDoctorRequest } from './doctorApi';
+import {
+    archiveDoctor,
+    getDoctorLifecycleImpact,
+    listDoctors,
+    restoreDoctor,
+    updateDoctor,
+    type LifecycleImpact,
+    type UpdateDoctorRequest,
+} from './doctorApi';
 
 type DoctorsLocationState = {
     statusMessage?: string;
@@ -589,17 +597,21 @@ function DoctorListSummary({
 function DoctorsPage() {
     const navigate = useNavigate();
     const location = useLocation();
-    const { clinicId } = useActiveClinic();
+    const activeClinic = useActiveClinic();
+    const { clinicId } = activeClinic;
+    const canManageLifecycle = activeClinic.currentUser?.role === UserRole.ADMIN;
     const { showErrorToast, showSuccessToast } = useToast();
     const locationState = location.state as DoctorsLocationState | null;
     const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+    const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
     const [doctorListState, setDoctorListState] = useState<DoctorListState>(emptyDoctorListState);
     const [editingDoctor, setEditingDoctor] = useState<DoctorSummary | null>(null);
     const [expandedDoctorId, setExpandedDoctorId] = useState<string | null>(null);
     const [statusAction, setStatusAction] = useState<DoctorStatusAction | null>(null);
     const [statusActionError, setStatusActionError] = useState<string | null>(null);
     const [isStatusUpdating, setIsStatusUpdating] = useState(false);
+    const [statusImpact, setStatusImpact] = useState<LifecycleImpact | null>(null);
+    const [isStatusImpactLoading, setIsStatusImpactLoading] = useState(false);
 
     const loadDoctors = useCallback(
         (signal?: AbortSignal) => listDoctors(clinicId, signal),
@@ -660,14 +672,16 @@ function DoctorsPage() {
         setStatusActionError(null);
 
         try {
-            await updateDoctor(clinicId, statusAction.doctor.id, {
-                isActive: statusAction.nextIsActive,
-            });
+            if (statusAction.nextIsActive) {
+                await restoreDoctor(clinicId, statusAction.doctor.id);
+            } else {
+                await archiveDoctor(clinicId, statusAction.doctor.id);
+            }
             await refreshDoctorsAfterStatusChange();
             showSuccessToast(
                 statusAction.nextIsActive
-                    ? 'Doctor reactivated successfully.'
-                    : 'Doctor deactivated successfully.'
+                    ? 'Doctor restored to this clinic.'
+                    : 'Doctor archived from this clinic.'
             );
             setStatusAction(null);
         } catch (error) {
@@ -679,6 +693,25 @@ function DoctorsPage() {
             showErrorToast(message);
         } finally {
             setIsStatusUpdating(false);
+        }
+    };
+
+    const openStatusAction = async (doctor: DoctorSummary) => {
+        setStatusAction({ doctor, nextIsActive: doctor.clinicLinkIsActive === false });
+        setStatusActionError(null);
+        setStatusImpact(null);
+        setIsStatusImpactLoading(true);
+        try {
+            const data = await getDoctorLifecycleImpact(clinicId, doctor.id);
+            setStatusImpact(data.impact);
+        } catch (error) {
+            setStatusActionError(
+                isApiClientError(error)
+                    ? error.message
+                    : 'Impact could not be checked. Please try again.'
+            );
+        } finally {
+            setIsStatusImpactLoading(false);
         }
     };
 
@@ -724,7 +757,7 @@ function DoctorsPage() {
         );
     }, [doctorListState, searchTerm, statusFilter]);
     const hasSearch = searchTerm.trim().length > 0;
-    const hasFilters = hasSearch || statusFilter !== 'all';
+    const hasFilters = hasSearch || statusFilter !== 'active';
     const hasDoctors = doctorListState.status === 'success' && displayedDoctors.length > 0;
 
     return (
@@ -773,7 +806,7 @@ function DoctorsPage() {
                             variant="outline"
                             onClick={() => {
                                 setSearchTerm('');
-                                setStatusFilter('all');
+                                setStatusFilter('active');
                             }}
                         >
                             Clear
@@ -837,14 +870,14 @@ function DoctorsPage() {
             ) : null}
 
             {hasDoctors ? (
-                <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+                <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[var(--shadow-soft)]">
                     <div
                         className="overflow-x-auto"
                         tabIndex={0}
                         aria-label="Doctors table, horizontally scrollable on small screens"
                     >
                         <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-                            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                                 <tr>
                                     <th className="px-4 py-3 font-semibold">Doctor</th>
                                     <th className="px-4 py-3 font-semibold">Qualification</th>
@@ -862,7 +895,7 @@ function DoctorsPage() {
                                     return (
                                         <Fragment key={doctor.id}>
                                             <tr className="align-top transition hover:bg-slate-50/70">
-                                                <td className="min-w-52 px-4 py-5">
+                                                <td className="min-w-52 px-4 py-3.5">
                                                     <div className="flex items-start gap-3">
                                                         <span
                                                             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-brand-subtle text-sm font-bold text-brand-foreground ring-1 ring-brand-soft"
@@ -882,7 +915,7 @@ function DoctorsPage() {
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="min-w-52 px-4 py-5 text-slate-700">
+                                                <td className="min-w-52 px-4 py-3.5 text-slate-700">
                                                     <p className="font-medium text-slate-900">
                                                         {getOptionalText(doctor.qualification)}
                                                     </p>
@@ -891,7 +924,7 @@ function DoctorsPage() {
                                                         {getOptionalText(doctor.registrationNumber)}
                                                     </p>
                                                 </td>
-                                                <td className="min-w-56 px-4 py-5 text-slate-700">
+                                                <td className="min-w-56 px-4 py-3.5 text-slate-700">
                                                     <p className="font-medium text-slate-900">
                                                         {getOptionalText(doctor.phone)}
                                                     </p>
@@ -899,12 +932,12 @@ function DoctorsPage() {
                                                         {getOptionalText(doctor.email)}
                                                     </p>
                                                 </td>
-                                                <td className="min-w-32 px-4 py-5 text-slate-700">
+                                                <td className="min-w-32 px-4 py-3.5 text-slate-700">
                                                     <span className="font-medium text-slate-900">
                                                         {doctor.experienceYears ?? 'Not added'}
                                                     </span>
                                                 </td>
-                                                <td className="min-w-36 px-4 py-5">
+                                                <td className="min-w-36 px-4 py-3.5">
                                                     <div className="space-y-2">
                                                         <StatusBadge
                                                             kind="active"
@@ -921,7 +954,7 @@ function DoctorsPage() {
                                                         ) : null}
                                                     </div>
                                                 </td>
-                                                <td className="min-w-56 px-4 py-5">
+                                                <td className="min-w-56 px-4 py-3.5">
                                                     <div className="flex flex-wrap gap-2">
                                                         <Button
                                                             variant="outline"
@@ -950,30 +983,25 @@ function DoctorsPage() {
                                                         >
                                                             Edit
                                                         </Button>
-                                                        <Button
-                                                            variant={
-                                                                doctor.isActive
-                                                                    ? 'danger'
-                                                                    : 'secondary'
-                                                            }
-                                                            size="sm"
-                                                            onClick={() => {
-                                                                setStatusAction({
-                                                                    doctor,
-                                                                    nextIsActive: !doctor.isActive,
-                                                                });
-                                                                setStatusActionError(null);
-                                                            }}
-                                                            aria-label={`${
-                                                                doctor.isActive
-                                                                    ? 'Deactivate'
-                                                                    : 'Reactivate'
-                                                            } ${doctor.fullName}`}
-                                                        >
-                                                            {doctor.isActive
-                                                                ? 'Deactivate'
-                                                                : 'Reactivate'}
-                                                        </Button>
+                                                        {canManageLifecycle && doctor.isActive ? (
+                                                            <Button
+                                                                variant={
+                                                                    doctor.clinicLinkIsActive ===
+                                                                    false
+                                                                        ? 'secondary'
+                                                                        : 'danger'
+                                                                }
+                                                                size="sm"
+                                                                onClick={() =>
+                                                                    void openStatusAction(doctor)
+                                                                }
+                                                                aria-label={`${doctor.clinicLinkIsActive === false ? 'Restore' : 'Archive'} ${doctor.fullName} ${doctor.clinicLinkIsActive === false ? 'to' : 'from'} this clinic`}
+                                                            >
+                                                                {doctor.clinicLinkIsActive === false
+                                                                    ? 'Restore'
+                                                                    : 'Archive'}
+                                                            </Button>
+                                                        ) : null}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -1026,28 +1054,34 @@ function DoctorsPage() {
                 open={Boolean(statusAction)}
                 title={
                     statusAction?.nextIsActive
-                        ? 'Reactivate doctor record?'
-                        : 'Deactivate doctor record?'
+                        ? 'Restore doctor to this clinic?'
+                        : 'Archive doctor from this clinic?'
                 }
                 description={
                     statusAction?.nextIsActive
-                        ? `Reactivate ${statusAction.doctor.fullName} for supported clinic workflows.`
-                        : `Deactivate ${statusAction?.doctor.fullName ?? 'this doctor'} without deleting the record or appointment history.`
+                        ? `Restore ${statusAction.doctor.fullName} for new bookings in this clinic. Other clinic associations are unchanged.`
+                        : `${statusAction?.doctor.fullName ?? 'This doctor'} will no longer be available for new bookings here. History is preserved. ${isStatusImpactLoading ? 'Checking affected visits…' : statusImpact ? `${statusImpact.futureAppointments} future appointments, ${statusImpact.activeAppointments} unresolved appointments and ${statusImpact.activeQueueEntries} active queue entries. Resolve all active visits first.` : 'Impact could not be checked.'}`
                 }
-                confirmLabel={
-                    statusAction?.nextIsActive ? 'Reactivate doctor' : 'Deactivate doctor'
-                }
+                confirmLabel={statusAction?.nextIsActive ? 'Restore doctor' : 'Archive doctor'}
                 cancelLabel="Keep current status"
                 confirmVariant={statusAction?.nextIsActive ? 'primary' : 'danger'}
                 isConfirming={isStatusUpdating}
+                confirmDisabled={
+                    isStatusImpactLoading ||
+                    !statusImpact ||
+                    (!statusAction?.nextIsActive &&
+                        (statusImpact.activeAppointments > 0 ||
+                            statusImpact.activeQueueEntries > 0))
+                }
                 confirmLoadingText={
-                    statusAction?.nextIsActive ? 'Reactivating doctor...' : 'Deactivating doctor...'
+                    statusAction?.nextIsActive ? 'Restoring doctor...' : 'Archiving doctor...'
                 }
                 error={statusActionError}
                 onConfirm={handleStatusActionConfirm}
                 onCancel={() => {
                     setStatusAction(null);
                     setStatusActionError(null);
+                    setStatusImpact(null);
                 }}
             />
         </section>

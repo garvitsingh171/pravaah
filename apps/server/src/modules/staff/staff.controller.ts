@@ -2,7 +2,11 @@ import type { NextFunction, Request, Response } from 'express';
 import { UserStatus } from '../../generated/prisma/client.js';
 import { AppError } from '../../utils/AppError.js';
 import { staffService } from './staff.service.js';
-import type { CreateStaffInvitationRequest, UpdateStaffStatusRequest } from './staff.validation.js';
+import type {
+    CreateStaffInvitationRequest,
+    UpdateStaffProfileRequest,
+    UpdateStaffStatusRequest,
+} from './staff.validation.js';
 
 const requireIdentity = (req: Request): string => {
     if (!req.authIdentity) {
@@ -133,7 +137,11 @@ export async function revokeStaffInvitationController(
             clinicId: string;
             invitationId: string;
         };
-        const invitation = await staffService.revokeInvitation(clinicId, invitationId);
+        const invitation = await staffService.revokeInvitation(
+            clinicId,
+            invitationId,
+            requireUser(req).id
+        );
 
         res.status(200).json({
             success: true,
@@ -156,6 +164,7 @@ export async function updateStaffStatusController(
         const member = await staffService.updateStaffStatus({
             clinicId,
             userId,
+            actorUserId: requireUser(req).id,
             status,
         });
 
@@ -164,6 +173,79 @@ export async function updateStaffStatusController(
             message: status === UserStatus.SUSPENDED ? 'Staff suspended' : 'Staff reactivated',
             data: { member },
         });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function getStaffMemberController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { clinicId, userId } = req.params as { clinicId: string; userId: string };
+        const member = await staffService.getMember(clinicId, userId);
+        res.status(200).json({ success: true, message: 'Team member fetched', data: { member } });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function updateStaffProfileController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { clinicId, userId } = req.params as { clinicId: string; userId: string };
+        const body = req.body as UpdateStaffProfileRequest;
+        const member = await staffService.updateMemberProfile({
+            clinicId,
+            userId,
+            actorUserId: requireUser(req).id,
+            ...(body.fullName === undefined ? {} : { fullName: body.fullName }),
+            ...(body.phone === undefined ? {} : { phone: body.phone }),
+        });
+        res.status(200).json({ success: true, message: 'Staff profile updated', data: { member } });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function removeStaffMemberController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { clinicId, userId } = req.params as { clinicId: string; userId: string };
+        const member = await staffService.setMemberRemoved({
+            clinicId,
+            userId,
+            actorUserId: requireUser(req).id,
+            restore: false,
+        });
+        res.status(200).json({ success: true, message: 'Staff access removed', data: { member } });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function restoreStaffMemberController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { clinicId, userId } = req.params as { clinicId: string; userId: string };
+        const member = await staffService.setMemberRemoved({
+            clinicId,
+            userId,
+            actorUserId: requireUser(req).id,
+            restore: true,
+        });
+        res.status(200).json({ success: true, message: 'Staff access restored', data: { member } });
     } catch (error) {
         next(error);
     }

@@ -13,6 +13,32 @@ export const listClinicTeam = (clinicId: string, signal?: AbortSignal) => {
     );
 };
 
+export const getStaffMember = (clinicId: string, userId: string) =>
+    apiClient.get<{ member: ClinicTeamMember }>(
+        `/clinics/${encodeURIComponent(clinicId)}/staff/${encodeURIComponent(userId)}`
+    );
+
+export const updateStaffProfile = (
+    clinicId: string,
+    userId: string,
+    profile: { fullName?: string; phone?: string | null }
+) =>
+    apiClient.patch<{ member: ClinicTeamMember }>(
+        `/clinics/${encodeURIComponent(clinicId)}/staff/${encodeURIComponent(userId)}`,
+        profile
+    );
+
+export const removeStaffMember = (clinicId: string, userId: string) =>
+    apiClient.delete<{ member: ClinicTeamMember }>(
+        `/clinics/${encodeURIComponent(clinicId)}/staff/${encodeURIComponent(userId)}`
+    );
+
+export const restoreStaffMember = (clinicId: string, userId: string) =>
+    apiClient.post<{ member: ClinicTeamMember }>(
+        `/clinics/${encodeURIComponent(clinicId)}/staff/${encodeURIComponent(userId)}/restore`,
+        {}
+    );
+
 export const listStaffInvitations = (clinicId: string, signal?: AbortSignal) => {
     return apiClient.get<{ invitations: StaffInvitation[] }>(
         `/clinics/${encodeURIComponent(clinicId)}/staff/invitations`,

@@ -1,106 +1,105 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders, adminActiveClinic } from '../../test/renderWithProviders';
 import { UserRole, UserStatus } from '../../types';
+import { adminActiveClinic, renderWithProviders } from '../../test/renderWithProviders';
 import StaffManagementPage from './StaffManagementPage';
-import { StaffInvitationStatus } from './staffTypes';
 
-const mockListClinicTeam = vi.hoisted(() => vi.fn());
-const mockListStaffInvitations = vi.hoisted(() => vi.fn());
-const mockCreateStaffInvitation = vi.hoisted(() => vi.fn());
-const mockRevokeStaffInvitation = vi.hoisted(() => vi.fn());
-const mockUpdateStaffStatus = vi.hoisted(() => vi.fn());
-
-vi.mock('./staffApi', () => ({
-    listClinicTeam: mockListClinicTeam,
-    listStaffInvitations: mockListStaffInvitations,
-    createStaffInvitation: mockCreateStaffInvitation,
-    revokeStaffInvitation: mockRevokeStaffInvitation,
-    updateStaffStatus: mockUpdateStaffStatus,
+const api = vi.hoisted(() => ({
+    listClinicTeam: vi.fn(),
+    listStaffInvitations: vi.fn(),
+    getStaffMember: vi.fn(),
+    updateStaffProfile: vi.fn(),
+    removeStaffMember: vi.fn(),
+    restoreStaffMember: vi.fn(),
 }));
 
-const admin = {
-    id: 'admin-id',
-    fullName: 'Clinic Admin',
-    email: 'admin@example.com',
-    role: UserRole.ADMIN,
+vi.mock('./staffApi', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('./staffApi')>()),
+    ...api,
+}));
+
+const staff = {
+    id: '10000000-0000-4000-8000-000000000001',
+    fullName: 'Asha Staff',
+    email: 'asha@example.test',
+    phone: null,
+    role: UserRole.STAFF,
     status: UserStatus.ACTIVE,
     createdAt: '2026-01-01T00:00:00.000Z',
 };
 
-const staff = {
-    id: 'staff-id',
-    fullName: 'Front Desk Staff',
-    email: 'staff@example.com',
-    role: UserRole.STAFF,
-    status: UserStatus.ACTIVE,
-    createdAt: '2026-02-01T00:00:00.000Z',
-};
-
-describe('StaffManagementPage', () => {
+describe('StaffManagementPage lifecycle', () => {
     beforeEach(() => {
-        mockListClinicTeam.mockResolvedValue({ members: [admin, staff] });
-        mockListStaffInvitations.mockResolvedValue({ invitations: [] });
+        vi.clearAllMocks();
+        api.listClinicTeam.mockResolvedValue({ members: [staff] });
+        api.listStaffInvitations.mockResolvedValue({ invitations: [] });
+        api.getStaffMember.mockResolvedValue({ member: staff });
     });
 
-    it('shows the protected Admin row and confirms before suspending Staff', async () => {
+    it('loads details and saves only editable profile fields', async () => {
         const user = userEvent.setup();
-        mockUpdateStaffStatus.mockResolvedValue({
-            member: { ...staff, status: UserStatus.SUSPENDED },
+        api.updateStaffProfile.mockResolvedValue({
+            member: { ...staff, fullName: 'Asha Raman', phone: '1234567890' },
         });
         renderWithProviders(<StaffManagementPage />, { activeClinic: adminActiveClinic });
 
-        expect(await screen.findByText('Clinic Admin')).toBeInTheDocument();
-        expect(screen.getAllByRole('button', { name: 'Suspend' })).toHaveLength(1);
-        await user.click(screen.getByRole('button', { name: 'Suspend' }));
-        expect(screen.getByRole('dialog')).toHaveTextContent(
-            'They will lose access to this clinic immediately'
-        );
-        await user.click(screen.getByRole('button', { name: /suspend staff/i }));
+        await user.click(await screen.findByRole('button', { name: 'Details / Edit' }));
+        expect(api.getStaffMember).toHaveBeenCalledWith(adminActiveClinic.clinicId, staff.id);
+        await user.clear(screen.getByLabelText('Full name'));
+        await user.type(screen.getByLabelText('Full name'), 'Asha Raman');
+        await user.type(screen.getByLabelText('Phone'), '1234567890');
+        await user.click(screen.getByRole('button', { name: 'Save changes' }));
 
         await waitFor(() =>
-            expect(mockUpdateStaffStatus).toHaveBeenCalledWith(
+            expect(api.updateStaffProfile).toHaveBeenCalledWith(
                 adminActiveClinic.clinicId,
                 staff.id,
-                UserStatus.SUSPENDED
+                {
+                    fullName: 'Asha Raman',
+                    phone: '1234567890',
+                }
             )
         );
-        expect(screen.getByRole('button', { name: 'Reactivate' })).toBeInTheDocument();
     });
 
-    it('creates an invitation and shows its one-time copy link without claiming email delivery', async () => {
+    it('requires confirmation before removing clinic access', async () => {
         const user = userEvent.setup();
-        const createdInvitation = {
-            id: 'invite-id',
-            email: 'newstaff@example.com',
-            status: StaffInvitationStatus.PENDING,
-            expiresAt: '2099-01-08T00:00:00.000Z',
-            acceptedAt: null,
-            revokedAt: null,
-            createdAt: '2099-01-01T00:00:00.000Z',
-            invitedBy: { id: admin.id, fullName: admin.fullName },
-        };
-        mockCreateStaffInvitation.mockResolvedValue({
-            invitation: createdInvitation,
-            inviteUrl: 'https://app.example/invite/secret',
+        api.removeStaffMember.mockResolvedValue({
+            member: { ...staff, status: UserStatus.REMOVED },
         });
         renderWithProviders(<StaffManagementPage />, { activeClinic: adminActiveClinic });
 
-        await screen.findByText('Clinic Admin');
-        await user.type(screen.getByLabelText(/email address/i), ' NewStaff@Example.com ');
-        await user.click(screen.getByRole('button', { name: /create invitation/i }));
+        await user.click(await screen.findByRole('button', { name: 'Remove' }));
+        expect(api.removeStaffMember).not.toHaveBeenCalled();
+        await user.click(screen.getByRole('button', { name: 'Remove staff' }));
 
         await waitFor(() =>
-            expect(mockCreateStaffInvitation).toHaveBeenCalledWith(
-                adminActiveClinic.clinicId,
-                'newstaff@example.com'
-            )
+            expect(api.removeStaffMember).toHaveBeenCalledWith(adminActiveClinic.clinicId, staff.id)
         );
-        expect(screen.getByText('Invitation created')).toBeInTheDocument();
-        expect(screen.getByLabelText('Invitation link')).toHaveValue(
-            'https://app.example/invite/secret'
+        expect(await screen.findByRole('button', { name: 'Restore' })).toBeVisible();
+        expect(screen.getByRole('button', { name: 'Restore' })).toBeVisible();
+    });
+
+    it('filters members by name and status', async () => {
+        const user = userEvent.setup();
+        api.listClinicTeam.mockResolvedValue({
+            members: [
+                staff,
+                { ...staff, id: 'other', fullName: 'Bela Staff', status: UserStatus.REMOVED },
+            ],
+        });
+        renderWithProviders(<StaffManagementPage />, { activeClinic: adminActiveClinic });
+
+        expect(await screen.findByText('Asha Staff')).toBeVisible();
+        await user.type(screen.getByRole('textbox', { name: 'Search team' }), 'Bela');
+        expect(screen.queryByText('Asha Staff')).not.toBeInTheDocument();
+        expect(screen.getByText('Bela Staff')).toBeVisible();
+        await user.selectOptions(
+            screen.getByRole('combobox', { name: 'Filter team by status' }),
+            'ACTIVE'
         );
-        expect(screen.queryByText(/invitation sent/i)).not.toBeInTheDocument();
+        expect(screen.queryByText('Bela Staff')).not.toBeInTheDocument();
+        expect(screen.getByText('No team members match these filters.')).toBeVisible();
     });
 });

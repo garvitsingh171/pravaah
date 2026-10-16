@@ -34,6 +34,10 @@ describe('staff routes', () => {
         ['get', '/:clinicId/staff/invitations'],
         ['post', '/:clinicId/staff/invitations'],
         ['patch', '/:clinicId/staff/invitations/:invitationId/revoke'],
+        ['get', '/:clinicId/staff/:userId'],
+        ['patch', '/:clinicId/staff/:userId'],
+        ['delete', '/:clinicId/staff/:userId'],
+        ['post', '/:clinicId/staff/:userId/restore'],
     ])('protects %s %s with active Admin and clinic access', (method, path) => {
         const names = handlerNames(getRoute(staffRouter, method, path));
 

@@ -29,7 +29,7 @@ type RiskExplanationProps = {
 };
 
 const humanDecisionNotice =
-    'Pravaah provides explainable operational assistance. Final appointment and queue decisions remain with authorized clinic Admin or Staff users.';
+    'This is guidance for clinic staff. A risk flag does not mean a patient will miss the appointment; staff decide what to do next.';
 
 const getRiskScore = (prediction: RiskPredictionLike): number | null => {
     const score = prediction.riskScore ?? prediction.score;
@@ -94,8 +94,8 @@ function RiskExplanation({ prediction, subjectName, compact = false }: RiskExpla
             <div className="rounded-lg border border-dashed border-app-border-strong bg-app-surface-muted p-4 text-sm text-app-muted">
                 <p className="font-semibold text-app-text">Risk data unavailable</p>
                 <p className="mt-1 leading-6">
-                    No no-show risk data is available from the backend for {subjectName}. Treat this
-                    as unavailable information, not as low risk.
+                    No risk assessment is available for {subjectName}. Continue with the usual
+                    clinic workflow.
                 </p>
             </div>
         );
@@ -123,11 +123,11 @@ function RiskExplanation({ prediction, subjectName, compact = false }: RiskExpla
             <div className="mt-4 space-y-4 text-app-muted">
                 <div className="rounded-md border border-app-border bg-app-surface-muted p-3">
                     <p className="text-sm font-semibold text-app-text">
-                        Deterministic assistance for {subjectName}
+                        Why {subjectName} was flagged
                     </p>
                     <p className="mt-1 text-sm leading-6">
-                        This is rule-based appointment-flow support. It is not a diagnosis and it
-                        does not automatically cancel, contact, or reorder anything.
+                        This assessment uses clinic rules and appointment history. It does not
+                        change the booking or queue automatically.
                     </p>
                     {generatedAt || ruleVersion ? (
                         <p className="mt-2 text-xs">

@@ -26,6 +26,7 @@ export type ClinicSettings = {
     slotDurationMinutes: number;
     bufferMinutes: number;
     lateArrivalGraceMinutes: number;
+    isActive: boolean;
     createdAt: string;
     updatedAt: string;
 };
@@ -71,3 +72,27 @@ export const retryClinicGeocoding = (clinicId: string) => {
         {}
     );
 };
+
+export type ClinicLifecycleImpact = {
+    futureAppointments: number;
+    activeAppointments: number;
+    activeQueueEntries: number;
+};
+
+export const getClinicLifecycleImpact = (clinicId: string) =>
+    apiClient.get<{
+        clinic: Pick<ClinicSettings, 'id' | 'name' | 'isActive'>;
+        impact: ClinicLifecycleImpact;
+    }>(`/clinics/${encodeURIComponent(clinicId)}/lifecycle-impact`);
+
+export const deactivateClinic = (clinicId: string, confirmClinicName: string) =>
+    apiClient.post<ClinicSettingsResponseData>(
+        `/clinics/${encodeURIComponent(clinicId)}/deactivate`,
+        { confirmClinicName }
+    );
+
+export const restoreClinic = (clinicId: string) =>
+    apiClient.post<ClinicSettingsResponseData>(
+        `/clinics/${encodeURIComponent(clinicId)}/restore`,
+        {}
+    );

@@ -50,8 +50,6 @@ export const updateDoctorSchema = z
             .nonnegative('Experience years cannot be negative')
             .nullable()
             .optional(),
-
-        isActive: z.boolean().optional(),
     })
     .strict()
     .refine((data) => Object.keys(data).length > 0, {

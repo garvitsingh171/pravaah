@@ -13,7 +13,7 @@ type FormFieldProps = LabelHTMLAttributes<HTMLLabelElement> & {
 };
 
 export const fieldControlClassName =
-    'mt-2 w-full rounded-md border border-app-border-strong bg-white px-3 py-2 text-sm text-app-text outline-none transition placeholder:text-app-subtle focus:border-brand focus:ring-2 focus:ring-brand-soft disabled:cursor-not-allowed disabled:bg-app-surface-muted disabled:text-app-subtle';
+    'mt-2 min-h-11 w-full rounded-md border border-app-border-strong bg-white px-3 py-2 text-sm text-app-text outline-none transition placeholder:text-app-subtle hover:border-app-muted focus:border-action focus:ring-2 focus:ring-brand-soft disabled:cursor-not-allowed disabled:bg-app-surface-muted disabled:text-app-subtle';
 
 export function FormField({
     children,

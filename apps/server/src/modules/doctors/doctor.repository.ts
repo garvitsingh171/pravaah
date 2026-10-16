@@ -1,6 +1,7 @@
 import { prisma } from '../../config/prisma.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { withTransientDatabaseTransactionRetry } from '../../utils/databaseRetry.js';
+import { lifecycleRepository } from '../lifecycle/lifecycle.repository.js';
 import type { DoctorAvailabilityDayInput } from './doctorAvailability.js';
 import type { CreateDoctorInput, UpdateDoctorInput } from './doctor.types.js';
 
@@ -41,6 +42,80 @@ export const doctorRepository = {
                 },
             },
         });
+    },
+
+    findDoctorByClinic(clinicId: string, doctorId: string) {
+        return prisma.doctorClinic.findUnique({
+            where: { doctorId_clinicId: { doctorId, clinicId } },
+            include: { doctor: true },
+        });
+    },
+
+    getLifecycleImpact(clinicId: string, doctorId: string) {
+        return prisma.$transaction(async (tx) => {
+            const link = await tx.doctorClinic.findUnique({
+                where: { doctorId_clinicId: { doctorId, clinicId } },
+                include: { doctor: true },
+            });
+            if (!link) return null;
+            const impact = await lifecycleRepository.countImpact(tx, clinicId, { doctorId });
+            return { doctor: { ...link.doctor, clinicLinkIsActive: link.isActive }, impact };
+        });
+    },
+
+    setClinicLinkActive(input: {
+        clinicId: string;
+        doctorId: string;
+        actorUserId: string;
+        isActive: boolean;
+    }) {
+        return withTransientDatabaseTransactionRetry(
+            (callback) => prisma.$transaction(callback),
+            async (tx) => {
+                await tx.$queryRaw`
+                    SELECT "id" FROM "doctor_clinics"
+                    WHERE "clinicId" = ${input.clinicId}::uuid AND "doctorId" = ${input.doctorId}::uuid
+                    FOR UPDATE
+                `;
+                const link = await tx.doctorClinic.findUnique({
+                    where: {
+                        doctorId_clinicId: { doctorId: input.doctorId, clinicId: input.clinicId },
+                    },
+                    include: { doctor: true },
+                });
+                if (!link) return { outcome: 'NOT_FOUND' as const };
+                if (link.isActive === input.isActive) return { outcome: 'ALREADY_SET' as const };
+                if (input.isActive && !link.doctor.isActive) {
+                    return { outcome: 'PROFILE_INACTIVE' as const };
+                }
+                const impact = await lifecycleRepository.countImpact(tx, input.clinicId, {
+                    doctorId: input.doctorId,
+                });
+                if (
+                    !input.isActive &&
+                    (impact.activeAppointments > 0 || impact.activeQueueEntries > 0)
+                ) {
+                    return { outcome: 'ACTIVE_VISITS' as const, impact };
+                }
+                await tx.doctorClinic.update({
+                    where: { id: link.id },
+                    data: { isActive: input.isActive },
+                });
+                await lifecycleRepository.createEvent(tx, {
+                    clinicId: input.clinicId,
+                    actorUserId: input.actorUserId,
+                    entityType: 'DOCTOR_CLINIC',
+                    entityId: link.id,
+                    action: input.isActive ? 'RESTORED' : 'ARCHIVED',
+                    metadata: { doctorId: input.doctorId, ...impact },
+                });
+                return {
+                    outcome: 'UPDATED' as const,
+                    doctor: { ...link.doctor, clinicLinkIsActive: input.isActive },
+                    impact,
+                };
+            }
+        );
     },
 
     createDoctorWithClinicLink(clinicId: string, data: CreateDoctorInput) {
@@ -131,8 +206,6 @@ export const doctorRepository = {
         if (data.experienceYears !== undefined) {
             updateData.experienceYears = data.experienceYears;
         }
-
-        if (data.isActive !== undefined) updateData.isActive = data.isActive;
 
         return prisma.doctor.update({
             where: {

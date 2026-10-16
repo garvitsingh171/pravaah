@@ -106,8 +106,7 @@ function AppointmentBookingForm({
                     Clinic records
                 </legend>
                 <p className="mb-4 text-sm leading-6 text-slate-600">
-                    Choose active records already available to this clinic. The backend validates
-                    clinic access again when booking.
+                    Choose the patient and the doctor for this visit.
                 </p>
                 <div className="grid gap-5 md:grid-cols-2">
                     <label className="block text-sm font-medium text-slate-700">
@@ -271,7 +270,8 @@ function AppointmentBookingForm({
                 </p>
                 <div className="grid gap-5">
                     <label className="block text-sm font-medium text-slate-700 md:col-span-2">
-                        Reason
+                        Reason{' '}
+                        <span className="text-xs font-normal text-slate-500">(optional)</span>
                         <input
                             className={getFieldClassName(Boolean(fieldErrors.reason))}
                             value={values.reason}
@@ -283,7 +283,8 @@ function AppointmentBookingForm({
                     </label>
 
                     <label className="block text-sm font-medium text-slate-700 md:col-span-2">
-                        Notes
+                        Staff notes{' '}
+                        <span className="text-xs font-normal text-slate-500">(optional)</span>
                         <textarea
                             className={getFieldClassName(Boolean(fieldErrors.notes))}
                             value={values.notes}

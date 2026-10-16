@@ -122,6 +122,7 @@ describe('authService.getOnboardingStatus', () => {
                 id: activeClinic.id,
                 name: activeClinic.name,
                 slug: activeClinic.slug,
+                isActive: true,
             },
             setup: setupStatus,
         });
@@ -213,6 +214,7 @@ describe('authService.getOnboardingStatus', () => {
                 id: activeClinic.id,
                 name: activeClinic.name,
                 slug: activeClinic.slug,
+                isActive: false,
             },
             setup: null,
         });
@@ -283,6 +285,7 @@ const provisionedResult = {
         id: 'clinic-id',
         name: onboardingClinicInput.name,
         slug: onboardingClinicInput.slug,
+        isActive: true,
     },
 };
 
@@ -434,6 +437,7 @@ describe('authService.createClinicOnboarding', () => {
                     id: activeClinic.id,
                     name: activeClinic.name,
                     slug: activeClinic.slug,
+                    isActive: true,
                 },
                 setup: setupStatus,
             },
@@ -656,6 +660,7 @@ describe('authService.createClinicOnboarding', () => {
             id: activeClinic.id,
             name: activeClinic.name,
             slug: activeClinic.slug,
+            isActive: true,
         });
     });
 
@@ -860,6 +865,7 @@ describe('authService.createClinicOnboarding', () => {
             id: activeClinic.id,
             name: activeClinic.name,
             slug: activeClinic.slug,
+            isActive: true,
         });
     });
 });

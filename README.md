@@ -30,6 +30,7 @@ Authoritative current docs:
 - [High-Level Design](docs/HLD.md)
 - [Low-Level Design](docs/LLD.md)
 - [Workflow Atlas](docs/workflows/README.md)
+- [Entity Lifecycle Audit and API](docs/audits/ENTITY_LIFECYCLE_2026_10.md)
 - [Interview Guide](docs/interview/INTERVIEW_GUIDE.md)
 
 Status rule: implementation and deployment/release state are separate. Use the [Project Status Dashboard](docs/reviewer/project-status.md) as the canonical status source.

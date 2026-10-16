@@ -1,5 +1,5 @@
 import { useAuth, useClerk } from '@clerk/react';
-import { motion } from 'motion/react';
+import { MotionConfig, motion } from 'motion/react';
 import type { FormEvent, ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
@@ -417,7 +417,7 @@ function OnboardingPageShell({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.4 }}
-            className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(20,184,166,0.16),_transparent_36%),linear-gradient(135deg,_#eff8f7_0%,_#f8fafc_52%,_#e9f0f5_100%)] px-4 py-5 text-slate-900 sm:py-8"
+            className="relative min-h-screen overflow-hidden bg-app-background px-4 py-5 text-app-text sm:py-8"
         >
             <div
                 className="pointer-events-none absolute -left-24 top-32 h-64 w-64 rounded-full bg-teal-300/20 blur-3xl"
@@ -1375,4 +1375,10 @@ function ClinicOnboardingPage() {
     );
 }
 
-export default ClinicOnboardingPage;
+export default function ClinicOnboardingPageWithMotion() {
+    return (
+        <MotionConfig reducedMotion="user">
+            <ClinicOnboardingPage />
+        </MotionConfig>
+    );
+}

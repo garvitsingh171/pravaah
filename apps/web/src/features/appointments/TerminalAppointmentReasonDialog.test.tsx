@@ -12,6 +12,34 @@ const commonProps = {
 };
 
 describe('TerminalAppointmentReasonDialog', () => {
+    it('keeps keyboard focus in the dialog and returns it after closing', async () => {
+        const user = userEvent.setup();
+        const opener = document.createElement('button');
+        opener.textContent = 'Open outcome';
+        document.body.appendChild(opener);
+        opener.focus();
+        const onClose = vi.fn();
+
+        const { unmount } = render(
+            <TerminalAppointmentReasonDialog
+                {...commonProps}
+                mode="no-show"
+                onClose={onClose}
+                onSubmit={vi.fn()}
+            />
+        );
+
+        expect(screen.getByLabelText('No-show reason')).toHaveFocus();
+        await user.tab({ shift: true });
+        expect(screen.getByRole('button', { name: 'Close' })).toHaveFocus();
+        await user.keyboard('{Escape}');
+        expect(onClose).toHaveBeenCalledOnce();
+
+        unmount();
+        expect(opener).toHaveFocus();
+        opener.remove();
+    });
+
     it('requires a structured cancellation reason and sends the optional note', async () => {
         const user = userEvent.setup();
         const onSubmit = vi.fn();

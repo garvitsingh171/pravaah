@@ -96,14 +96,6 @@ const getSetupDockErrorState = (
     };
 };
 
-const formatTopbarDate = (date: Date): string => {
-    return new Intl.DateTimeFormat('en-IN', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-    }).format(date);
-};
-
 function AppLayout({ initialSetup }: AppLayoutProps) {
     const location = useLocation();
     const activeClinic = useActiveClinic();
@@ -125,10 +117,7 @@ function AppLayout({ initialSetup }: AppLayoutProps) {
     const isRouteAllowed =
         !currentRoute.allowedRoles ||
         (currentUserRole !== null && currentRoute.allowedRoles.includes(currentUserRole));
-    const topbarSupportingText =
-        currentRoute.path === appRoutePaths.dashboard
-            ? `${formatTopbarDate(new Date())} · Clinic flow`
-            : currentRoute.navigationDescription;
+    const topbarSupportingText = currentRoute.navigationDescription;
     const lastSetupPathRef = useRef(location.pathname);
     const mainScrollRef = useRef<HTMLElement>(null);
     const [setupDockState, setSetupDockState] = useState<FloatingSetupDockState>(() =>
@@ -192,7 +181,17 @@ function AppLayout({ initialSetup }: AppLayoutProps) {
         if (typeof scrollContainer.scrollTo === 'function') {
             scrollContainer.scrollTo({ top: 0, left: 0, behavior: 'auto' });
         }
-    }, [location.pathname]);
+        if (location.hash) {
+            const frame = window.requestAnimationFrame(() => {
+                const target = document.getElementById(location.hash.slice(1));
+                if (typeof target?.scrollIntoView === 'function') {
+                    target.scrollIntoView({ block: 'start' });
+                }
+            });
+            return () => window.cancelAnimationFrame(frame);
+        }
+        return undefined;
+    }, [location.pathname, location.hash]);
 
     useEffect(() => {
         if (!isAdmin) {
@@ -219,7 +218,7 @@ function AppLayout({ initialSetup }: AppLayoutProps) {
     }
 
     return (
-        <div className="flex h-dvh min-w-0 flex-col overflow-hidden bg-[var(--color-surface-canvas)] text-slate-900">
+        <div className="flex h-dvh min-w-0 flex-col overflow-hidden bg-app-background text-app-text">
             <a
                 href="#main-content"
                 className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-teal-800 focus:shadow-lg focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-teal-600"
@@ -252,9 +251,9 @@ function AppLayout({ initialSetup }: AppLayoutProps) {
                         ref={mainScrollRef}
                         id="main-content"
                         data-workspace-scroll-container="true"
-                        className="min-h-0 min-w-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4 md:px-6 md:py-5"
+                        className="min-h-0 min-w-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4 md:px-6 md:py-6"
                     >
-                        <div className="mx-auto w-full max-w-screen-2xl">
+                        <div className="mx-auto w-full max-w-[1440px]">
                             <Suspense fallback={<ProtectedRouteLoadingState />}>
                                 <div key={location.pathname} className="page-reveal">
                                     <Outlet />

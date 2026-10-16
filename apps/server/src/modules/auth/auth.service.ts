@@ -48,6 +48,7 @@ const toOnboardingClinicSummary = (user: OnboardingUserRecord): OnboardingClinic
         id: user.clinic.id,
         name: user.clinic.name,
         slug: user.clinic.slug,
+        isActive: user.clinic.isActive,
     };
 };
 
@@ -200,7 +201,9 @@ const geocodeProvisionedClinic = async (
         }
     } catch {
         // Onboarding has already committed. Geocoding is derived best-effort work.
-        console.warn(`[geocoding] entityType=CLINIC entityId=${clinicId} outcome=PERSISTENCE_FAILED`);
+        console.warn(
+            `[geocoding] entityType=CLINIC entityId=${clinicId} outcome=PERSISTENCE_FAILED`
+        );
     }
 };
 
@@ -368,7 +371,7 @@ export const authService = {
                 data: {
                     onboarding: completedOnboarding,
                     user: result.user,
-                    clinic: result.clinic,
+                    clinic: { ...result.clinic, isActive: true },
                     setup: {
                         clinicSettingsComplete: true,
                         hasDoctor: false,

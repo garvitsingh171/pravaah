@@ -8,6 +8,8 @@ import { adminActiveClinic, renderWithProviders } from '../../test/renderWithPro
 
 const mockListPatients = vi.hoisted(() => vi.fn());
 const mockUpdatePatient = vi.hoisted(() => vi.fn());
+const mockArchivePatient = vi.hoisted(() => vi.fn());
+const mockGetPatientLifecycleImpact = vi.hoisted(() => vi.fn());
 const mockRetryPatientRouting = vi.hoisted(() => vi.fn());
 
 vi.mock('./patientApi', async (importOriginal) => {
@@ -17,6 +19,8 @@ vi.mock('./patientApi', async (importOriginal) => {
         ...actual,
         listPatients: mockListPatients,
         updatePatient: mockUpdatePatient,
+        archivePatient: mockArchivePatient,
+        getPatientLifecycleImpact: mockGetPatientLifecycleImpact,
         retryPatientRouting: mockRetryPatientRouting,
     };
 });
@@ -96,6 +100,11 @@ describe('PatientsPage edit workflow', () => {
     beforeEach(() => {
         mockListPatients.mockReset();
         mockUpdatePatient.mockReset();
+        mockArchivePatient.mockReset();
+        mockGetPatientLifecycleImpact.mockReset();
+        mockGetPatientLifecycleImpact.mockResolvedValue({
+            impact: { futureAppointments: 0, activeAppointments: 0, activeQueueEntries: 0 },
+        });
         mockRetryPatientRouting.mockReset();
     });
 
@@ -140,7 +149,7 @@ describe('PatientsPage edit workflow', () => {
         renderPatientsPage();
 
         expect(await screen.findByText('Riya Malhotra')).toBeVisible();
-        expect(screen.getByText('Nisha Link')).toBeVisible();
+        expect(screen.queryByText('Nisha Link')).not.toBeInTheDocument();
 
         await user.selectOptions(screen.getByLabelText(/^status$/i), 'inactive');
 
@@ -342,7 +351,7 @@ describe('PatientsPage edit workflow', () => {
         expect(screen.getByLabelText(/^city$/i)).toHaveValue('Mysuru');
     });
 
-    it('confirms deactivation and blocks repeated status submissions while saving', async () => {
+    it('confirms clinic archive and blocks repeated submissions while saving', async () => {
         const user = userEvent.setup();
         let resolveUpdate: (value: unknown) => void = () => {};
         const updatePromise = new Promise((resolve) => {
@@ -357,35 +366,38 @@ describe('PatientsPage edit workflow', () => {
                 patients: [
                     {
                         ...patient,
-                        isActive: false,
+                        clinicLinkIsActive: false,
                     },
                 ],
             });
-        mockUpdatePatient.mockReturnValue(updatePromise);
+        mockArchivePatient.mockReturnValue(updatePromise);
 
         renderPatientsPage();
 
-        await user.click(await screen.findByRole('button', { name: /deactivate riya malhotra/i }));
+        await user.click(
+            await screen.findByRole('button', { name: /archive riya malhotra from this clinic/i })
+        );
 
-        expect(screen.getByRole('dialog', { name: /deactivate patient record/i })).toBeVisible();
+        expect(
+            screen.getByRole('dialog', { name: /archive patient from this clinic/i })
+        ).toBeVisible();
 
-        const confirmButton = screen.getByRole('button', { name: /^deactivate patient$/i });
+        const confirmButton = screen.getByRole('button', { name: /^archive patient$/i });
+        await waitFor(() => expect(confirmButton).toBeEnabled());
         await user.click(confirmButton);
         await user.click(confirmButton);
 
-        expect(mockUpdatePatient).toHaveBeenCalledTimes(1);
-        expect(mockUpdatePatient).toHaveBeenCalledWith(adminActiveClinic.clinicId, patient.id, {
-            isActive: false,
-        });
-        expect(screen.getByRole('button', { name: /deactivating patient/i })).toBeDisabled();
+        expect(mockArchivePatient).toHaveBeenCalledTimes(1);
+        expect(mockArchivePatient).toHaveBeenCalledWith(adminActiveClinic.clinicId, patient.id);
+        expect(screen.getByRole('button', { name: /archiving patient/i })).toBeDisabled();
 
         resolveUpdate({
             patient: {
                 ...patient,
-                isActive: false,
+                clinicLinkIsActive: false,
             },
         });
 
-        expect(await screen.findByText('Inactive')).toBeInTheDocument();
+        await waitFor(() => expect(screen.queryByText('Riya Malhotra')).not.toBeInTheDocument());
     });
 });

@@ -1,5 +1,6 @@
-import { useEffect, useId, useState } from 'react';
+import { useId, useState } from 'react';
 import { Button, fieldControlClassName } from '../../components/ui';
+import useModalFocus from '../../components/ui/useModalFocus';
 import type { AppointmentCancellationReason, AppointmentNoShowReason } from '../../types';
 import { cancellationReasonOptions, noShowReasonOptions } from './terminalAppointmentReasons';
 
@@ -46,17 +47,7 @@ export default function TerminalAppointmentReasonDialog({
     const [note, setNote] = useState('');
     const reasonOptions = mode === 'cancellation' ? cancellationReasonOptions : noShowReasonOptions;
     const isCancellation = mode === 'cancellation';
-
-    useEffect(() => {
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape' && !isSubmitting) {
-                onClose();
-            }
-        };
-
-        document.addEventListener('keydown', handleKeyDown);
-        return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [isSubmitting, onClose]);
+    const dialogRef = useModalFocus(onClose, isSubmitting);
 
     const handleSubmit = () => {
         if (!reason) {
@@ -82,9 +73,11 @@ export default function TerminalAppointmentReasonDialog({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 py-6">
             <div
+                ref={dialogRef}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={titleId}
+                tabIndex={-1}
                 className="max-h-full w-full max-w-lg overflow-y-auto rounded-lg border border-app-border bg-white p-6 shadow-xl"
             >
                 <p className="text-xs font-semibold uppercase tracking-wide text-brand-foreground">
@@ -106,7 +99,6 @@ export default function TerminalAppointmentReasonDialog({
                     value={reason}
                     onChange={(event) => setReason(event.target.value)}
                     disabled={isSubmitting}
-                    autoFocus
                 >
                     <option value="">Select a reason</option>
                     {reasonOptions.map((option) => (
@@ -134,7 +126,10 @@ export default function TerminalAppointmentReasonDialog({
                 </span>
 
                 {error ? (
-                    <p className="mt-4 rounded-md border border-[var(--color-status-danger-border)] bg-[var(--color-status-danger-bg)] px-3 py-2 text-sm text-[var(--color-status-danger-text)]">
+                    <p
+                        role="alert"
+                        className="mt-4 rounded-md border border-[var(--color-status-danger-border)] bg-[var(--color-status-danger-bg)] px-3 py-2 text-sm text-[var(--color-status-danger-text)]"
+                    >
                         {error}
                     </p>
                 ) : null}

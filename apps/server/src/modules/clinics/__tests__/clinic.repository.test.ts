@@ -56,7 +56,7 @@ describe('clinicRepository.findSettingsById', () => {
             }),
         });
         expect(mockClinicFindUnique.mock.calls[0]?.[0].select).not.toHaveProperty('users');
-        expect(mockClinicFindUnique.mock.calls[0]?.[0].select).not.toHaveProperty('isActive');
+        expect(mockClinicFindUnique.mock.calls[0]?.[0].select).toHaveProperty('isActive', true);
     });
 });
 
@@ -129,7 +129,78 @@ describe('clinicRepository.update', () => {
         });
         expect(mockClinicUpdate.mock.calls[0]?.[0].data).not.toHaveProperty('slug');
         expect(mockClinicUpdate.mock.calls[0]?.[0].data).not.toHaveProperty('isActive');
-        expect(mockClinicUpdate.mock.calls[0]?.[0].select).not.toHaveProperty('isActive');
+        expect(mockClinicUpdate.mock.calls[0]?.[0].select).toHaveProperty('isActive', true);
+    });
+});
+
+describe('clinicRepository.setActive', () => {
+    const tx = {
+        $queryRaw: vi.fn(),
+        clinic: { findUnique: vi.fn(), update: vi.fn() },
+        appointment: { count: vi.fn() },
+        queueEntry: { count: vi.fn() },
+        lifecycleEvent: { create: vi.fn() },
+    };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockTransaction.mockImplementation((callback) => callback(tx));
+        tx.$queryRaw.mockResolvedValue([{ id: 'clinic-id' }]);
+        tx.clinic.findUnique.mockResolvedValue({
+            id: 'clinic-id',
+            name: 'Clinic A',
+            isActive: true,
+        });
+        tx.appointment.count.mockResolvedValue(0);
+        tx.queueEntry.count.mockResolvedValue(0);
+        tx.clinic.update.mockResolvedValue({ id: 'clinic-id', isActive: false });
+    });
+
+    it('requires the exact clinic name before deactivation', async () => {
+        const result = await clinicRepository.setActive({
+            clinicId: 'clinic-id',
+            actorUserId: 'admin-id',
+            isActive: false,
+            confirmClinicName: 'Wrong clinic',
+        });
+
+        expect(result).toEqual({ outcome: 'CONFIRMATION_MISMATCH' });
+        expect(tx.clinic.update).not.toHaveBeenCalled();
+    });
+
+    it('blocks deactivation until unresolved appointments are resolved', async () => {
+        tx.appointment.count.mockResolvedValueOnce(2).mockResolvedValueOnce(2);
+
+        const result = await clinicRepository.setActive({
+            clinicId: 'clinic-id',
+            actorUserId: 'admin-id',
+            isActive: false,
+            confirmClinicName: 'Clinic A',
+        });
+
+        expect(result).toMatchObject({
+            outcome: 'ACTIVE_VISITS',
+            impact: { futureAppointments: 2 },
+        });
+        expect(tx.clinic.update).not.toHaveBeenCalled();
+        expect(tx.lifecycleEvent.create).not.toHaveBeenCalled();
+    });
+
+    it('deactivates with an event once the clinic has no unresolved visits', async () => {
+        const result = await clinicRepository.setActive({
+            clinicId: 'clinic-id',
+            actorUserId: 'admin-id',
+            isActive: false,
+            confirmClinicName: 'Clinic A',
+        });
+
+        expect(result).toMatchObject({ outcome: 'UPDATED', clinic: { isActive: false } });
+        expect(tx.clinic.update).toHaveBeenCalledWith(
+            expect.objectContaining({ data: { isActive: false } })
+        );
+        expect(tx.lifecycleEvent.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({ actorUserId: 'admin-id', action: 'DEACTIVATED' }),
+        });
     });
 });
 

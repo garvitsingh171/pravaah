@@ -84,8 +84,6 @@ export const updatePatientSchema = z
         emergencyContactPhone: z.string().nullable().optional(),
 
         notes: z.string().nullable().optional(),
-
-        isActive: z.boolean().optional(),
     })
     .strict()
     .refine((data) => Object.keys(data).length > 0, {

@@ -873,6 +873,16 @@ The stored run has score, level, reasons JSON, clinic, patient, appointment, fea
 not trained ML, not diagnosis, not automatic cancellation, and not automatic queue
 optimization.
 
+`prediction.recalculation.service.ts` is the sole canonical feature builder and
+append orchestrator. It reads scheduled and booking time from `Appointment`,
+completed/no-show counts from clinic-scoped `Appointment` rows, and late-arrival
+count/distance from `PatientClinic`. It normalizes and compares all six fields and
+the rule version to the latest run. Under an appointment advisory transaction lock,
+only changed state receives a timestamp-monotonic immutable run. Attendance and
+stable routing events register `PredictionRefreshWork` in their source transaction;
+leases, revisions, bounded batches, and retry recovery process only future
+`SCHEDULED`/`CONFIRMED` appointments in the same clinic/patient scope.
+
 ### Dashboard And Setup Status
 Dashboard summary and high-risk endpoints verify clinic access, choose a clinic-local
 date, backfill missing predictions for the selected date, then aggregate appointment
