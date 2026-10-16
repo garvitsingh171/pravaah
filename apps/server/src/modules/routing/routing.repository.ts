@@ -156,7 +156,8 @@ export const routingRepository = {
 
             if (
                 updated.count === 1 &&
-                (before == null || Number(before.distanceFromClinicKm) !== Number(result.distanceKm))
+                (before == null ||
+                    Number(before.distanceFromClinicKm) !== Number(result.distanceKm))
             ) {
                 await registerPredictionRefreshWork({
                     tx,
@@ -176,13 +177,6 @@ export const routingRepository = {
         attemptId: string
     ) {
         return withRoutingTransaction(async (tx) => {
-            const before =
-                typeof tx.patientClinic.findUnique === 'function'
-                    ? await tx.patientClinic.findUnique({
-                          where: { patientId_clinicId: { patientId, clinicId } },
-                          select: { distanceFromClinicKm: true },
-                      })
-                    : null;
             const updated = await tx.patientClinic.updateMany({
                 where: {
                     patientId,
@@ -201,7 +195,10 @@ export const routingRepository = {
                 } as unknown as Prisma.PatientClinicUpdateManyMutationInput,
             });
 
-            if (updated.count === 1 && (before == null || before.distanceFromClinicKm !== null)) {
+            // beginRoutingAttempt has already cleared the previous distance.
+            // A failed current attempt must refresh predictions against null;
+            // an unchanged snapshot is deduplicated by the refresh worker.
+            if (updated.count === 1) {
                 await registerPredictionRefreshWork({
                     tx,
                     clinicId,

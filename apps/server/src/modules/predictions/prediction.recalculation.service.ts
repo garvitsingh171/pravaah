@@ -46,10 +46,7 @@ const sameSnapshot = (left: NoShowFeatureSnapshotV1, right: NoShowFeatureSnapsho
     left.patientCompletedAppointmentCount === right.patientCompletedAppointmentCount &&
     left.distanceFromClinicKm === right.distanceFromClinicKm;
 
-const acquireAppointmentPredictionLock = (
-    tx: Prisma.TransactionClient,
-    appointmentId: string
-) =>
+const acquireAppointmentPredictionLock = (tx: Prisma.TransactionClient, appointmentId: string) =>
     tx.$executeRaw`
         SELECT pg_advisory_xact_lock(
             hashtextextended(${`prediction-refresh:${appointmentId}`}, 0)
@@ -66,31 +63,33 @@ export const buildCanonicalNoShowPredictionInput = async (
         createdAt: Date;
     }
 ): Promise<NoShowPredictionInput> => {
-    const [patientClinic, patientNoShowCount, patientCompletedAppointmentCount] = await Promise.all([
-        tx.patientClinic.findUnique({
-            where: {
-                patientId_clinicId: {
-                    patientId: appointment.patientId,
-                    clinicId: appointment.clinicId,
+    const [patientClinic, patientNoShowCount, patientCompletedAppointmentCount] = await Promise.all(
+        [
+            tx.patientClinic.findUnique({
+                where: {
+                    patientId_clinicId: {
+                        patientId: appointment.patientId,
+                        clinicId: appointment.clinicId,
+                    },
                 },
-            },
-            select: { totalLateArrivals: true, distanceFromClinicKm: true },
-        }),
-        tx.appointment.count({
-            where: {
-                clinicId: appointment.clinicId,
-                patientId: appointment.patientId,
-                status: AppointmentStatus.NO_SHOW,
-            },
-        }),
-        tx.appointment.count({
-            where: {
-                clinicId: appointment.clinicId,
-                patientId: appointment.patientId,
-                status: AppointmentStatus.COMPLETED,
-            },
-        }),
-    ]);
+                select: { totalLateArrivals: true, distanceFromClinicKm: true },
+            }),
+            tx.appointment.count({
+                where: {
+                    clinicId: appointment.clinicId,
+                    patientId: appointment.patientId,
+                    status: AppointmentStatus.NO_SHOW,
+                },
+            }),
+            tx.appointment.count({
+                where: {
+                    clinicId: appointment.clinicId,
+                    patientId: appointment.patientId,
+                    status: AppointmentStatus.COMPLETED,
+                },
+            }),
+        ]
+    );
 
     if (!patientClinic) {
         throw new Error('PATIENT_CLINIC_LINK_NOT_FOUND');
@@ -174,9 +173,7 @@ export const recalculateAppointmentIfChanged = async ({
     // createdAt ordering is the operational latest-run ordering. Make it monotonic
     // while holding the appointment lock so same-millisecond appends stay current.
     const createdAt =
-        latest && latest.createdAt >= now
-            ? new Date(latest.createdAt.getTime() + 1)
-            : now;
+        latest && latest.createdAt >= now ? new Date(latest.createdAt.getTime() + 1) : now;
     const run = createNoShowPredictionRun({ input, generationSource });
     const prediction = await tx.noShowPrediction.create({
         data: {
@@ -257,6 +254,7 @@ const claimNextRefreshWork = async (owner: string): Promise<ClaimedRefreshWork |
                     in: [
                         PredictionRefreshStatus.PENDING,
                         PredictionRefreshStatus.RETRYABLE_FAILURE,
+                        PredictionRefreshStatus.PROCESSING,
                     ],
                 },
                 nextAttemptAt: { lte: now },
@@ -281,6 +279,14 @@ const claimNextRefreshWork = async (owner: string): Promise<ClaimedRefreshWork |
             where: {
                 id: candidate.id,
                 requestedRevision: candidate.requestedRevision,
+                status: {
+                    in: [
+                        PredictionRefreshStatus.PENDING,
+                        PredictionRefreshStatus.RETRYABLE_FAILURE,
+                        PredictionRefreshStatus.PROCESSING,
+                    ],
+                },
+                nextAttemptAt: { lte: now },
                 OR: [{ leaseExpiresAt: null }, { leaseExpiresAt: { lt: now } }],
             },
             data: {
@@ -344,7 +350,10 @@ const markRefreshWorkFailed = async (work: ClaimedRefreshWork, owner: string): P
     });
 };
 
-const processClaimedRefreshWork = async (work: ClaimedRefreshWork, owner: string): Promise<void> => {
+const processClaimedRefreshWork = async (
+    work: ClaimedRefreshWork,
+    owner: string
+): Promise<void> => {
     let cursor: string | undefined;
     try {
         for (;;) {
