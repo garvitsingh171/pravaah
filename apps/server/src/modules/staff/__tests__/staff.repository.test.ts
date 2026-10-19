@@ -6,9 +6,11 @@ const { mockPrisma, mockTx } = vi.hoisted(() => {
         $executeRaw: vi.fn(),
         $queryRaw: vi.fn(),
         staffInvitation: {
+            count: vi.fn(),
             findFirst: vi.fn(),
             create: vi.fn(),
             findUnique: vi.fn(),
+            update: vi.fn(),
             updateMany: vi.fn(),
         },
         user: {
@@ -17,7 +19,7 @@ const { mockPrisma, mockTx } = vi.hoisted(() => {
             create: vi.fn(),
             update: vi.fn(),
         },
-        lifecycleEvent: { create: vi.fn() },
+        lifecycleEvent: { create: vi.fn(), count: vi.fn() },
     };
 
     return {
@@ -49,6 +51,11 @@ const pendingInvitation = {
     revokedAt: null,
     createdAt: new Date('2099-01-01T00:00:00.000Z'),
     updatedAt: new Date('2099-01-01T00:00:00.000Z'),
+    emailStatus: 'NOT_SENT',
+    emailSubmittedAt: null,
+    emailProviderMessageId: null,
+    emailAttemptId: null,
+    emailAttemptStartedAt: null,
     clinic: { id: 'clinic-id', name: 'Clinic A', isActive: true },
     acceptedBy: null,
     invitedBy: { id: 'admin-id', fullName: 'Clinic Admin' },
@@ -59,6 +66,8 @@ describe('staffRepository transaction ownership', () => {
         vi.clearAllMocks();
         mockTx.$executeRaw.mockResolvedValue(1);
         mockTx.$queryRaw.mockResolvedValue([]);
+        mockTx.staffInvitation.count.mockResolvedValue(0);
+        mockTx.lifecycleEvent.count.mockResolvedValue(0);
     });
 
     it('locks normalized email and clinic/email before duplicate checks and insert', async () => {
@@ -71,12 +80,14 @@ describe('staffRepository transaction ownership', () => {
             tokenHash: 'token-hash',
             invitedByUserId: 'admin-id',
             expiresAt: pendingInvitation.expiresAt,
+            emailAttemptId: 'attempt-id',
+            emailAttemptStartedAt: pendingInvitation.createdAt,
             now: pendingInvitation.createdAt,
         });
 
         expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
-        expect(mockTx.$executeRaw).toHaveBeenCalledTimes(2);
-        expect(mockTx.$queryRaw).toHaveBeenCalledTimes(1);
+        expect(mockTx.$queryRaw).toHaveBeenCalledTimes(4);
+        expect(mockTx.$executeRaw).not.toHaveBeenCalled();
         expect(mockTx.staffInvitation.findFirst).toHaveBeenCalledWith({
             where: {
                 clinicId: 'clinic-id',
@@ -92,6 +103,82 @@ describe('staffRepository transaction ownership', () => {
                 data: expect.objectContaining({ actorUserId: 'admin-id', action: 'CREATED' }),
             })
         );
+    });
+
+    it('rate-limits invitation creation per Admin before creating another row', async () => {
+        mockTx.staffInvitation.count.mockResolvedValue(10);
+        const result = await staffRepository.createInvitation({
+            clinicId: 'clinic-id',
+            email: 'staff@example.com',
+            tokenHash: 'token-hash',
+            invitedByUserId: 'admin-id',
+            expiresAt: pendingInvitation.expiresAt,
+            emailAttemptId: 'attempt-id',
+            emailAttemptStartedAt: pendingInvitation.createdAt,
+            now: pendingInvitation.createdAt,
+        });
+        expect(result).toEqual({ outcome: 'RATE_LIMITED' });
+        expect(mockTx.staffInvitation.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects an overlapping resend while the first attempt owns the invitation', async () => {
+        const now = new Date('2026-10-19T00:00:00.000Z');
+        mockTx.$queryRaw.mockResolvedValue([{ id: pendingInvitation.id }]);
+        mockTx.staffInvitation.findUnique
+            .mockResolvedValueOnce(pendingInvitation)
+            .mockResolvedValueOnce({
+                ...pendingInvitation,
+                emailAttemptId: 'first-attempt',
+                emailAttemptStartedAt: now,
+            });
+        mockTx.staffInvitation.update.mockImplementation(async (args: { data: object }) => ({
+            ...pendingInvitation,
+            ...args.data,
+        }));
+
+        const first = await staffRepository.prepareInvitationResend({
+            clinicId: 'clinic-id',
+            invitationId: pendingInvitation.id,
+            actorUserId: 'admin-id',
+            tokenHash: 'first-token-hash',
+            emailAttemptId: 'first-attempt',
+            now,
+        });
+        const second = await staffRepository.prepareInvitationResend({
+            clinicId: 'clinic-id',
+            invitationId: pendingInvitation.id,
+            actorUserId: 'admin-id',
+            tokenHash: 'second-token-hash',
+            emailAttemptId: 'second-attempt',
+            now,
+        });
+
+        expect(first.outcome).toBe('READY');
+        expect(second.outcome).toBe('IN_PROGRESS');
+        expect(mockTx.staffInvitation.update).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignores an email result from a superseded token attempt', async () => {
+        const current = {
+            ...pendingInvitation,
+            tokenHash: 'new-token-hash',
+            emailAttemptId: 'new-attempt',
+        };
+        mockTx.staffInvitation.updateMany.mockResolvedValue({ count: 0 });
+        mockTx.staffInvitation.findUnique.mockResolvedValue(current);
+
+        const result = await staffRepository.updateInvitationEmailResult({
+            invitationId: pendingInvitation.id,
+            emailAttemptId: 'old-attempt',
+            actorUserId: 'admin-id',
+            emailStatus: 'SUBMITTED',
+            submittedAt: new Date(),
+            providerMessageId: 'old-provider-message',
+        });
+
+        expect(result.superseded).toBe(true);
+        expect(result.invitation.emailAttemptId).toBe('new-attempt');
+        expect(mockTx.lifecycleEvent.create).not.toHaveBeenCalled();
     });
 
     it('creates Staff and claims the locked invitation in one transaction', async () => {

@@ -1,13 +1,15 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { StaffInvitationStatus, UserRole, UserStatus } from '../../generated/prisma/client.js';
 import { env } from '../../config/env.js';
 import { AppError } from '../../utils/AppError.js';
 import { normalizeEmail } from '../../utils/emailNormalization.js';
 import { clerkIdentityService } from '../auth/clerkIdentity.service.js';
 import { staffRepository } from './staff.repository.js';
+import { emailService } from '../../services/email/email.service.js';
 import {
     EffectiveStaffInvitationStatus,
     STAFF_INVITATION_EXPIRY_DAYS,
+    STAFF_INVITATION_EMAIL_ATTEMPT_LEASE_MS,
     STAFF_INVITATION_TOKEN_BYTES,
     type AcceptStaffInvitationResponse,
     type CreateStaffInvitationInput,
@@ -43,16 +45,31 @@ export const getEffectiveInvitationStatus = (
 const toInvitationResponse = (
     invitation: StaffInvitationRecord,
     now = new Date()
-): StaffInvitationResponse => ({
-    id: invitation.id,
-    email: invitation.email,
-    status: getEffectiveInvitationStatus(invitation.status, invitation.expiresAt, now),
-    expiresAt: invitation.expiresAt,
-    acceptedAt: invitation.acceptedAt,
-    revokedAt: invitation.revokedAt,
-    createdAt: invitation.createdAt,
-    invitedBy: invitation.invitedBy,
-});
+): StaffInvitationResponse => {
+    const emailSending = Boolean(
+        invitation.emailAttemptId &&
+        invitation.emailAttemptStartedAt &&
+        invitation.emailAttemptStartedAt.getTime() >
+            now.getTime() - STAFF_INVITATION_EMAIL_ATTEMPT_LEASE_MS
+    );
+    return {
+        id: invitation.id,
+        email: invitation.email,
+        status: getEffectiveInvitationStatus(invitation.status, invitation.expiresAt, now),
+        expiresAt: invitation.expiresAt,
+        acceptedAt: invitation.acceptedAt,
+        revokedAt: invitation.revokedAt,
+        createdAt: invitation.createdAt,
+        invitedBy: invitation.invitedBy,
+        emailStatus:
+            !emailSending && invitation.emailAttemptId && invitation.emailStatus === 'NOT_SENT'
+                ? 'FAILED'
+                : invitation.emailStatus,
+        emailSubmittedAt: invitation.emailSubmittedAt,
+        emailProviderMessageId: invitation.emailProviderMessageId,
+        emailSending,
+    };
+};
 
 const invalidInvitationError = () =>
     new AppError(404, 'STAFF_INVITATION_NOT_FOUND', 'Staff invitation is invalid');
@@ -134,6 +151,7 @@ export const staffService = {
         const now = new Date();
         const rawToken = randomBytes(STAFF_INVITATION_TOKEN_BYTES).toString('base64url');
         const tokenHash = hashStaffInvitationToken(rawToken);
+        const emailAttemptId = randomUUID();
         const expiresAt = addDays(now, STAFF_INVITATION_EXPIRY_DAYS);
         const result = await staffRepository.createInvitation({
             clinicId: input.clinicId,
@@ -142,6 +160,8 @@ export const staffService = {
             invitedByUserId: input.invitedBy.id,
             expiresAt,
             now,
+            emailAttemptId,
+            emailAttemptStartedAt: now,
         });
 
         if (result.outcome === 'INVITATION_PENDING') {
@@ -149,6 +169,14 @@ export const staffService = {
                 409,
                 'STAFF_INVITATION_ALREADY_PENDING',
                 'An unexpired Staff invitation is already pending for this email'
+            );
+        }
+
+        if (result.outcome === 'RATE_LIMITED') {
+            throw new AppError(
+                429,
+                'STAFF_INVITATION_RATE_LIMITED',
+                'Invitation limit reached. Try again later.'
             );
         }
 
@@ -188,14 +216,93 @@ export const staffService = {
         }
 
         const inviteUrl = new URL(`/invite/${rawToken}`, env.clientUrl).toString();
-        const invitation = toInvitationResponse(result.invitation, now);
+        const emailResult = await emailService.sendStaffInvitation({
+            invitationId: result.invitation.id,
+            email,
+            clinicName: result.invitation.clinic.name,
+            expiresAt,
+            inviteUrl,
+        });
+        const savedInvitation = await staffRepository.updateInvitationEmailResult({
+            invitationId: result.invitation.id,
+            emailAttemptId,
+            actorUserId: input.invitedBy.id,
+            emailStatus: emailResult.status,
+            submittedAt: emailResult.submittedAt,
+            providerMessageId: emailResult.providerMessageId,
+        });
+        const invitation = toInvitationResponse(savedInvitation.invitation, now);
 
         logStaffEvent('staff.invitation.created', {
             invitationId: invitation.id,
             clinicId: input.clinicId,
         });
 
-        return { invitation, inviteUrl };
+        return { invitation };
+    },
+
+    async resendInvitation(clinicId: string, invitationId: string, actorUserId: string) {
+        const rawToken = randomBytes(STAFF_INVITATION_TOKEN_BYTES).toString('base64url');
+        const emailAttemptId = randomUUID();
+        const result = await staffRepository.prepareInvitationResend({
+            clinicId,
+            invitationId,
+            actorUserId,
+            tokenHash: hashStaffInvitationToken(rawToken),
+            emailAttemptId,
+            now: new Date(),
+        });
+        if (result.outcome === 'NOT_FOUND') {
+            throw new AppError(404, 'STAFF_INVITATION_NOT_FOUND', 'Staff invitation not found');
+        }
+        if (result.outcome === 'RATE_LIMITED') {
+            throw new AppError(
+                429,
+                'STAFF_INVITATION_RATE_LIMITED',
+                'Invitation email limit reached. Try again later.'
+            );
+        }
+        if (result.outcome === 'EXPIRED') throw invitationOutcomeError('EXPIRED');
+        if (result.outcome === 'NOT_PENDING') {
+            throw new AppError(
+                409,
+                'STAFF_INVITATION_NOT_PENDING',
+                'Only pending invitations can be resent'
+            );
+        }
+        if (result.outcome === 'IN_PROGRESS') {
+            throw new AppError(
+                409,
+                'STAFF_INVITATION_EMAIL_IN_PROGRESS',
+                'An invitation email is already being submitted. Please wait before retrying.'
+            );
+        }
+        const inviteUrl = new URL(`/invite/${rawToken}`, env.clientUrl).toString();
+        const emailResult = await emailService.sendStaffInvitation({
+            invitationId,
+            email: result.invitation.email,
+            clinicName: result.invitation.clinic.name,
+            expiresAt: result.invitation.expiresAt,
+            inviteUrl,
+        });
+        const savedInvitation = await staffRepository.updateInvitationEmailResult({
+            invitationId,
+            emailAttemptId,
+            actorUserId,
+            emailStatus: emailResult.status,
+            submittedAt: emailResult.submittedAt,
+            providerMessageId: emailResult.providerMessageId,
+        });
+        const invitation = toInvitationResponse(savedInvitation.invitation);
+        logStaffEvent('staff.invitation.resent', {
+            invitationId,
+            clinicId,
+            emailStatus: invitation.emailStatus,
+        });
+        return {
+            invitation,
+            emailStatus: invitation.emailStatus,
+        };
     },
 
     async listMembers(clinicId: string) {
@@ -265,7 +372,7 @@ export const staffService = {
     },
 
     async previewInvitation(rawToken: string, clerkUserId: string) {
-        const identity = await clerkIdentityService.getTrustedUserIdentity(clerkUserId);
+        const identity = await clerkIdentityService.getVerifiedUserIdentity(clerkUserId);
         const normalizedEmail = normalizeEmail(identity.email);
         const invitation = await staffRepository.findInvitationByTokenHash(
             hashStaffInvitationToken(rawToken)
@@ -292,7 +399,7 @@ export const staffService = {
         rawToken: string,
         clerkUserId: string
     ): Promise<AcceptStaffInvitationResponse> {
-        const identity = await clerkIdentityService.getTrustedUserIdentity(clerkUserId);
+        const identity = await clerkIdentityService.getVerifiedUserIdentity(clerkUserId);
         const normalizedEmail = normalizeEmail(identity.email);
         const now = new Date();
         const result = await staffRepository.acceptInvitation({

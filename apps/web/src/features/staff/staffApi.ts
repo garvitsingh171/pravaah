@@ -47,11 +47,17 @@ export const listStaffInvitations = (clinicId: string, signal?: AbortSignal) => 
 };
 
 export const createStaffInvitation = (clinicId: string, email: string) => {
-    return apiClient.post<{ invitation: StaffInvitation; inviteUrl: string }>(
+    return apiClient.post<{ invitation: StaffInvitation }>(
         `/clinics/${encodeURIComponent(clinicId)}/staff/invitations`,
         { email }
     );
 };
+
+export const resendStaffInvitation = (clinicId: string, invitationId: string) =>
+    apiClient.post<{ invitation: StaffInvitation; emailStatus: 'SUBMITTED' | 'FAILED' }>(
+        `/clinics/${encodeURIComponent(clinicId)}/staff/invitations/${encodeURIComponent(invitationId)}/resend`,
+        {}
+    );
 
 export const revokeStaffInvitation = (clinicId: string, invitationId: string) => {
     return apiClient.patch<{ invitation: StaffInvitation }>(

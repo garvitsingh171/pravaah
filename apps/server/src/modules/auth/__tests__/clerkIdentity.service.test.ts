@@ -25,6 +25,7 @@ const createClerkUser = (overrides: Partial<User> = {}): User =>
             {
                 id: 'primary-email-id',
                 emailAddress: ' Admin@Example.COM ',
+                verification: { status: 'verified' },
             },
         ],
         firstName: ' Clinic ',
@@ -112,6 +113,34 @@ describe('clerkIdentityService.getTrustedUserIdentity', () => {
             clerkIdentityService.getTrustedUserIdentity('trusted-clerk-user-id')
         ).rejects.toThrow(
             new AppError(401, 'INVALID_AUTH_TOKEN', 'Authentication token is invalid or expired')
+        );
+    });
+});
+
+describe('clerkIdentityService.getVerifiedUserIdentity', () => {
+    beforeEach(() => vi.clearAllMocks());
+
+    it('returns the trusted identity when the primary Clerk email is verified', async () => {
+        mockClerkClient.users.getUser.mockResolvedValue(createClerkUser());
+        await expect(
+            clerkIdentityService.getVerifiedUserIdentity('clerk-id')
+        ).resolves.toMatchObject({
+            email: 'admin@example.com',
+        });
+    });
+
+    it('rejects an unverified primary email', async () => {
+        const user = createClerkUser();
+        (user.emailAddresses[1] as { verification?: unknown }).verification = {
+            status: 'unverified',
+        };
+        mockClerkClient.users.getUser.mockResolvedValue(user);
+        await expect(clerkIdentityService.getVerifiedUserIdentity('clerk-id')).rejects.toThrow(
+            new AppError(
+                403,
+                'CLERK_EMAIL_NOT_VERIFIED',
+                'Verify your email address in Clerk before accepting this invitation'
+            )
         );
     });
 });

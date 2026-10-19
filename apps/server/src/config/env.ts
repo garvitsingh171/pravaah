@@ -35,6 +35,8 @@ export const env = {
     clerkWebhookSecret: process.env.CLERK_WEBHOOK_SECRET,
     geoapifyApiKey: process.env.GEOAPIFY_API_KEY?.trim() || undefined,
     clientUrl,
+    resendApiKey: process.env.RESEND_API_KEY?.trim() || undefined,
+    invitationFromEmail: process.env.INVITATION_FROM_EMAIL?.trim() || undefined,
     localClientUrl,
     allowedClientOrigins,
 };

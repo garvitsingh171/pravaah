@@ -20,6 +20,7 @@ import {
     removeStaffMember,
     restoreStaffMember,
     revokeStaffInvitation,
+    resendStaffInvitation,
     updateStaffProfile,
     updateStaffStatus,
 } from './staffApi';
@@ -154,7 +155,6 @@ function StaffManagementPage() {
     const [email, setEmail] = useState('');
     const [emailError, setEmailError] = useState<string | null>(null);
     const [isCreating, setIsCreating] = useState(false);
-    const [inviteUrl, setInviteUrl] = useState<string | null>(null);
     const [confirmationTarget, setConfirmationTarget] = useState<ConfirmationTarget>(null);
     const [isConfirming, setIsConfirming] = useState(false);
     const [confirmationError, setConfirmationError] = useState<string | null>(null);
@@ -275,18 +275,22 @@ function StaffManagementPage() {
         }
 
         setEmailError(null);
-        setInviteUrl(null);
         setIsCreating(true);
 
         try {
             const result = await createStaffInvitation(clinicId, normalizedEmail);
-            setInviteUrl(result.inviteUrl);
             setEmail('');
             setState((current) => ({
                 ...current,
                 invitations: [result.invitation, ...current.invitations],
             }));
-            showSuccessToast('Invitation created. Copy the link and share it securely.');
+            if (result.invitation.emailStatus === 'SUBMITTED') {
+                showSuccessToast(`Invitation email submitted for ${normalizedEmail}.`);
+            } else {
+                showErrorToast(
+                    'Invitation created, but the email could not be sent. Retry from Staff Invitations.'
+                );
+            }
         } catch (error: unknown) {
             const message = isApiClientError(error)
                 ? error.message
@@ -298,22 +302,32 @@ function StaffManagementPage() {
         }
     };
 
-    const handleCopyLink = async () => {
-        if (!inviteUrl) return;
-
-        try {
-            await navigator.clipboard.writeText(inviteUrl);
-            showSuccessToast('Invitation link copied.');
-        } catch {
-            showErrorToast('Could not copy automatically. Select and copy the link manually.');
-        }
-    };
-
     const openReinvite = (invitation: StaffInvitation) => {
         setEmail(invitation.email);
         setEmailError(null);
-        setInviteUrl(null);
         document.getElementById('staff-invite-email')?.focus();
+    };
+
+    const handleResendInvitation = async (invitation: StaffInvitation) => {
+        try {
+            const result = await resendStaffInvitation(clinicId, invitation.id);
+            setState((current) => ({
+                ...current,
+                invitations: current.invitations.map((item) =>
+                    item.id === invitation.id ? result.invitation : item
+                ),
+            }));
+            if (result.emailStatus === 'SUBMITTED')
+                showSuccessToast(`Invitation email submitted for ${invitation.email}.`);
+            else
+                showErrorToast(
+                    'Invitation remains active, but the email could not be sent. Retry later.'
+                );
+        } catch (error) {
+            showErrorToast(
+                isApiClientError(error) ? error.message : 'Invitation email could not be sent.'
+            );
+        }
     };
 
     const handleConfirm = async () => {
@@ -444,7 +458,7 @@ function StaffManagementPage() {
 
             <Card
                 title="Invite staff"
-                description="Pravaah creates a one-time link. No email is sent automatically."
+                description="Invite a team member to your clinic. We'll email them a secure invitation link to join Pravaah."
             >
                 <form
                     className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end"
@@ -462,33 +476,10 @@ function StaffManagementPage() {
                             required
                         />
                     </FormField>
-                    <Button type="submit" isLoading={isCreating} loadingText="Creating...">
-                        Create invitation
+                    <Button type="submit" isLoading={isCreating} loadingText="Sending...">
+                        Send invitation
                     </Button>
                 </form>
-
-                {inviteUrl ? (
-                    <div className="mt-5 rounded-lg border border-[var(--color-status-success-border)] bg-[var(--color-status-success-bg)] p-4">
-                        <p className="font-semibold text-[var(--color-status-success-text)]">
-                            Invitation created
-                        </p>
-                        <p className="mt-1 text-sm text-app-muted">
-                            This secret link is available only in this immediate success state.
-                        </p>
-                        <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-                            <input
-                                className="min-w-0 flex-1 rounded-md border border-app-border-strong bg-white px-3 py-2 text-sm text-app-text"
-                                value={inviteUrl}
-                                readOnly
-                                aria-label="Invitation link"
-                                onFocus={(event) => event.currentTarget.select()}
-                            />
-                            <Button variant="outline" onClick={() => void handleCopyLink()}>
-                                Copy invitation link
-                            </Button>
-                        </div>
-                    </div>
-                ) : null}
             </Card>
 
             <Card
@@ -641,13 +632,48 @@ function StaffManagementPage() {
                                                 {invitation.status[0] +
                                                     invitation.status.slice(1).toLowerCase()}
                                             </Badge>
+                                            <Badge
+                                                tone={
+                                                    invitation.emailStatus === 'SUBMITTED'
+                                                        ? 'success'
+                                                        : invitation.emailStatus === 'FAILED'
+                                                          ? 'danger'
+                                                          : 'neutral'
+                                                }
+                                            >
+                                                Email{' '}
+                                                {invitation.emailSending
+                                                    ? 'sending'
+                                                    : invitation.emailStatus === 'SUBMITTED'
+                                                      ? 'submitted'
+                                                      : invitation.emailStatus === 'FAILED'
+                                                        ? 'failed'
+                                                        : 'not sent'}
+                                            </Badge>
                                             <span className="text-xs text-app-subtle">
                                                 Created {formatDate(invitation.createdAt)} · Expires{' '}
                                                 {formatDate(invitation.expiresAt)}
+                                                {invitation.emailSubmittedAt
+                                                    ? ` · Submitted ${formatDate(invitation.emailSubmittedAt)}`
+                                                    : ''}
                                             </span>
                                         </div>
                                     </div>
                                     <div className="flex flex-col gap-2 sm:flex-row">
+                                        {invitation.status === StaffInvitationStatus.PENDING &&
+                                        !invitation.emailSending ? (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() =>
+                                                    void handleResendInvitation(invitation)
+                                                }
+                                            >
+                                                {invitation.emailStatus === 'SUBMITTED'
+                                                    ? 'Resend email'
+                                                    : 'Retry email'}
+                                            </Button>
+                                        ) : null}
                                         {invitation.status === StaffInvitationStatus.PENDING ? (
                                             <Button
                                                 size="sm"

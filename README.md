@@ -216,7 +216,7 @@ Production verification for v0.3.0 was completed by the owner with GO decision. 
 
 - No patient login or doctor login.
 - No billing, prescriptions, inventory, or full medical record system.
-- No WhatsApp/SMS/email automation.
+- No WhatsApp/SMS notifications; Staff invitations use Resend transactional email when configured.
 - No trained ML model.
 - No full multi-clinic SaaS membership model; current authorization uses one active `User.clinicId`.
 - No committed real screenshots yet; screenshot slots are documented in [v0.2 Assets](docs/assets/v0.2/README.md).
