@@ -642,11 +642,13 @@ function StaffManagementPage() {
                                                 }
                                             >
                                                 Email{' '}
-                                                {invitation.emailStatus === 'SUBMITTED'
-                                                    ? 'submitted'
-                                                    : invitation.emailStatus === 'FAILED'
-                                                      ? 'failed'
-                                                      : 'not sent'}
+                                                {invitation.emailSending
+                                                    ? 'sending'
+                                                    : invitation.emailStatus === 'SUBMITTED'
+                                                      ? 'submitted'
+                                                      : invitation.emailStatus === 'FAILED'
+                                                        ? 'failed'
+                                                        : 'not sent'}
                                             </Badge>
                                             <span className="text-xs text-app-subtle">
                                                 Created {formatDate(invitation.createdAt)} · Expires{' '}
@@ -659,7 +661,7 @@ function StaffManagementPage() {
                                     </div>
                                     <div className="flex flex-col gap-2 sm:flex-row">
                                         {invitation.status === StaffInvitationStatus.PENDING &&
-                                        invitation.emailStatus !== 'SUBMITTED' ? (
+                                        !invitation.emailSending ? (
                                             <Button
                                                 size="sm"
                                                 variant="outline"
@@ -667,7 +669,9 @@ function StaffManagementPage() {
                                                     void handleResendInvitation(invitation)
                                                 }
                                             >
-                                                Retry email
+                                                {invitation.emailStatus === 'SUBMITTED'
+                                                    ? 'Resend email'
+                                                    : 'Retry email'}
                                             </Button>
                                         ) : null}
                                         {invitation.status === StaffInvitationStatus.PENDING ? (

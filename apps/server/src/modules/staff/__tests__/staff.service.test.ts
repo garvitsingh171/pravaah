@@ -61,6 +61,8 @@ const invitation = {
     emailStatus: 'NOT_SENT' as const,
     emailSubmittedAt: null,
     emailProviderMessageId: null,
+    emailAttemptId: null,
+    emailAttemptStartedAt: null,
 };
 
 describe('staffService', () => {
@@ -77,10 +79,13 @@ describe('staffService', () => {
                 submittedAt: Date | null;
                 providerMessageId: string | null;
             }) => ({
-                ...invitation,
-                emailStatus: input.emailStatus,
-                emailSubmittedAt: input.submittedAt,
-                emailProviderMessageId: input.providerMessageId,
+                superseded: false,
+                invitation: {
+                    ...invitation,
+                    emailStatus: input.emailStatus,
+                    emailSubmittedAt: input.submittedAt,
+                    emailProviderMessageId: input.providerMessageId,
+                },
             })
         );
         mockClerkIdentityService.getVerifiedUserIdentity.mockResolvedValue({
@@ -111,7 +116,11 @@ describe('staffService', () => {
         mockStaffRepository.createInvitation.mockImplementation(
             async (input: { email: string; tokenHash: string }) => ({
                 outcome: 'CREATED',
-                invitation: { ...invitation, email: input.email, tokenHash: input.tokenHash },
+                invitation: {
+                    ...invitation,
+                    email: input.email,
+                    tokenHash: input.tokenHash,
+                },
             })
         );
 
@@ -174,8 +183,8 @@ describe('staffService', () => {
             invitation,
         });
         mockStaffRepository.updateInvitationEmailResult.mockImplementation(async () => ({
-            ...invitation,
-            emailStatus: 'FAILED',
+            superseded: false,
+            invitation: { ...invitation, emailStatus: 'FAILED' },
         }));
         const result = await staffService.createInvitation({
             clinicId: 'clinic-id',
@@ -186,6 +195,35 @@ describe('staffService', () => {
         expect(mockStaffRepository.updateInvitationEmailResult).toHaveBeenCalledWith(
             expect.objectContaining({ emailStatus: 'FAILED' })
         );
+    });
+
+    it('resends a pending invitation even when the previous email was submitted', async () => {
+        mockStaffRepository.prepareInvitationResend.mockResolvedValue({
+            outcome: 'READY',
+            invitation: { ...invitation, emailStatus: 'SUBMITTED' },
+        });
+        mockStaffRepository.updateInvitationEmailResult.mockResolvedValue({
+            superseded: false,
+            invitation: {
+                ...invitation,
+                emailStatus: 'SUBMITTED',
+                emailSubmittedAt: new Date(),
+                emailAttemptId: null,
+                emailAttemptStartedAt: null,
+            },
+        });
+
+        const result = await staffService.resendInvitation('clinic-id', 'invite-id', 'admin-id');
+
+        expect(result.emailStatus).toBe('SUBMITTED');
+        expect(mockStaffRepository.prepareInvitationResend).toHaveBeenCalledWith(
+            expect.objectContaining({
+                clinicId: 'clinic-id',
+                invitationId: 'invite-id',
+                actorUserId: 'admin-id',
+            })
+        );
+        expect(mockEmailService.sendStaffInvitation).toHaveBeenCalledOnce();
     });
 
     it.each([

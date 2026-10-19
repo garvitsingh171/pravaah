@@ -27,7 +27,7 @@ ACTIVE Admin
   -> submit the raw invite URL to the email provider; never return it to the browser
 ```
 
-The server submits the invitation through Resend. `tokenHash` and the raw link are never returned to Admin APIs; the raw link exists only while rendering the email. Submission is tracked separately as `NOT_SENT`, `SUBMITTED`, or `FAILED`. `SUBMITTED` means Resend accepted the request, not that the email reached the inbox. Failed or unavailable submission leaves the invitation visible and can be retried by rotating its token and submitting a new email.
+The server submits the invitation through Resend. `tokenHash` and the raw link are never returned to Admin APIs; the raw link exists only while rendering the email. Submission is tracked separately as `NOT_SENT`, `SUBMITTED`, or `FAILED`. `SUBMITTED` means Resend accepted the request, not that the email reached the inbox. Failed or unavailable submission leaves the invitation visible and can be retried by rotating its token and submitting a new email. A database attempt ID claims the invitation for up to two minutes; overlapping resends are rejected, and late results from superseded attempts cannot overwrite the current email state. Stale claims become retryable after the provider request timeout window.
 
 The lock queries use Prisma `$queryRaw`, because PostgreSQL advisory-lock calls are `SELECT`s that return rows. Using `$executeRaw` for those calls caused the existing Create Invitation request to fail before duplicate detection or insertion.
 
@@ -80,7 +80,7 @@ An identity with no pending Staff invitation continues through the existing tran
 - `PATCH /api/clinics/:clinicId/staff/invitations/:invitationId/revoke` changes an unexpired pending invitation to revoked.
 - `POST /api/clinics/:clinicId/staff/invitations/:invitationId/resend` rotates the pending invitation token and retries email submission.
 
-Configure the backend with `RESEND_API_KEY`, `INVITATION_FROM_EMAIL` (a verified Resend sender), and `CLIENT_URL`. Production `CLIENT_URL` must be `https://pravaah.garvitsingh171.com` so invitation links resolve to the deployed frontend. Apply the `20261019120000_add_invitation_email_status` migration before deploying the new backend.
+Configure the backend with `RESEND_API_KEY`, `INVITATION_FROM_EMAIL` (a verified Resend sender), and `CLIENT_URL`. Production `CLIENT_URL` must be `https://pravaah.garvitsingh171.com` so invitation links resolve to the deployed frontend. Apply the `20261019120000_add_invitation_email_status` and `20261019123000_add_invitation_attempt_claim` migrations before deploying the new backend.
 
 Deployment checklist: add and verify the sending domain in Resend, publish the DNS records Resend provides, and set the sender to an address on that verified domain. Add the three variables in the Render backend environment; do not add the Resend key to Vercel or any `VITE_*` variable. Keep Clerk's production sign-in and sign-up redirect URLs on the Pravaah origin; Vercel's catch-all rewrite serves `/invite/:token` through the SPA. Run Prisma migrations before shifting backend traffic. Email status `SUBMITTED` is provider acceptance only; verify inbox receipt separately with a controlled test address.
 

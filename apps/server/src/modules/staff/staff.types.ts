@@ -3,6 +3,7 @@ import type { AuthenticatedUser } from '../auth/auth.types.js';
 
 export const STAFF_INVITATION_EXPIRY_DAYS = 7;
 export const STAFF_INVITATION_TOKEN_BYTES = 32;
+export const STAFF_INVITATION_EMAIL_ATTEMPT_LEASE_MS = 120_000;
 
 export const EffectiveStaffInvitationStatus = {
     PENDING: 'PENDING',
@@ -54,10 +55,16 @@ export type StaffInvitationRecord = {
     emailStatus: 'NOT_SENT' | 'SUBMITTED' | 'FAILED';
     emailSubmittedAt: Date | null;
     emailProviderMessageId: string | null;
+    emailAttemptId: string | null;
+    emailAttemptStartedAt: Date | null;
 };
 
-export type StaffInvitationResponse = Omit<StaffInvitationRecord, 'clinicId' | 'status'> & {
+export type StaffInvitationResponse = Omit<
+    StaffInvitationRecord,
+    'clinicId' | 'status' | 'emailAttemptId' | 'emailAttemptStartedAt'
+> & {
     status: EffectiveStaffInvitationStatus;
+    emailSending: boolean;
     clinic?: { id: string; name: string };
 };
 

@@ -8,7 +8,10 @@ import { prisma } from '../../config/prisma.js';
 import { withTransientDatabaseTransactionRetry } from '../../utils/databaseRetry.js';
 import { lifecycleRepository } from '../lifecycle/lifecycle.repository.js';
 import type { TrustedClerkUserIdentity } from '../auth/auth.types.js';
-import type { ManageableStaffStatus } from './staff.types.js';
+import {
+    STAFF_INVITATION_EMAIL_ATTEMPT_LEASE_MS,
+    type ManageableStaffStatus,
+} from './staff.types.js';
 
 type ExistingUserRecord = {
     id: string;
@@ -97,6 +100,8 @@ const createInvitationRecord = (
         tokenHash: string;
         invitedByUserId: string;
         expiresAt: Date;
+        emailAttemptId: string;
+        emailAttemptStartedAt: Date;
     }
 ) => {
     return tx.staffInvitation.create({
@@ -133,6 +138,7 @@ export type RevokeInvitationRepositoryResult =
 export const staffRepository = {
     async updateInvitationEmailResult(input: {
         invitationId: string;
+        emailAttemptId: string;
         actorUserId: string;
         emailStatus: 'SUBMITTED' | 'FAILED';
         submittedAt: Date | null;
@@ -141,23 +147,33 @@ export const staffRepository = {
         return withTransientDatabaseTransactionRetry(
             (callback) => prisma.$transaction(callback),
             async (tx) => {
-                const invitation = await tx.staffInvitation.update({
-                    where: { id: input.invitationId },
+                const update = await tx.staffInvitation.updateMany({
+                    where: { id: input.invitationId, emailAttemptId: input.emailAttemptId },
                     data: {
                         emailStatus: input.emailStatus,
                         emailSubmittedAt: input.submittedAt,
                         emailProviderMessageId: input.providerMessageId,
+                        emailAttemptId: null,
+                        emailAttemptStartedAt: null,
                     },
+                });
+                const invitation = await tx.staffInvitation.findUnique({
+                    where: { id: input.invitationId },
                     include: invitationInclude,
                 });
-                await lifecycleRepository.createEvent(tx, {
-                    clinicId: invitation.clinicId,
-                    actorUserId: input.actorUserId,
-                    entityType: 'STAFF_INVITATION',
-                    entityId: invitation.id,
-                    action: input.emailStatus === 'SUBMITTED' ? 'EMAIL_SUBMITTED' : 'EMAIL_FAILED',
-                });
-                return invitation;
+                if (!invitation)
+                    throw new Error('Invitation disappeared while recording email result');
+                if (update.count === 1) {
+                    await lifecycleRepository.createEvent(tx, {
+                        clinicId: invitation.clinicId,
+                        actorUserId: input.actorUserId,
+                        entityType: 'STAFF_INVITATION',
+                        entityId: invitation.id,
+                        action:
+                            input.emailStatus === 'SUBMITTED' ? 'EMAIL_SUBMITTED' : 'EMAIL_FAILED',
+                    });
+                }
+                return { superseded: update.count !== 1, invitation };
             }
         );
     },
@@ -167,6 +183,7 @@ export const staffRepository = {
         invitationId: string;
         actorUserId: string;
         tokenHash: string;
+        emailAttemptId: string;
         now: Date;
     }) {
         return withTransientDatabaseTransactionRetry(
@@ -195,6 +212,14 @@ export const staffRepository = {
                 if (invitation.status !== StaffInvitationStatus.PENDING)
                     return { outcome: 'NOT_PENDING' as const };
                 if (invitation.expiresAt <= input.now) return { outcome: 'EXPIRED' as const };
+                if (
+                    invitation.emailAttemptId &&
+                    invitation.emailAttemptStartedAt &&
+                    invitation.emailAttemptStartedAt.getTime() >
+                        input.now.getTime() - STAFF_INVITATION_EMAIL_ATTEMPT_LEASE_MS
+                ) {
+                    return { outcome: 'IN_PROGRESS' as const };
+                }
                 await lifecycleRepository.createEvent(tx, {
                     clinicId: invitation.clinicId,
                     actorUserId: input.actorUserId,
@@ -209,6 +234,8 @@ export const staffRepository = {
                         emailStatus: 'NOT_SENT',
                         emailSubmittedAt: null,
                         emailProviderMessageId: null,
+                        emailAttemptId: input.emailAttemptId,
+                        emailAttemptStartedAt: input.now,
                     },
                     include: invitationInclude,
                 });
@@ -223,6 +250,8 @@ export const staffRepository = {
         tokenHash: string;
         invitedByUserId: string;
         expiresAt: Date;
+        emailAttemptId: string;
+        emailAttemptStartedAt: Date;
         now: Date;
     }): Promise<CreateInvitationRepositoryResult> {
         return withTransientDatabaseTransactionRetry(

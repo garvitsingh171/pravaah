@@ -35,6 +35,7 @@ export type StaffInvitation = {
     emailStatus: 'NOT_SENT' | 'SUBMITTED' | 'FAILED';
     emailSubmittedAt: string | null;
     emailProviderMessageId: string | null;
+    emailSending: boolean;
 };
 
 export type StaffInvitationPreview = {

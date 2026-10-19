@@ -243,21 +243,23 @@ model User {
 }
 
 model StaffInvitation {
-  id               String                @id @default(uuid()) @db.Uuid
-  clinicId         String                @db.Uuid
-  email            String
-  tokenHash        String                @unique
-  status           StaffInvitationStatus @default(PENDING)
-  invitedByUserId  String                @db.Uuid
-  acceptedByUserId String?               @db.Uuid
-  expiresAt        DateTime
-  acceptedAt       DateTime?
-  revokedAt        DateTime?
-  emailStatus      InvitationEmailStatus @default(NOT_SENT)
-  emailSubmittedAt DateTime?
+  id                     String                @id @default(uuid()) @db.Uuid
+  clinicId               String                @db.Uuid
+  email                  String
+  tokenHash              String                @unique
+  status                 StaffInvitationStatus @default(PENDING)
+  invitedByUserId        String                @db.Uuid
+  acceptedByUserId       String?               @db.Uuid
+  expiresAt              DateTime
+  acceptedAt             DateTime?
+  revokedAt              DateTime?
+  emailStatus            InvitationEmailStatus @default(NOT_SENT)
+  emailSubmittedAt       DateTime?
   emailProviderMessageId String?
-  createdAt        DateTime              @default(now())
-  updatedAt        DateTime              @updatedAt
+  emailAttemptId         String?
+  emailAttemptStartedAt  DateTime?
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
 
   clinic     Clinic @relation(fields: [clinicId], references: [id], onDelete: Restrict)
   invitedBy  User   @relation("StaffInvitationInvitedBy", fields: [invitedByUserId], references: [id], onDelete: Restrict)
