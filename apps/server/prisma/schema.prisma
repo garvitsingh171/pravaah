@@ -30,6 +30,12 @@ enum StaffInvitationStatus {
   REVOKED
 }
 
+enum InvitationEmailStatus {
+  NOT_SENT
+  SUBMITTED
+  FAILED
+}
+
 enum Gender {
   MALE
   FEMALE
@@ -247,6 +253,9 @@ model StaffInvitation {
   expiresAt        DateTime
   acceptedAt       DateTime?
   revokedAt        DateTime?
+  emailStatus      InvitationEmailStatus @default(NOT_SENT)
+  emailSubmittedAt DateTime?
+  emailProviderMessageId String?
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
 

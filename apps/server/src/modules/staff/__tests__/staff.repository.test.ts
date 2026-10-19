@@ -6,6 +6,7 @@ const { mockPrisma, mockTx } = vi.hoisted(() => {
         $executeRaw: vi.fn(),
         $queryRaw: vi.fn(),
         staffInvitation: {
+            count: vi.fn(),
             findFirst: vi.fn(),
             create: vi.fn(),
             findUnique: vi.fn(),
@@ -17,7 +18,7 @@ const { mockPrisma, mockTx } = vi.hoisted(() => {
             create: vi.fn(),
             update: vi.fn(),
         },
-        lifecycleEvent: { create: vi.fn() },
+        lifecycleEvent: { create: vi.fn(), count: vi.fn() },
     };
 
     return {
@@ -59,6 +60,8 @@ describe('staffRepository transaction ownership', () => {
         vi.clearAllMocks();
         mockTx.$executeRaw.mockResolvedValue(1);
         mockTx.$queryRaw.mockResolvedValue([]);
+        mockTx.staffInvitation.count.mockResolvedValue(0);
+        mockTx.lifecycleEvent.count.mockResolvedValue(0);
     });
 
     it('locks normalized email and clinic/email before duplicate checks and insert', async () => {
@@ -75,8 +78,8 @@ describe('staffRepository transaction ownership', () => {
         });
 
         expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
-        expect(mockTx.$executeRaw).toHaveBeenCalledTimes(2);
-        expect(mockTx.$queryRaw).toHaveBeenCalledTimes(1);
+        expect(mockTx.$queryRaw).toHaveBeenCalledTimes(4);
+        expect(mockTx.$executeRaw).not.toHaveBeenCalled();
         expect(mockTx.staffInvitation.findFirst).toHaveBeenCalledWith({
             where: {
                 clinicId: 'clinic-id',
@@ -92,6 +95,20 @@ describe('staffRepository transaction ownership', () => {
                 data: expect.objectContaining({ actorUserId: 'admin-id', action: 'CREATED' }),
             })
         );
+    });
+
+    it('rate-limits invitation creation per Admin before creating another row', async () => {
+        mockTx.staffInvitation.count.mockResolvedValue(10);
+        const result = await staffRepository.createInvitation({
+            clinicId: 'clinic-id',
+            email: 'staff@example.com',
+            tokenHash: 'token-hash',
+            invitedByUserId: 'admin-id',
+            expiresAt: pendingInvitation.expiresAt,
+            now: pendingInvitation.createdAt,
+        });
+        expect(result).toEqual({ outcome: 'RATE_LIMITED' });
+        expect(mockTx.staffInvitation.create).not.toHaveBeenCalled();
     });
 
     it('creates Staff and claims the locked invitation in one transaction', async () => {

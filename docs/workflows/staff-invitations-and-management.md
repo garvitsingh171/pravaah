@@ -19,15 +19,17 @@ ACTIVE Admin
   -> POST /api/clinics/:clinicId/staff/invitations { email }
   -> authenticateRequest + requireAdminRole + requireClinicAccess
   -> normalize email with trim().toLowerCase()
-  -> acquire transaction advisory locks for normalized email and clinic/email
+  -> acquire transaction advisory locks for Admin, normalized email, and clinic/email
   -> reject an existing member or unexpired pending invitation
   -> generate 32 random bytes and encode base64url
   -> persist SHA-256(raw token), never the raw token
   -> persist PENDING invitation with seven-day expiry
-  -> return the raw invite URL in this creation response only
+  -> submit the raw invite URL to the email provider; never return it to the browser
 ```
 
-There is no mail provider in this repository. The Admin UI says **Invitation created** and offers a copy-link action. Listing invitations never returns `tokenHash` and cannot reconstruct an old secret link.
+The server submits the invitation through Resend. `tokenHash` and the raw link are never returned to Admin APIs; the raw link exists only while rendering the email. Submission is tracked separately as `NOT_SENT`, `SUBMITTED`, or `FAILED`. `SUBMITTED` means Resend accepted the request, not that the email reached the inbox. Failed or unavailable submission leaves the invitation visible and can be retried by rotating its token and submitting a new email.
+
+The lock queries use Prisma `$queryRaw`, because PostgreSQL advisory-lock calls are `SELECT`s that return rows. Using `$executeRaw` for those calls caused the existing Create Invitation request to fail before duplicate detection or insertion.
 
 ## Invitee flow
 
@@ -76,6 +78,12 @@ An identity with no pending Staff invitation continues through the existing tran
 - `GET /api/clinics/:clinicId/staff` lists Admin and Staff summaries without Clerk IDs.
 - `GET /api/clinics/:clinicId/staff/invitations` lists invitation history with effective status but no secret.
 - `PATCH /api/clinics/:clinicId/staff/invitations/:invitationId/revoke` changes an unexpired pending invitation to revoked.
+- `POST /api/clinics/:clinicId/staff/invitations/:invitationId/resend` rotates the pending invitation token and retries email submission.
+
+Configure the backend with `RESEND_API_KEY`, `INVITATION_FROM_EMAIL` (a verified Resend sender), and `CLIENT_URL`. Production `CLIENT_URL` must be `https://pravaah.garvitsingh171.com` so invitation links resolve to the deployed frontend. Apply the `20261019120000_add_invitation_email_status` migration before deploying the new backend.
+
+Deployment checklist: add and verify the sending domain in Resend, publish the DNS records Resend provides, and set the sender to an address on that verified domain. Add the three variables in the Render backend environment; do not add the Resend key to Vercel or any `VITE_*` variable. Keep Clerk's production sign-in and sign-up redirect URLs on the Pravaah origin; Vercel's catch-all rewrite serves `/invite/:token` through the SPA. Run Prisma migrations before shifting backend traffic. Email status `SUBMITTED` is provider acceptance only; verify inbox receipt separately with a controlled test address.
+
 - `PATCH /api/clinics/:clinicId/staff/:userId/status` permits only `ACTIVE -> SUSPENDED` and `SUSPENDED -> ACTIVE` for same-clinic Staff.
 
 All management routes require active internal authentication, Admin role, and verified clinic access. They do not delete users or edit roles. Suspending a user preserves appointment attribution and causes their next normal API request to fail the existing active-user check even if their Clerk session remains valid.

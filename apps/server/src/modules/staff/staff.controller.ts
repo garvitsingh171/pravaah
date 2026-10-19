@@ -153,6 +153,31 @@ export async function revokeStaffInvitationController(
     }
 }
 
+export async function resendStaffInvitationController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { clinicId, invitationId } = req.params as { clinicId: string; invitationId: string };
+        const result = await staffService.resendInvitation(
+            clinicId,
+            invitationId,
+            requireUser(req).id
+        );
+        res.status(200).json({
+            success: true,
+            message:
+                result.emailStatus === 'SUBMITTED'
+                    ? 'Invitation email submitted'
+                    : 'Invitation email could not be submitted',
+            data: result,
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
 export async function updateStaffStatusController(
     req: Request,
     res: Response,

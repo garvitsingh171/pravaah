@@ -426,7 +426,7 @@ Strict request body:
 { "email": "staff@example.com" }
 ```
 
-The server normalizes the email, fixes role/clinic/inviter/expiry, rejects members and duplicate unexpired pending invitations, and returns `data.invitation` plus a one-time `data.inviteUrl`. Neither the response nor later list calls expose `tokenHash`. No email is sent.
+The server normalizes the email, fixes role/clinic/inviter/expiry, rejects members and duplicate unexpired pending invitations, submits a branded email through Resend, and returns `data.invitation` with its email submission state. The raw link and `tokenHash` are never returned by the API. `POST /api/clinics/:clinicId/staff/invitations/:invitationId/resend` rotates the token and retries submission for a pending invitation.
 
 Important conflicts: `STAFF_INVITATION_ALREADY_PENDING`, `STAFF_ALREADY_MEMBER`, `STAFF_REACTIVATION_REQUIRED`, and `USER_ALREADY_BELONGS_TO_ANOTHER_CLINIC`.
 

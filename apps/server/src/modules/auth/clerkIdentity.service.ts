@@ -10,11 +10,16 @@ const identityDataMissingError = () =>
         'Clerk identity is missing required profile data'
     );
 
-const resolvePrimaryEmail = (user: User): string => {
+const getPrimaryEmailAddress = (user: User) => {
     const primaryEmail = user.emailAddresses.find(
         (emailAddress) => emailAddress.id === user.primaryEmailAddressId
     );
-    const email = primaryEmail?.emailAddress.trim();
+    if (!primaryEmail?.emailAddress.trim()) throw identityDataMissingError();
+    return primaryEmail;
+};
+
+const resolvePrimaryEmail = (user: User): string => {
+    const email = getPrimaryEmailAddress(user).emailAddress.trim();
 
     if (!email) {
         throw identityDataMissingError();
@@ -49,6 +54,31 @@ export const clerkIdentityService = {
             );
         }
 
+        return {
+            clerkUserId,
+            email: resolvePrimaryEmail(user),
+            fullName: resolveFullName(user),
+        };
+    },
+
+    async getVerifiedUserIdentity(clerkUserId: string): Promise<TrustedClerkUserIdentity> {
+        let user: User;
+        try {
+            user = await clerkClient.users.getUser(clerkUserId);
+        } catch {
+            throw new AppError(
+                401,
+                'INVALID_AUTH_TOKEN',
+                'Authentication token is invalid or expired'
+            );
+        }
+        if (getPrimaryEmailAddress(user).verification?.status !== 'verified') {
+            throw new AppError(
+                403,
+                'CLERK_EMAIL_NOT_VERIFIED',
+                'Verify your email address in Clerk before accepting this invitation'
+            );
+        }
         return {
             clerkUserId,
             email: resolvePrimaryEmail(user),

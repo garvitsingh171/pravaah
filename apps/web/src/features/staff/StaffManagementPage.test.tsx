@@ -8,6 +8,7 @@ import StaffManagementPage from './StaffManagementPage';
 const api = vi.hoisted(() => ({
     listClinicTeam: vi.fn(),
     listStaffInvitations: vi.fn(),
+    createStaffInvitation: vi.fn(),
     getStaffMember: vi.fn(),
     updateStaffProfile: vi.fn(),
     removeStaffMember: vi.fn(),
@@ -101,5 +102,35 @@ describe('StaffManagementPage lifecycle', () => {
         );
         expect(screen.queryByText('Bela Staff')).not.toBeInTheDocument();
         expect(screen.getByText('No team members match these filters.')).toBeVisible();
+    });
+
+    it('sends an invitation and displays the provider submission state', async () => {
+        const user = userEvent.setup();
+        api.createStaffInvitation.mockResolvedValue({
+            invitation: {
+                id: 'invite-id',
+                email: 'new.staff@example.test',
+                status: 'PENDING',
+                expiresAt: '2026-10-26T00:00:00.000Z',
+                acceptedAt: null,
+                revokedAt: null,
+                createdAt: '2026-10-19T00:00:00.000Z',
+                invitedBy: { id: 'admin-id', fullName: 'Clinic Admin' },
+                emailStatus: 'SUBMITTED',
+                emailSubmittedAt: '2026-10-19T00:00:00.000Z',
+                emailProviderMessageId: 'resend-message-id',
+            },
+        });
+        renderWithProviders(<StaffManagementPage />, { activeClinic: adminActiveClinic });
+        await user.type(await screen.findByLabelText('Email address'), 'New.Staff@example.test');
+        await user.click(screen.getByRole('button', { name: 'Send invitation' }));
+        await waitFor(() =>
+            expect(api.createStaffInvitation).toHaveBeenCalledWith(
+                adminActiveClinic.clinicId,
+                'new.staff@example.test'
+            )
+        );
+        expect(await screen.findByText('new.staff@example.test')).toBeVisible();
+        expect(screen.getByText('Email submitted')).toBeVisible();
     });
 });

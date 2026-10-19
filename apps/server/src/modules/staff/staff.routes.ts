@@ -14,6 +14,7 @@ import {
     listStaffInvitationsController,
     previewStaffInvitationController,
     revokeStaffInvitationController,
+    resendStaffInvitationController,
     removeStaffMemberController,
     restoreStaffMemberController,
     updateStaffProfileController,
@@ -48,6 +49,14 @@ staffRouter.patch(
     validateRequest({ params: staffMemberParamsSchema, body: updateStaffStatusSchema }),
     requireClinicAccess,
     updateStaffStatusController
+);
+
+staffRouter.post(
+    '/:clinicId/staff/invitations/:invitationId/resend',
+    ...adminClinicMiddleware,
+    validateRequest({ params: staffInvitationManagementParamsSchema }),
+    requireClinicAccess,
+    resendStaffInvitationController
 );
 
 staffRouter.get(

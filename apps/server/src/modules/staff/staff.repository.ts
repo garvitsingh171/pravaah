@@ -22,6 +22,7 @@ type ExistingUserRecord = {
 };
 
 const invitationInclude = {
+    clinic: { select: { id: true, name: true } },
     invitedBy: {
         select: {
             id: true,
@@ -31,7 +32,7 @@ const invitationInclude = {
 } satisfies Prisma.StaffInvitationInclude;
 
 const acquireEmailMembershipLock = (tx: Prisma.TransactionClient, email: string) => {
-    return tx.$executeRaw`
+    return tx.$queryRaw`
         SELECT pg_advisory_xact_lock(
             hashtextextended(concat('staff-membership:', ${email}::text), 0)
         )
@@ -43,7 +44,7 @@ const acquireClinicInvitationLock = (
     clinicId: string,
     email: string
 ) => {
-    return tx.$executeRaw`
+    return tx.$queryRaw`
         SELECT pg_advisory_xact_lock(
             hashtextextended(
                 concat('staff-invite:', ${clinicId}::text, ':', ${email}::text),
@@ -52,6 +53,13 @@ const acquireClinicInvitationLock = (
         )
     `;
 };
+
+const acquireAdminInvitationLock = (tx: Prisma.TransactionClient, adminUserId: string) =>
+    tx.$queryRaw`
+        SELECT pg_advisory_xact_lock(
+            hashtextextended(concat('staff-invite-admin:', ${adminUserId}::text), 0)
+        )
+    `;
 
 const findUserByNormalizedEmail = async (
     tx: Prisma.TransactionClient,
@@ -78,7 +86,8 @@ const findUserByNormalizedEmail = async (
 export type CreateInvitationRepositoryResult =
     | { outcome: 'CREATED'; invitation: Awaited<ReturnType<typeof createInvitationRecord>> }
     | { outcome: 'MEMBER_EXISTS'; user: ExistingUserRecord }
-    | { outcome: 'INVITATION_PENDING' };
+    | { outcome: 'INVITATION_PENDING' }
+    | { outcome: 'RATE_LIMITED' };
 
 const createInvitationRecord = (
     tx: Prisma.TransactionClient,
@@ -122,6 +131,92 @@ export type RevokeInvitationRepositoryResult =
     | { outcome: 'ALREADY_ACCEPTED' };
 
 export const staffRepository = {
+    async updateInvitationEmailResult(input: {
+        invitationId: string;
+        actorUserId: string;
+        emailStatus: 'SUBMITTED' | 'FAILED';
+        submittedAt: Date | null;
+        providerMessageId: string | null;
+    }) {
+        return withTransientDatabaseTransactionRetry(
+            (callback) => prisma.$transaction(callback),
+            async (tx) => {
+                const invitation = await tx.staffInvitation.update({
+                    where: { id: input.invitationId },
+                    data: {
+                        emailStatus: input.emailStatus,
+                        emailSubmittedAt: input.submittedAt,
+                        emailProviderMessageId: input.providerMessageId,
+                    },
+                    include: invitationInclude,
+                });
+                await lifecycleRepository.createEvent(tx, {
+                    clinicId: invitation.clinicId,
+                    actorUserId: input.actorUserId,
+                    entityType: 'STAFF_INVITATION',
+                    entityId: invitation.id,
+                    action: input.emailStatus === 'SUBMITTED' ? 'EMAIL_SUBMITTED' : 'EMAIL_FAILED',
+                });
+                return invitation;
+            }
+        );
+    },
+
+    async prepareInvitationResend(input: {
+        clinicId: string;
+        invitationId: string;
+        actorUserId: string;
+        tokenHash: string;
+        now: Date;
+    }) {
+        return withTransientDatabaseTransactionRetry(
+            (callback) => prisma.$transaction(callback),
+            async (tx) => {
+                await acquireAdminInvitationLock(tx, input.actorUserId);
+                const attempts = await tx.lifecycleEvent.count({
+                    where: {
+                        actorUserId: input.actorUserId,
+                        entityType: 'STAFF_INVITATION',
+                        action: 'EMAIL_ATTEMPTED',
+                        createdAt: { gt: new Date(input.now.getTime() - 60 * 60 * 1000) },
+                    },
+                });
+                if (attempts >= 10) return { outcome: 'RATE_LIMITED' as const };
+                const rows = await tx.$queryRaw<Array<{ id: string }>>`
+                    SELECT "id" FROM "staff_invitations"
+                    WHERE "id" = ${input.invitationId}::uuid AND "clinicId" = ${input.clinicId}::uuid
+                    FOR UPDATE
+                `;
+                if (!rows[0]) return { outcome: 'NOT_FOUND' as const };
+                const invitation = await tx.staffInvitation.findUnique({
+                    where: { id: rows[0].id },
+                });
+                if (!invitation) return { outcome: 'NOT_FOUND' as const };
+                if (invitation.status !== StaffInvitationStatus.PENDING)
+                    return { outcome: 'NOT_PENDING' as const };
+                if (invitation.expiresAt <= input.now) return { outcome: 'EXPIRED' as const };
+                await lifecycleRepository.createEvent(tx, {
+                    clinicId: invitation.clinicId,
+                    actorUserId: input.actorUserId,
+                    entityType: 'STAFF_INVITATION',
+                    entityId: invitation.id,
+                    action: 'EMAIL_ATTEMPTED',
+                });
+                const updated = await tx.staffInvitation.update({
+                    where: { id: invitation.id },
+                    data: {
+                        tokenHash: input.tokenHash,
+                        emailStatus: 'NOT_SENT',
+                        emailSubmittedAt: null,
+                        emailProviderMessageId: null,
+                    },
+                    include: invitationInclude,
+                });
+                return { outcome: 'READY' as const, invitation: updated };
+            }
+        );
+    },
+
     createInvitation(input: {
         clinicId: string;
         email: string;
@@ -133,6 +228,14 @@ export const staffRepository = {
         return withTransientDatabaseTransactionRetry(
             (callback) => prisma.$transaction(callback),
             async (tx) => {
+                await acquireAdminInvitationLock(tx, input.invitedByUserId);
+                const recentInvitations = await tx.staffInvitation.count({
+                    where: {
+                        invitedByUserId: input.invitedByUserId,
+                        createdAt: { gt: new Date(input.now.getTime() - 60 * 60 * 1000) },
+                    },
+                });
+                if (recentInvitations >= 10) return { outcome: 'RATE_LIMITED' as const };
                 await acquireEmailMembershipLock(tx, input.email);
                 await acquireClinicInvitationLock(tx, input.clinicId, input.email);
 

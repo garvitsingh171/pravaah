@@ -51,10 +51,14 @@ export type StaffInvitationRecord = {
         id: string;
         fullName: string;
     };
+    emailStatus: 'NOT_SENT' | 'SUBMITTED' | 'FAILED';
+    emailSubmittedAt: Date | null;
+    emailProviderMessageId: string | null;
 };
 
 export type StaffInvitationResponse = Omit<StaffInvitationRecord, 'clinicId' | 'status'> & {
     status: EffectiveStaffInvitationStatus;
+    clinic?: { id: string; name: string };
 };
 
 export type AcceptStaffInvitationResponse = {
