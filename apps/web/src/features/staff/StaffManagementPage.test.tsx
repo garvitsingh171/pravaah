@@ -121,6 +121,9 @@ describe('StaffManagementPage lifecycle', () => {
             emailProviderMessageId: 'resend-message-id',
             emailSending: false,
         };
+        api.listStaffInvitations
+            .mockResolvedValueOnce({ invitations: [] })
+            .mockResolvedValueOnce({ invitations: [submittedInvitation] });
         api.createStaffInvitation.mockResolvedValue({ invitation: submittedInvitation });
         api.resendStaffInvitation.mockResolvedValue({
             invitation: submittedInvitation,
@@ -135,6 +138,7 @@ describe('StaffManagementPage lifecycle', () => {
                 'new.staff@example.test'
             )
         );
+        expect(api.listStaffInvitations).toHaveBeenCalledTimes(2);
         expect(await screen.findByText('new.staff@example.test')).toBeVisible();
         expect(screen.getByText('Email submitted')).toBeVisible();
         await user.click(screen.getByRole('button', { name: 'Resend email' }));

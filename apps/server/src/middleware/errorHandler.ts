@@ -113,6 +113,30 @@ export const errorHandler: ErrorRequestHandler = (error: HttpError, req, res, _n
         return;
     }
 
+    if (error instanceof Prisma.PrismaClientValidationError) {
+        const invalidArgument = error.message.match(
+            /Unknown argument [`'\"]([^`'\"]+)[`'\"]/i
+        )?.[1];
+        console.error(
+            JSON.stringify({
+                event: 'database.prisma.validation_failed',
+                timestamp: new Date().toISOString(),
+                invalidArgument: invalidArgument ?? null,
+                diagnostic: invalidArgument
+                    ? `Unknown Prisma argument: ${invalidArgument}`
+                    : 'Prisma rejected a query payload',
+            })
+        );
+        res.status(500).json({
+            success: false,
+            error: {
+                code: 'INTERNAL_SERVER_ERROR',
+                message: 'Something went wrong',
+            },
+        });
+        return;
+    }
+
     if (isTransientDatabaseError(error)) {
         sendDatabaseUnavailable(res);
         return;

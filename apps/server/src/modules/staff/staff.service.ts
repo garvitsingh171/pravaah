@@ -138,11 +138,7 @@ const addDays = (date: Date, days: number): Date => {
 };
 
 const logStaffEvent = (event: string, details: Record<string, string>): void => {
-    const suffix = Object.entries(details)
-        .map(([key, value]) => `${key}=${value}`)
-        .join(' ');
-
-    console.info(`[staff] event=${event}${suffix ? ` ${suffix}` : ''}`);
+    console.info(JSON.stringify({ event, timestamp: new Date().toISOString(), ...details }));
 };
 
 export const staffService = {
@@ -153,16 +149,30 @@ export const staffService = {
         const tokenHash = hashStaffInvitationToken(rawToken);
         const emailAttemptId = randomUUID();
         const expiresAt = addDays(now, STAFF_INVITATION_EXPIRY_DAYS);
-        const result = await staffRepository.createInvitation({
+        logStaffEvent('staff.invitation.create.started', {
             clinicId: input.clinicId,
-            email,
-            tokenHash,
-            invitedByUserId: input.invitedBy.id,
-            expiresAt,
-            now,
-            emailAttemptId,
-            emailAttemptStartedAt: now,
+            actorUserId: input.invitedBy.id,
         });
+        let result: Awaited<ReturnType<typeof staffRepository.createInvitation>>;
+        try {
+            result = await staffRepository.createInvitation({
+                clinicId: input.clinicId,
+                email,
+                tokenHash,
+                invitedByUserId: input.invitedBy.id,
+                expiresAt,
+                now,
+                emailAttemptId,
+                emailAttemptStartedAt: now,
+            });
+        } catch (error) {
+            logStaffEvent('staff.invitation.create.failed', {
+                clinicId: input.clinicId,
+                stage: 'database',
+                errorName: error instanceof Error ? error.name : 'UnknownError',
+            });
+            throw error;
+        }
 
         if (result.outcome === 'INVITATION_PENDING') {
             throw new AppError(
@@ -215,6 +225,10 @@ export const staffService = {
             );
         }
 
+        logStaffEvent('staff.invitation.create.succeeded', {
+            invitationId: result.invitation.id,
+            clinicId: input.clinicId,
+        });
         const inviteUrl = new URL(`/invite/${rawToken}`, env.clientUrl).toString();
         const emailResult = await emailService.sendStaffInvitation({
             invitationId: result.invitation.id,

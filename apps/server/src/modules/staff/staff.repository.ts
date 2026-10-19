@@ -105,7 +105,18 @@ const createInvitationRecord = (
     }
 ) => {
     return tx.staffInvitation.create({
-        data: input,
+        // `createInvitation` also needs `now` for duplicate and rate-limit
+        // checks. Build the Prisma payload explicitly so that operational
+        // fields can never leak into the persisted model.
+        data: {
+            clinicId: input.clinicId,
+            email: input.email,
+            tokenHash: input.tokenHash,
+            invitedByUserId: input.invitedByUserId,
+            expiresAt: input.expiresAt,
+            emailAttemptId: input.emailAttemptId,
+            emailAttemptStartedAt: input.emailAttemptStartedAt,
+        },
         include: invitationInclude,
     });
 };

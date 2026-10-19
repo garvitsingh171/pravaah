@@ -53,6 +53,36 @@ const initialState: PageState = { status: 'loading', members: [], invitations: [
 const formatDate = (value: string): string =>
     new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium' }).format(new Date(value));
 
+const getInvitationCreateErrorMessage = (error: unknown): string => {
+    if (!(error instanceof Error))
+        return 'Unable to create the invitation right now. Please try again.';
+    if (!isApiClientError(error))
+        return 'Unable to create the invitation right now. Please try again.';
+
+    switch (error.code) {
+        case 'STAFF_INVITATION_ALREADY_PENDING':
+            return 'An invitation is already pending for this email address.';
+        case 'STAFF_ALREADY_MEMBER':
+            return 'A clinic member already uses this email address.';
+        case 'USER_ALREADY_BELONGS_TO_ANOTHER_CLINIC':
+            return 'This email address already belongs to another clinic.';
+        case 'STAFF_REACTIVATION_REQUIRED':
+        case 'STAFF_RESTORATION_REQUIRED':
+            return 'This staff member already exists. Reactivate or restore them from Clinic Team.';
+        case 'VALIDATION_ERROR':
+            return 'Enter a valid staff email address.';
+        case 'STAFF_INVITATION_RATE_LIMITED':
+            return 'Too many invitations were sent recently. Please try again later.';
+    }
+
+    if (error.status === 403) return 'You need Admin access to invite clinic staff.';
+    if (error.status === 401) return 'Your session has expired. Sign in again and retry.';
+    if (error.status === undefined || error.status >= 500) {
+        return 'Unable to create the invitation right now. Please try again.';
+    }
+    return error.message;
+};
+
 const invitationTone = (status: StaffInvitation['status']) => {
     if (status === StaffInvitationStatus.PENDING) return 'warning' as const;
     if (status === StaffInvitationStatus.ACCEPTED) return 'success' as const;
@@ -267,6 +297,7 @@ function StaffManagementPage() {
 
     const handleCreateInvitation = async (event: FormEvent) => {
         event.preventDefault();
+        if (isCreating) return;
         const normalizedEmail = email.trim().toLowerCase();
 
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
@@ -279,10 +310,16 @@ function StaffManagementPage() {
 
         try {
             const result = await createStaffInvitation(clinicId, normalizedEmail);
+            let invitations = [result.invitation, ...state.invitations];
+            try {
+                invitations = (await listStaffInvitations(clinicId)).invitations;
+            } catch {
+                // Keep the confirmed creation visible if refreshing the list fails.
+            }
             setEmail('');
             setState((current) => ({
                 ...current,
-                invitations: [result.invitation, ...current.invitations],
+                invitations,
             }));
             if (result.invitation.emailStatus === 'SUBMITTED') {
                 showSuccessToast(`Invitation email submitted for ${normalizedEmail}.`);
@@ -292,9 +329,7 @@ function StaffManagementPage() {
                 );
             }
         } catch (error: unknown) {
-            const message = isApiClientError(error)
-                ? error.message
-                : 'Invitation could not be created.';
+            const message = getInvitationCreateErrorMessage(error);
             setEmailError(message);
             showErrorToast(message);
         } finally {

@@ -98,6 +98,19 @@ describe('staffRepository transaction ownership', () => {
             select: { id: true },
         });
         expect(result.outcome).toBe('CREATED');
+        expect(mockTx.staffInvitation.create).toHaveBeenCalledWith({
+            data: {
+                clinicId: 'clinic-id',
+                email: 'staff@example.com',
+                tokenHash: 'token-hash',
+                invitedByUserId: 'admin-id',
+                expiresAt: pendingInvitation.expiresAt,
+                emailAttemptId: 'attempt-id',
+                emailAttemptStartedAt: pendingInvitation.createdAt,
+            },
+            include: expect.any(Object),
+        });
+        expect(mockTx.staffInvitation.create.mock.calls[0]?.[0].data).not.toHaveProperty('now');
         expect(mockTx.lifecycleEvent.create).toHaveBeenCalledWith(
             expect.objectContaining({
                 data: expect.objectContaining({ actorUserId: 'admin-id', action: 'CREATED' }),

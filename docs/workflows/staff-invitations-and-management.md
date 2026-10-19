@@ -31,6 +31,10 @@ The server submits the invitation through Resend. `tokenHash` and the raw link a
 
 The lock queries use Prisma `$queryRaw`, because PostgreSQL advisory-lock calls are `SELECT`s that return rows. Using `$executeRaw` for those calls caused the existing Create Invitation request to fail before duplicate detection or insertion.
 
+The invitation transaction also needs a `now` value for rate limits and expiry checks. That value is operational input and is not a `StaffInvitation` column, so the repository explicitly builds the Prisma `create.data` object from model fields only. Keep this mapping explicit when adding transaction inputs; do not pass the transaction input object directly into Prisma.
+
+Invitation creation and email submission emit structured server events. Search Render logs for `staff.invitation.create.started`, `staff.invitation.create.failed`, `staff.invitation.create.succeeded`, `staff.invitation.email.submission_started`, `staff.invitation.email.submitted`, and `staff.invitation.email.failed`, correlating by invitation ID when available. Prisma validation failures log only the invalid argument name and a generic diagnostic; provider failures include a category, HTTP status, provider error code when supplied, and a safe diagnostic. Logs never include the Resend key or invitation URL/token. `SUBMITTED` requires a valid Resend message ID and still means provider acceptance, not inbox delivery.
+
 ## Invitee flow
 
 `/invite/:token` is outside `ProtectedAppShell`. A signed-out invitee sees generic sign-in and sign-up actions that preserve the internal invitation return path. Shared redirect validation accepts only same-origin paths beginning with `/` and rejects protocol-relative, backslash-authority, absolute, and non-path values.
@@ -83,6 +87,8 @@ An identity with no pending Staff invitation continues through the existing tran
 Configure the backend with `RESEND_API_KEY`, `INVITATION_FROM_EMAIL` (a verified Resend sender), and `CLIENT_URL`. Production `CLIENT_URL` must be `https://pravaah.garvitsingh171.com` so invitation links resolve to the deployed frontend. Apply the `20261019120000_add_invitation_email_status` and `20261019123000_add_invitation_attempt_claim` migrations before deploying the new backend.
 
 Deployment checklist: add and verify the sending domain in Resend, publish the DNS records Resend provides, and set the sender to an address on that verified domain. Add the three variables in the Render backend environment; do not add the Resend key to Vercel or any `VITE_*` variable. Keep Clerk's production sign-in and sign-up redirect URLs on the Pravaah origin; Vercel's catch-all rewrite serves `/invite/:token` through the SPA. Run Prisma migrations before shifting backend traffic. Email status `SUBMITTED` is provider acceptance only; verify inbox receipt separately with a controlled test address.
+
+For backend releases, deploy the intended `main` commit from Render and use the server build command (`npm run build -w apps/server`), which runs `prisma generate` before TypeScript compilation. The invitation status and attempt-claim migrations are `20261019120000_add_invitation_email_status` and `20261019123000_add_invitation_attempt_claim`; do not add or manually record another migration unless the Prisma schema changes.
 
 - `PATCH /api/clinics/:clinicId/staff/:userId/status` permits only `ACTIVE -> SUSPENDED` and `SUSPENDED -> ACTIVE` for same-clinic Staff.
 
