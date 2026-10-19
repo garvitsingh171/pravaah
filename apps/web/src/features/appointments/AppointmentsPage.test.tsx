@@ -61,4 +61,31 @@ describe('AppointmentsPage primary status action', () => {
         });
         expect(await screen.findByText('Status updated to confirmed.')).toBeInTheDocument();
     });
+
+    it('filters the loaded schedule by patient and pages long lists', async () => {
+        const user = userEvent.setup();
+        listAppointments.mockResolvedValue({
+            appointments: Array.from({ length: 17 }, (_, index) => ({
+                ...appointment,
+                id: `appointment-${index}`,
+                patient: {
+                    ...appointment.patient,
+                    id: `patient-${index}`,
+                    fullName: `Patient ${index + 1}`,
+                    phone: `90000000${String(index).padStart(2, '0')}`,
+                },
+            })),
+        });
+        renderWithProviders(<AppointmentsPage />, { activeClinic: adminActiveClinic });
+
+        expect(await screen.findByText('Patient 1')).toBeInTheDocument();
+        expect(screen.queryByText('Patient 17')).not.toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Next' }));
+        expect(screen.getByText('Patient 17')).toBeInTheDocument();
+
+        await user.type(screen.getByRole('searchbox', { name: 'Search patient' }), '9000000016');
+        expect(screen.getByText('Patient 17')).toBeInTheDocument();
+        expect(screen.queryByText('Patient 1')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Next' })).not.toBeInTheDocument();
+    });
 });

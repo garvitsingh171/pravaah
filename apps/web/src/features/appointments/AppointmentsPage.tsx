@@ -1,5 +1,5 @@
-import { Fragment, useCallback, useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useActiveClinic } from '../../app/activeClinicContext';
 import { EmptyState, ErrorMessage, LoadingState, useToast } from '../../components/feedback';
 import {
@@ -1292,15 +1292,26 @@ function RescheduleAppointmentDialog({
 function AppointmentsPage() {
     const activeClinic = useActiveClinic();
     const location = useLocation();
+    const navigate = useNavigate();
+    const bookingReturnState = location.state as {
+        bookingDraft?: AppointmentBookingFormValues;
+        patientId?: string;
+    } | null;
     const { clinicId } = activeClinic;
     const clinicTimezone = activeClinic.clinic?.timezone;
     const { showErrorToast, showSuccessToast } = useToast();
     const [selectedDate, setSelectedDate] = useState(() => getClinicDateInputValue(clinicTimezone));
     const [selectedDoctorId, setSelectedDoctorId] = useState('');
     const [selectedPatientId, setSelectedPatientId] = useState('');
+    const [patientSearch, setPatientSearch] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
     const [selectedStatus, setSelectedStatus] = useState<AppointmentStatus | ''>('');
     const [appointmentListState, setAppointmentListState] =
         useState<AppointmentListState>(emptyAppointmentListState);
+    useEffect(
+        () => setCurrentPage(1),
+        [selectedDate, selectedDoctorId, selectedPatientId, selectedStatus]
+    );
     const [updatingAppointmentId, setUpdatingAppointmentId] = useState<string | null>(null);
     const [statusUpdateError, setStatusUpdateError] = useState<{
         message: string;
@@ -1310,7 +1321,12 @@ function AppointmentsPage() {
     const [expandedPredictionAppointmentId, setExpandedPredictionAppointmentId] = useState<
         string | null
     >(null);
-    const [values, setValues] = useState<AppointmentBookingFormValues>(emptyFormValues);
+    const [values, setValues] = useState<AppointmentBookingFormValues>(() => ({
+        ...emptyFormValues,
+        ...(bookingReturnState?.bookingDraft ?? {}),
+        patientId:
+            bookingReturnState?.patientId ?? bookingReturnState?.bookingDraft?.patientId ?? '',
+    }));
     const [fieldErrors, setFieldErrors] = useState<AppointmentBookingFormFieldErrors>({});
     const [referenceState, setReferenceState] =
         useState<AppointmentReferenceState>(emptyReferenceState);
@@ -1330,6 +1346,7 @@ function AppointmentsPage() {
             const target = document.getElementById('book-appointment');
             if (typeof target?.scrollIntoView === 'function')
                 target.scrollIntoView({ block: 'start' });
+            target?.focus({ preventScroll: true });
         });
         return () => window.cancelAnimationFrame(frame);
     }, [location.hash]);
@@ -1469,6 +1486,8 @@ function AppointmentsPage() {
         setSelectedDoctorId('');
         setSelectedPatientId('');
         setSelectedStatus('');
+        setPatientSearch('');
+        setCurrentPage(1);
     };
 
     useEffect(() => {
@@ -2127,14 +2146,39 @@ function AppointmentsPage() {
         referenceState.doctors.length > 0 &&
         referenceState.patients.length > 0;
     const hasAppointmentFilters = Boolean(
-        selectedDate || selectedDoctorId || selectedPatientId || selectedStatus
+        selectedDate || selectedDoctorId || selectedPatientId || selectedStatus || patientSearch
+    );
+    const onlyTodaySelected =
+        selectedDate === getClinicDateInputValue(clinicTimezone) &&
+        !selectedDoctorId &&
+        !selectedPatientId &&
+        !selectedStatus &&
+        !patientSearch;
+    const filteredAppointments = useMemo(() => {
+        const searchTerm = patientSearch.trim().toLocaleLowerCase();
+        return appointmentListState.appointments.filter(
+            (appointment) =>
+                !searchTerm ||
+                appointment.patient.fullName.toLocaleLowerCase().includes(searchTerm) ||
+                (appointment.patient.phone ?? '').includes(searchTerm)
+        );
+    }, [appointmentListState.appointments, patientSearch]);
+    const pageSize = 15;
+    const pageCount = Math.max(1, Math.ceil(filteredAppointments.length / pageSize));
+    const safePage = Math.min(currentPage, pageCount);
+    const visibleAppointments = filteredAppointments.slice(
+        (safePage - 1) * pageSize,
+        safePage * pageSize
     );
     const hasAppointments =
-        appointmentListState.status === 'success' && appointmentListState.appointments.length > 0;
-    const appointmentInsights =
-        appointmentListState.status === 'success'
-            ? buildAppointmentListInsights(appointmentListState.appointments)
-            : null;
+        appointmentListState.status === 'success' && filteredAppointments.length > 0;
+    const appointmentInsights = useMemo(
+        () =>
+            appointmentListState.status === 'success'
+                ? buildAppointmentListInsights(filteredAppointments)
+                : null,
+        [appointmentListState.status, filteredAppointments]
+    );
 
     return (
         <section className="space-y-6">
@@ -2150,7 +2194,7 @@ function AppointmentsPage() {
             />
 
             <FilterBar>
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto] lg:items-end">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-[repeat(5,minmax(0,1fr))_auto_auto] xl:items-end">
                     <label className="block text-sm font-medium text-slate-700">
                         Appointment date
                         <input
@@ -2158,6 +2202,20 @@ function AppointmentsPage() {
                             className={fieldControlClassName}
                             value={selectedDate}
                             onChange={(event) => handleDateFilterChange(event.target.value)}
+                        />
+                    </label>
+
+                    <label className="block text-sm font-medium text-slate-700">
+                        Search patient
+                        <input
+                            type="search"
+                            className={fieldControlClassName}
+                            placeholder="Name or phone"
+                            value={patientSearch}
+                            onChange={(event) => {
+                                setPatientSearch(event.target.value);
+                                setCurrentPage(1);
+                            }}
                         />
                     </label>
 
@@ -2262,18 +2320,21 @@ function AppointmentsPage() {
                 </div>
             ) : null}
 
-            {appointmentListState.status === 'success' &&
-            appointmentListState.appointments.length === 0 ? (
+            {appointmentListState.status === 'success' && filteredAppointments.length === 0 ? (
                 <EmptyState
                     title={
-                        hasAppointmentFilters
-                            ? 'No appointments match these filters.'
-                            : 'No appointments scheduled yet.'
+                        onlyTodaySelected
+                            ? 'No appointments scheduled for today.'
+                            : hasAppointmentFilters
+                              ? 'No appointments match these filters.'
+                              : 'No appointments scheduled yet.'
                     }
                     message={
-                        hasAppointmentFilters
-                            ? 'Try a different date, doctor, patient, or status to find matching appointments.'
-                            : 'Book the first appointment to start the schedule and queue.'
+                        onlyTodaySelected
+                            ? 'Book an appointment to start today’s clinic schedule.'
+                            : hasAppointmentFilters
+                              ? 'Try a different date, patient search, doctor, patient, or status to find matching appointments.'
+                              : 'Book the first appointment to start the schedule and queue.'
                     }
                     action={
                         <a
@@ -2304,7 +2365,7 @@ function AppointmentsPage() {
                         tabIndex={0}
                         aria-label="Appointments table, horizontally scrollable on small screens"
                     >
-                        <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+                        <table className="operational-table min-w-full divide-y divide-slate-200 text-left text-sm">
                             <thead className="sticky top-0 z-10 bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                                 <tr>
                                     <th className="px-4 py-3 font-semibold">Time</th>
@@ -2317,7 +2378,7 @@ function AppointmentsPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-200">
-                                {appointmentListState.appointments.map((appointment) => {
+                                {visibleAppointments.map((appointment) => {
                                     const statusActions =
                                         statusActionsByCurrentStatus[appointment.status];
                                     const isUpdating = updatingAppointmentId === appointment.id;
@@ -2331,7 +2392,10 @@ function AppointmentsPage() {
                                     return (
                                         <Fragment key={appointment.id}>
                                             <tr className="align-top transition hover:bg-slate-50/70">
-                                                <td className="min-w-44 px-4 py-3.5 text-slate-700">
+                                                <td
+                                                    data-label="Time"
+                                                    className="min-w-44 px-4 py-3.5 text-slate-700"
+                                                >
                                                     <p className="font-semibold text-slate-900">
                                                         {formatClinicDateTime(
                                                             appointment.scheduledAt,
@@ -2344,7 +2408,10 @@ function AppointmentsPage() {
                                                         )}
                                                     </p>
                                                 </td>
-                                                <td className="min-w-44 px-4 py-3.5">
+                                                <td
+                                                    data-label="Patient"
+                                                    className="min-w-44 px-4 py-3.5"
+                                                >
                                                     <p className="font-semibold text-slate-900">
                                                         {appointment.patient.fullName}
                                                     </p>
@@ -2352,7 +2419,10 @@ function AppointmentsPage() {
                                                         {getOptionalText(appointment.patient.phone)}
                                                     </p>
                                                 </td>
-                                                <td className="min-w-44 px-4 py-3.5">
+                                                <td
+                                                    data-label="Doctor"
+                                                    className="min-w-44 px-4 py-3.5"
+                                                >
                                                     <p className="font-semibold text-slate-900">
                                                         {appointment.doctor.fullName}
                                                     </p>
@@ -2362,7 +2432,10 @@ function AppointmentsPage() {
                                                         )}
                                                     </p>
                                                 </td>
-                                                <td className="min-w-32 px-4 py-3.5">
+                                                <td
+                                                    data-label="Status"
+                                                    className="min-w-32 px-4 py-3.5"
+                                                >
                                                     <StatusBadge
                                                         kind="appointment"
                                                         status={appointment.status}
@@ -2377,7 +2450,10 @@ function AppointmentsPage() {
                                                         timezone={clinicTimezone}
                                                     />
                                                 </td>
-                                                <td className="min-w-56 px-4 py-3.5 text-slate-700">
+                                                <td
+                                                    data-label="Notes"
+                                                    className="min-w-56 px-4 py-3.5 text-slate-700"
+                                                >
                                                     <p className="font-medium text-slate-900">
                                                         {getOptionalText(appointment.reason)}
                                                     </p>
@@ -2399,7 +2475,10 @@ function AppointmentsPage() {
                                                         </div>
                                                     ) : null}
                                                 </td>
-                                                <td className="min-w-48 px-4 py-3.5">
+                                                <td
+                                                    data-label="Risk"
+                                                    className="min-w-48 px-4 py-3.5"
+                                                >
                                                     <RiskBadge
                                                         appointment={appointment}
                                                         isExpanded={isRiskExpanded}
@@ -2412,7 +2491,10 @@ function AppointmentsPage() {
                                                         }
                                                     />
                                                 </td>
-                                                <td className="min-w-44 px-4 py-3.5">
+                                                <td
+                                                    data-label="Actions"
+                                                    className="min-w-44 px-4 py-3.5"
+                                                >
                                                     <div className="flex flex-col gap-2">
                                                         {statusActions[0] ? (
                                                             <Button
@@ -2498,7 +2580,7 @@ function AppointmentsPage() {
                                             </tr>
 
                                             {isRiskExpanded ? (
-                                                <tr>
+                                                <tr className="operational-detail-row">
                                                     <td
                                                         colSpan={7}
                                                         className="bg-slate-50 px-4 py-4"
@@ -2516,11 +2598,47 @@ function AppointmentsPage() {
                             </tbody>
                         </table>
                     </div>
+                    {pageCount > 1 ? (
+                        <nav
+                            className="flex flex-wrap items-center justify-between gap-3 border-t border-app-border px-4 py-3 text-sm"
+                            aria-label="Appointment pages"
+                        >
+                            <p className="text-app-muted">
+                                Showing {(safePage - 1) * pageSize + 1}–
+                                {Math.min(safePage * pageSize, filteredAppointments.length)} of{' '}
+                                {filteredAppointments.length}
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={safePage === 1}
+                                    onClick={() => setCurrentPage(Math.max(1, safePage - 1))}
+                                >
+                                    Previous
+                                </Button>
+                                <span aria-current="page" className="px-2 font-semibold">
+                                    {safePage} of {pageCount}
+                                </span>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={safePage === pageCount}
+                                    onClick={() =>
+                                        setCurrentPage(Math.min(pageCount, safePage + 1))
+                                    }
+                                >
+                                    Next
+                                </Button>
+                            </div>
+                        </nav>
+                    ) : null}
                 </div>
             ) : null}
 
             <div
                 id="book-appointment"
+                tabIndex={-1}
                 className="scroll-mt-6 rounded-lg border border-slate-200 bg-white p-4 shadow-[var(--shadow-soft)] sm:p-6"
             >
                 <div className="mb-6">
@@ -2569,6 +2687,7 @@ function AppointmentsPage() {
                         action={
                             <Link
                                 to="/patients/new"
+                                state={{ returnToBooking: true, bookingDraft: values }}
                                 className="inline-flex min-h-10 items-center justify-center rounded-md border border-transparent bg-action px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
                             >
                                 Add patient
@@ -2616,6 +2735,11 @@ function AppointmentsPage() {
                     isDisabled={!canUseForm}
                     onChange={handleChange}
                     onSubmit={handleSubmit}
+                    onAddPatient={() =>
+                        navigate('/patients/new', {
+                            state: { returnToBooking: true, bookingDraft: values },
+                        })
+                    }
                 />
             </div>
 

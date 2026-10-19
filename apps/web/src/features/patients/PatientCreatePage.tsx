@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useActiveClinic } from '../../app/activeClinicContext';
 import { ErrorMessage, useToast } from '../../components/feedback';
 import { ConfirmationDialog } from '../../components/ui';
@@ -12,6 +12,7 @@ import {
 import type { Gender } from '../../types';
 import PatientForm, { type PatientFormFieldErrors, type PatientFormValues } from './PatientForm';
 import { createPatient, type CreatePatientRequest } from './patientApi';
+import type { AppointmentBookingFormValues } from '../appointments/AppointmentBookingForm';
 
 const emptyFormValues: PatientFormValues = {
     fullName: '',
@@ -166,6 +167,17 @@ const hasMeaningfulPatientValues = (values: PatientFormValues): boolean => {
 
 function PatientCreatePage() {
     const navigate = useNavigate();
+    const location = useLocation();
+    const bookingReturn = location.state as {
+        returnToBooking?: boolean;
+        bookingDraft?: AppointmentBookingFormValues;
+    } | null;
+    const returnPath = bookingReturn?.returnToBooking
+        ? '/appointments#book-appointment'
+        : '/patients';
+    const returnState = bookingReturn?.returnToBooking
+        ? { bookingDraft: bookingReturn.bookingDraft }
+        : undefined;
     const { clinicId } = useActiveClinic();
     const { showErrorToast } = useToast();
     const [values, setValues] = useState<PatientFormValues>(emptyFormValues);
@@ -196,7 +208,7 @@ function PatientCreatePage() {
             return;
         }
 
-        navigate('/patients');
+        navigate(returnPath, { state: returnState });
     };
 
     const handleSubmit = async () => {
@@ -214,7 +226,17 @@ function PatientCreatePage() {
         setIsSubmitting(true);
 
         try {
-            await createPatient(clinicId, toCreatePatientRequest(values));
+            const result = await createPatient(clinicId, toCreatePatientRequest(values));
+
+            if (bookingReturn?.returnToBooking) {
+                navigate(returnPath, {
+                    state: {
+                        bookingDraft: bookingReturn.bookingDraft,
+                        patientId: result.patient.id,
+                    },
+                });
+                return;
+            }
 
             navigate('/patients', {
                 state: {
@@ -265,7 +287,7 @@ function PatientCreatePage() {
                     className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
                     onClick={handleCancel}
                 >
-                    Back to patients
+                    {bookingReturn?.returnToBooking ? 'Back to booking' : 'Back to patients'}
                 </button>
             </div>
 
@@ -295,7 +317,7 @@ function PatientCreatePage() {
                 description="The patient record has entered details that have not been saved."
                 confirmLabel="Discard changes"
                 cancelLabel="Continue editing"
-                onConfirm={() => navigate('/patients')}
+                onConfirm={() => navigate(returnPath, { state: returnState })}
                 onCancel={() => setShowDiscardDialog(false)}
             />
         </section>

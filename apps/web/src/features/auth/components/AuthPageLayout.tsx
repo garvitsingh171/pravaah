@@ -20,11 +20,11 @@ const authWorkflowItems = [
 
 function AuthWorkflowPreview() {
     return (
-        <div className="rounded-lg border border-app-border bg-white p-5 shadow-sm">
+        <div className="rounded-app-lg border border-slate-800 bg-[var(--color-pravaah-navy)] p-5 shadow-soft">
             <div className="flex items-center justify-between gap-4">
                 <div>
-                    <p className="text-sm font-bold text-app-text">Clinic workspace</p>
-                    <p className="mt-1 text-xs text-app-subtle">Admin and Staff access</p>
+                    <p className="text-sm font-bold text-white">Clinic workspace</p>
+                    <p className="mt-1 text-xs text-slate-300">Admin and Staff access</p>
                 </div>
                 <Badge tone="brand">Protected</Badge>
             </div>
@@ -35,14 +35,13 @@ function AuthWorkflowPreview() {
                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-brand-subtle text-xs font-bold text-brand-foreground ring-1 ring-brand-soft">
                             {index + 1}
                         </span>
-                        <span className="pt-1 text-sm text-app-muted">{item}</span>
+                        <span className="pt-1 text-sm text-slate-100">{item}</span>
                     </li>
                 ))}
             </ol>
 
-            <p className="mt-5 border-t border-app-border pt-4 text-xs leading-5 text-app-subtle">
-                Doctors and patients are records in this MVP. They do not have authenticated
-                portals.
+            <p className="mt-5 border-t border-white/15 pt-4 text-xs leading-5 text-slate-300">
+                Clinic staff manage doctor and patient records in one workspace.
             </p>
         </div>
     );

@@ -1252,7 +1252,7 @@ function PatientsPage() {
                         tabIndex={0}
                         aria-label="Patients table, horizontally scrollable on small screens"
                     >
-                        <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+                        <table className="operational-table min-w-full divide-y divide-slate-200 text-left text-sm">
                             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                                 <tr>
                                     <th className="px-4 py-3 font-semibold">Patient</th>
@@ -1271,7 +1271,10 @@ function PatientsPage() {
                                     return (
                                         <Fragment key={patient.id}>
                                             <tr className="align-top transition hover:bg-slate-50/70">
-                                                <td className="min-w-48 px-4 py-3.5">
+                                                <td
+                                                    data-label="Patient"
+                                                    className="min-w-48 px-4 py-3.5"
+                                                >
                                                     <div className="flex items-start gap-3">
                                                         <span
                                                             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-brand-subtle text-sm font-bold text-brand-foreground ring-1 ring-brand-soft"
@@ -1289,7 +1292,10 @@ function PatientsPage() {
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="min-w-56 px-4 py-3.5 text-slate-700">
+                                                <td
+                                                    data-label="Contact"
+                                                    className="min-w-56 px-4 py-3.5 text-slate-700"
+                                                >
                                                     <p className="font-medium text-slate-900">
                                                         {patient.phone}
                                                     </p>
@@ -1297,7 +1303,10 @@ function PatientsPage() {
                                                         {getOptionalText(patient.email)}
                                                     </p>
                                                 </td>
-                                                <td className="min-w-40 px-4 py-3.5 text-slate-700">
+                                                <td
+                                                    data-label="Details"
+                                                    className="min-w-40 px-4 py-3.5 text-slate-700"
+                                                >
                                                     <p className="font-medium text-slate-900">
                                                         {getAgeOrDateOfBirthLabel(patient)}
                                                     </p>
@@ -1305,7 +1314,10 @@ function PatientsPage() {
                                                         {getOptionalText(patient.city)}
                                                     </p>
                                                 </td>
-                                                <td className="min-w-60 px-4 py-3.5 text-slate-700">
+                                                <td
+                                                    data-label="Clinic history"
+                                                    className="min-w-60 px-4 py-3.5 text-slate-700"
+                                                >
                                                     <p className="font-medium text-slate-900">
                                                         This clinic: {getVisitSummary(patient)}
                                                     </p>
@@ -1316,7 +1328,10 @@ function PatientsPage() {
                                                             : 'No completed visits yet'}
                                                     </p>
                                                 </td>
-                                                <td className="min-w-36 px-4 py-3.5">
+                                                <td
+                                                    data-label="Status"
+                                                    className="min-w-36 px-4 py-3.5"
+                                                >
                                                     <div className="space-y-2">
                                                         <StatusBadge
                                                             kind="active"
@@ -1333,7 +1348,10 @@ function PatientsPage() {
                                                         ) : null}
                                                     </div>
                                                 </td>
-                                                <td className="min-w-56 px-4 py-3.5">
+                                                <td
+                                                    data-label="Actions"
+                                                    className="min-w-56 px-4 py-3.5"
+                                                >
                                                     <div className="flex flex-wrap gap-2">
                                                         <Button
                                                             variant="outline"
@@ -1388,7 +1406,7 @@ function PatientsPage() {
                                                 </td>
                                             </tr>
                                             {isExpanded ? (
-                                                <tr className="bg-slate-50/70">
+                                                <tr className="operational-detail-row bg-slate-50/70">
                                                     <td colSpan={6} className="px-4 py-4">
                                                         <dl className="grid gap-4 text-sm md:grid-cols-3">
                                                             <div>

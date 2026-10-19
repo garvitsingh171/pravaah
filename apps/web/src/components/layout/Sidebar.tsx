@@ -393,7 +393,7 @@ function MobileWorkspaceNavigation({ navigationItems, clinicName, clinicMeta }: 
 
 function Sidebar({ navigationItems, clinicName, clinicMeta }: SidebarProps) {
     return (
-        <aside className="hidden h-full bg-slate-950 text-white md:flex md:w-64 md:shrink-0 md:flex-col">
+        <aside className="hidden h-full bg-[var(--color-pravaah-navy)] text-white md:flex md:w-64 md:shrink-0 md:flex-col">
             <div className="px-4 py-4 md:px-5 md:py-6">
                 <PravaahLogoLink layout="horizontal" surface="dark" size="md" />
                 <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-brand">

@@ -8,10 +8,15 @@ import {
     Card,
     PageHeader,
     RiskExplanation,
+    RiskBadge,
+    StatusBadge,
     type BadgeTone,
 } from '../../components/ui';
 import { isApiClientError } from '../../lib';
+import { getClinicDateInputValue } from '../../lib/clinicDateTime';
 import { appRoutePaths } from '../../routes/dashboardRoutes';
+import { AppointmentStatus } from '../../types';
+import { listAppointments, type AppointmentListItem } from '../appointments/appointmentApi';
 import {
     getDashboardSummary,
     listHighRiskAppointments,
@@ -26,6 +31,7 @@ type DashboardData = {
     summary: DashboardSummary;
     highRiskAppointments: DashboardHighRiskAppointment[];
     activityItems: DashboardActivityItem[];
+    appointments: AppointmentListItem[] | null;
 };
 
 type DashboardState =
@@ -50,7 +56,7 @@ type DashboardState =
 
 type SummaryCard = {
     label: string;
-    value: number;
+    value: number | string;
     helper: string;
     accentClassName: string;
     toneClassName: string;
@@ -147,7 +153,17 @@ const formatClinicDate = (date: string): string => {
     }).format(parsed);
 };
 
-const buildSummaryCards = (summary: DashboardSummary): SummaryCard[] => {
+const countArrivedWaiting = (appointments: AppointmentListItem[]): number =>
+    appointments.filter(
+        (appointment) =>
+            appointment.status === AppointmentStatus.ARRIVED ||
+            appointment.status === AppointmentStatus.IN_QUEUE
+    ).length;
+
+const buildSummaryCards = (
+    summary: DashboardSummary,
+    appointments: AppointmentListItem[] | null
+): SummaryCard[] => {
     const cancelledNoShowCount =
         summary.appointmentSummary.cancelled + summary.appointmentSummary.noShow;
 
@@ -161,9 +177,11 @@ const buildSummaryCards = (summary: DashboardSummary): SummaryCard[] => {
             icon: 'calendar',
         },
         {
-            label: 'Waiting queue',
-            value: summary.queueSummary.waiting,
-            helper: `${summary.queueSummary.total} queue entries today`,
+            label: 'Patients waiting',
+            value: appointments ? countArrivedWaiting(appointments) : '—',
+            helper: appointments
+                ? `${summary.queueSummary.total} queue entries today`
+                : 'Open queue for the latest status',
             accentClassName: 'border-l-[var(--color-status-warning-text)]',
             toneClassName: 'bg-[var(--color-status-warning-bg)]',
             icon: 'queue',
@@ -197,9 +215,149 @@ const hasUsefulDashboardData = (data: DashboardData): boolean => {
         noShowRiskSummary.medium > 0 ||
         noShowRiskSummary.low > 0 ||
         data.highRiskAppointments.length > 0 ||
-        data.activityItems.length > 0
+        data.activityItems.length > 0 ||
+        (data.appointments?.length ?? 0) > 0
     );
 };
+
+function TodayAppointmentsCard({
+    appointments,
+    timezone,
+}: {
+    appointments: AppointmentListItem[] | null;
+    timezone?: string | null;
+}) {
+    const nextAppointments = [...(appointments ?? [])]
+        .filter(
+            (appointment) =>
+                appointment.status !== AppointmentStatus.CANCELLED &&
+                appointment.status !== AppointmentStatus.NO_SHOW
+        )
+        .sort((first, second) => first.scheduledAt.localeCompare(second.scheduledAt))
+        .slice(0, 5);
+    return (
+        <Card
+            title="Today’s appointments"
+            description="Five visits from today’s clinic schedule."
+            actions={
+                <Link
+                    to={appRoutePaths.appointments}
+                    className="text-sm font-semibold text-action hover:underline"
+                >
+                    View all appointments →
+                </Link>
+            }
+        >
+            {appointments === null ? (
+                <p
+                    role="status"
+                    className="rounded-app bg-app-background px-4 py-5 text-sm text-app-muted"
+                >
+                    Schedule preview could not be loaded. Open appointments to retry.
+                </p>
+            ) : nextAppointments.length === 0 ? (
+                <EmptyState
+                    title="No appointments to show today."
+                    message="Book an appointment to start today’s schedule."
+                />
+            ) : (
+                <ul className="divide-y divide-app-border">
+                    {nextAppointments.map((appointment) => (
+                        <li
+                            key={appointment.id}
+                            className="grid gap-2 py-3 sm:grid-cols-[6rem_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center sm:gap-4"
+                        >
+                            <span className="text-sm font-bold text-app-text">
+                                {formatTime(appointment.scheduledAt, timezone)}
+                            </span>
+                            <span
+                                className="min-w-0 truncate text-sm font-semibold text-app-text"
+                                title={appointment.patient.fullName}
+                            >
+                                {appointment.patient.fullName}
+                            </span>
+                            <span
+                                className="min-w-0 truncate text-sm text-app-muted"
+                                title={appointment.doctor.fullName}
+                            >
+                                {appointment.doctor.fullName}
+                            </span>
+                            <span className="flex flex-wrap items-center gap-2">
+                                <StatusBadge kind="appointment" status={appointment.status} />
+                                {appointment.noShowPrediction?.riskLevel === 'HIGH' ? (
+                                    <RiskBadge riskLevel="HIGH" />
+                                ) : null}
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </Card>
+    );
+}
+
+function LiveQueuePreview({ appointments }: { appointments: AppointmentListItem[] | null }) {
+    const active = (appointments ?? [])
+        .filter(
+            (appointment) =>
+                appointment.queueEntry &&
+                (appointment.status === AppointmentStatus.ARRIVED ||
+                    appointment.status === AppointmentStatus.IN_QUEUE ||
+                    appointment.status === AppointmentStatus.CALLED)
+        )
+        .sort(
+            (first, second) =>
+                first.doctor.fullName.localeCompare(second.doctor.fullName) ||
+                (first.queueEntry?.position ?? 0) - (second.queueEntry?.position ?? 0)
+        )
+        .slice(0, 4);
+    return (
+        <Card
+            title="Live queue preview"
+            description="Patients with an active arrival or call status."
+            actions={
+                <Link
+                    to={appRoutePaths.queue}
+                    className="text-sm font-semibold text-action hover:underline"
+                >
+                    Open live queue →
+                </Link>
+            }
+        >
+            {appointments === null ? (
+                <p
+                    role="status"
+                    className="rounded-app bg-app-background px-4 py-5 text-sm text-app-muted"
+                >
+                    Queue preview could not be loaded. Open the live queue to retry.
+                </p>
+            ) : active.length === 0 ? (
+                <p className="rounded-app bg-app-background px-4 py-5 text-sm text-app-muted">
+                    No arrived patients are in the queue right now.
+                </p>
+            ) : (
+                <ul className="divide-y divide-app-border">
+                    {active.map((appointment) => (
+                        <li key={appointment.id} className="flex flex-wrap items-center gap-3 py-3">
+                            <span className="flex h-8 min-w-8 items-center justify-center rounded-app bg-brand-subtle px-2 text-sm font-bold text-brand-foreground">
+                                #{appointment.queueEntry?.position}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm font-semibold text-app-text">
+                                    {appointment.patient.fullName}
+                                </span>
+                                <span className="block truncate text-xs text-app-muted">
+                                    {appointment.doctor.fullName}
+                                </span>
+                            </span>
+                            <StatusBadge kind="appointment" status={appointment.status} />
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </Card>
+    );
+}
 
 function SummaryCardItem({ card }: { card: SummaryCard }) {
     const iconPath = {
@@ -283,7 +441,7 @@ function DistributionBar({ label, segments }: { label: string; segments: Distrib
 }
 
 function OperationalPulsePanel({ data }: { data: DashboardData }) {
-    const { appointmentSummary, queueSummary, noShowRiskSummary } = data.summary;
+    const { appointmentSummary, queueSummary } = data.summary;
     const activeAppointments =
         appointmentSummary.scheduled +
         appointmentSummary.confirmed +
@@ -292,8 +450,9 @@ function OperationalPulsePanel({ data }: { data: DashboardData }) {
         appointmentSummary.called;
     const finalAppointments =
         appointmentSummary.completed + appointmentSummary.cancelled + appointmentSummary.noShow;
-    const activeQueue = queueSummary.waiting + queueSummary.arrived + queueSummary.called;
-    const needsAttention = activeAppointments > 0 || activeQueue > 0 || noShowRiskSummary.high > 0;
+    const waitingNow = data.appointments ? countArrivedWaiting(data.appointments) : null;
+    const actionableHighRisk = data.highRiskAppointments.length;
+    const needsAttention = (waitingNow ?? 0) > 0 || actionableHighRisk > 0;
     const flowNodes = [
         {
             label: 'Scheduled',
@@ -314,23 +473,29 @@ function OperationalPulsePanel({ data }: { data: DashboardData }) {
     ];
 
     return (
-        <section className="rounded-lg border border-slate-800 bg-slate-950 p-5 text-white shadow-[var(--shadow-soft)] sm:p-6">
+        <section className="rounded-lg border border-slate-800 bg-[var(--color-pravaah-navy)] p-5 text-white shadow-[var(--shadow-soft)] sm:p-6">
             <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
                 <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-brand">
                         Operational pulse
                     </p>
                     <h2 className="mt-2 text-2xl font-bold text-white">
-                        {needsAttention ? 'Staff attention now' : 'Clinic flow is clear'}
+                        {needsAttention
+                            ? 'Staff attention now'
+                            : waitingNow === null
+                              ? 'Review clinic flow'
+                              : 'Clinic flow is clear'}
                     </h2>
                     <p className="mt-3 max-w-md text-sm leading-6 text-slate-200">
-                        {activeQueue > 0
-                            ? `${queueSummary.waiting} waiting and ${queueSummary.called} called. Open the queue to see who is next.`
-                            : noShowRiskSummary.high > 0
-                              ? `${noShowRiskSummary.high} appointment${noShowRiskSummary.high === 1 ? '' : 's'} flagged for staff review.`
-                              : needsAttention
-                                ? 'Scheduled appointments are still in progress today.'
-                                : 'No active appointments or queue entries need attention right now.'}
+                        {waitingNow === null
+                            ? 'The live preview is unavailable. Open the queue to review current arrivals.'
+                            : waitingNow > 0
+                              ? `${waitingNow} arrived and waiting, with ${queueSummary.called} called. Open the queue to see who is next.`
+                              : actionableHighRisk > 0
+                                ? `${actionableHighRisk} appointment${actionableHighRisk === 1 ? '' : 's'} flagged for staff review.`
+                                : activeAppointments > 0
+                                  ? 'Scheduled appointments are still in progress today.'
+                                  : 'No active appointments or queue entries need attention right now.'}
                     </p>
                     <div className="mt-5 flex flex-col gap-3 sm:flex-row">
                         <Link
@@ -594,6 +759,104 @@ function OperationalDistributionCard({ data }: { data: DashboardData }) {
     );
 }
 
+function DashboardActionPanel({ waiting, highRisk }: { waiting: number | null; highRisk: number }) {
+    const actions = [
+        {
+            label: 'Book appointment',
+            description: 'Find a time and create a visit',
+            to: `${appRoutePaths.appointments}#book-appointment`,
+        },
+        {
+            label: 'Open live queue',
+            description:
+                waiting !== null && waiting > 0
+                    ? `${waiting} patient${waiting === 1 ? '' : 's'} waiting`
+                    : 'Review today’s patient flow',
+            to: appRoutePaths.queue,
+        },
+        {
+            label: 'Find patient',
+            description: 'Search the clinic directory',
+            to: appRoutePaths.patients,
+        },
+        {
+            label: 'Add patient',
+            description: 'Create a clinic record',
+            to: appRoutePaths.newPatient,
+        },
+        {
+            label: 'Add doctor',
+            description: 'Set up a provider record',
+            to: appRoutePaths.newDoctor,
+        },
+    ];
+
+    return (
+        <section
+            className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]"
+            aria-label="Next steps"
+        >
+            <Card title="Quick actions" description="Go directly to the next clinic task.">
+                <div className="grid gap-2 sm:grid-cols-2">
+                    {actions.map((action) => (
+                        <Link
+                            key={action.label}
+                            to={action.to}
+                            className="group flex min-h-16 items-center justify-between gap-3 rounded-app border border-app-border bg-app-background px-4 py-3 transition hover:border-brand hover:bg-brand-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+                        >
+                            <span>
+                                <span className="block text-sm font-semibold text-app-text">
+                                    {action.label}
+                                </span>
+                                <span className="mt-0.5 block text-xs text-app-muted">
+                                    {action.description}
+                                </span>
+                            </span>
+                            <span
+                                aria-hidden="true"
+                                className="text-action transition group-hover:translate-x-0.5"
+                            >
+                                →
+                            </span>
+                        </Link>
+                    ))}
+                </div>
+            </Card>
+            <Card title="Needs attention" description="Current work from today’s clinic data.">
+                <div className="space-y-3">
+                    <Link
+                        to={appRoutePaths.queue}
+                        className="flex min-h-12 items-center justify-between gap-3 rounded-app bg-[var(--color-status-warning-bg)] px-4 py-3 text-sm font-medium text-app-text hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-action"
+                    >
+                        <span>
+                            {waiting === null
+                                ? 'Queue preview unavailable; open the live queue'
+                                : waiting > 0
+                                  ? `${waiting} patient${waiting === 1 ? '' : 's'} waiting in the queue`
+                                  : 'No patients waiting in the queue'}
+                        </span>
+                        <span aria-hidden="true">→</span>
+                    </Link>
+                    <Link
+                        to={appRoutePaths.appointments}
+                        className="flex min-h-12 items-center justify-between gap-3 rounded-app bg-[var(--color-status-danger-bg)] px-4 py-3 text-sm font-medium text-app-text hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-action"
+                    >
+                        <span>
+                            {highRisk > 0
+                                ? `${highRisk} high-risk appointment${highRisk === 1 ? '' : 's'} for staff review`
+                                : 'No high-risk appointments to review'}
+                        </span>
+                        <span aria-hidden="true">→</span>
+                    </Link>
+                    <p className="text-xs leading-5 text-app-muted">
+                        Risk flags support staff follow-up. Staff make all scheduling decisions.
+                    </p>
+                </div>
+            </Card>
+        </section>
+    );
+}
+
 function DashboardOverviewPage() {
     const activeClinic = useActiveClinic();
     const { clinicId } = activeClinic;
@@ -601,19 +864,30 @@ function DashboardOverviewPage() {
 
     const loadDashboard = useCallback(
         async (signal?: AbortSignal): Promise<DashboardData> => {
-            const [summaryData, highRiskData, activityData] = await Promise.all([
+            const [summaryData, highRiskData, activityData, appointments] = await Promise.all([
                 getDashboardSummary(clinicId, signal),
                 listHighRiskAppointments(clinicId, signal),
                 listTodayActivity(clinicId, signal),
+                listAppointments(
+                    clinicId,
+                    { date: getClinicDateInputValue(activeClinic.clinic?.timezone) },
+                    signal
+                )
+                    .then((data) => data.appointments)
+                    .catch((error: unknown) => {
+                        if (signal?.aborted) throw error;
+                        return null;
+                    }),
             ]);
 
             return {
                 summary: summaryData.dashboardSummary,
                 highRiskAppointments: highRiskData.highRiskAppointments,
                 activityItems: activityData.activityItems,
+                appointments,
             };
         },
-        [clinicId]
+        [clinicId, activeClinic.clinic?.timezone]
     );
 
     const refreshDashboard = useCallback(() => {
@@ -665,13 +939,17 @@ function DashboardOverviewPage() {
     }, [loadDashboard]);
 
     const dashboardData = dashboardState.data;
-    const summaryCards = dashboardData ? buildSummaryCards(dashboardData.summary) : [];
+    const summaryCards = dashboardData
+        ? buildSummaryCards(dashboardData.summary, dashboardData.appointments)
+        : [];
     const hasDashboardData = dashboardData ? hasUsefulDashboardData(dashboardData) : false;
     const clinicTimezone = activeClinic.clinic?.timezone;
     const clinicName = activeClinic.clinic?.name ?? 'your clinic';
     const firstName = activeClinic.currentUser?.fullName?.trim().split(/\s+/)[0];
-    const waitingCount = dashboardData?.summary.queueSummary.waiting ?? 0;
-    const highRiskCount = dashboardData?.summary.noShowRiskSummary.high ?? 0;
+    const waitingCount = dashboardData?.appointments
+        ? countArrivedWaiting(dashboardData.appointments)
+        : null;
+    const highRiskCount = dashboardData?.highRiskAppointments.length ?? 0;
 
     return (
         <section className="space-y-6">
@@ -707,9 +985,11 @@ function DashboardOverviewPage() {
                         </h2>
                         <p className="mt-1 text-sm text-app-muted">
                             {clinicName} ·{' '}
-                            {waitingCount > 0
-                                ? `${waitingCount} waiting in the queue`
-                                : 'No patients waiting'}
+                            {waitingCount === null
+                                ? 'Queue preview unavailable'
+                                : waitingCount > 0
+                                  ? `${waitingCount} waiting in the queue`
+                                  : 'No patients waiting'}
                             {highRiskCount > 0
                                 ? ` · ${highRiskCount} risk flag${highRiskCount === 1 ? '' : 's'} to review`
                                 : ''}
@@ -743,6 +1023,16 @@ function DashboardOverviewPage() {
                         {summaryCards.map((card) => (
                             <SummaryCardItem key={card.label} card={card} />
                         ))}
+                    </div>
+
+                    <DashboardActionPanel waiting={waitingCount} highRisk={highRiskCount} />
+
+                    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
+                        <TodayAppointmentsCard
+                            appointments={dashboardData.appointments}
+                            timezone={clinicTimezone}
+                        />
+                        <LiveQueuePreview appointments={dashboardData.appointments} />
                     </div>
 
                     <OperationalPulsePanel data={dashboardData} />

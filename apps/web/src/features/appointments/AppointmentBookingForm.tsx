@@ -1,4 +1,4 @@
-import type { FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { FieldError } from '../../components/feedback';
 import { Button, fieldControlClassName } from '../../components/ui';
 import type { DoctorSummary, PatientSummary } from '../../types';
@@ -30,6 +30,7 @@ type AppointmentBookingFormProps = {
     isDisabled: boolean;
     onChange: (field: keyof AppointmentBookingFormValues, value: string) => void;
     onSubmit: () => void;
+    onAddPatient: () => void;
 };
 
 const fieldBaseClass = fieldControlClassName;
@@ -89,7 +90,9 @@ function AppointmentBookingForm({
     isDisabled,
     onChange,
     onSubmit,
+    onAddPatient,
 }: AppointmentBookingFormProps) {
+    const [patientSearch, setPatientSearch] = useState('');
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         onSubmit();
@@ -98,6 +101,13 @@ function AppointmentBookingForm({
     const controlsDisabled = isSubmitting || isDisabled;
     const selectedDoctor = doctors.find((doctor) => doctor.id === values.doctorId);
     const selectedPatient = patients.find((patient) => patient.id === values.patientId);
+    const matchingPatients = patients.filter(
+        (patient) =>
+            getPatientOptionLabel(patient)
+                .toLocaleLowerCase()
+                .includes(patientSearch.trim().toLocaleLowerCase()) ||
+            patient.id === values.patientId
+    );
 
     return (
         <form className="space-y-6" noValidate onSubmit={handleSubmit}>
@@ -138,34 +148,63 @@ function AppointmentBookingForm({
                         ) : null}
                     </label>
 
-                    <label className="block text-sm font-medium text-slate-700">
-                        Patient <RequiredMark />
-                        <select
-                            className={getFieldClassName(Boolean(fieldErrors.patientId))}
-                            value={values.patientId}
-                            onChange={(event) => onChange('patientId', event.target.value)}
-                            disabled={controlsDisabled}
-                            aria-invalid={Boolean(fieldErrors.patientId)}
-                            aria-describedby={getFieldErrorDescriptionId('patientId', fieldErrors)}
-                            required
-                        >
-                            <option value="">Select patient</option>
-                            {patients.map((patient) => (
-                                <option key={patient.id} value={patient.id}>
-                                    {getPatientOptionLabel(patient)}
-                                </option>
-                            ))}
-                        </select>
-                        <FieldError
-                            id={getFieldErrorId('patientId')}
-                            message={fieldErrors.patientId}
-                        />
-                        {selectedPatient ? (
-                            <span className="mt-1 block text-xs text-slate-500">
-                                {getPatientOptionLabel(selectedPatient)}
-                            </span>
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700">
+                            Find patient
+                            <input
+                                className={fieldControlClassName}
+                                type="search"
+                                placeholder="Search by name or phone"
+                                value={patientSearch}
+                                onChange={(event) => setPatientSearch(event.target.value)}
+                                disabled={controlsDisabled}
+                            />
+                        </label>
+                        <label className="mt-3 block text-sm font-medium text-slate-700">
+                            Patient <RequiredMark />
+                            <select
+                                className={getFieldClassName(Boolean(fieldErrors.patientId))}
+                                value={values.patientId}
+                                onChange={(event) => onChange('patientId', event.target.value)}
+                                disabled={controlsDisabled}
+                                aria-invalid={Boolean(fieldErrors.patientId)}
+                                aria-describedby={getFieldErrorDescriptionId(
+                                    'patientId',
+                                    fieldErrors
+                                )}
+                                required
+                            >
+                                <option value="">Select patient</option>
+                                {matchingPatients.map((patient) => (
+                                    <option key={patient.id} value={patient.id}>
+                                        {getPatientOptionLabel(patient)}
+                                    </option>
+                                ))}
+                            </select>
+                            <FieldError
+                                id={getFieldErrorId('patientId')}
+                                message={fieldErrors.patientId}
+                            />
+                            {selectedPatient ? (
+                                <span className="mt-1 block text-xs text-slate-500">
+                                    {getPatientOptionLabel(selectedPatient)}
+                                </span>
+                            ) : null}
+                        </label>
+                        {matchingPatients.length === 0 && patientSearch ? (
+                            <p className="mt-2 text-xs text-app-muted">
+                                No matching patients in this clinic.
+                            </p>
                         ) : null}
-                    </label>
+                        <button
+                            type="button"
+                            className="mt-2 min-h-10 text-sm font-semibold text-action underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-action"
+                            onClick={onAddPatient}
+                            disabled={isSubmitting}
+                        >
+                            Add a new patient
+                        </button>
+                    </div>
                 </div>
             </fieldset>
 

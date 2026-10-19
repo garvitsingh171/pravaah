@@ -148,11 +148,11 @@ export const getNavigationRoutesForRole = (role?: UserRoleType | null): AppRoute
             return false;
         }
 
-        if (!route.allowedRoles || !role) {
+        if (!route.allowedRoles) {
             return true;
         }
 
-        return route.allowedRoles.includes(role);
+        return role !== null && role !== undefined && route.allowedRoles.includes(role);
     });
 };
 

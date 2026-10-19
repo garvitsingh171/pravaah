@@ -485,7 +485,7 @@ function QueueMoveButton({
     return (
         <button
             type="button"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-white text-sm font-bold text-slate-700 shadow-sm ring-1 ring-slate-200 transition duration-[var(--motion-fast)] ease-[var(--motion-ease)] hover:bg-brand-subtle hover:text-brand-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-white text-sm font-bold text-slate-700 shadow-sm ring-1 ring-slate-200 transition duration-[var(--motion-fast)] ease-[var(--motion-ease)] hover:bg-brand-subtle hover:text-brand-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
             aria-label={label}
             title={label}
             disabled={disabled}
@@ -895,6 +895,7 @@ function QueuePage() {
     const [selectedDoctorId, setSelectedDoctorId] = useState('');
     const [selectedStatus, setSelectedStatus] = useState<QueueStatusType | ''>('');
     const [queueListState, setQueueListState] = useState<QueueListState>(emptyQueueListState);
+    const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
     const [updatingQueueEntryId, setUpdatingQueueEntryId] = useState<string | null>(null);
     const [statusUpdateError, setStatusUpdateError] = useState<{
         message: string;
@@ -933,6 +934,7 @@ function QueuePage() {
                     queueEntries,
                     error: null,
                 });
+                setLastRefreshedAt(new Date());
             })
             .catch((error: unknown) => {
                 const errorState = getQueueListErrorState(error, queueListState.queueEntries);
@@ -953,6 +955,7 @@ function QueuePage() {
                     queueEntries,
                     error: null,
                 });
+                setLastRefreshedAt(new Date());
             })
             .catch((error: unknown) => {
                 const errorState = getQueueListErrorState(error);
@@ -1111,6 +1114,7 @@ function QueuePage() {
                 ),
                 error: null,
             });
+            setLastRefreshedAt(new Date());
             setReorderMessage(`Moved ${queueEntry.patient.fullName}.`);
             showSuccessToast('Queue order updated successfully.');
         } catch (error) {
@@ -1175,24 +1179,16 @@ function QueuePage() {
         [queueListState.queueEntries]
     );
     const activeQueueIndexesByDoctor = useMemo(() => {
-        return allActiveQueueEntries.reduce<Map<string, Map<string, number>>>(
-            (indexesByDoctor, queueEntry) => {
-                const doctorId = queueEntry.doctor.id;
-                const doctorQueueEntries = getQueueEntriesForDoctorScope(
-                    allActiveQueueEntries,
-                    doctorId
-                );
-                const doctorIndexes = new Map<string, number>();
-
-                doctorQueueEntries.forEach((doctorQueueEntry, index) => {
-                    doctorIndexes.set(doctorQueueEntry.id, index);
-                });
-                indexesByDoctor.set(doctorId, doctorIndexes);
-
-                return indexesByDoctor;
-            },
-            new Map<string, Map<string, number>>()
-        );
+        const indexesByDoctor = new Map<string, Map<string, number>>();
+        allActiveQueueEntries.forEach((queueEntry) => {
+            let doctorIndexes = indexesByDoctor.get(queueEntry.doctor.id);
+            if (!doctorIndexes) {
+                doctorIndexes = new Map<string, number>();
+                indexesByDoctor.set(queueEntry.doctor.id, doctorIndexes);
+            }
+            doctorIndexes.set(queueEntry.id, doctorIndexes.size);
+        });
+        return indexesByDoctor;
     }, [allActiveQueueEntries]);
     const queueCounts = useMemo(() => {
         return queueListState.queueEntries.reduce<Record<QueueStatusType, number>>(
@@ -1217,14 +1213,21 @@ function QueuePage() {
         <section className="space-y-6">
             <PageHeader
                 actions={
-                    <Button
-                        variant="outline"
-                        onClick={handleRetryQueue}
-                        isLoading={queueListState.status === 'loading'}
-                        loadingText="Refreshing..."
-                    >
-                        Refresh
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <span className="text-xs text-app-muted" role="status">
+                            {lastRefreshedAt
+                                ? `Last updated ${new Intl.DateTimeFormat('en-IN', { timeStyle: 'short', timeZone: clinicTimezone || undefined }).format(lastRefreshedAt)} · Manual refresh`
+                                : 'Manual refresh'}
+                        </span>
+                        <Button
+                            variant="outline"
+                            onClick={handleRetryQueue}
+                            isLoading={queueListState.status === 'loading'}
+                            loadingText="Refreshing..."
+                        >
+                            Refresh
+                        </Button>
+                    </div>
                 }
             />
 
