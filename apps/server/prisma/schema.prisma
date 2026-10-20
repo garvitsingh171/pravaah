@@ -174,6 +174,22 @@ enum AppointmentOutcomeSource {
   CONFLICTING_EVIDENCE
 }
 
+enum PredictionFeedbackUsefulness {
+  USEFUL
+  NOT_USEFUL
+  UNSURE
+}
+
+enum PredictionFeedbackAction {
+  CONTACTED_PATIENT
+  REMINDER_SENT
+  ATTENDANCE_CONFIRMED
+  RESCHEDULED_APPOINTMENT
+  MONITORED_APPOINTMENT
+  NO_ACTION
+  OTHER
+}
+
 enum Weekday {
   MONDAY
   TUESDAY
@@ -253,6 +269,7 @@ model User {
   staffInvitationsSent     StaffInvitation[]     @relation("StaffInvitationInvitedBy")
   staffInvitationsAccepted StaffInvitation[]     @relation("StaffInvitationAcceptedBy")
   lifecycleEvents          LifecycleEvent[]      @relation("LifecycleEventActor")
+  predictionFeedback       PredictionFeedback[]
 
   @@index([clinicId])
   @@index([role])
@@ -568,14 +585,35 @@ model NoShowPrediction {
   createdAt            DateTime                   @default(now())
   updatedAt            DateTime                   @updatedAt
 
-  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Restrict)
-  clinic      Clinic      @relation(fields: [clinicId], references: [id], onDelete: Restrict)
-  patient     Patient     @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  appointment Appointment          @relation(fields: [appointmentId], references: [id], onDelete: Restrict)
+  clinic      Clinic               @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  patient     Patient              @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  feedback    PredictionFeedback[]
 
   @@index([appointmentId, createdAt])
   @@index([clinicId])
   @@index([patientId])
   @@map("no_show_predictions")
+}
+
+model PredictionFeedback {
+  id                     String                       @id @default(uuid()) @db.Uuid
+  predictionId           String                       @db.Uuid
+  staffUserId            String                       @db.Uuid
+  usefulness             PredictionFeedbackUsefulness
+  actionTaken            PredictionFeedbackAction
+  note                   String?
+  recommendationSnapshot Json
+  recommendationVersion  String
+  createdAt              DateTime                     @default(now())
+  updatedAt              DateTime                     @updatedAt
+
+  prediction NoShowPrediction @relation(fields: [predictionId], references: [id], onDelete: Restrict)
+  staffUser  User             @relation(fields: [staffUserId], references: [id], onDelete: Restrict)
+
+  @@unique([predictionId, staffUserId])
+  @@index([staffUserId, createdAt])
+  @@map("prediction_feedback")
 }
 
 // A coalesced, clinic-scoped request to refresh future appointment predictions.
