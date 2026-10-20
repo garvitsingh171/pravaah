@@ -9,6 +9,7 @@ import { isAppointmentStatusTransitionAllowed } from '../appointments/appointmen
 import type { AppointmentTerminalReasonContext } from '../appointments/appointment.terminal-reason.js';
 import { applyPatientAppointmentOutcome } from '../patients/patient.statistics.repository.js';
 import { registerPredictionRefreshWork } from '../predictions/prediction.recalculation.service.js';
+import { synchronizeAppointmentPredictionOutcome } from '../predictions/appointment-outcome.repository.js';
 import { isQueueStatusTransitionAllowed } from './queue.lifecycle.js';
 
 const noShowPredictionQueueSelect = {
@@ -476,6 +477,12 @@ export const queueRepository = {
                     didTransition: didAppointmentTransition,
                     arrivalResult,
                     terminalReason,
+                });
+                await synchronizeAppointmentPredictionOutcome({
+                    tx,
+                    appointmentId,
+                    clinicId,
+                    observedAt: eventTimestamp,
                 });
 
                 return tx.queueEntry.findUniqueOrThrow({

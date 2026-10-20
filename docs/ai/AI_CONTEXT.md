@@ -82,6 +82,7 @@ Current entities:
 7. `Appointment`
 8. `QueueEntry`
 9. `NoShowPrediction`
+10. `AppointmentPredictionOutcome`
 
 Rules:
 
@@ -90,6 +91,9 @@ Rules:
 - Do not replace `User.clinicId` with a membership model unless the task explicitly asks for multi-clinic access.
 - Do not edit applied migrations casually.
 - Use new migrations for schema changes.
+- Keep `NoShowPrediction` runs immutable and associate actual attendance through the single appointment-level `AppointmentPredictionOutcome`.
+- Treat pending, cancelled, and conflicting excluded outcomes as unlabeled; do not infer a binary target from status alone when arrival evidence conflicts.
+- For future ML use, select only versioned prediction snapshots generated before outcome evidence and matching the appointment's current scheduled time.
 - Do not store real patient data in seed files, sample data, screenshots, tests, or docs.
 
 ## Current Backend Rules

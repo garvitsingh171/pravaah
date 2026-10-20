@@ -10,6 +10,7 @@ const mockQueueEntryFindUniqueOrThrow = vi.hoisted(() => vi.fn());
 const mockEstablishAppointmentArrivalIfNeeded = vi.hoisted(() => vi.fn());
 const mockApplyPatientAppointmentOutcome = vi.hoisted(() => vi.fn());
 const mockRecordAppointmentTransitionActivities = vi.hoisted(() => vi.fn());
+const mockSynchronizeAppointmentPredictionOutcome = vi.hoisted(() => vi.fn());
 
 vi.mock('../../../config/prisma.js', () => ({
     prisma: {
@@ -29,6 +30,10 @@ vi.mock('../../appointments/appointment.activity.repository.js', () => ({
     appointmentActivityRepository: {
         recordAppointmentTransitionActivities: mockRecordAppointmentTransitionActivities,
     },
+}));
+
+vi.mock('../../predictions/appointment-outcome.repository.js', () => ({
+    synchronizeAppointmentPredictionOutcome: mockSynchronizeAppointmentPredictionOutcome,
 }));
 
 import { queueRepository } from '../queue.repository.js';
@@ -121,6 +126,14 @@ describe('queueRepository.updateQueueEntryStatus', () => {
             actorUserId: 'actor-id',
             terminalReason: { noShowReason: 'UNKNOWN', noShowNote: null },
         });
+
+        expect(mockSynchronizeAppointmentPredictionOutcome).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tx: transactionClient,
+                appointmentId: 'appointment-id',
+                clinicId: 'clinic-id',
+            })
+        );
 
         expect(mockQueueEntryUpdateMany).toHaveBeenCalledWith(
             expect.objectContaining({

@@ -261,9 +261,10 @@ export const dashboardRepository = {
                 scheduledAt: {
                     gte: dateRange.start,
                     lt: dateRange.end,
+                    gt: new Date(),
                 },
                 status: {
-                    in: activeAppointmentStatuses,
+                    in: [AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED],
                 },
                 noShowPredictions: { none: {} },
             },

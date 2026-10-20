@@ -9,6 +9,7 @@ import { isPresenceEstablishingAppointmentStatus } from './appointment.arrival.j
 import { establishAppointmentArrivalIfNeeded } from './appointment.arrival.repository.js';
 import type { EstablishAppointmentArrivalResult } from './appointment.arrival.repository.js';
 import { registerPredictionRefreshWork } from '../predictions/prediction.recalculation.service.js';
+import { synchronizeAppointmentPredictionOutcome } from '../predictions/appointment-outcome.repository.js';
 import { appointmentActivityRepository } from './appointment.activity.repository.js';
 import {
     withTransientDatabaseRetry,
@@ -766,6 +767,12 @@ export const appointmentRepository = {
                                     noShowNote: statusUpdate.noShowNote ?? null,
                                 } satisfies AppointmentTerminalReasonContext)
                               : null,
+                });
+                await synchronizeAppointmentPredictionOutcome({
+                    tx,
+                    appointmentId,
+                    clinicId: existingAppointment.clinicId,
+                    observedAt: now,
                 });
 
                 const appointment = await tx.appointment.findFirst({

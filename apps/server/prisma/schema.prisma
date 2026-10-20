@@ -157,6 +157,23 @@ enum AppointmentActivityType {
   APPOINTMENT_RESCHEDULED
 }
 
+enum AppointmentActualOutcome {
+  PENDING
+  ATTENDED
+  NO_SHOW
+  CANCELLED
+  EXCLUDED
+}
+
+enum AppointmentOutcomeSource {
+  ARRIVAL_EVIDENCE
+  COMPLETED_STATUS
+  NO_SHOW_STATUS
+  CANCELLATION_STATUS
+  UNRESOLVED
+  CONFLICTING_EVIDENCE
+}
+
 enum Weekday {
   MONDAY
   TUESDAY
@@ -201,16 +218,17 @@ model Clinic {
   createdAt               DateTime           @default(now())
   updatedAt               DateTime           @updatedAt
 
-  users                 User[]
-  doctorClinics         DoctorClinic[]
-  patientClinics        PatientClinic[]
-  appointments          Appointment[]
-  queueEntries          QueueEntry[]
-  noShowPredictions     NoShowPrediction[]
-  predictionRefreshWork PredictionRefreshWork[]
-  appointmentActivities AppointmentActivity[]
-  staffInvitations      StaffInvitation[]
-  lifecycleEvents       LifecycleEvent[]
+  users                         User[]
+  doctorClinics                 DoctorClinic[]
+  patientClinics                PatientClinic[]
+  appointments                  Appointment[]
+  queueEntries                  QueueEntry[]
+  noShowPredictions             NoShowPrediction[]
+  predictionRefreshWork         PredictionRefreshWork[]
+  appointmentActivities         AppointmentActivity[]
+  appointmentPredictionOutcomes AppointmentPredictionOutcome[]
+  staffInvitations              StaffInvitation[]
+  lifecycleEvents               LifecycleEvent[]
 
   @@index([isActive])
   @@index([city])
@@ -452,19 +470,42 @@ model Appointment {
   createdAt               DateTime                       @default(now())
   updatedAt               DateTime                       @updatedAt
 
-  clinic            Clinic                @relation(fields: [clinicId], references: [id], onDelete: Restrict)
-  doctor            Doctor                @relation(fields: [doctorId], references: [id], onDelete: Restrict)
-  patient           Patient               @relation(fields: [patientId], references: [id], onDelete: Restrict)
-  createdBy         User                  @relation("AppointmentCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  clinic            Clinic                        @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  doctor            Doctor                        @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+  patient           Patient                       @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  createdBy         User                          @relation("AppointmentCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
   queueEntry        QueueEntry?
   noShowPredictions NoShowPrediction[]
   activities        AppointmentActivity[]
+  predictionOutcome AppointmentPredictionOutcome?
 
   @@index([clinicId, scheduledAt])
   @@index([clinicId, doctorId, scheduledAt])
   @@index([clinicId, patientId, scheduledAt])
   @@index([clinicId, status])
   @@map("appointments")
+}
+
+// One authoritative appointment-level result; prediction runs remain immutable
+// and join to this record through their existing appointmentId relationship.
+model AppointmentPredictionOutcome {
+  id                String                   @id @default(uuid()) @db.Uuid
+  appointmentId     String                   @unique @db.Uuid
+  clinicId          String                   @db.Uuid
+  actualOutcome     AppointmentActualOutcome @default(PENDING)
+  actualNoShow      Boolean?
+  outcomeSource     AppointmentOutcomeSource @default(UNRESOLVED)
+  outcomeRecordedAt DateTime?
+  evidenceAt        DateTime?
+  exclusionReason   String?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Restrict)
+  clinic      Clinic      @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+
+  @@index([clinicId, actualOutcome, outcomeRecordedAt])
+  @@map("appointment_prediction_outcomes")
 }
 
 model AppointmentActivity {
