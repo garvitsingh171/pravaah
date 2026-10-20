@@ -50,6 +50,7 @@ Status rule: implementation and deployment/release state are separate. Use the [
 - Queue listing, filtering, status updates, and manual reorder controls.
 - Dashboard summary, high-risk appointments, and activity feed.
 - Stored `NoShowPrediction` results with reasons and suggested staff actions.
+- Appointment-level attendance outcomes linked to immutable prediction history for future ML evaluation.
 - Prisma/PostgreSQL schema, migrations, and local demo seed data.
 - Backend, frontend, and API-level automated tests where implemented. Browser-based end-to-end testing is intentionally deferred to a future release.
 

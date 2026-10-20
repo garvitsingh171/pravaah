@@ -7,9 +7,13 @@ import {
 } from '../../../generated/prisma/client.js';
 
 const mockTransactionAppointmentFindFirst = vi.hoisted(() => vi.fn());
+const mockOutcomeCreate = vi.hoisted(() => vi.fn());
 const mockTx = {
     appointment: {
         findFirst: mockTransactionAppointmentFindFirst,
+    },
+    appointmentPredictionOutcome: {
+        create: mockOutcomeCreate,
     },
 };
 

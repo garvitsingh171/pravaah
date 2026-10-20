@@ -18,11 +18,11 @@
 | Validation            | Same as parent workflow                                                                                                                                      |
 | Service               | `prediction.service.ts -> predictNoShowRisk`, `toNoShowPredictionResponse`, `getSuggestedNoShowActions`                                                      |
 | Repository            | `appointment.repository.ts -> createNoShowPrediction`; `dashboard.repository.ts -> createNoShowPredictions`                                                  |
-| Database models       | `NoShowPrediction`, `Appointment`, `Patient`, `PatientClinic`                                                                                                |
+| Database models       | `NoShowPrediction`, `AppointmentPredictionOutcome`, `Appointment`, `Patient`, `PatientClinic`                                                                |
 | Prisma operations     | `noShowPrediction.create`, `noShowPrediction.createMany({ skipDuplicates: true })`, response selects                                                         |
 | Transaction           | Booking prediction is inside appointment transaction. Dashboard backfill is not wrapped in a larger transaction                                              |
 | Concurrency control   | nullable unique baseline `runKey`; dashboard backfill uses `skipDuplicates`                                                                                  |
-| State changes         | append-only `NoShowPrediction` runs; frontend displays only the latest run                                                                                   |
+| State changes         | append-only `NoShowPrediction` runs; one appointment-level outcome is synchronized on booking and lifecycle updates                                          |
 | Errors                | Prediction service does not throw domain errors; parent appointment/dashboard errors apply                                                                   |
 | Tests                 | `prediction.service.test.ts`, appointment/dashboard tests                                                                                                    |
 | Known gaps            | Refresh is deferred through durable work; it is not a request-time guarantee.                                                                                |
@@ -55,6 +55,33 @@ It does not:
 Dashboard backfill passes scheduled/booked/no-show/completed counts, but does not pass late-arrival count or distance.
 
 The rule math, thresholds, reasons, feature sources, and `starter-rule-v1` version stay unchanged. `PatientClinic` now also maintains booking, completion, no-show, and last-completed-visit aggregates, but prediction continues counting completed/no-show `Appointment` rows directly and reading only late arrivals/distance from `PatientClinic`. Stored predictions are not recalculated by attendance updates.
+
+## Appointment Outcome Tracking
+
+Booking creates one `AppointmentPredictionOutcome` in `PENDING`. Appointment
+status updates and queue status updates both synchronize the same outcome
+inside their existing database transaction after arrival and activity writes.
+`ARRIVED`, `IN_QUEUE`, and `CALLED` use `arrivedAt` and activity history as
+attendance evidence; `COMPLETED` is also attendance evidence. Attendance maps
+to `actualNoShow: false`; explicit `NO_SHOW` without attendance maps to `true`.
+Cancellation before attendance and unresolved visits have a null binary label.
+
+If a visit was recorded as arrived and later reaches operational `NO_SHOW`, its
+outcome is `EXCLUDED` with a conflict reason and null label. A cancellation
+after arrival keeps `ATTENDED`. The operational status is not rewritten. Final
+appointment states cannot currently be corrected through existing lifecycle
+APIs, so this feature does not add a correction path.
+
+Prediction rows remain immutable and multiple runs join to the one outcome via
+`appointmentId`. A future evaluator must select runs independently: require a
+feature snapshot and versions, predate both the scheduled visit and first
+trustworthy evidence, and match snapshot `scheduledAt` to the current appointment schedule. This
+excludes late-generated predictions and runs from a previous rescheduled time.
+Legacy predictions without snapshots are retained but not automatically
+eligible. No outcomes are backfilled for old appointments because reliable
+event ordering cannot be reconstructed consistently. Dataset preparation,
+run de-duplication, model training, and performance analysis are future tasks;
+the engine remains rule-based today.
 
 Structured clinic or patient address fields are not prediction inputs. Geoapify
 Routing may improve the source of `PatientClinic.distanceFromClinicKm`, but it

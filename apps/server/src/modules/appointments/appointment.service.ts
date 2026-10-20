@@ -547,6 +547,12 @@ export const appointmentService = {
                     appointment.patientId,
                     noShowPrediction
                 );
+                await tx.appointmentPredictionOutcome.create({
+                    data: {
+                        appointmentId: appointment.id,
+                        clinicId: appointment.clinicId,
+                    },
+                });
                 await incrementPatientTotalAppointments({
                     tx,
                     clinicId,

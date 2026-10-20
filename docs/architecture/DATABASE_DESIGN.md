@@ -31,36 +31,39 @@ The generated Prisma client lives in `apps/server/src/generated/prisma` and is i
 
 ## Enums
 
-| Enum                      | Values                                                                                                                                                                                                   |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `UserRole`                | `ADMIN`, `STAFF`                                                                                                                                                                                         |
-| `UserStatus`              | `INVITED`, `ACTIVE`, `SUSPENDED`, `REMOVED`                                                                                                                                                              |
-| `StaffInvitationStatus`   | `PENDING`, `ACCEPTED`, `REVOKED`; expiry is derived from `PENDING` plus `expiresAt`                                                                                                                      |
-| `Gender`                  | `MALE`, `FEMALE`, `OTHER`, `PREFER_NOT_TO_SAY`                                                                                                                                                           |
-| `AppointmentStatus`       | `SCHEDULED`, `CONFIRMED`, `ARRIVED`, `IN_QUEUE`, `CALLED`, `COMPLETED`, `CANCELLED`, `NO_SHOW`                                                                                                           |
-| `AppointmentActivityType` | `APPOINTMENT_CREATED`, `APPOINTMENT_CONFIRMED`, `PATIENT_ARRIVED`, `ENTERED_QUEUE`, `PATIENT_CALLED`, `APPOINTMENT_COMPLETED`, `APPOINTMENT_CANCELLED`, `APPOINTMENT_NO_SHOW`, `APPOINTMENT_RESCHEDULED` |
-| `QueueStatus`             | `WAITING`, `ARRIVED`, `CALLED`, `COMPLETED`, `CANCELLED`, `NO_SHOW`                                                                                                                                      |
-| `RiskLevel`               | `LOW`, `MEDIUM`, `HIGH`                                                                                                                                                                                  |
-| `BookingSource`           | `RECEPTION`, `PHONE`, `WEB`, `WALK_IN`                                                                                                                                                                   |
-| `Weekday`                 | `MONDAY`, `TUESDAY`, `WEDNESDAY`, `THURSDAY`, `FRIDAY`, `SATURDAY`, `SUNDAY`                                                                                                                             |
+| Enum                       | Values                                                                                                                                                                                                   |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `UserRole`                 | `ADMIN`, `STAFF`                                                                                                                                                                                         |
+| `UserStatus`               | `INVITED`, `ACTIVE`, `SUSPENDED`, `REMOVED`                                                                                                                                                              |
+| `StaffInvitationStatus`    | `PENDING`, `ACCEPTED`, `REVOKED`; expiry is derived from `PENDING` plus `expiresAt`                                                                                                                      |
+| `Gender`                   | `MALE`, `FEMALE`, `OTHER`, `PREFER_NOT_TO_SAY`                                                                                                                                                           |
+| `AppointmentStatus`        | `SCHEDULED`, `CONFIRMED`, `ARRIVED`, `IN_QUEUE`, `CALLED`, `COMPLETED`, `CANCELLED`, `NO_SHOW`                                                                                                           |
+| `AppointmentActivityType`  | `APPOINTMENT_CREATED`, `APPOINTMENT_CONFIRMED`, `PATIENT_ARRIVED`, `ENTERED_QUEUE`, `PATIENT_CALLED`, `APPOINTMENT_COMPLETED`, `APPOINTMENT_CANCELLED`, `APPOINTMENT_NO_SHOW`, `APPOINTMENT_RESCHEDULED` |
+| `AppointmentActualOutcome` | `PENDING`, `ATTENDED`, `NO_SHOW`, `CANCELLED`, `EXCLUDED`                                                                                                                                                |
+| `AppointmentOutcomeSource` | `ARRIVAL_EVIDENCE`, `COMPLETED_STATUS`, `NO_SHOW_STATUS`, `CANCELLATION_STATUS`, `UNRESOLVED`, `CONFLICTING_EVIDENCE`                                                                                    |
+| `QueueStatus`              | `WAITING`, `ARRIVED`, `CALLED`, `COMPLETED`, `CANCELLED`, `NO_SHOW`                                                                                                                                      |
+| `RiskLevel`                | `LOW`, `MEDIUM`, `HIGH`                                                                                                                                                                                  |
+| `BookingSource`            | `RECEPTION`, `PHONE`, `WEB`, `WALK_IN`                                                                                                                                                                   |
+| `Weekday`                  | `MONDAY`, `TUESDAY`, `WEDNESDAY`, `THURSDAY`, `FRIDAY`, `SATURDAY`, `SUNDAY`                                                                                                                             |
 
 ## Models Overview
 
-| Model                      | Table                         | Purpose                                                       |
-| -------------------------- | ----------------------------- | ------------------------------------------------------------- |
-| `Clinic`                   | `clinics`                     | Operational clinic boundary and settings.                     |
-| `User`                     | `users`                       | Internal app user mapped to Clerk identity.                   |
-| `StaffInvitation`          | `staff_invitations`           | Durable Admin authorization for a person to join one clinic.  |
-| `LifecycleEvent`           | `lifecycle_events`            | Durable clinic-scoped actor and lifecycle history.            |
-| `Doctor`                   | `doctors`                     | Doctor record; does not log in.                               |
-| `DoctorClinic`             | `doctor_clinics`              | Join table linking doctors to clinics.                        |
-| `DoctorAvailabilityPeriod` | `doctor_availability_periods` | Clinic-specific recurring weekly doctor working periods.      |
-| `Patient`                  | `patients`                    | Patient record; does not log in.                              |
-| `PatientClinic`            | `patient_clinics`             | Join table with clinic-specific patient history.              |
-| `Appointment`              | `appointments`                | Scheduled visit for clinic, doctor, patient, and creator.     |
-| `AppointmentActivity`      | `appointment_activities`      | Append-only committed operational history for an appointment. |
-| `QueueEntry`               | `queue_entries`               | Daily queue position/status for an appointment.               |
-| `NoShowPrediction`         | `no_show_predictions`         | Stored rule-based no-show risk result for an appointment.     |
+| Model                          | Table                             | Purpose                                                                   |
+| ------------------------------ | --------------------------------- | ------------------------------------------------------------------------- |
+| `Clinic`                       | `clinics`                         | Operational clinic boundary and settings.                                 |
+| `User`                         | `users`                           | Internal app user mapped to Clerk identity.                               |
+| `StaffInvitation`              | `staff_invitations`               | Durable Admin authorization for a person to join one clinic.              |
+| `LifecycleEvent`               | `lifecycle_events`                | Durable clinic-scoped actor and lifecycle history.                        |
+| `Doctor`                       | `doctors`                         | Doctor record; does not log in.                                           |
+| `DoctorClinic`                 | `doctor_clinics`                  | Join table linking doctors to clinics.                                    |
+| `DoctorAvailabilityPeriod`     | `doctor_availability_periods`     | Clinic-specific recurring weekly doctor working periods.                  |
+| `Patient`                      | `patients`                        | Patient record; does not log in.                                          |
+| `PatientClinic`                | `patient_clinics`                 | Join table with clinic-specific patient history.                          |
+| `Appointment`                  | `appointments`                    | Scheduled visit for clinic, doctor, patient, and creator.                 |
+| `AppointmentActivity`          | `appointment_activities`          | Append-only committed operational history for an appointment.             |
+| `QueueEntry`                   | `queue_entries`                   | Daily queue position/status for an appointment.                           |
+| `NoShowPrediction`             | `no_show_predictions`             | Stored rule-based no-show risk result for an appointment.                 |
+| `AppointmentPredictionOutcome` | `appointment_prediction_outcomes` | One authoritative attendance result for an appointment's prediction runs. |
 
 ## Important Fields And Constraints
 
@@ -406,6 +409,37 @@ Important fields:
 - `score`
 - `reasons` JSON
 
+### AppointmentPredictionOutcome
+
+There is one outcome row per appointment, created as `PENDING` with the booking.
+Every historical prediction run remains a separate immutable `NoShowPrediction`
+row, and all runs join to the one outcome through their existing
+`appointmentId`. This prevents lifecycle updates from rewriting scores,
+reasons, rule versions, or prediction-time feature snapshots.
+
+- `actualOutcome`: `PENDING`, `ATTENDED`, `NO_SHOW`, `CANCELLED`, or `EXCLUDED`
+- `actualNoShow`: `false` for attended, `true` for explicit no-show, `NULL` for all other states
+- `outcomeSource`, `outcomeRecordedAt`, and `evidenceAt`: provenance and temporal boundary
+- `exclusionReason`: populated for contradictory evidence; the database check keeps excluded records unlabeled
+- unique `appointmentId` and clinic/outcome/time index for scoped future dataset selection
+
+`ARRIVED`, `IN_QUEUE`, `CALLED`, and `COMPLETED` lifecycle evidence establish
+attendance; stored `arrivedAt` and attendance activities provide historical
+evidence. `CANCELLED` before attendance stays unlabeled. A cancellation after
+arrival preserves `ATTENDED`. `NO_SHOW` with arrival evidence is retained as
+`EXCLUDED`, with no binary label, while operational appointment status remains
+unchanged. Scheduled and confirmed appointments stay `PENDING`.
+
+For a future training example, each prediction must be considered separately:
+it needs a non-null snapshot and schema/rule versions, its `createdAt` must be
+strictly earlier than both the scheduled visit and the evidence timestamp, and the snapshot's `scheduledAt`
+must match the appointment's current scheduled time. This excludes post-outcome
+runs, ambiguous timestamp ordering, legacy runs without snapshots, and runs
+for an earlier rescheduled time. Dataset filtering, duplicate-run policy,
+training, and evaluation remain future work. Existing appointments are not
+backfilled because historical statuses alone do not establish trustworthy
+event timing.
+
 ### PredictionRefreshWork
 
 `prediction_refresh_work` is durable coordination state, not prediction history.
@@ -449,6 +483,7 @@ Patient 1 -> many Appointment
 User 1 -> many Appointment as createdBy
 Appointment 1 -> 0/1 QueueEntry
 Appointment 1 -> many NoShowPrediction runs (latest used operationally)
+Appointment 1 -> 0..1 AppointmentPredictionOutcome (one authoritative result)
 Clinic 1 -> many QueueEntry
 Clinic 1 -> many NoShowPrediction
 Patient 1 -> many NoShowPrediction

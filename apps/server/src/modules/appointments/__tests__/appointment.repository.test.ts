@@ -8,6 +8,7 @@ const mockQueueEntryUpdateMany = vi.hoisted(() => vi.fn());
 const mockEstablishAppointmentArrivalIfNeeded = vi.hoisted(() => vi.fn());
 const mockApplyPatientAppointmentOutcome = vi.hoisted(() => vi.fn());
 const mockRecordAppointmentTransitionActivities = vi.hoisted(() => vi.fn());
+const mockSynchronizeAppointmentPredictionOutcome = vi.hoisted(() => vi.fn());
 
 vi.mock('../../../config/prisma.js', () => ({
     prisma: {
@@ -27,6 +28,10 @@ vi.mock('../appointment.activity.repository.js', () => ({
     appointmentActivityRepository: {
         recordAppointmentTransitionActivities: mockRecordAppointmentTransitionActivities,
     },
+}));
+
+vi.mock('../../predictions/appointment-outcome.repository.js', () => ({
+    synchronizeAppointmentPredictionOutcome: mockSynchronizeAppointmentPredictionOutcome,
 }));
 
 import { appointmentRepository } from '../appointment.repository.js';
@@ -113,6 +118,14 @@ describe('appointmentRepository.updateAppointmentStatus', () => {
             'clinic-id',
             'actor-id',
             { status: AppointmentStatus.IN_QUEUE }
+        );
+
+        expect(mockSynchronizeAppointmentPredictionOutcome).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tx: transactionClient,
+                appointmentId: 'appointment-id',
+                clinicId: 'clinic-id',
+            })
         );
 
         expect(mockAppointmentUpdateMany).toHaveBeenCalledWith(
