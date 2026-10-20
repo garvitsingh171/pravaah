@@ -43,6 +43,10 @@ export function deriveAppointmentOutcome({
         [arrivedAt, activityEvidence]
             .filter((value): value is Date => value !== null && value !== undefined)
             .sort((left, right) => left.getTime() - right.getTime())[0] ?? null;
+    const noShowActivityAt = activities
+        .filter((activity) => activity.type === AppointmentActivityType.APPOINTMENT_NO_SHOW)
+        .map((activity) => activity.occurredAt)
+        .sort((left, right) => left.getTime() - right.getTime())[0];
 
     if (status === AppointmentStatus.NO_SHOW) {
         return evidenceAt
@@ -57,7 +61,7 @@ export function deriveAppointmentOutcome({
                   actualOutcome: AppointmentActualOutcome.NO_SHOW,
                   actualNoShow: true,
                   outcomeSource: AppointmentOutcomeSource.NO_SHOW_STATUS,
-                  evidenceAt: observedAt,
+                  evidenceAt: noShowActivityAt ?? observedAt,
                   exclusionReason: null,
               };
     }

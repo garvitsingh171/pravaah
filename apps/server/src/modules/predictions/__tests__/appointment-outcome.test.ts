@@ -54,6 +54,33 @@ describe('deriveAppointmentOutcome', () => {
         });
     });
 
+    it('keeps the original no-show activity timestamp on a later retry', () => {
+        const noShowAt = new Date('2026-10-20T09:40:00.000Z');
+        const retriedAt = new Date('2026-10-20T10:30:00.000Z');
+        const outcome = deriveAppointmentOutcome({
+            status: AppointmentStatus.NO_SHOW,
+            arrivedAt: null,
+            activities: [
+                { type: AppointmentActivityType.APPOINTMENT_NO_SHOW, occurredAt: noShowAt },
+            ],
+            observedAt: retriedAt,
+        });
+
+        expect(outcome.evidenceAt).toEqual(noShowAt);
+        expect(
+            isPredictionEligibleForOutcome({
+                prediction: {
+                    createdAt: new Date('2026-10-20T09:50:00.000Z'),
+                    featureSchemaVersion: 'no-show-v1',
+                    featureSnapshot: { scheduledAt: '2026-10-20T10:00:00.000Z' },
+                    ruleVersion: 'starter-rule-v1',
+                },
+                outcome,
+                currentScheduledAt: new Date('2026-10-20T10:00:00.000Z'),
+            })
+        ).toBe(false);
+    });
+
     it('keeps cancellation before attendance unlabeled', () => {
         expect(
             deriveAppointmentOutcome({

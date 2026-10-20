@@ -45,16 +45,31 @@ export async function synchronizeAppointmentPredictionOutcome({
     if (current && current.clinicId !== clinicId) {
         throw new Error('APPOINTMENT_OUTCOME_CLINIC_MISMATCH');
     }
-    const outcomeRecordedAt =
-        outcome.actualOutcome === 'PENDING' ? null : (current?.outcomeRecordedAt ?? observedAt);
-    const same =
-        current?.clinicId === clinicId &&
-        current.actualOutcome === outcome.actualOutcome &&
+    const isSameNoShowOutcome =
+        outcome.actualOutcome === 'NO_SHOW' &&
+        current?.actualOutcome === outcome.actualOutcome &&
         current.actualNoShow === outcome.actualNoShow &&
         current.outcomeSource === outcome.outcomeSource &&
-        current.outcomeRecordedAt?.getTime() === outcomeRecordedAt?.getTime() &&
-        current.evidenceAt?.getTime() === outcome.evidenceAt?.getTime() &&
         current.exclusionReason === outcome.exclusionReason;
+    const stableOutcome = {
+        ...outcome,
+        evidenceAt:
+            isSameNoShowOutcome && current.evidenceAt !== null
+                ? current.evidenceAt
+                : outcome.evidenceAt,
+    };
+    const outcomeRecordedAt =
+        stableOutcome.actualOutcome === 'PENDING'
+            ? null
+            : (current?.outcomeRecordedAt ?? observedAt);
+    const same =
+        current?.clinicId === clinicId &&
+        current.actualOutcome === stableOutcome.actualOutcome &&
+        current.actualNoShow === stableOutcome.actualNoShow &&
+        current.outcomeSource === stableOutcome.outcomeSource &&
+        current.outcomeRecordedAt?.getTime() === outcomeRecordedAt?.getTime() &&
+        current.evidenceAt?.getTime() === stableOutcome.evidenceAt?.getTime() &&
+        current.exclusionReason === stableOutcome.exclusionReason;
 
     if (same) return;
 
@@ -63,12 +78,12 @@ export async function synchronizeAppointmentPredictionOutcome({
         create: {
             appointmentId,
             clinicId,
-            ...outcome,
+            ...stableOutcome,
             outcomeRecordedAt,
         },
         update: {
             clinicId,
-            ...outcome,
+            ...stableOutcome,
             outcomeRecordedAt,
         },
     });
