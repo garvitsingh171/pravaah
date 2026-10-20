@@ -86,8 +86,24 @@ describe('staffRepository transaction ownership', () => {
         });
 
         expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
-        expect(mockTx.$queryRaw).toHaveBeenCalledTimes(4);
-        expect(mockTx.$executeRaw).not.toHaveBeenCalled();
+        expect(mockTx.$executeRaw).toHaveBeenCalledTimes(3);
+        expect(mockTx.$queryRaw).toHaveBeenCalledTimes(1);
+        const lockCalls = mockTx.$executeRaw.mock.calls.map(([query, ...values]) => ({
+            query: (query as TemplateStringsArray).join('?'),
+            values,
+        }));
+        expect(lockCalls[0]).toMatchObject({
+            query: expect.stringContaining("concat('staff-invite-admin:', ?::text)"),
+            values: ['admin-id'],
+        });
+        expect(lockCalls[1]).toMatchObject({
+            query: expect.stringContaining("concat('staff-membership:', ?::text)"),
+            values: ['staff@example.com'],
+        });
+        expect(lockCalls[2]).toMatchObject({
+            query: expect.stringContaining("concat('staff-invite:', ?::text, ':', ?::text)"),
+            values: ['clinic-id', 'staff@example.com'],
+        });
         expect(mockTx.staffInvitation.findFirst).toHaveBeenCalledWith({
             where: {
                 clinicId: 'clinic-id',

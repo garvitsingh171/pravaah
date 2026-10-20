@@ -35,7 +35,7 @@ const invitationInclude = {
 } satisfies Prisma.StaffInvitationInclude;
 
 const acquireEmailMembershipLock = (tx: Prisma.TransactionClient, email: string) => {
-    return tx.$queryRaw`
+    return tx.$executeRaw`
         SELECT pg_advisory_xact_lock(
             hashtextextended(concat('staff-membership:', ${email}::text), 0)
         )
@@ -47,7 +47,7 @@ const acquireClinicInvitationLock = (
     clinicId: string,
     email: string
 ) => {
-    return tx.$queryRaw`
+    return tx.$executeRaw`
         SELECT pg_advisory_xact_lock(
             hashtextextended(
                 concat('staff-invite:', ${clinicId}::text, ':', ${email}::text),
@@ -58,7 +58,7 @@ const acquireClinicInvitationLock = (
 };
 
 const acquireAdminInvitationLock = (tx: Prisma.TransactionClient, adminUserId: string) =>
-    tx.$queryRaw`
+    tx.$executeRaw`
         SELECT pg_advisory_xact_lock(
             hashtextextended(concat('staff-invite-admin:', ${adminUserId}::text), 0)
         )

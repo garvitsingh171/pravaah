@@ -29,7 +29,7 @@ ACTIVE Admin
 
 The server submits the invitation through Resend. `tokenHash` and the raw link are never returned to Admin APIs; the raw link exists only while rendering the email. Submission is tracked separately as `NOT_SENT`, `SUBMITTED`, or `FAILED`. `SUBMITTED` means Resend accepted the request, not that the email reached the inbox. Failed or unavailable submission leaves the invitation visible and can be retried by rotating its token and submitting a new email. A database attempt ID claims the invitation for up to two minutes; overlapping resends are rejected, and late results from superseded attempts cannot overwrite the current email state. Stale claims become retryable after the provider request timeout window.
 
-The lock queries use Prisma `$queryRaw`, because PostgreSQL advisory-lock calls are `SELECT`s that return rows. Using `$executeRaw` for those calls caused the existing Create Invitation request to fail before duplicate detection or insertion.
+The advisory-lock queries must use Prisma `$executeRaw`. PostgreSQL's `pg_advisory_xact_lock(...)` returns `void`; `$queryRaw` makes Prisma's Neon adapter deserialize that `void` result and fails with `P2010` / `UnsupportedNativeDataType` before invitation creation. Keep the lock names and acquisition order unchanged, and execute them inside the same transaction as the invitation write.
 
 The invitation transaction also needs a `now` value for rate limits and expiry checks. That value is operational input and is not a `StaffInvitation` column, so the repository explicitly builds the Prisma `create.data` object from model fields only. Keep this mapping explicit when adding transaction inputs; do not pass the transaction input object directly into Prisma.
 
