@@ -11,21 +11,31 @@
 | Entry route           | `/appointments`, `/queue`, `/dashboard`                                                                                                                      |
 | Frontend files        | `AppointmentsPage.tsx`, `queueApi.ts`, `QueuePage.tsx`, `dashboardApi.ts`, `DashboardOverviewPage.tsx`, `components/ui/RiskBadge.tsx`, `RiskExplanation.tsx` |
 | Main frontend symbols | `RiskBadge`, `PredictionDetailPanel`, `AppointmentDetailPanel`, queue `noShowPrediction`, dashboard `HighRiskAppointmentsCard`                               |
-| API endpoint          | No standalone prediction route. Risk appears in appointment, queue, and dashboard responses                                                                  |
+| API endpoint          | Risk appears in appointment/queue responses; feedback uses `GET/PUT /api/predictions/:predictionId/feedback`                                                  |
 | Middleware            | Prediction generation happens inside appointment/dashboard workflows                                                                                         |
 | Authentication        | Same as parent workflow                                                                                                                                      |
 | Authorization         | Same as parent workflow                                                                                                                                      |
 | Validation            | Same as parent workflow                                                                                                                                      |
 | Service               | `prediction.service.ts -> predictNoShowRisk`, `toNoShowPredictionResponse`, `getSuggestedNoShowActions`                                                      |
 | Repository            | `appointment.repository.ts -> createNoShowPrediction`; `dashboard.repository.ts -> createNoShowPredictions`                                                  |
-| Database models       | `NoShowPrediction`, `AppointmentPredictionOutcome`, `Appointment`, `Patient`, `PatientClinic`                                                                |
+| Database models       | `NoShowPrediction`, `PredictionFeedback`, `AppointmentPredictionOutcome`, `Appointment`, `Patient`, `PatientClinic`                                            |
 | Prisma operations     | `noShowPrediction.create`, `noShowPrediction.createMany({ skipDuplicates: true })`, response selects                                                         |
 | Transaction           | Booking prediction is inside appointment transaction. Dashboard backfill is not wrapped in a larger transaction                                              |
 | Concurrency control   | nullable unique baseline `runKey`; dashboard backfill uses `skipDuplicates`                                                                                  |
-| State changes         | append-only `NoShowPrediction` runs; one appointment-level outcome is synchronized on booking and lifecycle updates                                          |
+| State changes         | append-only `NoShowPrediction` runs; user-owned feedback upserts per run; one appointment-level outcome is synchronized on booking and lifecycle updates     |
 | Errors                | Prediction service does not throw domain errors; parent appointment/dashboard errors apply                                                                   |
 | Tests                 | `prediction.service.test.ts`, appointment/dashboard tests                                                                                                    |
 | Known gaps            | Refresh is deferred through durable work; it is not a request-time guarantee.                                                                                |
+
+## Staff Feedback (Issue #281)
+
+Admin and Staff can open the feedback disclosure from appointment risk details or queue risk explanation. They can record `USEFUL`, `NOT_USEFUL`, or `UNSURE`, choose a staff-reported action, and optionally add a note up to 500 characters. `GET /api/predictions/:predictionId/feedback` returns only the authenticated user's entry (or `null`); `PUT` creates or updates that user's entry. The API derives clinic ownership from the referenced prediction and rejects cross-clinic access.
+
+The feedback row remains tied to the prediction run originally evaluated. It does not change appointment status, queue state, attendance outcome, or risk score. Staff action categories are reports, not verified events. Feedback remains subjective and optional; no feedback is distinct from `UNSURE`. A server-generated recommendation snapshot/version is saved when feedback is first created and preserved on updates. It captures the recommendation set reconstructed for that run at submission, not a verified record of the exact content shown in a previous UI release. Future analytics may compare feedback with verified outcomes, but causal effects and analytics are not implemented.
+
+```text
+Staff reviews a run -> records usefulness and reported action -> backend verifies user and clinic -> feedback is upserted for (prediction run, staff user)
+```
 
 ## Important Language
 

@@ -1,6 +1,7 @@
 import type { PredictionGenerationSource, RiskLevel } from '../../types';
 import Badge from './Badge';
 import RiskBadge from './RiskBadge';
+import PredictionFeedbackForm from '../../features/predictions/PredictionFeedbackForm';
 
 export type RiskReasonLike = {
     code?: unknown;
@@ -9,6 +10,7 @@ export type RiskReasonLike = {
 };
 
 export type RiskPredictionLike = {
+    id?: string;
     riskLevel: RiskLevel;
     score?: number;
     riskScore?: number;
@@ -186,6 +188,7 @@ function RiskExplanation({ prediction, subjectName, compact = false }: RiskExpla
                 <p className="rounded-md border border-brand-soft bg-brand-subtle p-3 text-xs font-medium leading-5 text-app-text">
                     {humanDecisionNotice}
                 </p>
+                <PredictionFeedbackForm key={prediction.id ?? 'missing-prediction-id'} predictionId={prediction.id} />
             </div>
         </details>
     );

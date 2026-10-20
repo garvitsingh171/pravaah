@@ -71,6 +71,8 @@ Patients and doctors are records only.
 
 ## Current Database Rules
 
+Prediction feedback is separate from outcomes: never infer usefulness from scores or attendance, and never treat reported actions as verified operational events. Keep feedback attached to its exact immutable prediction run; do not use it to retrain or automatically adjust rules in the current release.
+
 Current entities:
 
 1. `User`

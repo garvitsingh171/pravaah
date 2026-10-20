@@ -64,6 +64,13 @@ The generated Prisma client lives in `apps/server/src/generated/prisma` and is i
 | `QueueEntry`                   | `queue_entries`                   | Daily queue position/status for an appointment.                           |
 | `NoShowPrediction`             | `no_show_predictions`             | Stored rule-based no-show risk result for an appointment.                 |
 | `AppointmentPredictionOutcome` | `appointment_prediction_outcomes` | One authoritative attendance result for an appointment's prediction runs. |
+| `PredictionFeedback` | `prediction_feedback` | One staff member's usefulness and action report for one immutable prediction run. |
+
+## Prediction Feedback
+
+`PredictionFeedback` references the exact `NoShowPrediction` run and authenticated `User`. The unique constraint on `(predictionId, staffUserId)` permits one editable feedback record per user and run. Both foreign keys use `Restrict`, preserving history. The clinic is derived from the prediction and is not duplicated on the feedback row.
+
+Feedback stores usefulness (`USEFUL`, `NOT_USEFUL`, `UNSURE`), an action category, an optional 500-character note, and server-generated `recommendationSnapshot` plus `recommendationVersion`. The recommendation snapshot is generated from the stored run at first submission and retained on edits. It is a reproducible context snapshot, not proof that the staff member read each line. `createdAt` is retained through updates; `updatedAt` changes only when submitted values differ. This data is separate from appointment outcome labels and does not alter operations or train the prediction engine.
 
 ## Important Fields And Constraints
 

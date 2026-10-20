@@ -25,6 +25,7 @@ import AppointmentBookingForm, {
     type AppointmentBookingFormValues,
 } from './AppointmentBookingForm';
 import AppointmentActivityDialog from './AppointmentActivityDialog';
+import PredictionFeedbackForm from '../predictions/PredictionFeedbackForm';
 import TerminalAppointmentReasonDialog, {
     type TerminalAppointmentReasonSubmission,
 } from './TerminalAppointmentReasonDialog';
@@ -931,6 +932,7 @@ function PredictionDetailPanel({
                     </ul>
                 </div>
             </div>
+            <PredictionFeedbackForm key={prediction.id ?? 'missing-prediction-id'} predictionId={prediction.id} />
         </div>
     );
 }
