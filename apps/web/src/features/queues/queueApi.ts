@@ -20,11 +20,12 @@ export type QueueNoShowPrediction = {
     suggestedActions?: string[];
     ruleVersion?: string | null;
     featureSchemaVersion?: string | null;
-    generationSource?: PredictionGenerationSource;
+    generationSource?: PredictionGenerationSource | null;
     modelVersion?: string | null;
     generatedAt?: string;
     createdAt?: string;
     updatedAt?: string;
+    predictionContext?: { distanceFromClinicKm: number | null };
 };
 
 export type QueueAppointmentSummary = {

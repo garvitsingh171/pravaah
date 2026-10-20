@@ -11,7 +11,14 @@ import type {
     Weekday,
 } from './enums';
 
-export type PredictionGenerationSource = 'APPOINTMENT_CREATION' | 'BACKFILL' | 'LEGACY_EXISTING';
+export type PredictionGenerationSource =
+    | 'APPOINTMENT_CREATION'
+    | 'APPOINTMENT_RESCHEDULED'
+    | 'PATIENT_HISTORY_CHANGED'
+    | 'TRAVEL_DISTANCE_CHANGED'
+    | 'BACKFILL'
+    | 'LEGACY_EXISTING'
+    | (string & {});
 
 export type BaseEntity = {
     id: string;
@@ -181,7 +188,8 @@ export type NoShowPredictionSummary = BaseEntity & {
     reasons: string[];
     ruleVersion?: string | null;
     featureSchemaVersion?: string | null;
-    generationSource?: PredictionGenerationSource;
+    generationSource?: PredictionGenerationSource | null;
     modelVersion?: string | null;
     generatedAt?: string;
+    predictionContext?: { distanceFromClinicKm: number | null };
 };

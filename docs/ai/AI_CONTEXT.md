@@ -73,6 +73,8 @@ Patients and doctors are records only.
 
 Prediction feedback is separate from outcomes: never infer usefulness from scores or attendance, and never treat reported actions as verified operational events. Keep feedback attached to its exact immutable prediction run; do not use it to retrain or automatically adjust rules in the current release.
 
+Risk explanation UI must use the shared `RiskExplanation` component and the selected prediction response as one coherent run. Treat the stored risk level, score, reasons, impacts, generation timestamp, rule version, provenance, distance context, and suggested actions as authoritative. Do not derive scores or risk levels in React, fill in missing historical metadata, substitute current patient distance for snapshot distance, or interpret a score as a calibrated probability. Factor impacts are individual rule contributions and may not sum to the bounded final score. Keep staff feedback attached to the displayed prediction ID and preserve its advisory-only behavior.
+
 Current entities:
 
 1. `User`

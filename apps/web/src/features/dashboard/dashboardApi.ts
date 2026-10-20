@@ -69,13 +69,15 @@ export type DashboardNoShowPrediction = {
     score?: number;
     riskScore?: number;
     reasons: unknown[];
+    suggestedActions?: unknown;
     ruleVersion?: string | null;
     featureSchemaVersion?: string | null;
-    generationSource?: PredictionGenerationSource;
+    generationSource?: PredictionGenerationSource | null;
     modelVersion?: string | null;
     generatedAt?: string;
     createdAt?: string;
     updatedAt?: string;
+    predictionContext?: { distanceFromClinicKm: number | null };
 };
 
 export type DashboardHighRiskAppointment = {

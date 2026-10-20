@@ -7,7 +7,6 @@ import {
     FilterBar,
     LifecycleRail,
     PageHeader,
-    RiskBadge as RiskLevelBadge,
     RiskExplanation,
     StatusBadge,
     fieldControlClassName,
@@ -267,16 +266,6 @@ function QueueArrivalSummary({
     );
 }
 
-const getSuggestedActions = (actions: unknown): string[] => {
-    if (!Array.isArray(actions)) {
-        return [];
-    }
-
-    return actions.filter((action): action is string => {
-        return typeof action === 'string' && action.trim().length > 0;
-    });
-};
-
 const getQueueStatusActions = (queueEntry: QueueListItem): QueueStatusAction[] => {
     return queueStatusActionsByCurrentStatus[queueEntry.status].filter((action) => {
         if (action.status !== QueueStatus.ARRIVED) {
@@ -370,29 +359,20 @@ const mergeQueueEntriesWithReorderedActiveEntries = (
     );
 };
 
-function RiskBadge({ queueEntry }: { queueEntry: QueueListItem }) {
-    const prediction = queueEntry.noShowPrediction;
-
-    if (!prediction) {
-        return <span className="text-slate-500">Not available</span>;
-    }
-
-    const suggestedActions = getSuggestedActions(prediction.suggestedActions);
-
+function RiskBadge({
+    queueEntry,
+    timezone,
+}: {
+    queueEntry: QueueListItem;
+    timezone?: string | null;
+}) {
     return (
-        <div className="space-y-3">
-            <RiskLevelBadge riskLevel={prediction.riskLevel} />
-            {suggestedActions[0] ? (
-                <p className="max-w-xs text-xs font-medium text-slate-600">
-                    Suggestion: {suggestedActions[0]}
-                </p>
-            ) : null}
-            <RiskExplanation
-                prediction={prediction}
-                subjectName={queueEntry.patient.fullName}
-                compact={false}
-            />
-        </div>
+        <RiskExplanation
+            prediction={queueEntry.noShowPrediction}
+            subjectName={queueEntry.patient.fullName}
+            compact={false}
+            timezone={timezone}
+        />
     );
 }
 
@@ -697,7 +677,7 @@ function QueueEntryCard({
                             Risk support
                         </p>
                         <div className="mt-2">
-                            <RiskBadge queueEntry={queueEntry} />
+                            <RiskBadge queueEntry={queueEntry} timezone={timezone} />
                         </div>
                     </div>
 
