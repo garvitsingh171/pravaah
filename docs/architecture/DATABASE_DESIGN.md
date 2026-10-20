@@ -416,6 +416,8 @@ Important fields:
 - `score`
 - `reasons` JSON
 
+Appointment, queue, and dashboard responses map the latest stored run through the same prediction response mapper. The mapper exposes only `predictionContext.distanceFromClinicKm` from `featureSnapshot`, after validating it as a finite non-negative number; absent or malformed historical snapshots map to `null`. It does not expose the complete snapshot through this display field or replace historical distance with current patient data. This is a response projection only and does not change the schema or prediction rows. Legacy records without persisted `ruleVersion` keep that value unavailable; the compatibility `modelVersion` alias is not evidence of historical rule provenance.
+
 ### AppointmentPredictionOutcome
 
 There is one outcome row per appointment, created as `PENDING` with the booking.

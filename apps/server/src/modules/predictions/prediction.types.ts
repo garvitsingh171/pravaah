@@ -85,9 +85,12 @@ export type NoShowPredictionResponse = {
     suggestedActions: string[];
     ruleVersion: string | null;
     featureSchemaVersion: string | null;
-    generationSource: PredictionGenerationSource;
+    generationSource: PredictionGenerationSource | null;
     modelVersion: string | null;
     generatedAt: Date;
+    predictionContext: {
+        distanceFromClinicKm: number | null;
+    };
     createdAt: Date;
     updatedAt: Date;
 };

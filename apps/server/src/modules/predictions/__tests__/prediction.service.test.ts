@@ -192,4 +192,47 @@ describe('versioned prediction runs', () => {
         expect(response?.ruleVersion).toBeNull();
         expect(response?.modelVersion).toBeNull();
     });
+
+    it('projects only a valid historical distance from the run feature snapshot', () => {
+        const stored = {
+            id: 'run-with-distance',
+            riskLevel: 'MEDIUM' as const,
+            score: 42,
+            reasons: [],
+            featureSchemaVersion: 'no-show-features-v1',
+            featureSnapshot: { distanceFromClinicKm: 18.42, patientNoShowCount: 4 },
+            ruleVersion: 'historical-rule-v2',
+            generationSource: 'TRAVEL_DISTANCE_CHANGED' as const,
+            createdAt: new Date('2026-10-20T05:15:00.000Z'),
+            updatedAt: new Date('2026-10-20T05:15:00.000Z'),
+        };
+
+        const response = toNoShowPredictionResponse(stored);
+        expect(response.predictionContext).toEqual({ distanceFromClinicKm: 18.42 });
+        expect(JSON.stringify(response)).not.toContain('patientNoShowCount');
+    });
+
+    it.each([
+        null,
+        {},
+        { distanceFromClinicKm: -1 },
+        { distanceFromClinicKm: Number.NaN },
+        { distanceFromClinicKm: '18.4' },
+    ])(
+        'returns unavailable context for invalid or missing historical snapshots',
+        (featureSnapshot) => {
+            const response = toNoShowPredictionResponse({
+                id: 'legacy-context',
+                riskLevel: 'LOW',
+                score: 0,
+                reasons: [],
+                featureSnapshot,
+                createdAt: new Date('2026-10-20T05:15:00.000Z'),
+                updatedAt: new Date('2026-10-20T05:15:00.000Z'),
+            });
+            expect(response.predictionContext).toEqual({ distanceFromClinicKm: null });
+            expect(response.ruleVersion).toBeNull();
+            expect(response.modelVersion).toBeNull();
+        }
+    );
 });

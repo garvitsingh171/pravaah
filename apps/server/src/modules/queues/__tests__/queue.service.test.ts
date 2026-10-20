@@ -172,8 +172,12 @@ describe('queueService.listQueueByClinicDate', () => {
             suggestedActions: expect.arrayContaining([
                 'Review this appointment during front-desk preparation.',
             ]),
-            modelVersion: 'starter-rule-v1',
+            modelVersion: null,
+            ruleVersion: null,
+            featureSchemaVersion: null,
+            generationSource: null,
             generatedAt: noShowPrediction.createdAt,
+            predictionContext: { distanceFromClinicKm: null },
         });
         expect(result[0]?.appointment).not.toHaveProperty('noShowPrediction');
         expect(result[0]?.noShowPrediction).toHaveProperty('score', 60);

@@ -600,6 +600,7 @@ function HighRiskAppointmentsCard({
                                 <RiskExplanation
                                     prediction={item.noShowPrediction}
                                     subjectName={item.patient.fullName}
+                                    timezone={timezone}
                                 />
                             </div>
                         </article>

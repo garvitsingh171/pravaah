@@ -10,15 +10,15 @@
 | Actor                 | Admin/Staff view generated risk context; no automatic patient-facing action                                                                                  |
 | Entry route           | `/appointments`, `/queue`, `/dashboard`                                                                                                                      |
 | Frontend files        | `AppointmentsPage.tsx`, `queueApi.ts`, `QueuePage.tsx`, `dashboardApi.ts`, `DashboardOverviewPage.tsx`, `components/ui/RiskBadge.tsx`, `RiskExplanation.tsx` |
-| Main frontend symbols | `RiskBadge`, `PredictionDetailPanel`, `AppointmentDetailPanel`, queue `noShowPrediction`, dashboard `HighRiskAppointmentsCard`                               |
-| API endpoint          | Risk appears in appointment/queue responses; feedback uses `GET/PUT /api/predictions/:predictionId/feedback`                                                  |
+| Main frontend symbols | `RiskBadge`, shared `RiskExplanation`, appointment `AppointmentDetailPanel`, queue `noShowPrediction`, dashboard `HighRiskAppointmentsCard`                  |
+| API endpoint          | Risk appears in appointment/queue responses; feedback uses `GET/PUT /api/predictions/:predictionId/feedback`                                                 |
 | Middleware            | Prediction generation happens inside appointment/dashboard workflows                                                                                         |
 | Authentication        | Same as parent workflow                                                                                                                                      |
 | Authorization         | Same as parent workflow                                                                                                                                      |
 | Validation            | Same as parent workflow                                                                                                                                      |
 | Service               | `prediction.service.ts -> predictNoShowRisk`, `toNoShowPredictionResponse`, `getSuggestedNoShowActions`                                                      |
 | Repository            | `appointment.repository.ts -> createNoShowPrediction`; `dashboard.repository.ts -> createNoShowPredictions`                                                  |
-| Database models       | `NoShowPrediction`, `PredictionFeedback`, `AppointmentPredictionOutcome`, `Appointment`, `Patient`, `PatientClinic`                                            |
+| Database models       | `NoShowPrediction`, `PredictionFeedback`, `AppointmentPredictionOutcome`, `Appointment`, `Patient`, `PatientClinic`                                          |
 | Prisma operations     | `noShowPrediction.create`, `noShowPrediction.createMany({ skipDuplicates: true })`, response selects                                                         |
 | Transaction           | Booking prediction is inside appointment transaction. Dashboard backfill is not wrapped in a larger transaction                                              |
 | Concurrency control   | nullable unique baseline `runKey`; dashboard backfill uses `skipDuplicates`                                                                                  |
@@ -40,6 +40,10 @@ Staff reviews a run -> records usefulness and reported action -> backend verifie
 ## Important Language
 
 Pravaah currently uses deterministic, explainable no-show risk assistance rather than a trained machine-learning model.
+
+The shared `RiskExplanation` presentation is used for appointment details, queue disclosures, and dashboard high-risk items. It renders the stored risk classification and score, each usable reason with its recorded `scoreImpact`, the backend-provided suggested actions, and metadata from that same prediction run. Missing or malformed values remain unavailable; the frontend does not calculate risk levels, score contributions, or fallback recommendations. Factor impacts are individual rule contributions and do not necessarily sum to the bounded final score. A score such as `75/100` is not a calibrated 75% probability.
+
+Each response includes a narrow `predictionContext.distanceFromClinicKm` projection from that run's `featureSnapshot`. It is a non-negative finite number or `null`; the full snapshot and patient location are not exposed by this projection. The UI formats the stored distance and never substitutes current patient distance. Generation time uses the run's `createdAt` as `generatedAt`, formatted in the clinic timezone (the configured clinic default is `Asia/Kolkata`). Persisted `ruleVersion` and `generationSource` are shown when present. Legacy runs without trustworthy version metadata show “Not available”. Staff feedback remains embedded in the shared view and remains associated with the exact immutable run.
 
 It does not:
 
@@ -146,7 +150,7 @@ tx.noShowPrediction.create({ metadata, riskLevel, score, reasons })
     ↓
 prediction.service.ts -> toNoShowPredictionResponse(storedPrediction)
     ↓
-frontend receives riskLevel, score, reasons, suggestedActions, persisted ruleVersion, and provenance
+frontend receives riskLevel, score, reasons, suggestedActions, persisted ruleVersion, provenance, and predictionContext.distanceFromClinicKm
 ```
 
 ## Dashboard Backfill Trace

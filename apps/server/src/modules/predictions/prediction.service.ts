@@ -340,6 +340,18 @@ export function toNoShowPredictionResponse(
         return null;
     }
 
+    const snapshot = prediction.featureSnapshot;
+    const snapshotDistance =
+        typeof snapshot === 'object' && snapshot !== null && 'distanceFromClinicKm' in snapshot
+            ? snapshot.distanceFromClinicKm
+            : null;
+    const distanceFromClinicKm =
+        typeof snapshotDistance === 'number' &&
+        Number.isFinite(snapshotDistance) &&
+        snapshotDistance >= 0
+            ? snapshotDistance
+            : null;
+
     const hasPersistedMetadata =
         'ruleVersion' in prediction ||
         'featureSchemaVersion' in prediction ||
@@ -355,11 +367,15 @@ export function toNoShowPredictionResponse(
                 prediction.riskLevel,
                 Array.isArray(prediction.reasons) ? prediction.reasons : []
             ),
-            modelVersion: NO_SHOW_RULE_VERSION,
+            ruleVersion: null,
+            featureSchemaVersion: null,
+            generationSource: null,
+            modelVersion: null,
             generatedAt: prediction.createdAt,
+            predictionContext: { distanceFromClinicKm },
             createdAt: prediction.createdAt,
             updatedAt: prediction.updatedAt,
-        } as NoShowPredictionResponse;
+        };
     }
 
     const ruleVersion = prediction.ruleVersion ?? null;
@@ -375,9 +391,10 @@ export function toNoShowPredictionResponse(
         ),
         ruleVersion,
         featureSchemaVersion: prediction.featureSchemaVersion ?? null,
-        generationSource: prediction.generationSource ?? 'LEGACY_EXISTING',
+        generationSource: prediction.generationSource ?? null,
         modelVersion: ruleVersion,
         generatedAt: prediction.createdAt,
+        predictionContext: { distanceFromClinicKm },
         createdAt: prediction.createdAt,
         updatedAt: prediction.updatedAt,
     };

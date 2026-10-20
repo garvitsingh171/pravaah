@@ -400,8 +400,12 @@ describe('dashboardService.getHighRiskAppointments', () => {
                         suggestedActions: expect.arrayContaining([
                             'Review this appointment during front-desk preparation.',
                         ]),
-                        modelVersion: 'starter-rule-v1',
+                        modelVersion: null,
+                        ruleVersion: null,
+                        featureSchemaVersion: null,
+                        generationSource: null,
                         generatedAt: new Date('2026-06-18T10:00:01.000Z'),
+                        predictionContext: { distanceFromClinicKm: null },
                         createdAt: new Date('2026-06-18T10:00:01.000Z'),
                         updatedAt: new Date('2026-06-18T10:00:01.000Z'),
                     },
