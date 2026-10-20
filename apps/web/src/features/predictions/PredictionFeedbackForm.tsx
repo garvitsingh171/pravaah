@@ -30,6 +30,7 @@ export default function PredictionFeedbackForm({ predictionId }: { predictionId?
     const [actionTaken, setActionTaken] = useState<PredictionFeedbackAction | ''>('');
     const [note, setNote] = useState('');
     const [loadedPredictionId, setLoadedPredictionId] = useState<string | null>(null);
+    const [loadAttempt, setLoadAttempt] = useState(0);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
@@ -48,11 +49,10 @@ export default function PredictionFeedbackForm({ predictionId }: { predictionId?
         }).catch((cause: unknown) => {
             if (!controller.signal.aborted) {
                 setError(cause instanceof Error ? cause.message : 'Could not load feedback.');
-                setLoadedPredictionId(predictionId);
             }
         });
         return () => controller.abort();
-    }, [opened, predictionId, loadedPredictionId]);
+    }, [opened, predictionId, loadedPredictionId, loadAttempt]);
 
     if (!predictionId) return <p className="mt-4 text-sm text-slate-500">Feedback is unavailable because this risk assessment has no prediction run ID.</p>;
 
@@ -82,7 +82,12 @@ export default function PredictionFeedbackForm({ predictionId }: { predictionId?
             <button type="button" aria-expanded={opened} onClick={() => setOpened((value) => !value)} className="font-semibold text-slate-900 underline decoration-slate-300 underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
                 {opened ? 'Hide feedback' : feedback ? 'View or update feedback' : 'Was this recommendation useful?'}
             </button>
-            {opened ? loadedPredictionId !== predictionId ? <p role="status" className="mt-3 text-sm text-slate-600">Loading your feedback…</p> : (
+            {opened ? loadedPredictionId !== predictionId ? error ? (
+                <div className="mt-3 space-y-2">
+                    <p role="alert" className="text-sm text-red-700">Could not load your saved feedback: {error}</p>
+                    <button type="button" onClick={() => { setError(''); setLoadAttempt((attempt) => attempt + 1); }} className="text-sm font-semibold text-blue-700 underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">Retry loading feedback</button>
+                </div>
+            ) : <p role="status" className="mt-3 text-sm text-slate-600">Loading your feedback…</p> : (
                 <form className="mt-4 space-y-4" onSubmit={submit}>
                     <fieldset>
                         <legend className="text-sm font-semibold text-slate-800">Was the recommendation useful?</legend>
