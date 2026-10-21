@@ -40,12 +40,13 @@ For contributors:
 9. [Workflow Atlas](workflows/README.md)
 10. [v0.3 Release Notes](releases/V0_3_0_RELEASE_NOTES.md)
 11. [Setup](guides/SETUP.md)
-12. [Architecture](architecture/ARCHITECTURE.md)
-13. [Backend Structure](architecture/BACKEND_STRUCTURE.md)
-14. [Frontend Structure](architecture/FRONTEND_STRUCTURE.md)
-15. [API Reference](architecture/API_REFERENCE.md)
-16. [Testing](guides/TESTING.md)
-17. [Contributing](guides/CONTRIBUTING.md)
+12. [ML Dataset Export — v0.5](guides/ML_DATASET_EXPORT_V0_5.md)
+13. [Architecture](architecture/ARCHITECTURE.md)
+14. [Backend Structure](architecture/BACKEND_STRUCTURE.md)
+15. [Frontend Structure](architecture/FRONTEND_STRUCTURE.md)
+16. [API Reference](architecture/API_REFERENCE.md)
+17. [Testing](guides/TESTING.md)
+18. [Contributing](guides/CONTRIBUTING.md)
 
 For interview preparation:
 
