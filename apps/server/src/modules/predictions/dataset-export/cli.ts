@@ -71,8 +71,8 @@ async function main() {
     const result = accumulator.finish();
     const reportPath = `${options.output}.manifest.json`;
     if (!options.dryRun) {
+        // mode applies to newly created directories; existing parent permissions are preserved.
         await mkdir(dirname(options.output), { recursive: true, mode: 0o700 });
-        await chmod(dirname(options.output), 0o700);
         await writePrivateFile(options.output, serializeDataset(result.rows, options.format));
         try {
             await writePrivateFile(reportPath, `${JSON.stringify(result.report, null, 2)}\n`);

@@ -130,6 +130,16 @@ describe('privacy-safe dataset preparation', () => {
         for (const item of variants) expect(prepare([item]).report.eligibleAppointments).toBe(0);
     });
 
+    it('preserves the appointment-level reason when all runs were created after scheduling', () => {
+        const source = candidate({
+            predictions: [prediction('after-appointment', '2025-03-10T09:30:00.000Z')],
+        });
+        const result = prepare([source]);
+
+        expect(result.report.excludedAppointments.PREDICTION_AFTER_APPOINTMENT).toBe(1);
+        expect(result.report.excludedAppointments.NO_ELIGIBLE_PREDICTION).toBeUndefined();
+    });
+
     it('selects the latest eligible run and falls back when the latest run is invalid', () => {
         const base = candidate();
         const rows = Array.from({ length: 20 }, (_, i) => ({

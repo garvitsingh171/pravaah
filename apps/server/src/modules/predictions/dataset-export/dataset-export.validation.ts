@@ -53,7 +53,10 @@ export function evaluateCandidate(candidate: DatasetCandidate): CandidateEvaluat
         let failure: ExclusionCode | null = null;
         if (prediction.clinicId !== candidate.clinicId || outcome.clinicId !== candidate.clinicId) {
             failure = 'NO_ELIGIBLE_PREDICTION';
-        } else if (prediction.featureSnapshot === null || prediction.featureSnapshot === undefined) {
+        } else if (
+            prediction.featureSnapshot === null ||
+            prediction.featureSnapshot === undefined
+        ) {
             failure = 'MISSING_FEATURE_SNAPSHOT';
         } else if (prediction.featureSchemaVersion !== SUPPORTED_FEATURE_SCHEMA) {
             failure = 'UNSUPPORTED_FEATURE_VERSION';
@@ -106,9 +109,11 @@ export function evaluateCandidate(candidate: DatasetCandidate): CandidateEvaluat
     if (!selected) {
         const exclusion = rejectedRuns.includes('PREDICTION_AFTER_OUTCOME')
             ? 'PREDICTION_AFTER_OUTCOME'
-            : rejectedRuns.includes('SCHEDULE_MISMATCH')
-              ? 'SCHEDULE_MISMATCH'
-              : 'NO_ELIGIBLE_PREDICTION';
+            : rejectedRuns.includes('PREDICTION_AFTER_APPOINTMENT')
+              ? 'PREDICTION_AFTER_APPOINTMENT'
+              : rejectedRuns.includes('SCHEDULE_MISMATCH')
+                ? 'SCHEDULE_MISMATCH'
+                : 'NO_ELIGIBLE_PREDICTION';
         return { row: null, rejectedRuns, exclusion };
     }
 
