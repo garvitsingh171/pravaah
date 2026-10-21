@@ -1,18 +1,16 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useActiveClinic } from '../../app/activeClinicContext';
 import { EmptyState, ErrorMessage, LoadingState, useToast } from '../../components/feedback';
 import {
     Button,
     FilterBar,
-    LifecycleRail,
     PageHeader,
     RiskBadge as RiskLevelBadge,
-    RiskExplanation,
+    NoShowRiskDetailsDialog,
     StatusBadge,
     fieldControlClassName,
     getAppointmentStatusLabel,
-    getQueueStatusLabel,
 } from '../../components/ui';
 import { isApiClientError } from '../../lib';
 import { formatClinicDateTime, getClinicDateInputValue } from '../../lib/clinicDateTime';
@@ -276,36 +274,12 @@ const reschedulableAppointmentStatuses: AppointmentStatus[] = [
 ];
 
 const appointmentLifecycleSteps = [
-    {
-        id: AppointmentStatus.SCHEDULED,
-        label: 'Scheduled',
-        description: 'Booked appointment',
-    },
-    {
-        id: AppointmentStatus.CONFIRMED,
-        label: 'Confirmed',
-        description: 'Staff confirmed',
-    },
-    {
-        id: AppointmentStatus.ARRIVED,
-        label: 'Arrived',
-        description: 'Patient present',
-    },
-    {
-        id: AppointmentStatus.IN_QUEUE,
-        label: 'In queue',
-        description: 'Visible in queue',
-    },
-    {
-        id: AppointmentStatus.CALLED,
-        label: 'Called',
-        description: 'Staff called patient',
-    },
-    {
-        id: AppointmentStatus.COMPLETED,
-        label: 'Completed',
-        description: 'Visit closed',
-    },
+    { id: AppointmentStatus.SCHEDULED, label: 'Scheduled', description: 'Booked appointment' },
+    { id: AppointmentStatus.CONFIRMED, label: 'Confirmed', description: 'Staff confirmed' },
+    { id: AppointmentStatus.ARRIVED, label: 'Arrived', description: 'Patient present' },
+    { id: AppointmentStatus.IN_QUEUE, label: 'In queue', description: 'Visible in queue' },
+    { id: AppointmentStatus.CALLED, label: 'Called', description: 'Staff called patient' },
+    { id: AppointmentStatus.COMPLETED, label: 'Completed', description: 'Visit closed' },
 ];
 
 const isFinalAppointmentStatus = (status: AppointmentStatus): boolean => {
@@ -554,17 +528,6 @@ const getOptionalText = (value: string | null | undefined): string => {
     return value?.trim() || 'Not added';
 };
 
-const getBookingSourceLabel = (source: BookingSource): string => {
-    const labels: Record<BookingSource, string> = {
-        RECEPTION: 'Reception',
-        PHONE: 'Phone',
-        WEB: 'Web',
-        WALK_IN: 'Walk-in',
-    };
-
-    return labels[source];
-};
-
 const getArrivalClassificationLabel = (
     appointment: Pick<AppointmentListItem, 'arrivedAt' | 'arrivalOffsetMinutes' | 'isLateArrival'>
 ): string | null => {
@@ -665,195 +628,36 @@ const buildAppointmentListInsights = (
     );
 };
 
-function RiskBadge({
+function AppointmentRiskSummary({
     appointment,
-    isExpanded,
-    onToggle,
+    onOpen,
 }: {
     appointment: AppointmentListItem;
-    isExpanded: boolean;
-    onToggle: () => void;
-}) {
-    const prediction = appointment.noShowPrediction;
-
-    if (!prediction) {
-        return (
-            <div>
-                <span className="text-slate-500">Not available</span>
-                <button
-                    type="button"
-                    className="mt-2 block text-xs font-semibold text-brand-foreground underline decoration-brand-soft underline-offset-2 hover:text-brand-hover"
-                    onClick={onToggle}
-                >
-                    {isExpanded ? 'Hide details' : 'View risk and details'}
-                </button>
-            </div>
-        );
-    }
-
-    return (
-        <div>
-            <RiskLevelBadge riskLevel={prediction.riskLevel} />
-            <button
-                type="button"
-                className="mt-2 text-xs font-semibold text-brand-foreground underline decoration-brand-soft underline-offset-2 hover:text-brand-hover"
-                onClick={onToggle}
-            >
-                {isExpanded ? 'Hide details' : 'View risk and details'}
-            </button>
-        </div>
-    );
-}
-
-function PredictionDetailPanel({
-    appointment,
-    timezone,
-}: {
-    appointment: AppointmentListItem;
-    timezone?: string | null;
+    onOpen: () => void;
 }) {
     const prediction = appointment.noShowPrediction;
     return (
-        <RiskExplanation
-            prediction={prediction}
-            subjectName={appointment.patient.fullName}
-            disclosure={false}
-            timezone={timezone}
-        />
-    );
-}
-
-function AppointmentLifecyclePanel({ appointment }: { appointment: AppointmentListItem }) {
-    const terminalLabel =
-        appointment.status === AppointmentStatus.CANCELLED
-            ? 'Cancelled is a final appointment state. Queue sync remains backend-authoritative where a queue entry exists.'
-            : appointment.status === AppointmentStatus.NO_SHOW
-              ? 'No Show is a final appointment state. Risk assistance remains advisory and does not mark this automatically.'
-              : 'Final statuses are locked. Non-final updates remain manual Admin/Staff actions in the current product.';
-
-    return (
-        <LifecycleRail
-            steps={appointmentLifecycleSteps}
-            currentStepId={
-                appointment.status === AppointmentStatus.CANCELLED ||
-                appointment.status === AppointmentStatus.NO_SHOW
-                    ? undefined
-                    : appointment.status
-            }
-            terminalLabel={terminalLabel}
-            ariaLabel={`Appointment lifecycle for ${appointment.patient.fullName}`}
-        />
-    );
-}
-
-function AppointmentDetailPanel({
-    appointment,
-    timezone,
-}: {
-    appointment: AppointmentListItem;
-    timezone?: string | null;
-}) {
-    const queueEntry = appointment.queueEntry;
-    const patientContact = [appointment.patient.phone, appointment.patient.email]
-        .filter((value): value is string => Boolean(value?.trim()))
-        .join(' / ');
-    const terminalReason = getTerminalReasonDisplay(appointment);
-
-    return (
-        <div className="space-y-4">
-            <AppointmentLifecyclePanel appointment={appointment} />
-
-            <div className="rounded-lg border border-slate-200 bg-white p-5">
-                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                    <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-brand-foreground">
-                            Appointment details
-                        </p>
-                        <h3 className="mt-1 text-base font-semibold text-slate-900">
-                            {appointment.patient.fullName} with {appointment.doctor.fullName}
-                        </h3>
-                        <p className="mt-2 text-sm text-slate-600">
-                            {formatClinicDateTime(appointment.scheduledAt, timezone)} for{' '}
-                            {formatDuration(appointment.durationMinutes)}
-                        </p>
-                        <AppointmentArrivalSummary appointment={appointment} timezone={timezone} />
-                    </div>
-
-                    <StatusBadge kind="appointment" status={appointment.status} />
-                </div>
-
-                <dl className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                        <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                            Patient contact
-                        </dt>
-                        <dd className="mt-1 break-words text-sm font-semibold text-slate-900">
-                            {patientContact || 'Not added'}
-                        </dd>
-                    </div>
-                    <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                        <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                            Doctor
-                        </dt>
-                        <dd className="mt-1 text-sm font-semibold text-slate-900">
-                            {getOptionalText(appointment.doctor.specialization)}
-                        </dd>
-                    </div>
-                    <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                        <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                            Booking source
-                        </dt>
-                        <dd className="mt-1 text-sm font-semibold text-slate-900">
-                            {getBookingSourceLabel(appointment.bookingSource)}
-                        </dd>
-                    </div>
-                    <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                        <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                            Queue
-                        </dt>
-                        <dd className="mt-1 text-sm font-semibold text-slate-900">
-                            {queueEntry
-                                ? `#${queueEntry.position} - ${getQueueStatusLabel(
-                                      queueEntry.status
-                                  )}`
-                                : 'Not in queue'}
-                        </dd>
-                    </div>
-                </dl>
-
-                <div className="mt-5 grid gap-4 lg:grid-cols-2">
-                    <div>
-                        <h4 className="text-sm font-semibold text-slate-900">Reason</h4>
-                        <p className="mt-2 text-sm leading-6 text-slate-600">
-                            {getOptionalText(appointment.reason)}
-                        </p>
-                    </div>
-                    <div>
-                        <h4 className="text-sm font-semibold text-slate-900">Staff notes</h4>
-                        <p className="mt-2 text-sm leading-6 text-slate-600">
-                            {getOptionalText(appointment.notes)}
-                        </p>
-                    </div>
-                </div>
-
-                {terminalReason ? (
-                    <div className="mt-5 rounded-md border border-slate-200 bg-slate-50 p-3">
-                        <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                            Terminal outcome reason
-                        </h4>
-                        <p className="mt-1 text-sm font-semibold text-slate-900">
-                            {terminalReason.label}
-                        </p>
-                        {terminalReason.note ? (
-                            <p className="mt-1 text-sm leading-6 text-slate-600">
-                                {terminalReason.note}
-                            </p>
-                        ) : null}
-                    </div>
+        <div className="flex min-w-36 flex-col items-start gap-1">
+            <div className="flex flex-wrap items-center gap-2">
+                <RiskLevelBadge riskLevel={prediction?.riskLevel ?? null} />
+                {prediction ? (
+                    <span className="text-xs font-medium text-slate-600">
+                        {typeof prediction.riskScore === 'number'
+                            ? `${prediction.riskScore}/100`
+                            : typeof prediction.score === 'number'
+                              ? `${prediction.score}/100`
+                              : 'Score unavailable'}
+                    </span>
                 ) : null}
             </div>
-
-            <PredictionDetailPanel appointment={appointment} timezone={timezone} />
+            <button
+                type="button"
+                className="inline-flex min-h-10 items-center text-xs font-semibold text-brand-foreground underline decoration-brand-soft underline-offset-2 hover:text-brand-hover"
+                onClick={onOpen}
+                aria-label={`View risk details for ${appointment.patient.fullName}`}
+            >
+                View risk details
+            </button>
         </div>
     );
 }
@@ -1084,6 +888,8 @@ function AppointmentsPage() {
     const bookingReturnState = location.state as {
         bookingDraft?: AppointmentBookingFormValues;
         patientId?: string;
+        appointmentId?: string;
+        appointmentDate?: string;
     } | null;
     const { clinicId } = activeClinic;
     const clinicTimezone = activeClinic.clinic?.timezone;
@@ -1094,21 +900,32 @@ function AppointmentsPage() {
     const [patientSearch, setPatientSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedStatus, setSelectedStatus] = useState<AppointmentStatus | ''>('');
+    const [navigationAppointmentId, setNavigationAppointmentId] = useState<string | null>(
+        bookingReturnState?.appointmentId ?? null
+    );
     const [appointmentListState, setAppointmentListState] =
         useState<AppointmentListState>(emptyAppointmentListState);
     useEffect(
         () => setCurrentPage(1),
         [selectedDate, selectedDoctorId, selectedPatientId, selectedStatus]
     );
+    useEffect(() => {
+        if (!bookingReturnState?.appointmentId || !bookingReturnState.appointmentDate) return;
+        setNavigationAppointmentId(bookingReturnState.appointmentId);
+        setSelectedDate(bookingReturnState.appointmentDate.slice(0, 10));
+        setSelectedDoctorId('');
+        setSelectedPatientId('');
+        setSelectedStatus('');
+        setPatientSearch('');
+    }, [bookingReturnState?.appointmentId, bookingReturnState?.appointmentDate]);
     const [updatingAppointmentId, setUpdatingAppointmentId] = useState<string | null>(null);
     const [statusUpdateError, setStatusUpdateError] = useState<{
         message: string;
         code?: string;
     } | null>(null);
     const [statusUpdateMessage, setStatusUpdateMessage] = useState<string | null>(null);
-    const [expandedPredictionAppointmentId, setExpandedPredictionAppointmentId] = useState<
-        string | null
-    >(null);
+    const [riskDetailsAppointment, setRiskDetailsAppointment] =
+        useState<AppointmentListItem | null>(null);
     const [values, setValues] = useState<AppointmentBookingFormValues>(() => ({
         ...emptyFormValues,
         ...(bookingReturnState?.bookingDraft ?? {}),
@@ -1240,7 +1057,7 @@ function AppointmentsPage() {
         }));
         setStatusUpdateError(null);
         setStatusUpdateMessage(null);
-        setExpandedPredictionAppointmentId(null);
+        setRiskDetailsAppointment(null);
     };
 
     const handleDateFilterChange = (value: string) => {
@@ -1934,7 +1751,11 @@ function AppointmentsPage() {
         referenceState.doctors.length > 0 &&
         referenceState.patients.length > 0;
     const hasAppointmentFilters = Boolean(
-        selectedDate || selectedDoctorId || selectedPatientId || selectedStatus || patientSearch
+        (selectedDate && selectedDate !== getClinicDateInputValue(clinicTimezone)) ||
+        selectedDoctorId ||
+        selectedPatientId ||
+        selectedStatus ||
+        patientSearch
     );
     const onlyTodaySelected =
         selectedDate === getClinicDateInputValue(clinicTimezone) &&
@@ -1958,6 +1779,24 @@ function AppointmentsPage() {
         (safePage - 1) * pageSize,
         safePage * pageSize
     );
+    useEffect(() => {
+        if (!navigationAppointmentId) return;
+        const index = filteredAppointments.findIndex(
+            (appointment) => appointment.id === navigationAppointmentId
+        );
+        if (index < 0) return;
+        const targetPage = Math.floor(index / pageSize) + 1;
+        if (targetPage !== currentPage) {
+            setCurrentPage(targetPage);
+            return;
+        }
+        const frame = window.requestAnimationFrame(() => {
+            const row = document.getElementById(`appointment-${navigationAppointmentId}`);
+            row?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            row?.focus({ preventScroll: true });
+        });
+        return () => window.cancelAnimationFrame(frame);
+    }, [navigationAppointmentId, filteredAppointments, currentPage]);
     const hasAppointments =
         appointmentListState.status === 'success' && filteredAppointments.length > 0;
     const appointmentInsights = useMemo(
@@ -1969,7 +1808,7 @@ function AppointmentsPage() {
     );
 
     return (
-        <section className="space-y-6">
+        <section className="space-y-5">
             <PageHeader
                 actions={
                     <a
@@ -2065,7 +1904,7 @@ function AppointmentsPage() {
 
                     {hasAppointmentFilters ? (
                         <Button variant="outline" onClick={handleClearAppointmentFilters}>
-                            Clear
+                            Clear filters
                         </Button>
                     ) : null}
                 </div>
@@ -2170,183 +2009,159 @@ function AppointmentsPage() {
                                     const statusActions =
                                         statusActionsByCurrentStatus[appointment.status];
                                     const isUpdating = updatingAppointmentId === appointment.id;
-                                    const isRiskExpanded =
-                                        expandedPredictionAppointmentId === appointment.id;
                                     const canReschedule = isAppointmentReschedulable(
                                         appointment.status
                                     );
                                     const terminalReason = getTerminalReasonDisplay(appointment);
 
                                     return (
-                                        <Fragment key={appointment.id}>
-                                            <tr className="align-top transition hover:bg-slate-50/70">
-                                                <td
-                                                    data-label="Time"
-                                                    className="min-w-44 px-4 py-3.5 text-slate-700"
+                                        <tr
+                                            id={`appointment-${appointment.id}`}
+                                            key={appointment.id}
+                                            tabIndex={
+                                                navigationAppointmentId === appointment.id
+                                                    ? -1
+                                                    : undefined
+                                            }
+                                            className={`align-top transition hover:bg-slate-50/70 ${navigationAppointmentId === appointment.id ? 'bg-amber-50 ring-2 ring-inset ring-amber-400' : ''}`}
+                                        >
+                                            <td
+                                                data-label="Time"
+                                                className="min-w-36 px-3 py-3 text-slate-700"
+                                            >
+                                                <p className="font-semibold text-slate-900">
+                                                    {formatClinicDateTime(
+                                                        appointment.scheduledAt,
+                                                        clinicTimezone
+                                                    )}
+                                                </p>
+                                                <p className="mt-1 text-xs text-slate-500">
+                                                    {formatDuration(appointment.durationMinutes)}
+                                                </p>
+                                            </td>
+                                            <td data-label="Patient" className="min-w-40 px-3 py-3">
+                                                <p className="font-semibold text-slate-900">
+                                                    {appointment.patient.fullName}
+                                                </p>
+                                                <p className="mt-1 text-slate-600">
+                                                    {getOptionalText(appointment.patient.phone)}
+                                                </p>
+                                            </td>
+                                            <td data-label="Doctor" className="min-w-40 px-3 py-3">
+                                                <p className="font-semibold text-slate-900">
+                                                    {appointment.doctor.fullName}
+                                                </p>
+                                                <p className="mt-1 text-slate-600">
+                                                    {getOptionalText(
+                                                        appointment.doctor.specialization
+                                                    )}
+                                                </p>
+                                            </td>
+                                            <td data-label="Status" className="min-w-28 px-3 py-3">
+                                                <StatusBadge
+                                                    kind="appointment"
+                                                    status={appointment.status}
+                                                />
+                                                {appointment.queueEntry ? (
+                                                    <p className="mt-2 text-xs text-slate-500">
+                                                        Queue #{appointment.queueEntry.position}
+                                                    </p>
+                                                ) : null}
+                                                <AppointmentArrivalSummary
+                                                    appointment={appointment}
+                                                    timezone={clinicTimezone}
+                                                />
+                                            </td>
+                                            <td
+                                                data-label="Notes"
+                                                className="min-w-40 px-3 py-3 text-slate-700"
+                                            >
+                                                <p
+                                                    className="max-w-48 truncate font-medium text-slate-900"
+                                                    title={
+                                                        appointment.reason?.trim() ||
+                                                        'No reason added'
+                                                    }
                                                 >
-                                                    <p className="font-semibold text-slate-900">
-                                                        {formatClinicDateTime(
-                                                            appointment.scheduledAt,
-                                                            clinicTimezone
-                                                        )}
+                                                    {getOptionalText(appointment.reason)}
+                                                </p>
+                                                {appointment.notes ? (
+                                                    <p
+                                                        className="mt-1 max-w-48 truncate text-xs leading-5 text-slate-500"
+                                                        title={appointment.notes}
+                                                    >
+                                                        Note: {appointment.notes}
                                                     </p>
-                                                    <p className="mt-1 text-xs text-slate-500">
-                                                        {formatDuration(
-                                                            appointment.durationMinutes
-                                                        )}
-                                                    </p>
-                                                </td>
-                                                <td
-                                                    data-label="Patient"
-                                                    className="min-w-44 px-4 py-3.5"
-                                                >
-                                                    <p className="font-semibold text-slate-900">
-                                                        {appointment.patient.fullName}
-                                                    </p>
-                                                    <p className="mt-1 text-slate-600">
-                                                        {getOptionalText(appointment.patient.phone)}
-                                                    </p>
-                                                </td>
-                                                <td
-                                                    data-label="Doctor"
-                                                    className="min-w-44 px-4 py-3.5"
-                                                >
-                                                    <p className="font-semibold text-slate-900">
-                                                        {appointment.doctor.fullName}
-                                                    </p>
-                                                    <p className="mt-1 text-slate-600">
-                                                        {getOptionalText(
-                                                            appointment.doctor.specialization
-                                                        )}
-                                                    </p>
-                                                </td>
-                                                <td
-                                                    data-label="Status"
-                                                    className="min-w-32 px-4 py-3.5"
-                                                >
-                                                    <StatusBadge
-                                                        kind="appointment"
-                                                        status={appointment.status}
-                                                    />
-                                                    {appointment.queueEntry ? (
-                                                        <p className="mt-2 text-xs text-slate-500">
-                                                            Queue #{appointment.queueEntry.position}
+                                                ) : null}
+                                                {terminalReason ? (
+                                                    <div className="mt-1 max-w-48">
+                                                        <p
+                                                            className="truncate text-xs font-semibold text-slate-700"
+                                                            title={terminalReason.label}
+                                                        >
+                                                            {terminalReason.label}
                                                         </p>
-                                                    ) : null}
-                                                    <AppointmentArrivalSummary
-                                                        appointment={appointment}
-                                                        timezone={clinicTimezone}
-                                                    />
-                                                </td>
-                                                <td
-                                                    data-label="Notes"
-                                                    className="min-w-56 px-4 py-3.5 text-slate-700"
-                                                >
-                                                    <p className="font-medium text-slate-900">
-                                                        {getOptionalText(appointment.reason)}
-                                                    </p>
-                                                    {appointment.notes ? (
-                                                        <p className="mt-2 max-w-xs text-xs leading-5 text-slate-500">
-                                                            {appointment.notes}
-                                                        </p>
-                                                    ) : null}
-                                                    {terminalReason ? (
-                                                        <div className="mt-3 border-t border-slate-200 pt-3">
-                                                            <p className="text-xs font-semibold text-slate-700">
-                                                                {terminalReason.label}
-                                                            </p>
-                                                            {terminalReason.note ? (
-                                                                <p className="mt-1 max-w-xs text-xs leading-5 text-slate-500">
-                                                                    {terminalReason.note}
-                                                                </p>
-                                                            ) : null}
-                                                        </div>
-                                                    ) : null}
-                                                </td>
-                                                <td
-                                                    data-label="Risk"
-                                                    className="min-w-48 px-4 py-3.5"
-                                                >
-                                                    <RiskBadge
-                                                        appointment={appointment}
-                                                        isExpanded={isRiskExpanded}
-                                                        onToggle={() =>
-                                                            setExpandedPredictionAppointmentId(
-                                                                isRiskExpanded
-                                                                    ? null
-                                                                    : appointment.id
-                                                            )
-                                                        }
-                                                    />
-                                                </td>
-                                                <td
-                                                    data-label="Actions"
-                                                    className="min-w-44 px-4 py-3.5"
-                                                >
-                                                    <div className="flex flex-col gap-2">
-                                                        {statusActions[0] ? (
-                                                            <Button
-                                                                onClick={() =>
-                                                                    void handleStatusUpdate(
-                                                                        appointment,
-                                                                        statusActions[0].status
-                                                                    )
-                                                                }
-                                                                disabled={isUpdating}
-                                                                isLoading={isUpdating}
-                                                                loadingText="Updating..."
-                                                            >
-                                                                {statusActions[0].label}
-                                                            </Button>
-                                                        ) : null}
+                                                    </div>
+                                                ) : null}
+                                            </td>
+                                            <td data-label="Risk" className="min-w-40 px-3 py-3">
+                                                <AppointmentRiskSummary
+                                                    appointment={appointment}
+                                                    onOpen={() =>
+                                                        setRiskDetailsAppointment(appointment)
+                                                    }
+                                                />
+                                            </td>
+                                            <td data-label="Actions" className="min-w-60 px-3 py-3">
+                                                <div className="flex max-w-64 flex-wrap items-center gap-2">
+                                                    {statusActions[0] ? (
                                                         <Button
-                                                            variant="outline"
+                                                            size="sm"
                                                             onClick={() =>
-                                                                setActivityAppointment(appointment)
+                                                                void handleStatusUpdate(
+                                                                    appointment,
+                                                                    statusActions[0].status
+                                                                )
                                                             }
                                                             disabled={isUpdating}
-                                                            aria-label={`View activity for ${appointment.patient.fullName}`}
+                                                            isLoading={isUpdating}
+                                                            loadingText="Updating..."
                                                         >
-                                                            View activity
+                                                            {statusActions[0].label}
                                                         </Button>
-
-                                                        {canReschedule ? (
-                                                            <Button
-                                                                variant="outline"
-                                                                onClick={() =>
-                                                                    handleOpenReschedule(
-                                                                        appointment
-                                                                    )
-                                                                }
-                                                                disabled={isUpdating}
-                                                            >
-                                                                Reschedule
-                                                            </Button>
-                                                        ) : null}
-
-                                                        {statusActions.length > 1 ? (
-                                                            <select
-                                                                className={`${fieldControlClassName} w-40`}
-                                                                value=""
-                                                                onChange={(event) => {
-                                                                    const nextStatus = event.target
-                                                                        .value as AppointmentStatus;
-
-                                                                    if (nextStatus) {
-                                                                        void handleStatusUpdate(
-                                                                            appointment,
-                                                                            nextStatus
-                                                                        );
-                                                                    }
-                                                                }}
-                                                                disabled={isUpdating}
-                                                                aria-label={`Update status for ${appointment.patient.fullName}`}
-                                                            >
-                                                                <option value="">
-                                                                    {isUpdating
-                                                                        ? 'Updating...'
-                                                                        : 'More actions'}
+                                                    ) : null}
+                                                    <select
+                                                        className={`${fieldControlClassName} min-h-10 w-36 text-xs`}
+                                                        value=""
+                                                        onChange={(event) => {
+                                                            const action = event.target.value;
+                                                            if (action === 'activity') {
+                                                                setActivityAppointment(appointment);
+                                                            } else if (action === 'reschedule') {
+                                                                handleOpenReschedule(appointment);
+                                                            } else if (action) {
+                                                                void handleStatusUpdate(
+                                                                    appointment,
+                                                                    action as AppointmentStatus
+                                                                );
+                                                            }
+                                                        }}
+                                                        disabled={isUpdating}
+                                                        aria-label={`More actions for ${appointment.patient.fullName}`}
+                                                    >
+                                                        <option value="">More actions</option>
+                                                        <optgroup label="Appointment">
+                                                            <option value="activity">
+                                                                View activity
+                                                            </option>
+                                                            {canReschedule ? (
+                                                                <option value="reschedule">
+                                                                    Reschedule
                                                                 </option>
+                                                            ) : null}
+                                                        </optgroup>
+                                                        {statusActions.length > 1 ? (
+                                                            <optgroup label="Update status">
                                                                 {statusActions
                                                                     .slice(1)
                                                                     .map((action) => (
@@ -2357,30 +2172,12 @@ function AppointmentsPage() {
                                                                             {action.label}
                                                                         </option>
                                                                     ))}
-                                                            </select>
-                                                        ) : statusActions.length === 0 ? (
-                                                            <span className="text-sm text-slate-500">
-                                                                Final status
-                                                            </span>
+                                                            </optgroup>
                                                         ) : null}
-                                                    </div>
-                                                </td>
-                                            </tr>
-
-                                            {isRiskExpanded ? (
-                                                <tr className="operational-detail-row">
-                                                    <td
-                                                        colSpan={7}
-                                                        className="bg-slate-50 px-4 py-4"
-                                                    >
-                                                        <AppointmentDetailPanel
-                                                            appointment={appointment}
-                                                            timezone={clinicTimezone}
-                                                        />
-                                                    </td>
-                                                </tr>
-                                            ) : null}
-                                        </Fragment>
+                                                    </select>
+                                                </div>
+                                            </td>
+                                        </tr>
                                     );
                                 })}
                             </tbody>
@@ -2547,6 +2344,52 @@ function AppointmentsPage() {
                     appointment={activityAppointment}
                     timezone={clinicTimezone}
                     onClose={() => setActivityAppointment(null)}
+                />
+            ) : null}
+
+            {riskDetailsAppointment?.clinicId === clinicId ? (
+                <NoShowRiskDetailsDialog
+                    subject={{
+                        id: riskDetailsAppointment.id,
+                        patientName: riskDetailsAppointment.patient.fullName,
+                        patientContact: [
+                            riskDetailsAppointment.patient.phone,
+                            riskDetailsAppointment.patient.email,
+                        ]
+                            .filter((value): value is string => Boolean(value?.trim()))
+                            .join(' / '),
+                        doctorName: riskDetailsAppointment.doctor.fullName,
+                        doctorSpecialty: riskDetailsAppointment.doctor.specialization,
+                        scheduledAt: riskDetailsAppointment.scheduledAt,
+                        durationMinutes: riskDetailsAppointment.durationMinutes,
+                        status: riskDetailsAppointment.status,
+                        reason: riskDetailsAppointment.reason,
+                        notes: riskDetailsAppointment.notes,
+                        outcomeReasonLabel: getTerminalReasonDisplay(riskDetailsAppointment)?.label,
+                        outcomeNote: getTerminalReasonDisplay(riskDetailsAppointment)?.note,
+                        prediction: riskDetailsAppointment.noShowPrediction,
+                        lifecycleSteps: appointmentLifecycleSteps,
+                        currentLifecycleStepId:
+                            riskDetailsAppointment.status === AppointmentStatus.CANCELLED ||
+                            riskDetailsAppointment.status === AppointmentStatus.NO_SHOW
+                                ? undefined
+                                : riskDetailsAppointment.status === AppointmentStatus.SCHEDULED ||
+                                    riskDetailsAppointment.status === AppointmentStatus.CONFIRMED ||
+                                    riskDetailsAppointment.status === AppointmentStatus.ARRIVED ||
+                                    riskDetailsAppointment.status === AppointmentStatus.IN_QUEUE ||
+                                    riskDetailsAppointment.status === AppointmentStatus.CALLED ||
+                                    riskDetailsAppointment.status === AppointmentStatus.COMPLETED
+                                  ? riskDetailsAppointment.status
+                                  : undefined,
+                        lifecycleNote:
+                            riskDetailsAppointment.status === AppointmentStatus.CANCELLED
+                                ? 'Cancelled is a final appointment state.'
+                                : riskDetailsAppointment.status === AppointmentStatus.NO_SHOW
+                                  ? 'No Show is a final appointment state. Risk assistance never marks this automatically.'
+                                  : undefined,
+                    }}
+                    timezone={clinicTimezone}
+                    onClose={() => setRiskDetailsAppointment(null)}
                 />
             ) : null}
 

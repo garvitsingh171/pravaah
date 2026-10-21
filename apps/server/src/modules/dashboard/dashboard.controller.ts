@@ -4,6 +4,7 @@ import type {
     DashboardClinicIdParamsInput,
     DashboardSummaryQueryInput,
     HighRiskAppointmentsQueryInput,
+    NoShowIntelligenceQueryInput,
 } from './dashboard.types.js';
 
 export async function getDashboardSummaryController(
@@ -68,6 +69,25 @@ export async function getTodayActivityController(
             success: true,
             message: "Today's clinic activity fetched successfully",
             data: result,
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function getNoShowIntelligenceController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> {
+    try {
+        const { clinicId } = req.params as DashboardClinicIdParamsInput;
+        const { from, to } = res.locals.validatedQuery as NoShowIntelligenceQueryInput;
+        const result = await dashboardService.getNoShowIntelligence(req.user, clinicId, from, to);
+        res.status(200).json({
+            success: true,
+            message: 'Upcoming no-show risk intelligence fetched successfully',
+            data: { noShowIntelligence: result },
         });
     } catch (error) {
         next(error);

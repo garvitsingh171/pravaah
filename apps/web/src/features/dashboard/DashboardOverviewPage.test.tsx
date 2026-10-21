@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppointmentStatus, QueueStatus } from '../../types';
+import { getClinicDateInputValue } from '../../lib/clinicDateTime';
 import type { AppointmentListItem } from '../appointments/appointmentApi';
 import DashboardOverviewPage from './DashboardOverviewPage';
 import {
@@ -17,9 +18,9 @@ import {
 } from '../../test/renderWithProviders';
 
 const mockGetDashboardSummary = vi.hoisted(() => vi.fn());
-const mockListHighRiskAppointments = vi.hoisted(() => vi.fn());
 const mockListTodayActivity = vi.hoisted(() => vi.fn());
 const mockListAppointments = vi.hoisted(() => vi.fn());
+const mockGetNoShowIntelligence = vi.hoisted(() => vi.fn());
 
 vi.mock('../appointments/appointmentApi', async (importOriginal) => ({
     ...(await importOriginal<typeof import('../appointments/appointmentApi')>()),
@@ -32,32 +33,60 @@ vi.mock('./dashboardApi', async (importOriginal) => {
     return {
         ...actual,
         getDashboardSummary: mockGetDashboardSummary,
-        listHighRiskAppointments: mockListHighRiskAppointments,
         listTodayActivity: mockListTodayActivity,
+        getNoShowIntelligence: mockGetNoShowIntelligence,
     };
 });
 
 const mockDashboardSuccess = () => {
+    const from = getClinicDateInputValue(adminActiveClinic.clinic?.timezone);
+    const periodEnd = new Date(`${from}T12:00:00Z`);
+    periodEnd.setUTCDate(periodEnd.getUTCDate() + 6);
     mockGetDashboardSummary.mockResolvedValue({
         dashboardSummary: activeDashboardSummary,
-    });
-    mockListHighRiskAppointments.mockResolvedValue({
-        clinicId: activeDashboardSummary.clinicId,
-        date: activeDashboardSummary.date,
-        highRiskAppointments: [highRiskAppointment],
     });
     mockListTodayActivity.mockResolvedValue({
         clinicId: activeDashboardSummary.clinicId,
         date: activeDashboardSummary.date,
         activityItems: [activityItem],
     });
+    mockGetNoShowIntelligence.mockResolvedValue({
+        noShowIntelligence: {
+            clinicId: activeDashboardSummary.clinicId,
+            from,
+            to: periodEnd.toISOString().slice(0, 10),
+            totalUpcoming: 4,
+            riskCounts: { high: 1, medium: 1, low: 1, unavailable: 1 },
+            contributingFactors: [{
+                code: 'PREVIOUS_NO_SHOW_HISTORY',
+                label: 'Previous no-show history',
+                appointmentCount: 1,
+                direction: 'increases',
+                averageScoreImpact: 30,
+            }],
+            highRiskAppointments: [highRiskAppointment],
+        },
+    });
 };
 
 describe('DashboardOverviewPage', () => {
     beforeEach(() => {
+        const from = getClinicDateInputValue(adminActiveClinic.clinic?.timezone);
+        const periodEnd = new Date(`${from}T12:00:00Z`);
+        periodEnd.setUTCDate(periodEnd.getUTCDate() + 6);
         mockGetDashboardSummary.mockReset();
-        mockListHighRiskAppointments.mockReset();
         mockListTodayActivity.mockReset();
+        mockGetNoShowIntelligence.mockReset().mockResolvedValue({
+            noShowIntelligence: {
+                clinicId: adminActiveClinic.clinicId,
+                from,
+                to: periodEnd.toISOString().slice(0, 10),
+                totalUpcoming: 0,
+                riskCounts: { high: 0, medium: 0, low: 0, unavailable: 0 },
+                contributingFactors: [],
+                highRiskAppointments: [],
+            },
+        });
         mockListAppointments.mockReset().mockResolvedValue({ appointments: [] });
     });
 
@@ -79,7 +108,9 @@ describe('DashboardOverviewPage', () => {
             'href',
             '/appointments#book-appointment'
         );
-        expect(screen.getByText('Risk explanation')).toBeInTheDocument();
+        expect(screen.getByText('No-show risk intelligence')).toBeInTheDocument();
+        expect(screen.getByText('High-risk appointments requiring review')).toBeInTheDocument();
+        expect(screen.getByText('Upcoming appointments').parentElement?.textContent).toContain('4');
         expect(screen.queryByText('First-run setup')).not.toBeInTheDocument();
     });
 
@@ -91,17 +122,6 @@ describe('DashboardOverviewPage', () => {
             })
             .mockResolvedValueOnce({
                 dashboardSummary: activeDashboardSummary,
-            });
-        mockListHighRiskAppointments
-            .mockResolvedValueOnce({
-                clinicId: emptyDashboardSummary.clinicId,
-                date: emptyDashboardSummary.date,
-                highRiskAppointments: [],
-            })
-            .mockResolvedValueOnce({
-                clinicId: activeDashboardSummary.clinicId,
-                date: activeDashboardSummary.date,
-                highRiskAppointments: [highRiskAppointment],
             });
         mockListTodayActivity
             .mockResolvedValueOnce({

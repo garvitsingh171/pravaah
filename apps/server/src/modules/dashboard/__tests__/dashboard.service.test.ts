@@ -12,6 +12,8 @@ const mockDashboardRepository = vi.hoisted(() => ({
     getClinicDateRange: vi.fn(),
     findAppointmentActivityCandidates: vi.fn(),
     findQueueActivityCandidates: vi.fn(),
+    findUpcomingNoShowIntelligenceCandidates: vi.fn(),
+    getClinicPeriodRange: vi.fn(),
 }));
 
 const mockAccessService = vi.hoisted(() => ({
@@ -35,6 +37,78 @@ const authenticatedUser = {
     status: 'ACTIVE' as const,
     clinicId: 'clinic-id',
 };
+
+describe('dashboardService.getNoShowIntelligence', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockAccessService.verifyClinicAccess.mockResolvedValue({
+            id: 'clinic-id',
+            isActive: true,
+            timezone: 'Asia/Kolkata',
+        });
+    });
+
+    it('counts each appointment once, uses its latest prediction, and aggregates factors distinctly', async () => {
+        const makeAppointment = (id: string, riskLevel?: string, reasons: unknown[] = []) => ({
+            id,
+            scheduledAt: new Date('2026-06-20T05:00:00.000Z'),
+            durationMinutes: 15,
+            status: 'SCHEDULED',
+            bookingSource: 'RECEPTION',
+            reason: null,
+            doctor: { id: 'doctor-1', fullName: 'Dr. Rao', specialization: null, qualification: null },
+            patient: { id: `patient-${id}`, fullName: `Patient ${id}`, phone: '9000', email: null, gender: null, age: null },
+            noShowPredictions: riskLevel ? [{
+                id: `prediction-${id}`,
+                riskLevel,
+                score: 80,
+                reasons,
+                featureSnapshot: null,
+                featureSchemaVersion: 'v1',
+                ruleVersion: 'r1',
+                generationSource: 'BACKFILL',
+                createdAt: new Date('2026-06-19T01:00:00.000Z'),
+                updatedAt: new Date('2026-06-19T01:00:00.000Z'),
+            }] : [],
+        });
+        mockDashboardRepository.findUpcomingNoShowIntelligenceCandidates.mockResolvedValue([
+            makeAppointment('1', 'HIGH', [
+                { code: 'PREVIOUS_NO_SHOW_HISTORY', message: 'History', scoreImpact: 30 },
+                { code: 'PREVIOUS_NO_SHOW_HISTORY', message: 'Repeated history', scoreImpact: 15 },
+            ]),
+            makeAppointment('2', 'LOW', [
+                { code: 'STRONG_ATTENDANCE_HISTORY', message: 'Attendance', scoreImpact: -20 },
+            ]),
+            makeAppointment('3'),
+        ]);
+
+        const result = await dashboardService.getNoShowIntelligence(
+            authenticatedUser,
+            'clinic-id',
+            '2026-06-20',
+            '2026-06-26'
+        );
+
+        expect(mockAccessService.verifyClinicAccess).toHaveBeenCalledWith(authenticatedUser, 'clinic-id');
+        expect(mockDashboardRepository.findUpcomingNoShowIntelligenceCandidates).toHaveBeenCalledWith(
+            'clinic-id', '2026-06-20', '2026-06-26', 'Asia/Kolkata'
+        );
+        expect(result.totalUpcoming).toBe(3);
+        expect(result.riskCounts).toEqual({ high: 1, medium: 0, low: 1, unavailable: 1 });
+        expect(result.riskCounts.high + result.riskCounts.medium + result.riskCounts.low + result.riskCounts.unavailable).toBe(result.totalUpcoming);
+        expect(result.contributingFactors[0]).toMatchObject({
+            code: 'PREVIOUS_NO_SHOW_HISTORY',
+            appointmentCount: 1,
+            direction: 'increases',
+            averageScoreImpact: 30,
+        });
+        expect(result.contributingFactors[1]).toMatchObject({
+            code: 'STRONG_ATTENDANCE_HISTORY',
+            direction: 'decreases',
+        });
+        expect(result.highRiskAppointments).toHaveLength(1);
+    });
+});
 
 describe('dashboardService.getDashboardSummary', () => {
     beforeEach(() => {

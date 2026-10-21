@@ -13,6 +13,7 @@ import type {
     DashboardClinicIdParamsSchemaInput,
     DashboardSummaryQuerySchemaInput,
     HighRiskAppointmentsQuerySchemaInput,
+    NoShowIntelligenceQuerySchemaInput,
 } from './dashboard.validation.js';
 
 export type DashboardClinicIdParamsInput = DashboardClinicIdParamsSchemaInput;
@@ -20,6 +21,19 @@ export type DashboardClinicIdParamsInput = DashboardClinicIdParamsSchemaInput;
 export type DashboardSummaryQueryInput = DashboardSummaryQuerySchemaInput;
 
 export type HighRiskAppointmentsQueryInput = HighRiskAppointmentsQuerySchemaInput;
+export type NoShowIntelligenceQueryInput = NoShowIntelligenceQuerySchemaInput;
+
+export type UpcomingNoShowIntelligenceCandidate = {
+    id: string;
+    scheduledAt: Date;
+    durationMinutes: number;
+    status: AppointmentStatus;
+    bookingSource: BookingSource;
+    reason: string | null;
+    doctor: DashboardDoctorDetails;
+    patient: DashboardPatientDetails;
+    noShowPredictions: StoredNoShowPredictionForResponse[];
+};
 
 export type AppointmentStatusCount = {
     status: AppointmentStatus;
@@ -143,6 +157,24 @@ export type DashboardSummary = {
     appointmentSummary: DashboardAppointmentSummary;
     queueSummary: DashboardQueueSummary;
     noShowRiskSummary: DashboardNoShowRiskSummary;
+};
+
+export type NoShowIntelligenceFactor = {
+    code: string;
+    label: string;
+    appointmentCount: number;
+    direction: 'increases' | 'decreases' | 'mixed' | 'neutral';
+    averageScoreImpact: number | null;
+};
+
+export type NoShowIntelligence = {
+    clinicId: string;
+    from: string;
+    to: string;
+    totalUpcoming: number;
+    riskCounts: DashboardNoShowRiskSummary & { unavailable: number };
+    contributingFactors: NoShowIntelligenceFactor[];
+    highRiskAppointments: DashboardHighRiskAppointment[];
 };
 
 export type DashboardActivityType =

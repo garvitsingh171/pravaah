@@ -49,6 +49,33 @@ describe('dashboardRepository.findAppointmentsMissingNoShowPrediction', () => {
     });
 });
 
+describe('dashboardRepository.findUpcomingNoShowIntelligenceCandidates', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('uses clinic-local inclusive-start/exclusive-end boundaries and only active future appointments', async () => {
+        const start = new Date('2026-06-18T18:30:00.000Z');
+        const end = new Date('2026-07-18T18:30:00.000Z');
+        const now = new Date('2026-06-20T10:00:00.000Z');
+        mockPrisma.$queryRaw.mockResolvedValueOnce([{ start, end }]);
+        mockPrisma.appointment.findMany.mockResolvedValue([]);
+
+        await dashboardRepository.findUpcomingNoShowIntelligenceCandidates(
+            'clinic-id', '2026-06-19', '2026-07-18', 'Asia/Kolkata', now
+        );
+
+        expect(mockPrisma.appointment.findMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: expect.objectContaining({
+                clinicId: 'clinic-id',
+                scheduledAt: { gte: now, lt: end },
+                status: { in: ['SCHEDULED', 'CONFIRMED', 'ARRIVED', 'IN_QUEUE', 'CALLED'] },
+            }),
+            orderBy: [{ scheduledAt: 'asc' }, { id: 'asc' }],
+        }));
+    });
+});
+
 describe('dashboardRepository.findQueueActivityCandidates', () => {
     beforeEach(() => {
         vi.clearAllMocks();

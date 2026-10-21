@@ -5,9 +5,9 @@ import { EmptyState, ErrorMessage, LoadingState, useToast } from '../../componen
 import {
     Button,
     FilterBar,
-    LifecycleRail,
     PageHeader,
-    RiskExplanation,
+    RiskBadge as RiskLevelBadge,
+    NoShowRiskDetailsDialog,
     StatusBadge,
     fieldControlClassName,
     getQueueStatusLabel,
@@ -100,29 +100,6 @@ const finalQueueStatuses: QueueStatusType[] = [
     QueueStatus.COMPLETED,
     QueueStatus.CANCELLED,
     QueueStatus.NO_SHOW,
-];
-
-const queueLifecycleSteps = [
-    {
-        id: QueueStatus.ARRIVED,
-        label: 'Arrived',
-        description: 'Patient present',
-    },
-    {
-        id: QueueStatus.WAITING,
-        label: 'Waiting',
-        description: 'Active queue order',
-    },
-    {
-        id: QueueStatus.CALLED,
-        label: 'Called',
-        description: 'Patient called',
-    },
-    {
-        id: QueueStatus.COMPLETED,
-        label: 'Completed',
-        description: 'Visit closed',
-    },
 ];
 
 const isFinalQueueStatus = (status: QueueStatusType): boolean => {
@@ -359,20 +336,33 @@ const mergeQueueEntriesWithReorderedActiveEntries = (
     );
 };
 
-function RiskBadge({
+function QueueRiskSummary({
     queueEntry,
-    timezone,
+    onOpen,
 }: {
     queueEntry: QueueListItem;
-    timezone?: string | null;
+    onOpen: () => void;
 }) {
+    const prediction = queueEntry.noShowPrediction;
+    const score = prediction?.riskScore ?? prediction?.score;
+
     return (
-        <RiskExplanation
-            prediction={queueEntry.noShowPrediction}
-            subjectName={queueEntry.patient.fullName}
-            compact={false}
-            timezone={timezone}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+            <RiskLevelBadge riskLevel={prediction?.riskLevel ?? null} />
+            {prediction ? (
+                <span className="text-xs font-medium text-slate-600">
+                    {typeof score === 'number' ? `${score}/100` : 'Score unavailable'}
+                </span>
+            ) : null}
+            <button
+                type="button"
+                className="inline-flex min-h-10 items-center text-xs font-semibold text-brand-foreground underline decoration-brand-soft underline-offset-2 hover:text-brand-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+                onClick={onOpen}
+                aria-label={`View risk details for ${queueEntry.patient.fullName}`}
+            >
+                View risk details
+            </button>
+        </div>
     );
 }
 
@@ -394,20 +384,6 @@ function QueueTimeline({
             {completedAt ? <p>Completed {completedAt}</p> : null}
             {!queuedAt && !calledAt && !completedAt ? <p>Not added</p> : null}
         </div>
-    );
-}
-
-function QueueLifecyclePanel({ selectedStatus }: { selectedStatus: QueueStatusType | '' }) {
-    const currentStepId =
-        selectedStatus && !isFinalQueueStatus(selectedStatus) ? selectedStatus : undefined;
-
-    return (
-        <LifecycleRail
-            steps={queueLifecycleSteps}
-            currentStepId={currentStepId}
-            terminalLabel="Final entries are locked."
-            ariaLabel="Queue lifecycle model"
-        />
     );
 }
 
@@ -522,7 +498,7 @@ function QueueStatusActions({
                 aria-label={`Update queue status for ${queueEntry.patient.fullName}`}
             >
                 <option value="">{isUpdating ? 'Updating...' : 'More actions'}</option>
-                {statusActions.map((action) => (
+                {statusActions.slice(1).map((action) => (
                     <option key={action.status} value={action.status}>
                         {action.label}
                     </option>
@@ -542,6 +518,7 @@ function QueueEntryCard({
     reorderingQueueEntryId,
     updatingQueueEntryId,
     timezone,
+    onOpenRiskDetails,
 }: {
     activeQueueIndexesByDoctor: Map<string, Map<string, number>>;
     allActiveQueueEntries: QueueListItem[];
@@ -552,6 +529,7 @@ function QueueEntryCard({
     reorderingQueueEntryId: string | null;
     updatingQueueEntryId: string | null;
     timezone?: string | null;
+    onOpenRiskDetails: (queueEntry: QueueListItem) => void;
 }) {
     const statusActions = getQueueStatusActions(queueEntry);
     const isUpdating = updatingQueueEntryId === queueEntry.id;
@@ -577,7 +555,7 @@ function QueueEntryCard({
             }`}
             data-testid="active-queue-card"
         >
-            <div className="grid gap-4 lg:grid-cols-[auto_minmax(0,1.1fr)_minmax(0,1fr)]">
+            <div className="grid min-w-0 gap-4 xl:grid-cols-[auto_minmax(0,1.2fr)_minmax(15rem,0.8fr)]">
                 <div className="flex gap-3 lg:flex-col">
                     <div>
                         <p className="inline-flex min-w-20 justify-center rounded-md bg-slate-950 px-3 py-2 text-xl font-bold leading-none text-white">
@@ -619,7 +597,7 @@ function QueueEntryCard({
                             {getInitials(queueEntry.patient.fullName)}
                         </span>
                         <div className="min-w-0">
-                            <h3 className="truncate text-base font-bold text-slate-950">
+                            <h3 className="break-words text-base font-bold text-slate-950">
                                 {queueEntry.patient.fullName}
                             </h3>
                             <p className="mt-1 text-sm text-slate-600">
@@ -656,29 +634,28 @@ function QueueEntryCard({
                         </div>
                     </div>
                     {queueEntry.appointment.reason ? (
-                        <p className="mt-3 text-xs leading-5 text-slate-500">
+                        <p
+                            className="mt-3 max-w-xl break-words text-sm leading-5 text-slate-600"
+                            title={queueEntry.appointment.reason}
+                        >
                             {queueEntry.appointment.reason}
                         </p>
                     ) : null}
                 </div>
 
-                <div className="grid gap-4 content-start">
+                <div className="grid min-w-0 content-start gap-3">
                     <div className="flex flex-wrap items-center gap-2">
                         <StatusBadge kind="queue" status={queueEntry.status} />
-                        {isWaiting ? (
-                            <span className="text-xs font-semibold text-[var(--color-status-warning-text)]">
-                                Waiting in queue
-                            </span>
-                        ) : null}
                     </div>
 
-                    <div className="rounded-md bg-slate-50 p-3">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                            Risk support
+                    <div className="border-t border-slate-200 pt-3">
+                        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            No-show risk
                         </p>
-                        <div className="mt-2">
-                            <RiskBadge queueEntry={queueEntry} timezone={timezone} />
-                        </div>
+                        <QueueRiskSummary
+                            queueEntry={queueEntry}
+                            onOpen={() => onOpenRiskDetails(queueEntry)}
+                        />
                     </div>
 
                     <QueueStatusActions
@@ -705,6 +682,7 @@ function ActiveQueueBoard({
     todayDate,
     updatingQueueEntryId,
     timezone,
+    onOpenRiskDetails,
 }: {
     activeQueueEntries: QueueListItem[];
     activeQueueIndexesByDoctor: Map<string, Map<string, number>>;
@@ -716,6 +694,7 @@ function ActiveQueueBoard({
     todayDate: string;
     updatingQueueEntryId: string | null;
     timezone?: string | null;
+    onOpenRiskDetails: (queueEntry: QueueListItem) => void;
 }) {
     const lanes = getQueueDoctorLanes(activeQueueEntries);
 
@@ -735,7 +714,7 @@ function ActiveQueueBoard({
                 </div>
             </div>
 
-            <div className="grid gap-4 xl:grid-cols-2">
+            <div className="grid min-w-0 grid-cols-1 gap-4">
                 {lanes.map((lane) => (
                     <article
                         key={lane.doctor.id}
@@ -775,6 +754,7 @@ function ActiveQueueBoard({
                                     reorderingQueueEntryId={reorderingQueueEntryId}
                                     updatingQueueEntryId={updatingQueueEntryId}
                                     timezone={timezone}
+                                    onOpenRiskDetails={onOpenRiskDetails}
                                 />
                             ))}
                         </ol>
@@ -890,6 +870,7 @@ function QueuePage() {
     const [reorderMessage, setReorderMessage] = useState<string | null>(null);
     const [terminalReasonFlow, setTerminalReasonFlow] =
         useState<QueueTerminalReasonFlowState | null>(null);
+    const [riskDetailsEntry, setRiskDetailsEntry] = useState<QueueListItem | null>(null);
 
     const loadQueue = useCallback(
         async (signal?: AbortSignal) => {
@@ -1190,7 +1171,7 @@ function QueuePage() {
     const isReordering = Boolean(reorderingQueueEntryId);
 
     return (
-        <section className="space-y-6">
+        <section className="space-y-4">
             <PageHeader
                 actions={
                     <div className="flex flex-wrap items-center gap-3">
@@ -1211,10 +1192,8 @@ function QueuePage() {
                 }
             />
 
-            <QueueLifecyclePanel selectedStatus={selectedStatus} />
-
-            <div className="rounded-lg border border-slate-200 bg-white p-4 md:p-5">
-                <div className="grid gap-4 md:grid-cols-4">
+            <div className="rounded-lg border border-slate-200 bg-white p-3 sm:p-4">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                             Clinic and date
@@ -1228,7 +1207,7 @@ function QueuePage() {
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                             Active entries
                         </p>
-                        <p className="mt-1 text-sm font-semibold text-slate-900">
+                        <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
                             {allActiveQueueEntries.length}
                         </p>
                         <p className="mt-1 text-xs text-slate-500">
@@ -1240,7 +1219,7 @@ function QueuePage() {
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                             Final entries
                         </p>
-                        <p className="mt-1 text-sm font-semibold text-slate-900">
+                        <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
                             {queueCounts.COMPLETED + queueCounts.CANCELLED + queueCounts.NO_SHOW}
                         </p>
                         <p className="mt-1 text-xs text-slate-500">
@@ -1412,6 +1391,7 @@ function QueuePage() {
                     todayDate={todayDate}
                     updatingQueueEntryId={updatingQueueEntryId}
                     timezone={clinicTimezone}
+                    onOpenRiskDetails={setRiskDetailsEntry}
                 />
             ) : null}
 
@@ -1435,6 +1415,30 @@ function QueuePage() {
                     error={terminalReasonFlow.error}
                     onClose={() => setTerminalReasonFlow(null)}
                     onSubmit={(submission) => void handleTerminalReasonSubmit(submission)}
+                />
+            ) : null}
+            {riskDetailsEntry?.clinicId === clinicId ? (
+                <NoShowRiskDetailsDialog
+                    subject={{
+                        id: riskDetailsEntry.appointment.id,
+                        patientName: riskDetailsEntry.patient.fullName,
+                        patientContact: [
+                            riskDetailsEntry.patient.phone,
+                            riskDetailsEntry.patient.email,
+                        ]
+                            .filter((value): value is string => Boolean(value?.trim()))
+                            .join(' / '),
+                        doctorName: riskDetailsEntry.doctor.fullName,
+                        doctorSpecialty: riskDetailsEntry.doctor.specialization,
+                        scheduledAt: riskDetailsEntry.appointment.scheduledAt,
+                        durationMinutes: riskDetailsEntry.appointment.durationMinutes,
+                        status: riskDetailsEntry.status,
+                        reason: riskDetailsEntry.appointment.reason,
+                        notes: riskDetailsEntry.appointment.notes,
+                        prediction: riskDetailsEntry.noShowPrediction,
+                    }}
+                    timezone={clinicTimezone}
+                    onClose={() => setRiskDetailsEntry(null)}
                 />
             ) : null}
         </section>

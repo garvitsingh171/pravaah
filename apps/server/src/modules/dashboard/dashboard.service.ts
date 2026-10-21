@@ -19,6 +19,7 @@ import type {
     DashboardNoShowRiskSummary,
     DashboardQueueSummary,
     DashboardSummary,
+    NoShowIntelligence,
     HighRiskAppointmentCandidate,
     NoShowRiskLevelCount,
     PatientStatusCount,
@@ -218,6 +219,102 @@ const buildHighRiskAppointments = (
     });
 };
 
+const factorLabels: Record<string, string> = {
+    PREVIOUS_NO_SHOW_HISTORY: 'Previous no-show history',
+    LATE_ARRIVAL_HISTORY: 'Late-arrival history',
+    LONG_DISTANCE_FROM_CLINIC: 'Long distance from clinic',
+    SHORT_NOTICE_BOOKING: 'Short-notice booking',
+    LONG_ADVANCE_BOOKING: 'Long-advance booking',
+    NEW_PATIENT: 'New patient',
+    STRONG_ATTENDANCE_HISTORY: 'Strong attendance history',
+};
+
+const buildNoShowIntelligence = (
+    clinicId: string,
+    from: string,
+    to: string,
+    candidates: Awaited<ReturnType<typeof dashboardRepository.findUpcomingNoShowIntelligenceCandidates>>
+): NoShowIntelligence => {
+    const riskCounts = { high: 0, medium: 0, low: 0, unavailable: 0 };
+    const factorInstances = new Map<string, { appointments: Set<string>; impacts: number[] }>();
+    const highRiskAppointments: DashboardHighRiskAppointment[] = [];
+
+    for (const appointment of candidates) {
+        const latest = toLatestNoShowPrediction(appointment.noShowPredictions);
+        const prediction = toNoShowPredictionResponse(latest);
+        if (!prediction) {
+            riskCounts.unavailable += 1;
+            continue;
+        }
+
+        riskCounts[prediction.riskLevel.toLowerCase() as 'high' | 'medium' | 'low'] += 1;
+        const seenCodes = new Set<string>();
+        for (const rawReason of prediction.reasons) {
+            if (!rawReason || typeof rawReason !== 'object') continue;
+            const reason = rawReason as { code?: unknown; scoreImpact?: unknown };
+            if (typeof reason.code !== 'string' || seenCodes.has(reason.code)) continue;
+            seenCodes.add(reason.code);
+            const aggregate = factorInstances.get(reason.code) ?? { appointments: new Set<string>(), impacts: [] };
+            aggregate.appointments.add(appointment.id);
+            if (typeof reason.scoreImpact === 'number' && Number.isFinite(reason.scoreImpact)) {
+                aggregate.impacts.push(reason.scoreImpact);
+            }
+            factorInstances.set(reason.code, aggregate);
+        }
+
+        if (prediction.riskLevel === 'HIGH') {
+            highRiskAppointments.push({
+                appointment: {
+                    id: appointment.id,
+                    scheduledAt: appointment.scheduledAt,
+                    durationMinutes: appointment.durationMinutes,
+                    status: appointment.status,
+                    bookingSource: appointment.bookingSource,
+                    reason: appointment.reason,
+                },
+                doctor: appointment.doctor,
+                patient: appointment.patient,
+                noShowPrediction: prediction,
+            });
+        }
+    }
+
+    const contributingFactors = [...factorInstances.entries()]
+        .map(([code, data]) => {
+            const hasPositive = data.impacts.some((impact) => impact > 0);
+            const hasNegative = data.impacts.some((impact) => impact < 0);
+            const direction: 'increases' | 'decreases' | 'mixed' | 'neutral' = hasPositive && hasNegative
+                ? 'mixed'
+                : hasPositive
+                  ? 'increases'
+                  : hasNegative
+                    ? 'decreases'
+                    : 'neutral';
+            return {
+                code,
+                label: factorLabels[code] ?? code.replaceAll('_', ' ').toLowerCase(),
+                appointmentCount: data.appointments.size,
+                direction,
+                averageScoreImpact: data.impacts.length
+                    ? data.impacts.reduce((total, value) => total + value, 0) / data.impacts.length
+                    : null,
+            };
+        })
+        .sort((first, second) =>
+            second.appointmentCount - first.appointmentCount || first.label.localeCompare(second.label)
+        );
+
+    return {
+        clinicId,
+        from,
+        to,
+        totalUpcoming: candidates.length,
+        riskCounts,
+        contributingFactors,
+        highRiskAppointments,
+    };
+};
+
 const isInDateRange = (timestamp: Date | null, dateRange: ClinicDateRange): timestamp is Date => {
     if (!timestamp) {
         return false;
@@ -361,6 +458,22 @@ const buildQueueActivityItems = (
 };
 
 export const dashboardService = {
+    async getNoShowIntelligence(
+        user: AuthenticatedUser | undefined,
+        clinicId: string,
+        from: string,
+        to: string
+    ): Promise<NoShowIntelligence> {
+        const clinic = await accessService.verifyClinicAccess(user, clinicId);
+        const candidates = await dashboardRepository.findUpcomingNoShowIntelligenceCandidates(
+            clinicId,
+            from,
+            to,
+            clinic.timezone
+        );
+        return buildNoShowIntelligence(clinicId, from, to, candidates);
+    },
+
     async getDashboardSummary(
         user: AuthenticatedUser | undefined,
         clinicId: string,
