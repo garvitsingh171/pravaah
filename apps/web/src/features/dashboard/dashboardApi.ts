@@ -122,6 +122,24 @@ export type TodayActivityResponseData = {
     activityItems: DashboardActivityItem[];
 };
 
+export type NoShowIntelligence = {
+    clinicId: string;
+    from: string;
+    to: string;
+    totalUpcoming: number;
+    riskCounts: DashboardNoShowRiskSummary & { unavailable: number };
+    contributingFactors: Array<{
+        code: string;
+        label: string;
+        appointmentCount: number;
+        direction: 'increases' | 'decreases' | 'mixed' | 'neutral';
+        averageScoreImpact: number | null;
+    }>;
+    highRiskAppointments: DashboardHighRiskAppointment[];
+};
+
+export type NoShowIntelligenceResponseData = { noShowIntelligence: NoShowIntelligence };
+
 const getDashboardPath = (clinicId: string, path: string): string => {
     return `/clinics/${encodeURIComponent(clinicId)}/dashboard/${path}`;
 };
@@ -145,4 +163,16 @@ export const listTodayActivity = (clinicId: string, signal?: AbortSignal) => {
     return apiClient.get<TodayActivityResponseData>(getDashboardPath(clinicId, 'today-activity'), {
         signal,
     });
+};
+
+export const getNoShowIntelligence = (
+    clinicId: string,
+    from: string,
+    to: string,
+    signal?: AbortSignal
+) => {
+    return apiClient.get<NoShowIntelligenceResponseData>(
+        getDashboardPath(clinicId, 'no-show-intelligence'),
+        { query: { from, to }, signal }
+    );
 };

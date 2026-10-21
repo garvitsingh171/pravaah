@@ -9,11 +9,13 @@ import {
     getDashboardSummaryController,
     getHighRiskAppointmentsController,
     getTodayActivityController,
+    getNoShowIntelligenceController,
 } from './dashboard.controller.js';
 import {
     dashboardClinicIdParamsSchema,
     dashboardSummaryQuerySchema,
     highRiskAppointmentsQuerySchema,
+    noShowIntelligenceQuerySchema,
 } from './dashboard.validation.js';
 
 const dashboardRouter = Router();
@@ -40,6 +42,18 @@ dashboardRouter.get(
     requireClinicAccess,
     requireClinicStaffRole,
     getHighRiskAppointmentsController
+);
+
+dashboardRouter.get(
+    '/:clinicId/dashboard/no-show-intelligence',
+    authenticateRequest,
+    validateRequest({
+        params: dashboardClinicIdParamsSchema,
+        query: noShowIntelligenceQuerySchema,
+    }),
+    requireClinicAccess,
+    requireClinicStaffRole,
+    getNoShowIntelligenceController
 );
 
 dashboardRouter.get(

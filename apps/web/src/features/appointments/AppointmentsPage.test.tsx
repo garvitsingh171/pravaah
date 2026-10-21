@@ -88,4 +88,43 @@ describe('AppointmentsPage primary status action', () => {
         expect(screen.queryByText('Patient 1')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Next' })).not.toBeInTheDocument();
     });
+
+    it('opens risk details in a dialog without adding an expanded appointment row', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(<AppointmentsPage />, { activeClinic: adminActiveClinic });
+
+        await user.click(
+            await screen.findByRole('button', { name: 'View risk details for Asha Mehra' })
+        );
+
+        expect(screen.getByRole('dialog', { name: 'No-show risk assessment' })).toBeInTheDocument();
+        expect(screen.getByText('Risk assessment unavailable')).toBeInTheDocument();
+        expect(document.querySelector('.operational-detail-row')).not.toBeInTheDocument();
+        await user.keyboard('{Escape}');
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'View risk details for Asha Mehra' })
+        ).toHaveFocus();
+        expect(
+            screen.getByRole('button', { name: 'View risk details for Asha Mehra' })
+        ).toHaveFocus();
+    });
+
+    it('keeps secondary status transitions available in the compact actions selector', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(<AppointmentsPage />, { activeClinic: adminActiveClinic });
+
+        const actions = await screen.findByRole('combobox', {
+            name: 'More actions for Asha Mehra',
+        });
+        expect(screen.getByRole('option', { name: 'View activity' })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: 'Reschedule' })).toBeInTheDocument();
+        await user.selectOptions(actions, AppointmentStatus.ARRIVED);
+
+        await waitFor(() => {
+            expect(updateAppointmentStatus).toHaveBeenCalledWith(appointment.id, {
+                status: AppointmentStatus.ARRIVED,
+            });
+        });
+    });
 });

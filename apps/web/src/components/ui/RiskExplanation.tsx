@@ -98,7 +98,8 @@ function ExplanationContent({
                     {getRiskDescription(prediction.riskLevel)}
                 </p>
                 <p className="mt-1 text-xs leading-5">
-                    This is a rule-based score, not a calibrated probability. Factor impacts are
+                    A risk score is a rule-based operational indicator, not a calibrated
+                    probability that the patient will miss the appointment. Factor impacts are
                     shown individually; the stored final score remains authoritative and is limited
                     to the supported 0–100 range.
                 </p>

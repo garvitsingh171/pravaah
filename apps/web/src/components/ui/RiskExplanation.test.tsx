@@ -50,7 +50,7 @@ describe('RiskExplanation', () => {
         await user.click(screen.getByText('Risk explanation'));
         expect(screen.getAllByText('Score 75/100')).toHaveLength(2);
         expect(
-            screen.getByText(/rule-based score, not a calibrated probability/i)
+            screen.getByText(/rule-based operational indicator, not a calibrated probability/i)
         ).toBeInTheDocument();
         expect(screen.getByText('Previous No-Shows')).toBeInTheDocument();
         expect(screen.getByText(/Increases risk/)).toHaveTextContent('+40 points');

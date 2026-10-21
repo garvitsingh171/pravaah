@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dashboardClinicIdParamsSchema } from '../dashboard.validation.js';
+import { dashboardClinicIdParamsSchema, noShowIntelligenceQuerySchema } from '../dashboard.validation.js';
 
 describe('dashboardClinicIdParamsSchema', () => {
     it('accepts standard Prisma UUID clinic ids', () => {
@@ -16,5 +16,16 @@ describe('dashboardClinicIdParamsSchema', () => {
         });
 
         expect(result.success).toBe(true);
+    });
+});
+
+describe('noShowIntelligenceQuerySchema', () => {
+    it('accepts a clinic calendar period up to 31 days', () => {
+        expect(noShowIntelligenceQuerySchema.safeParse({ from: '2026-06-01', to: '2026-06-30' }).success).toBe(true);
+    });
+
+    it('rejects reversed or overly broad periods', () => {
+        expect(noShowIntelligenceQuerySchema.safeParse({ from: '2026-06-02', to: '2026-06-01' }).success).toBe(false);
+        expect(noShowIntelligenceQuerySchema.safeParse({ from: '2026-06-01', to: '2026-07-02' }).success).toBe(false);
     });
 });

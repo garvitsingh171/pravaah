@@ -276,7 +276,7 @@ describe('QueuePage manual reorder controls', () => {
         mockUpdateQueueStatus.mockResolvedValue({
             queueEntry: {
                 ...secondEntry,
-                status: QueueStatus.CALLED,
+                status: QueueStatus.COMPLETED,
             },
         });
 
@@ -287,13 +287,13 @@ describe('QueuePage manual reorder controls', () => {
 
         await user.selectOptions(
             screen.getByRole('combobox', { name: /update queue status for kabir sen/i }),
-            QueueStatus.CALLED
+            QueueStatus.COMPLETED
         );
 
         expect(mockUpdateQueueStatus).toHaveBeenCalledWith(
             adminActiveClinic.clinicId,
             secondEntry.id,
-            { status: QueueStatus.CALLED }
+            { status: QueueStatus.COMPLETED }
         );
     });
 
@@ -365,6 +365,20 @@ describe('QueuePage manual reorder controls', () => {
         await user.click(screen.getByRole('button', { name: /^refresh$/i }));
 
         expect(await screen.findByRole('button', { name: /mark arrived/i })).toBeVisible();
-        expect(screen.getByRole('option', { name: /mark arrived/i })).toBeInTheDocument();
+        expect(screen.queryByRole('option', { name: /mark arrived/i })).not.toBeInTheDocument();
+    });
+
+    it('opens the shared risk details dialog from a compact queue summary', async () => {
+        mockListTodayQueue.mockResolvedValue({ queueEntries: [secondEntry] });
+        renderQueuePage();
+
+        await userEvent.click(
+            await screen.findByRole('button', { name: 'View risk details for Kabir Sen' })
+        );
+
+        expect(screen.getByRole('dialog', { name: 'No-show risk assessment' })).toBeInTheDocument();
+        expect(screen.getAllByText('Repeated no-shows').length).toBeGreaterThan(0);
+        expect(screen.getByText('Confirm the appointment time.')).toBeInTheDocument();
+        expect(document.querySelector('.operational-detail-row')).not.toBeInTheDocument();
     });
 });

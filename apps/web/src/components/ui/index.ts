@@ -12,6 +12,8 @@ export { default as PageHeader } from './PageHeader';
 export { default as RiskBadge } from './RiskBadge';
 export { default as RiskExplanation } from './RiskExplanation';
 export type { RiskPredictionLike, RiskReasonLike } from './RiskExplanation';
+export { default as NoShowRiskDetailsDialog } from './NoShowRiskDetailsDialog';
+export type { NoShowRiskSubject } from './NoShowRiskDetailsDialog';
 export { default as StatusBadge } from './StatusBadge';
 export { cx } from './classNames';
 export {

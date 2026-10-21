@@ -7,7 +7,6 @@ import {
     Button,
     Card,
     PageHeader,
-    RiskExplanation,
     RiskBadge,
     StatusBadge,
     type BadgeTone,
@@ -19,17 +18,17 @@ import { AppointmentStatus } from '../../types';
 import { listAppointments, type AppointmentListItem } from '../appointments/appointmentApi';
 import {
     getDashboardSummary,
-    listHighRiskAppointments,
     listTodayActivity,
+    getNoShowIntelligence,
     type DashboardActivityItem,
     type DashboardActivityType,
-    type DashboardHighRiskAppointment,
     type DashboardSummary,
+    type NoShowIntelligence,
 } from './dashboardApi';
+import NoShowRiskIntelligence from './NoShowRiskIntelligence';
 
 type DashboardData = {
     summary: DashboardSummary;
-    highRiskAppointments: DashboardHighRiskAppointment[];
     activityItems: DashboardActivityItem[];
     appointments: AppointmentListItem[] | null;
 };
@@ -153,6 +152,12 @@ const formatClinicDate = (date: string): string => {
     }).format(parsed);
 };
 
+const addCalendarDays = (date: string, days: number): string => {
+    const value = new Date(`${date}T12:00:00Z`);
+    value.setUTCDate(value.getUTCDate() + days);
+    return value.toISOString().slice(0, 10);
+};
+
 const countArrivedWaiting = (appointments: AppointmentListItem[]): number =>
     appointments.filter(
         (appointment) =>
@@ -214,7 +219,6 @@ const hasUsefulDashboardData = (data: DashboardData): boolean => {
         noShowRiskSummary.high > 0 ||
         noShowRiskSummary.medium > 0 ||
         noShowRiskSummary.low > 0 ||
-        data.highRiskAppointments.length > 0 ||
         data.activityItems.length > 0 ||
         (data.appointments?.length ?? 0) > 0
     );
@@ -451,7 +455,7 @@ function OperationalPulsePanel({ data }: { data: DashboardData }) {
     const finalAppointments =
         appointmentSummary.completed + appointmentSummary.cancelled + appointmentSummary.noShow;
     const waitingNow = data.appointments ? countArrivedWaiting(data.appointments) : null;
-    const actionableHighRisk = data.highRiskAppointments.length;
+    const actionableHighRisk = data.summary.noShowRiskSummary.high;
     const needsAttention = (waitingNow ?? 0) > 0 || actionableHighRisk > 0;
     const flowNodes = [
         {
@@ -537,77 +541,6 @@ function OperationalPulsePanel({ data }: { data: DashboardData }) {
                 </div>
             </div>
         </section>
-    );
-}
-
-function HighRiskAppointmentsCard({
-    appointments,
-    timezone,
-}: {
-    appointments: DashboardHighRiskAppointment[];
-    timezone?: string | null;
-}) {
-    return (
-        <Card>
-            <div>
-                <p className="text-sm font-medium uppercase tracking-wide text-[var(--color-status-danger-text)]">
-                    High-risk appointments
-                </p>
-                <h2 className="mt-2 text-xl font-bold text-app-text">No-show attention list</h2>
-            </div>
-
-            {appointments.length === 0 ? (
-                <div className="mt-5">
-                    <EmptyState
-                        title="No high-risk appointments today."
-                        message="Appointments with high no-show risk will appear here when the backend has matching prediction data."
-                    />
-                </div>
-            ) : (
-                <div className="mt-5 divide-y divide-slate-200">
-                    {appointments.map((item) => (
-                        <article
-                            key={item.appointment.id}
-                            className="grid gap-4 py-4 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto] md:items-center"
-                        >
-                            <div>
-                                <p className="font-semibold text-slate-900">
-                                    {item.patient.fullName}
-                                </p>
-                                <p className="mt-1 text-sm text-slate-600">
-                                    Appointment needs staff review
-                                </p>
-                            </div>
-
-                            <div>
-                                <p className="text-sm font-semibold text-slate-900">
-                                    {item.doctor.fullName}
-                                </p>
-                                <p className="mt-1 text-sm text-slate-600">
-                                    {formatTime(item.appointment.scheduledAt, timezone)}
-                                </p>
-                            </div>
-
-                            <div className="md:text-right">
-                                <Link
-                                    to={appRoutePaths.appointments}
-                                    className="block text-sm font-semibold text-action underline-offset-2 hover:underline"
-                                >
-                                    Review appointment
-                                </Link>
-                            </div>
-                            <div className="md:col-span-3">
-                                <RiskExplanation
-                                    prediction={item.noShowPrediction}
-                                    subjectName={item.patient.fullName}
-                                    timezone={timezone}
-                                />
-                            </div>
-                        </article>
-                    ))}
-                </div>
-            )}
-        </Card>
     );
 }
 
@@ -862,12 +795,40 @@ function DashboardOverviewPage() {
     const activeClinic = useActiveClinic();
     const { clinicId } = activeClinic;
     const [dashboardState, setDashboardState] = useState<DashboardState>(emptyDashboardState);
+    const [riskPeriodDays, setRiskPeriodDays] = useState<1 | 7 | 30>(7);
+    const [riskReload, setRiskReload] = useState(0);
+    const [riskIntelligence, setRiskIntelligence] = useState<NoShowIntelligence | null>(null);
+    const [riskIntelligenceError, setRiskIntelligenceError] = useState<string | null>(null);
+    const [riskIntelligenceLoading, setRiskIntelligenceLoading] = useState(true);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        const from = getClinicDateInputValue(activeClinic.clinic?.timezone);
+        const to = addCalendarDays(from, riskPeriodDays - 1);
+        void getNoShowIntelligence(clinicId, from, to, controller.signal)
+            .then((result) => {
+                if (controller.signal.aborted) return;
+                setRiskIntelligence(result.noShowIntelligence);
+                setRiskIntelligenceError(null);
+            })
+            .catch((error: unknown) => {
+                if (controller.signal.aborted) return;
+                setRiskIntelligenceError(
+                    error instanceof Error
+                        ? error.message
+                        : 'Risk intelligence could not be loaded.'
+                );
+            })
+            .finally(() => {
+                if (!controller.signal.aborted) setRiskIntelligenceLoading(false);
+            });
+        return () => controller.abort();
+    }, [clinicId, activeClinic.clinic?.timezone, riskPeriodDays, riskReload]);
 
     const loadDashboard = useCallback(
         async (signal?: AbortSignal): Promise<DashboardData> => {
-            const [summaryData, highRiskData, activityData, appointments] = await Promise.all([
+            const [summaryData, activityData, appointments] = await Promise.all([
                 getDashboardSummary(clinicId, signal),
-                listHighRiskAppointments(clinicId, signal),
                 listTodayActivity(clinicId, signal),
                 listAppointments(
                     clinicId,
@@ -883,7 +844,6 @@ function DashboardOverviewPage() {
 
             return {
                 summary: summaryData.dashboardSummary,
-                highRiskAppointments: highRiskData.highRiskAppointments,
                 activityItems: activityData.activityItems,
                 appointments,
             };
@@ -892,6 +852,7 @@ function DashboardOverviewPage() {
     );
 
     const refreshDashboard = useCallback(() => {
+        setRiskReload((value) => value + 1);
         setDashboardState((currentState) => ({
             status: 'loading',
             data: currentState.data,
@@ -945,12 +906,14 @@ function DashboardOverviewPage() {
         : [];
     const hasDashboardData = dashboardData ? hasUsefulDashboardData(dashboardData) : false;
     const clinicTimezone = activeClinic.clinic?.timezone;
+    const currentRiskFrom = getClinicDateInputValue(clinicTimezone);
+    const currentRiskTo = addCalendarDays(currentRiskFrom, riskPeriodDays - 1);
     const clinicName = activeClinic.clinic?.name ?? 'your clinic';
     const firstName = activeClinic.currentUser?.fullName?.trim().split(/\s+/)[0];
     const waitingCount = dashboardData?.appointments
         ? countArrivedWaiting(dashboardData.appointments)
         : null;
-    const highRiskCount = dashboardData?.highRiskAppointments.length ?? 0;
+    const highRiskCount = dashboardData?.summary.noShowRiskSummary.high ?? 0;
 
     return (
         <section className="space-y-6">
@@ -1053,16 +1016,35 @@ function DashboardOverviewPage() {
                         />
                     ) : null}
 
-                    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                        <HighRiskAppointmentsCard
-                            appointments={dashboardData.highRiskAppointments}
-                            timezone={clinicTimezone}
-                        />
-                        <TodayActivitySection
-                            activityItems={dashboardData.activityItems}
-                            timezone={clinicTimezone}
-                        />
-                    </div>
+                    <NoShowRiskIntelligence
+                        data={
+                            riskIntelligence?.clinicId === clinicId &&
+                            riskIntelligence.from === currentRiskFrom &&
+                            riskIntelligence.to === currentRiskTo
+                                ? riskIntelligence
+                                : null
+                        }
+                        loading={riskIntelligenceLoading}
+                        error={
+                            riskIntelligence?.clinicId === clinicId ? riskIntelligenceError : null
+                        }
+                        periodDays={riskPeriodDays}
+                        onPeriodChange={(days) => {
+                            setRiskIntelligenceLoading(true);
+                            setRiskIntelligenceError(null);
+                            setRiskPeriodDays(days);
+                        }}
+                        onRetry={() => {
+                            setRiskIntelligenceLoading(true);
+                            setRiskIntelligenceError(null);
+                            setRiskReload((value) => value + 1);
+                        }}
+                        timezone={clinicTimezone}
+                    />
+                    <TodayActivitySection
+                        activityItems={dashboardData.activityItems}
+                        timezone={clinicTimezone}
+                    />
                     <OperationalDistributionCard data={dashboardData} />
                 </>
             ) : null}

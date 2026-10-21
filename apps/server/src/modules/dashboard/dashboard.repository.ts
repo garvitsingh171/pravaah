@@ -132,6 +132,15 @@ const getClinicDateRange = async (date: string, clinicTimezone: string) => {
     return dateRange;
 };
 
+const getClinicPeriodRange = async (from: string, to: string, clinicTimezone: string) => {
+    const [dateRange] = await prisma.$queryRaw<Array<{ start: Date; end: Date }>>`
+        SELECT
+            (${from}::date::timestamp AT TIME ZONE ${clinicTimezone}) AS "start",
+            ((${to}::date + 1)::timestamp AT TIME ZONE ${clinicTimezone}) AS "end"
+    `;
+    return dateRange;
+};
+
 const findLatestPredictionAppointmentIds = async (
     clinicId: string,
     dateRange: { start: Date; end: Date },
@@ -161,6 +170,31 @@ const findLatestPredictionAppointmentIds = async (
 
 export const dashboardRepository = {
     getClinicDateRange,
+    getClinicPeriodRange,
+
+    async findUpcomingNoShowIntelligenceCandidates(
+        clinicId: string,
+        from: string,
+        to: string,
+        clinicTimezone: string,
+        now = new Date()
+    ) {
+        const dateRange = await getClinicPeriodRange(from, to, clinicTimezone);
+        if (!dateRange) return [];
+
+        return prisma.appointment.findMany({
+            where: {
+                clinicId,
+                scheduledAt: {
+                    gte: dateRange.start > now ? dateRange.start : now,
+                    lt: dateRange.end,
+                },
+                status: { in: activeAppointmentStatuses },
+            },
+            select: appointmentDetailsSelect,
+            orderBy: [{ scheduledAt: 'asc' }, { id: 'asc' }],
+        });
+    },
 
     async countAppointmentsByStatus(clinicId: string, date: string, clinicTimezone: string) {
         const dateRange = await getClinicDateRange(date, clinicTimezone);
