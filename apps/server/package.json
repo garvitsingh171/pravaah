@@ -10,6 +10,7 @@
         "check": "tsc --noEmit",
         "lint": "echo \"server lint not configured yet\"",
         "test": "vitest run",
+        "export:ml-dataset": "tsx src/modules/predictions/dataset-export/cli.ts",
         "seed": "prisma db seed",
         "seed:demo": "prisma db seed",
         "seed:small": "SEED_PROFILE=small prisma db seed",

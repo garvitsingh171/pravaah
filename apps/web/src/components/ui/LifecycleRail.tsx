@@ -14,6 +14,7 @@ type LifecycleRailProps = {
     terminalLabel?: string;
     className?: string;
     ariaLabel?: string;
+    layout?: 'default' | 'compact';
 };
 
 function LifecycleRail({
@@ -22,6 +23,7 @@ function LifecycleRail({
     currentStepId,
     steps,
     terminalLabel,
+    layout = 'default',
 }: LifecycleRailProps) {
     const currentIndex = currentStepId ? steps.findIndex((step) => step.id === currentStepId) : -1;
 
@@ -33,7 +35,20 @@ function LifecycleRail({
             )}
         >
             <ol
-                className="grid gap-3 sm:grid-cols-2 lg:grid-cols-none lg:auto-cols-fr lg:grid-flow-col"
+                className={cx(
+                    'grid gap-3',
+                    layout === 'compact'
+                        ? ''
+                        : 'sm:grid-cols-2 lg:grid-cols-none lg:auto-cols-fr lg:grid-flow-col'
+                )}
+                style={
+                    layout === 'compact'
+                        ? {
+                              gridTemplateColumns:
+                                  'repeat(auto-fit, minmax(min(100%, 15rem), 1fr))',
+                          }
+                        : undefined
+                }
                 aria-label={ariaLabel}
             >
                 {steps.map((step, index) => {
@@ -45,7 +60,7 @@ function LifecycleRail({
                         <li key={step.id} className="relative">
                             <div
                                 className={cx(
-                                    'flex h-full gap-3 rounded-md border p-3 transition',
+                                    'flex h-full min-h-28 min-w-0 gap-3 rounded-md border p-3 transition',
                                     isCurrent
                                         ? 'border-brand-soft bg-brand-subtle text-app-text'
                                         : isComplete
@@ -67,12 +82,12 @@ function LifecycleRail({
                                 >
                                     {step.marker ?? index + 1}
                                 </span>
-                                <span className="min-w-0">
-                                    <span className="block text-sm font-semibold text-app-text">
+                                <span className="min-w-0 flex-1">
+                                    <span className="block break-words text-sm font-semibold text-app-text">
                                         {step.label}
                                     </span>
                                     {step.description ? (
-                                        <span className="mt-1 block text-xs leading-5 text-app-muted">
+                                        <span className="mt-1 block break-words text-xs leading-5 text-app-muted">
                                             {step.description}
                                         </span>
                                     ) : null}

@@ -22,6 +22,10 @@ lib-cov
 coverage
 *.lcov
 apps/web/coverage/
+private-ml-exports/
+*.pravaah-dataset.csv
+*.pravaah-dataset.jsonl
+*.pravaah-dataset.*.manifest.json
 
 # nyc test coverage
 .nyc_output
