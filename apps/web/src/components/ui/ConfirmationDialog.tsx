@@ -123,7 +123,7 @@ function ConfirmationDialog({
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 py-6">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/40 px-4 py-6">
             <div
                 ref={dialogRef}
                 role="dialog"

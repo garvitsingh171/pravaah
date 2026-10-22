@@ -91,7 +91,8 @@ export const createGeoapifyRoutingClient = ({
             type: GEOAPIFY_ROUTING_TYPE,
             units: GEOAPIFY_ROUTING_UNITS,
             traffic: GEOAPIFY_ROUTING_TRAFFIC,
-            format: 'json',
+            // The validated response parser below consumes GeoJSON FeatureCollections.
+            format: 'geojson',
             apiKey,
         });
         const abortController = new AbortController();

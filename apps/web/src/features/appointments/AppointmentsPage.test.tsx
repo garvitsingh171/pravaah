@@ -48,6 +48,25 @@ describe('AppointmentsPage primary status action', () => {
         });
     });
 
+    it('opens booking only on request and converts the legacy fragment to the dialog', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(<AppointmentsPage />, {
+            activeClinic: adminActiveClinic,
+            route: '/appointments#book-appointment',
+        });
+
+        expect(await screen.findByRole('dialog', { name: 'Book appointment' })).toBeVisible();
+        expect(document.body.style.overflow).toBe('hidden');
+        expect(document.body.querySelector('#book-appointment')).toBeInTheDocument();
+        await user.keyboard('{Escape}');
+        expect(screen.queryByRole('dialog', { name: 'Book appointment' })).not.toBeInTheDocument();
+        expect(document.body.style.overflow).toBe('');
+        expect(document.body.querySelector('#book-appointment')).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Book appointment' }));
+        expect(screen.getByRole('dialog', { name: 'Book appointment' })).toBeVisible();
+    });
+
     it('offers the next valid transition directly and saves through the API', async () => {
         const user = userEvent.setup();
         renderWithProviders(<AppointmentsPage />, { activeClinic: adminActiveClinic });

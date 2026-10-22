@@ -42,11 +42,15 @@ describe('Geoapify routing client', () => {
         expect(requestUrl.searchParams.get('type')).toBe('balanced');
         expect(requestUrl.searchParams.get('traffic')).toBe('free_flow');
         expect(requestUrl.searchParams.get('units')).toBe('metric');
-        expect(requestUrl.searchParams.get('format')).toBe('json');
+        expect(requestUrl.searchParams.get('format')).toBe('geojson');
     });
 
     it.each([
         [{ features: [] }, 'NO_RESULTS'],
+        [{ type: 'FeatureCollection', features: [] }, 'NO_RESULTS'],
+        [{ results: [{ distance: 8437, time: 601 }] }, 'INVALID_RESPONSE'],
+        [{ features: [{ properties: {} }] }, 'INVALID_RESPONSE'],
+        [{ features: [{ properties: { distance: 8437, time: '601' } }] }, 'INVALID_RESPONSE'],
         [{ features: [{ properties: { distance: '8437', time: 601 } }] }, 'INVALID_RESPONSE'],
         [{ features: [{ properties: { distance: -1, time: 601 } }] }, 'INVALID_RESPONSE'],
         [{ features: [{ properties: { distance: 8437, time: -1 } }] }, 'INVALID_RESPONSE'],
@@ -94,6 +98,17 @@ describe('Geoapify routing client', () => {
         });
         await expect(upstreamFailure.routePatientToClinic(coordinates)).rejects.toMatchObject({
             category: 'UPSTREAM_ERROR',
+        });
+    });
+
+    it('classifies network errors without exposing request details', async () => {
+        const client = createGeoapifyRoutingClient({
+            apiKey: 'sensitive-test-key',
+            fetchImpl: vi.fn().mockRejectedValue(new TypeError('connection failed')),
+        });
+
+        await expect(client.routePatientToClinic(coordinates)).rejects.toMatchObject({
+            category: 'NETWORK_ERROR',
         });
     });
 

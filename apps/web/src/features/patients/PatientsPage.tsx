@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useActiveClinic } from '../../app/activeClinicContext';
@@ -26,6 +26,7 @@ import {
     type BackendValidationDetail,
 } from '../../lib';
 import { Gender, UserRole, type Gender as GenderType, type PatientSummary } from '../../types';
+import PatientProfileDialog from './PatientProfileDialog';
 import {
     archivePatient,
     getPatientLifecycleImpact,
@@ -136,36 +137,6 @@ const getOptionalText = (value: string | null | undefined): string => {
     return value?.trim() || 'Not added';
 };
 
-const getPatientAddress = (patient: PatientSummary): string => {
-    const structuredAddress = [
-        patient.addressLine1,
-        patient.addressLine2,
-        patient.city,
-        patient.state,
-        patient.pincode,
-        patient.country,
-    ]
-        .map((value) => value?.trim())
-        .filter((value): value is string => Boolean(value))
-        .join(', ');
-
-    return structuredAddress || getOptionalText(patient.address);
-};
-
-const getLocationLookupStatus = (
-    status: PatientSummary['geocodingStatus']
-): { label: string; tone: 'success' | 'danger' | 'neutral' } => {
-    if (status === 'GEOCODED') {
-        return { label: 'Location found', tone: 'success' };
-    }
-
-    if (status === 'FAILED') {
-        return { label: 'Location lookup failed', tone: 'danger' };
-    }
-
-    return { label: 'Location not looked up', tone: 'neutral' };
-};
-
 const getInitials = (name: string): string => {
     const initials = name
         .split(/\s+/)
@@ -204,18 +175,6 @@ const formatDate = (value: string): string => {
         month: 'short',
         year: 'numeric',
     }).format(date);
-};
-
-const getAgeOrDateOfBirthLabel = (patient: PatientSummary): string => {
-    if (patient.age !== undefined && patient.age !== null) {
-        return `${patient.age} years`;
-    }
-
-    if (patient.dateOfBirth) {
-        return formatDate(patient.dateOfBirth);
-    }
-
-    return 'Not added';
 };
 
 const isPatientActiveInClinic = (patient: PatientSummary): boolean => {
@@ -859,8 +818,8 @@ function PatientsPage() {
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
     const [patientListState, setPatientListState] =
         useState<PatientListState>(emptyPatientListState);
+    const [selectedPatient, setSelectedPatient] = useState<PatientSummary | null>(null);
     const [editingPatient, setEditingPatient] = useState<PatientSummary | null>(null);
-    const [expandedPatientId, setExpandedPatientId] = useState<string | null>(null);
     const [statusAction, setStatusAction] = useState<PatientStatusAction | null>(null);
     const [statusActionError, setStatusActionError] = useState<string | null>(null);
     const [isStatusUpdating, setIsStatusUpdating] = useState(false);
@@ -955,6 +914,12 @@ function PatientsPage() {
             patients: data.patients,
             error: null,
         });
+        if (selectedPatient) {
+            const refreshedPatient = data.patients.find(
+                (patient) => patient.id === selectedPatient.id
+            );
+            if (refreshedPatient) setSelectedPatient(refreshedPatient);
+        }
         setEditingPatient(null);
     };
 
@@ -966,6 +931,12 @@ function PatientsPage() {
             patients: data.patients,
             error: null,
         });
+        if (selectedPatient) {
+            const refreshedPatient = data.patients.find(
+                (patient) => patient.id === selectedPatient.id
+            );
+            if (refreshedPatient) setSelectedPatient(refreshedPatient);
+        }
     };
 
     const handleStatusActionConfirm = async () => {
@@ -1197,13 +1168,28 @@ function PatientsPage() {
                 />
             ) : null}
 
-            {editingPatient ? (
-                <PatientEditPanel
-                    key={editingPatient.id}
-                    clinicId={clinicId}
-                    patient={editingPatient}
-                    onCancel={() => setEditingPatient(null)}
-                    onSaved={refreshPatientsAfterSave}
+            {selectedPatient &&
+            displayedPatients.some((patient) => patient.id === selectedPatient.id) ? (
+                <PatientProfileDialog
+                    patient={selectedPatient}
+                    isEditing={Boolean(editingPatient)}
+                    isRetryingGeocoding={retryingGeocodingPatientId === selectedPatient.id}
+                    isRetryingRouting={retryingRoutingPatientId === selectedPatient.id}
+                    onEdit={() => setEditingPatient(selectedPatient)}
+                    onClose={() => setSelectedPatient(null)}
+                    onRetryGeocoding={() => void handleGeocodingRetry(selectedPatient)}
+                    onRetryRouting={() => void handleRoutingRetry(selectedPatient)}
+                    editContent={
+                        editingPatient ? (
+                            <PatientEditPanel
+                                key={editingPatient.id}
+                                clinicId={clinicId}
+                                patient={editingPatient}
+                                onCancel={() => setEditingPatient(null)}
+                                onSaved={refreshPatientsAfterSave}
+                            />
+                        ) : null
+                    }
                 />
             ) : null}
 
@@ -1257,7 +1243,6 @@ function PatientsPage() {
                                 <tr>
                                     <th className="px-4 py-3 font-semibold">Patient</th>
                                     <th className="px-4 py-3 font-semibold">Contact</th>
-                                    <th className="px-4 py-3 font-semibold">Details</th>
                                     <th className="px-4 py-3 font-semibold">Clinic history</th>
                                     <th className="px-4 py-3 font-semibold">Status</th>
                                     <th className="px-4 py-3 font-semibold">Actions</th>
@@ -1266,333 +1251,110 @@ function PatientsPage() {
                             <tbody className="divide-y divide-slate-200">
                                 {displayedPatients.map((patient) => {
                                     const isActive = isPatientActiveInClinic(patient);
-                                    const isExpanded = expandedPatientId === patient.id;
-
                                     return (
-                                        <Fragment key={patient.id}>
-                                            <tr className="align-top transition hover:bg-slate-50/70">
-                                                <td
-                                                    data-label="Patient"
-                                                    className="min-w-48 px-4 py-3.5"
-                                                >
-                                                    <div className="flex items-start gap-3">
-                                                        <span
-                                                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-brand-subtle text-sm font-bold text-brand-foreground ring-1 ring-brand-soft"
-                                                            aria-hidden="true"
-                                                        >
-                                                            {getInitials(patient.fullName)}
-                                                        </span>
-                                                        <div className="min-w-0">
-                                                            <p className="font-semibold text-slate-900">
-                                                                {patient.fullName}
-                                                            </p>
-                                                            <p className="mt-1 text-slate-600">
-                                                                {getGenderLabel(patient.gender)}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td
-                                                    data-label="Contact"
-                                                    className="min-w-56 px-4 py-3.5 text-slate-700"
-                                                >
-                                                    <p className="font-medium text-slate-900">
-                                                        {patient.phone}
-                                                    </p>
-                                                    <p className="mt-1 text-slate-500">
-                                                        {getOptionalText(patient.email)}
-                                                    </p>
-                                                </td>
-                                                <td
-                                                    data-label="Details"
-                                                    className="min-w-40 px-4 py-3.5 text-slate-700"
-                                                >
-                                                    <p className="font-medium text-slate-900">
-                                                        {getAgeOrDateOfBirthLabel(patient)}
-                                                    </p>
-                                                    <p className="mt-1 text-slate-500">
-                                                        {getOptionalText(patient.city)}
-                                                    </p>
-                                                </td>
-                                                <td
-                                                    data-label="Clinic history"
-                                                    className="min-w-60 px-4 py-3.5 text-slate-700"
-                                                >
-                                                    <p className="font-medium text-slate-900">
-                                                        This clinic: {getVisitSummary(patient)}
-                                                    </p>
-                                                    <p className="mt-1 text-slate-500">
-                                                        Last completed visit:{' '}
-                                                        {patient.lastVisitAt
-                                                            ? formatDate(patient.lastVisitAt)
-                                                            : 'No completed visits yet'}
-                                                    </p>
-                                                </td>
-                                                <td
-                                                    data-label="Status"
-                                                    className="min-w-36 px-4 py-3.5"
-                                                >
-                                                    <div className="space-y-2">
-                                                        <StatusBadge
-                                                            kind="active"
-                                                            status={isActive}
-                                                        />
-                                                        {!patient.isActive ? (
-                                                            <p className="text-xs text-slate-500">
-                                                                Patient profile inactive
-                                                            </p>
-                                                        ) : patient.clinicLinkIsActive === false ? (
-                                                            <p className="text-xs text-slate-500">
-                                                                Clinic link inactive
-                                                            </p>
-                                                        ) : null}
-                                                    </div>
-                                                </td>
-                                                <td
-                                                    data-label="Actions"
-                                                    className="min-w-56 px-4 py-3.5"
-                                                >
-                                                    <div className="flex flex-wrap gap-2">
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={() =>
-                                                                setExpandedPatientId((currentId) =>
-                                                                    currentId === patient.id
-                                                                        ? null
-                                                                        : patient.id
-                                                                )
-                                                            }
-                                                            aria-expanded={isExpanded}
-                                                            aria-label={`${
-                                                                isExpanded ? 'Hide' : 'View'
-                                                            } details for ${patient.fullName}`}
-                                                        >
-                                                            {isExpanded
-                                                                ? 'Hide details'
-                                                                : 'Details'}
-                                                        </Button>
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={() =>
-                                                                setEditingPatient(patient)
-                                                            }
-                                                            aria-label={`Edit ${patient.fullName}`}
-                                                        >
-                                                            Edit
-                                                        </Button>
-                                                        {canManageLifecycle && patient.isActive ? (
-                                                            <Button
-                                                                variant={
-                                                                    patient.clinicLinkIsActive ===
-                                                                    false
-                                                                        ? 'secondary'
-                                                                        : 'danger'
-                                                                }
-                                                                size="sm"
-                                                                onClick={() =>
-                                                                    void openStatusAction(patient)
-                                                                }
-                                                                aria-label={`${patient.clinicLinkIsActive === false ? 'Restore' : 'Archive'} ${patient.fullName} ${patient.clinicLinkIsActive === false ? 'to' : 'from'} this clinic`}
+                                        <tr
+                                            key={patient.id}
+                                            className="align-top transition hover:bg-slate-50/70"
+                                        >
+                                            <td
+                                                data-label="Patient"
+                                                className="min-w-48 px-4 py-3.5"
+                                            >
+                                                <div className="flex items-start gap-3">
+                                                    <span
+                                                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-brand-subtle text-sm font-bold text-brand-foreground ring-1 ring-brand-soft"
+                                                        aria-hidden="true"
+                                                    >
+                                                        {getInitials(patient.fullName)}
+                                                    </span>
+                                                    <div className="min-w-0">
+                                                        <p className="font-semibold text-action underline-offset-2 hover:underline focus-visible:rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-action">
+                                                            <button
+                                                                type="button"
+                                                                className="cursor-pointer text-left hover:underline focus-visible:rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+                                                                aria-label={`View profile for ${patient.fullName}`}
+                                                                onClick={() => {
+                                                                    setSelectedPatient(patient);
+                                                                    setEditingPatient(null);
+                                                                }}
                                                             >
-                                                                {patient.clinicLinkIsActive ===
-                                                                false
-                                                                    ? 'Restore'
-                                                                    : 'Archive'}
-                                                            </Button>
-                                                        ) : null}
+                                                                {patient.fullName}
+                                                            </button>
+                                                        </p>
+                                                        <p className="mt-1 text-slate-600">
+                                                            {getGenderLabel(patient.gender)}
+                                                        </p>
                                                     </div>
-                                                </td>
-                                            </tr>
-                                            {isExpanded ? (
-                                                <tr className="operational-detail-row bg-slate-50/70">
-                                                    <td colSpan={6} className="px-4 py-4">
-                                                        <dl className="grid gap-4 text-sm md:grid-cols-3">
-                                                            <div>
-                                                                <dt className="font-medium text-slate-500">
-                                                                    Address
-                                                                </dt>
-                                                                <dd className="mt-1 text-slate-900">
-                                                                    {getPatientAddress(patient)}
-                                                                </dd>
-                                                            </div>
-                                                            <div>
-                                                                <dt className="font-medium text-slate-500">
-                                                                    Emergency contact
-                                                                </dt>
-                                                                <dd className="mt-1 text-slate-900">
-                                                                    {getOptionalText(
-                                                                        patient.emergencyContactName
-                                                                    )}
-                                                                    {' / '}
-                                                                    {getOptionalText(
-                                                                        patient.emergencyContactPhone
-                                                                    )}
-                                                                </dd>
-                                                            </div>
-                                                            <div>
-                                                                <dt className="font-medium text-slate-500">
-                                                                    Travel estimate
-                                                                </dt>
-                                                                <dd className="mt-1 space-y-1 text-slate-900">
-                                                                    {patient.routingStatus ===
-                                                                    'CALCULATED' ? (
-                                                                        <>
-                                                                            <div>
-                                                                                Road distance:{' '}
-                                                                                {patient.distanceFromClinicKm ??
-                                                                                    'Not available'}{' '}
-                                                                                km
-                                                                            </div>
-                                                                            <div>
-                                                                                Estimated drive:{' '}
-                                                                                {patient.estimatedTravelTimeMinutes ??
-                                                                                    'Not available'}{' '}
-                                                                                min
-                                                                            </div>
-                                                                        </>
-                                                                    ) : patient.routingStatus ===
-                                                                      'FAILED' ? (
-                                                                        <>
-                                                                            <div>
-                                                                                Travel estimate
-                                                                                unavailable
-                                                                            </div>
-                                                                            <Button
-                                                                                variant="outline"
-                                                                                size="sm"
-                                                                                onClick={() =>
-                                                                                    void handleRoutingRetry(
-                                                                                        patient
-                                                                                    )
-                                                                                }
-                                                                                isLoading={
-                                                                                    retryingRoutingPatientId ===
-                                                                                    patient.id
-                                                                                }
-                                                                                loadingText="Retrying..."
-                                                                                disabled={
-                                                                                    retryingRoutingPatientId !==
-                                                                                        null &&
-                                                                                    retryingRoutingPatientId !==
-                                                                                        patient.id
-                                                                                }
-                                                                            >
-                                                                                Retry travel
-                                                                                estimate
-                                                                            </Button>
-                                                                        </>
-                                                                    ) : (
-                                                                        <>
-                                                                            <div>
-                                                                                Travel estimate not
-                                                                                calculated
-                                                                            </div>
-                                                                            {patient.routingStatus ===
-                                                                            'NOT_CALCULATED' ? (
-                                                                                <Button
-                                                                                    variant="outline"
-                                                                                    size="sm"
-                                                                                    onClick={() =>
-                                                                                        void handleRoutingRetry(
-                                                                                            patient
-                                                                                        )
-                                                                                    }
-                                                                                    isLoading={
-                                                                                        retryingRoutingPatientId ===
-                                                                                        patient.id
-                                                                                    }
-                                                                                    loadingText="Calculating..."
-                                                                                    disabled={
-                                                                                        retryingRoutingPatientId !==
-                                                                                            null &&
-                                                                                        retryingRoutingPatientId !==
-                                                                                            patient.id
-                                                                                    }
-                                                                                >
-                                                                                    Calculate travel
-                                                                                    estimate
-                                                                                </Button>
-                                                                            ) : null}
-                                                                            {patient.distanceFromClinicKm !==
-                                                                                undefined &&
-                                                                            patient.distanceFromClinicKm !==
-                                                                                null ? (
-                                                                                <div className="text-slate-500">
-                                                                                    Previous
-                                                                                    distance:{' '}
-                                                                                    {
-                                                                                        patient.distanceFromClinicKm
-                                                                                    }{' '}
-                                                                                    km
-                                                                                </div>
-                                                                            ) : null}
-                                                                        </>
-                                                                    )}
-                                                                </dd>
-                                                            </div>
-                                                            <div>
-                                                                <dt className="font-medium text-slate-500">
-                                                                    Location lookup
-                                                                </dt>
-                                                                <dd className="mt-1 flex flex-wrap items-center gap-2">
-                                                                    {(() => {
-                                                                        const lookupStatus =
-                                                                            getLocationLookupStatus(
-                                                                                patient.geocodingStatus
-                                                                            );
-
-                                                                        return (
-                                                                            <Badge
-                                                                                tone={
-                                                                                    lookupStatus.tone
-                                                                                }
-                                                                            >
-                                                                                {lookupStatus.label}
-                                                                            </Badge>
-                                                                        );
-                                                                    })()}
-                                                                    {patient.geocodingStatus ===
-                                                                    'FAILED' ? (
-                                                                        <Button
-                                                                            variant="outline"
-                                                                            size="sm"
-                                                                            onClick={() =>
-                                                                                void handleGeocodingRetry(
-                                                                                    patient
-                                                                                )
-                                                                            }
-                                                                            isLoading={
-                                                                                retryingGeocodingPatientId ===
-                                                                                patient.id
-                                                                            }
-                                                                            loadingText="Retrying..."
-                                                                            disabled={
-                                                                                retryingGeocodingPatientId !==
-                                                                                    null &&
-                                                                                retryingGeocodingPatientId !==
-                                                                                    patient.id
-                                                                            }
-                                                                        >
-                                                                            Retry location lookup
-                                                                        </Button>
-                                                                    ) : null}
-                                                                </dd>
-                                                            </div>
-                                                            <div className="md:col-span-3">
-                                                                <dt className="font-medium text-slate-500">
-                                                                    Notes for this clinic
-                                                                </dt>
-                                                                <dd className="mt-1 text-slate-900">
-                                                                    {getOptionalText(patient.notes)}
-                                                                </dd>
-                                                            </div>
-                                                        </dl>
-                                                    </td>
-                                                </tr>
-                                            ) : null}
-                                        </Fragment>
+                                                </div>
+                                            </td>
+                                            <td
+                                                data-label="Contact"
+                                                className="min-w-56 px-4 py-3.5 text-slate-700"
+                                            >
+                                                <p className="font-medium text-slate-900">
+                                                    {patient.phone}
+                                                </p>
+                                                <p className="mt-1 text-slate-500">
+                                                    {getOptionalText(patient.email)}
+                                                </p>
+                                            </td>
+                                            <td
+                                                data-label="Clinic history"
+                                                className="min-w-60 px-4 py-3.5 text-slate-700"
+                                            >
+                                                <p className="font-medium text-slate-900">
+                                                    This clinic: {getVisitSummary(patient)}
+                                                </p>
+                                                <p className="mt-1 text-slate-500">
+                                                    Last completed visit:{' '}
+                                                    {patient.lastVisitAt
+                                                        ? formatDate(patient.lastVisitAt)
+                                                        : 'No completed visits yet'}
+                                                </p>
+                                            </td>
+                                            <td
+                                                data-label="Status"
+                                                className="min-w-36 px-4 py-3.5"
+                                            >
+                                                <div className="space-y-2">
+                                                    <StatusBadge kind="active" status={isActive} />
+                                                    {!patient.isActive ? (
+                                                        <p className="text-xs text-slate-500">
+                                                            Patient profile inactive
+                                                        </p>
+                                                    ) : patient.clinicLinkIsActive === false ? (
+                                                        <p className="text-xs text-slate-500">
+                                                            Clinic link inactive
+                                                        </p>
+                                                    ) : null}
+                                                </div>
+                                            </td>
+                                            <td
+                                                data-label="Actions"
+                                                className="min-w-56 px-4 py-3.5"
+                                            >
+                                                <div className="flex flex-wrap gap-2">
+                                                    {canManageLifecycle && patient.isActive ? (
+                                                        <Button
+                                                            variant={
+                                                                patient.clinicLinkIsActive === false
+                                                                    ? 'secondary'
+                                                                    : 'danger'
+                                                            }
+                                                            size="sm"
+                                                            onClick={() =>
+                                                                void openStatusAction(patient)
+                                                            }
+                                                            aria-label={`${patient.clinicLinkIsActive === false ? 'Restore' : 'Archive'} ${patient.fullName} ${patient.clinicLinkIsActive === false ? 'to' : 'from'} this clinic`}
+                                                        >
+                                                            {patient.clinicLinkIsActive === false
+                                                                ? 'Restore'
+                                                                : 'Archive'}
+                                                        </Button>
+                                                    ) : null}
+                                                </div>
+                                            </td>
+                                        </tr>
                                     );
                                 })}
                             </tbody>

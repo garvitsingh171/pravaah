@@ -116,7 +116,10 @@ describe('PatientsPage edit workflow', () => {
 
         renderPatientsPage();
 
-        expect(await screen.findByRole('button', { name: /edit riya malhotra/i })).toBeVisible();
+        expect(
+            await screen.findByRole('button', { name: /view profile for riya malhotra/i })
+        ).toBeVisible();
+        expect(screen.queryByRole('button', { name: /details/i })).not.toBeInTheDocument();
         expect(
             screen.getByText(
                 'This clinic: 8 appointments, 7 completed, 0 no-shows, 0 late arrivals'
@@ -124,7 +127,10 @@ describe('PatientsPage edit workflow', () => {
         ).toBeVisible();
         expect(screen.getByText(/no completed visits yet/i)).toBeVisible();
 
-        await user.click(screen.getByRole('button', { name: /edit kabir sen/i }));
+        await user.click(screen.getByRole('button', { name: /view profile for kabir sen/i }));
+        expect(screen.getByRole('heading', { name: 'Kabir Sen' })).toBeVisible();
+        expect(screen.queryByRole('button', { name: /details/i })).not.toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: /^edit$/i }));
 
         expect(screen.getByRole('heading', { name: /edit kabir sen/i })).toBeVisible();
         expect(screen.getByLabelText(/full name/i)).toHaveValue('Kabir Sen');
@@ -138,6 +144,21 @@ describe('PatientsPage edit workflow', () => {
         await user.click(screen.getByRole('button', { name: /^cancel$/i }));
 
         expect(screen.queryByRole('heading', { name: /edit kabir sen/i })).not.toBeInTheDocument();
+    });
+
+    it('opens the profile from its keyboard-accessible name and restores focus on Escape', async () => {
+        const user = userEvent.setup();
+        mockListPatients.mockResolvedValue({ patients: [patient] });
+        renderPatientsPage();
+
+        const trigger = await screen.findByRole('button', {
+            name: 'View profile for Riya Malhotra',
+        });
+        await user.click(trigger);
+        expect(screen.getByRole('dialog', { name: 'Riya Malhotra' })).toBeVisible();
+        await user.keyboard('{Escape}');
+        expect(screen.queryByRole('dialog', { name: 'Riya Malhotra' })).not.toBeInTheDocument();
+        expect(trigger).toHaveFocus();
     });
 
     it('filters patient availability using both profile and clinic-link status', async () => {
@@ -187,6 +208,7 @@ describe('PatientsPage edit workflow', () => {
         const notCalculatedPatient: PatientSummary = {
             ...patient,
             routingStatus: 'NOT_CALCULATED',
+            geocodingStatus: 'GEOCODED',
         };
         mockListPatients.mockResolvedValue({ patients: [notCalculatedPatient] });
         mockRetryPatientRouting.mockResolvedValue({
@@ -195,8 +217,10 @@ describe('PatientsPage edit workflow', () => {
 
         renderPatientsPage();
 
-        await user.click(await screen.findByRole('button', { name: /details for riya malhotra/i }));
-        expect(screen.getByText('Travel estimate not calculated')).toBeVisible();
+        await user.click(
+            await screen.findByRole('button', { name: /view profile for riya malhotra/i })
+        );
+        expect(screen.getByText(/Travel estimate not calculated/)).toBeVisible();
 
         await user.click(screen.getByRole('button', { name: /calculate travel estimate/i }));
 
@@ -229,7 +253,10 @@ describe('PatientsPage edit workflow', () => {
 
         renderPatientsPage();
 
-        await user.click(await screen.findByRole('button', { name: /edit riya malhotra/i }));
+        await user.click(
+            await screen.findByRole('button', { name: /view profile for riya malhotra/i })
+        );
+        await user.click(screen.getByRole('button', { name: /^edit$/i }));
         await user.clear(screen.getByLabelText(/^email$/i));
         await user.clear(screen.getByLabelText(/^notes$/i));
         await user.click(screen.getByRole('button', { name: /save patient/i }));
@@ -268,7 +295,10 @@ describe('PatientsPage edit workflow', () => {
 
         renderPatientsPage();
 
-        await user.click(await screen.findByRole('button', { name: /edit riya malhotra/i }));
+        await user.click(
+            await screen.findByRole('button', { name: /view profile for riya malhotra/i })
+        );
+        await user.click(screen.getByRole('button', { name: /^edit$/i }));
 
         expect(screen.getByLabelText(/address line 1/i)).toHaveValue('12 Demo Road');
         expect(screen.getByLabelText(/state/i)).toHaveValue('Karnataka');
@@ -294,7 +324,10 @@ describe('PatientsPage edit workflow', () => {
 
         renderPatientsPage();
 
-        await user.click(await screen.findByRole('button', { name: /edit riya malhotra/i }));
+        await user.click(
+            await screen.findByRole('button', { name: /view profile for riya malhotra/i })
+        );
+        await user.click(screen.getByRole('button', { name: /^edit$/i }));
         await user.clear(screen.getByLabelText(/full name/i));
         await user.type(screen.getByLabelText(/full name/i), 'R');
         await user.clear(screen.getByLabelText(/^phone$/i));
@@ -331,7 +364,10 @@ describe('PatientsPage edit workflow', () => {
 
         renderPatientsPage();
 
-        await user.click(await screen.findByRole('button', { name: /edit riya malhotra/i }));
+        await user.click(
+            await screen.findByRole('button', { name: /view profile for riya malhotra/i })
+        );
+        await user.click(screen.getByRole('button', { name: /^edit$/i }));
         await user.clear(screen.getByLabelText(/^city$/i));
         await user.type(screen.getByLabelText(/^city$/i), 'Mysuru');
         await user.click(screen.getByRole('button', { name: /save patient/i }));

@@ -27,8 +27,18 @@
 | State changes         | Appointment, queue, prediction, and clinic-specific patient statistics; rescheduling changes only `Appointment.scheduledAt` and sometimes `QueueEntry.position`                                                                                                                                                 |
 | Side effects          | Booking creates a queue entry and prediction and atomically increments `PatientClinic.totalAppointments`                                                                                                                                                                                                        |
 | Errors                | `APPOINTMENT_SLOT_UNAVAILABLE`, `APPOINTMENT_SLOT_CONFLICT`, `DOCTOR_NOT_LINKED_TO_CLINIC`, `PATIENT_NOT_LINKED_TO_CLINIC`, `APPOINTMENT_STATUS_FINAL`, `STATUS_SYNC_CONFLICT`, `QUEUE_ENTRY_NOT_FOUND`                                                                                                         |
-| Tests                 | Appointment service/controller/validation tests; `AppointmentsPage` has no dedicated test file in current tree                                                                                                                                                                                                  |
+| Tests                 | `AppointmentsPage.test.tsx`, appointment service/controller/validation tests                                                                                                                                                                                                                                    |
 | Known gaps            | Booking now enforces weekly availability, clinic hours, slot duration, duration overlap, and buffer conflicts. Past-date booking remains a business-rule gap. Prediction refresh is durable deferred work for history/routing fan-out. |
+
+## Booking dialog interaction
+
+The booking form is opened from the page header or an empty-state action in an
+accessible dialog. The `#book-appointment` fragment opens that same dialog and
+is removed from the URL after handling. The form remains controlled by
+`AppointmentsPage`, so a return from patient creation restores the draft and
+selects the newly created patient without an additional reference-data fetch.
+Closing the dialog preserves the current draft in page state for a subsequent
+reopen. Clinic-local date and available-slot behavior are unchanged.
 
 ## Appointment Booking Trace
 

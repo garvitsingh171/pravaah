@@ -122,6 +122,7 @@ export const routingService = {
         }
 
         const attemptId = createRoutingAttemptId();
+        const startedAt = Date.now();
         await routingRepository.beginRoutingAttempt(patientId, clinicId, sourceHash, attemptId);
 
         try {
@@ -174,13 +175,13 @@ export const routingService = {
                 attemptId
             );
 
+            console.warn(
+                `[routing] entityType=PATIENT_CLINIC attemptId=${attemptId} clinicId=${clinicId} outcome=${error.category} durationMs=${Date.now() - startedAt}`
+            );
+
             if (explicit) {
                 throwForProviderFailure(error);
             }
-
-            console.warn(
-                `[routing] entityType=PATIENT_CLINIC patientId=${patientId} clinicId=${clinicId} outcome=${error.category}`
-            );
 
             return { outcome: 'FAILED', category: error.category };
         }

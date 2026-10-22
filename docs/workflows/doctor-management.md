@@ -29,6 +29,15 @@
 | Tests                 | `doctor.validation.test.ts`, `DoctorsPage.test.tsx`                                                                                                                                            |
 | Known gaps            | No doctor login. `DoctorClinic` has `displayName` and `consultationFee` fields, but normal doctor UI/API does not edit them. No date-specific exception/leave model exists yet                 |
 
+## Profile dialog interaction
+
+The Doctors page opens a doctor profile dialog from the accessible doctor name.
+The dialog shows professional, contact, and clinic-link information. Editing
+switches that dialog to the existing validated profile form and on-demand weekly
+availability editor. Save refreshes the selected doctor and list; archive and
+restore actions remain separate list controls with the existing Admin-only
+permission and lifecycle confirmation.
+
 ## Create Doctor Trace
 
 ```text

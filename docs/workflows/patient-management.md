@@ -29,6 +29,15 @@
 | Tests                 | `PatientsPage.test.tsx`, `patient.validation.test.ts`, `patient.repository.test.ts`, `patient.statistics.repository.test.ts`, `location.test.ts`                       |
 | Known gaps            | No patient login or manual reconciliation workflow                                                                                                                     |
 
+## Profile dialog interaction
+
+The Patients page keeps the list compact. Selecting the accessible patient name
+opens a profile dialog with contact and address data, clinic attendance history,
+notes, clinic-link status, and location/routing state. Editing switches the same
+dialog to the existing validated edit form; successful saves refresh the selected
+summary and list. Admin-only archive/restore controls remain separate from the
+profile selection action.
+
 ## Structured Patient Location (#263)
 
 Patient residential location is stored on the global `Patient` record as the
@@ -177,7 +186,7 @@ Structured cancellation/no-show reasons do not change patient attendance aggrega
 Residential coordinates belong to global `Patient`, not `PatientClinic`. A
 complete create or address change geocodes only after the Patient/PatientClinic
 transaction commits. Phone, email, contacts, notes, and
-`distanceFromClinicKm` do not trigger lookup. Expanded details expose geocoding
-and routing status. Admin/Staff can retry lookup at
+`distanceFromClinicKm` do not trigger lookup. The patient profile dialog exposes
+geocoding and routing status and the permitted retry actions. Admin/Staff can retry lookup at
 `POST /api/clinics/:clinicId/patients/:patientId/geocode` or routing at
 `POST /api/clinics/:clinicId/patients/:patientId/route`, both with `{}`.

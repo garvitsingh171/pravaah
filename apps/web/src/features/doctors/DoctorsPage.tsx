@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useActiveClinic } from '../../app/activeClinicContext';
@@ -27,6 +27,7 @@ import {
 } from '../../lib';
 import { Gender, UserRole, type DoctorSummary, type Gender as GenderType } from '../../types';
 import DoctorAvailabilityEditor from './DoctorAvailabilityEditor';
+import DoctorProfileDialog from './DoctorProfileDialog';
 import {
     archiveDoctor,
     getDoctorLifecycleImpact,
@@ -605,8 +606,8 @@ function DoctorsPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
     const [doctorListState, setDoctorListState] = useState<DoctorListState>(emptyDoctorListState);
+    const [selectedDoctor, setSelectedDoctor] = useState<DoctorSummary | null>(null);
     const [editingDoctor, setEditingDoctor] = useState<DoctorSummary | null>(null);
-    const [expandedDoctorId, setExpandedDoctorId] = useState<string | null>(null);
     const [statusAction, setStatusAction] = useState<DoctorStatusAction | null>(null);
     const [statusActionError, setStatusActionError] = useState<string | null>(null);
     const [isStatusUpdating, setIsStatusUpdating] = useState(false);
@@ -650,6 +651,10 @@ function DoctorsPage() {
             doctors: data.doctors,
             error: null,
         });
+        if (selectedDoctor) {
+            const refreshedDoctor = data.doctors.find((doctor) => doctor.id === selectedDoctor.id);
+            if (refreshedDoctor) setSelectedDoctor(refreshedDoctor);
+        }
         setEditingDoctor(null);
     };
 
@@ -661,6 +666,10 @@ function DoctorsPage() {
             doctors: data.doctors,
             error: null,
         });
+        if (selectedDoctor) {
+            const refreshedDoctor = data.doctors.find((doctor) => doctor.id === selectedDoctor.id);
+            if (refreshedDoctor) setSelectedDoctor(refreshedDoctor);
+        }
     };
 
     const handleStatusActionConfirm = async () => {
@@ -822,13 +831,24 @@ function DoctorsPage() {
                 />
             ) : null}
 
-            {editingDoctor ? (
-                <DoctorEditPanel
-                    key={editingDoctor.id}
-                    clinicId={clinicId}
-                    doctor={editingDoctor}
-                    onCancel={() => setEditingDoctor(null)}
-                    onSaved={refreshDoctorsAfterSave}
+            {selectedDoctor &&
+            displayedDoctors.some((doctor) => doctor.id === selectedDoctor.id) ? (
+                <DoctorProfileDialog
+                    doctor={selectedDoctor}
+                    isEditing={Boolean(editingDoctor)}
+                    onEdit={() => setEditingDoctor(selectedDoctor)}
+                    onClose={() => setSelectedDoctor(null)}
+                    editContent={
+                        editingDoctor ? (
+                            <DoctorEditPanel
+                                key={editingDoctor.id}
+                                clinicId={clinicId}
+                                doctor={editingDoctor}
+                                onCancel={() => setEditingDoctor(null)}
+                                onSaved={refreshDoctorsAfterSave}
+                            />
+                        ) : null
+                    }
                 />
             ) : null}
 
@@ -890,177 +910,116 @@ function DoctorsPage() {
                             <tbody className="divide-y divide-slate-200">
                                 {displayedDoctors.map((doctor) => {
                                     const isActive = isDoctorActiveInClinic(doctor);
-                                    const isExpanded = expandedDoctorId === doctor.id;
-
                                     return (
-                                        <Fragment key={doctor.id}>
-                                            <tr className="align-top transition hover:bg-slate-50/70">
-                                                <td
-                                                    data-label="Doctor"
-                                                    className="min-w-52 px-4 py-3.5"
-                                                >
-                                                    <div className="flex items-start gap-3">
-                                                        <span
-                                                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-brand-subtle text-sm font-bold text-brand-foreground ring-1 ring-brand-soft"
-                                                            aria-hidden="true"
-                                                        >
-                                                            {getInitials(doctor.fullName)}
-                                                        </span>
-                                                        <div className="min-w-0">
-                                                            <p className="font-semibold text-slate-900">
-                                                                {doctor.fullName}
-                                                            </p>
-                                                            <p className="mt-1 text-slate-600">
-                                                                {getOptionalText(
-                                                                    doctor.specialization
-                                                                )}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td
-                                                    data-label="Qualification"
-                                                    className="min-w-52 px-4 py-3.5 text-slate-700"
-                                                >
-                                                    <p className="font-medium text-slate-900">
-                                                        {getOptionalText(doctor.qualification)}
-                                                    </p>
-                                                    <p className="mt-1 text-xs text-slate-500">
-                                                        Reg.{' '}
-                                                        {getOptionalText(doctor.registrationNumber)}
-                                                    </p>
-                                                </td>
-                                                <td
-                                                    data-label="Contact"
-                                                    className="min-w-56 px-4 py-3.5 text-slate-700"
-                                                >
-                                                    <p className="font-medium text-slate-900">
-                                                        {getOptionalText(doctor.phone)}
-                                                    </p>
-                                                    <p className="mt-1 text-slate-500">
-                                                        {getOptionalText(doctor.email)}
-                                                    </p>
-                                                </td>
-                                                <td
-                                                    data-label="Experience"
-                                                    className="min-w-32 px-4 py-3.5 text-slate-700"
-                                                >
-                                                    <span className="font-medium text-slate-900">
-                                                        {doctor.experienceYears ?? 'Not added'}
+                                        <tr
+                                            key={doctor.id}
+                                            className="align-top transition hover:bg-slate-50/70"
+                                        >
+                                            <td
+                                                data-label="Doctor"
+                                                className="min-w-52 px-4 py-3.5"
+                                            >
+                                                <div className="flex items-start gap-3">
+                                                    <span
+                                                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-brand-subtle text-sm font-bold text-brand-foreground ring-1 ring-brand-soft"
+                                                        aria-hidden="true"
+                                                    >
+                                                        {getInitials(doctor.fullName)}
                                                     </span>
-                                                </td>
-                                                <td
-                                                    data-label="Status"
-                                                    className="min-w-36 px-4 py-3.5"
-                                                >
-                                                    <div className="space-y-2">
-                                                        <StatusBadge
-                                                            kind="active"
-                                                            status={isActive}
-                                                        />
-                                                        {!doctor.isActive ? (
-                                                            <p className="text-xs text-slate-500">
-                                                                Doctor profile inactive
-                                                            </p>
-                                                        ) : doctor.clinicLinkIsActive === false ? (
-                                                            <p className="text-xs text-slate-500">
-                                                                Clinic link inactive
-                                                            </p>
-                                                        ) : null}
+                                                    <div className="min-w-0">
+                                                        <p className="font-semibold text-action underline-offset-2 hover:underline">
+                                                            <button
+                                                                type="button"
+                                                                className="cursor-pointer text-left hover:underline focus-visible:rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+                                                                aria-label={`View profile for ${doctor.fullName}`}
+                                                                onClick={() => {
+                                                                    setSelectedDoctor(doctor);
+                                                                    setEditingDoctor(null);
+                                                                }}
+                                                            >
+                                                                {doctor.fullName}
+                                                            </button>
+                                                        </p>
+                                                        <p className="mt-1 text-slate-600">
+                                                            {getOptionalText(doctor.specialization)}
+                                                        </p>
                                                     </div>
-                                                </td>
-                                                <td
-                                                    data-label="Actions"
-                                                    className="min-w-56 px-4 py-3.5"
-                                                >
-                                                    <div className="flex flex-wrap gap-2">
+                                                </div>
+                                            </td>
+                                            <td
+                                                data-label="Qualification"
+                                                className="min-w-52 px-4 py-3.5 text-slate-700"
+                                            >
+                                                <p className="font-medium text-slate-900">
+                                                    {getOptionalText(doctor.qualification)}
+                                                </p>
+                                                <p className="mt-1 text-xs text-slate-500">
+                                                    Reg.{' '}
+                                                    {getOptionalText(doctor.registrationNumber)}
+                                                </p>
+                                            </td>
+                                            <td
+                                                data-label="Contact"
+                                                className="min-w-56 px-4 py-3.5 text-slate-700"
+                                            >
+                                                <p className="font-medium text-slate-900">
+                                                    {getOptionalText(doctor.phone)}
+                                                </p>
+                                                <p className="mt-1 text-slate-500">
+                                                    {getOptionalText(doctor.email)}
+                                                </p>
+                                            </td>
+                                            <td
+                                                data-label="Experience"
+                                                className="min-w-32 px-4 py-3.5 text-slate-700"
+                                            >
+                                                <span className="font-medium text-slate-900">
+                                                    {doctor.experienceYears ?? 'Not added'}
+                                                </span>
+                                            </td>
+                                            <td
+                                                data-label="Status"
+                                                className="min-w-36 px-4 py-3.5"
+                                            >
+                                                <div className="space-y-2">
+                                                    <StatusBadge kind="active" status={isActive} />
+                                                    {!doctor.isActive ? (
+                                                        <p className="text-xs text-slate-500">
+                                                            Doctor profile inactive
+                                                        </p>
+                                                    ) : doctor.clinicLinkIsActive === false ? (
+                                                        <p className="text-xs text-slate-500">
+                                                            Clinic link inactive
+                                                        </p>
+                                                    ) : null}
+                                                </div>
+                                            </td>
+                                            <td
+                                                data-label="Actions"
+                                                className="min-w-56 px-4 py-3.5"
+                                            >
+                                                <div className="flex flex-wrap gap-2">
+                                                    {canManageLifecycle && doctor.isActive ? (
                                                         <Button
-                                                            variant="outline"
+                                                            variant={
+                                                                doctor.clinicLinkIsActive === false
+                                                                    ? 'secondary'
+                                                                    : 'danger'
+                                                            }
                                                             size="sm"
                                                             onClick={() =>
-                                                                setExpandedDoctorId((currentId) =>
-                                                                    currentId === doctor.id
-                                                                        ? null
-                                                                        : doctor.id
-                                                                )
+                                                                void openStatusAction(doctor)
                                                             }
-                                                            aria-expanded={isExpanded}
-                                                            aria-label={`${
-                                                                isExpanded ? 'Hide' : 'View'
-                                                            } details for ${doctor.fullName}`}
+                                                            aria-label={`${doctor.clinicLinkIsActive === false ? 'Restore' : 'Archive'} ${doctor.fullName} ${doctor.clinicLinkIsActive === false ? 'to' : 'from'} this clinic`}
                                                         >
-                                                            {isExpanded
-                                                                ? 'Hide details'
-                                                                : 'Details'}
+                                                            {doctor.clinicLinkIsActive === false
+                                                                ? 'Restore'
+                                                                : 'Archive'}
                                                         </Button>
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={() => setEditingDoctor(doctor)}
-                                                            aria-label={`Edit ${doctor.fullName}`}
-                                                        >
-                                                            Edit
-                                                        </Button>
-                                                        {canManageLifecycle && doctor.isActive ? (
-                                                            <Button
-                                                                variant={
-                                                                    doctor.clinicLinkIsActive ===
-                                                                    false
-                                                                        ? 'secondary'
-                                                                        : 'danger'
-                                                                }
-                                                                size="sm"
-                                                                onClick={() =>
-                                                                    void openStatusAction(doctor)
-                                                                }
-                                                                aria-label={`${doctor.clinicLinkIsActive === false ? 'Restore' : 'Archive'} ${doctor.fullName} ${doctor.clinicLinkIsActive === false ? 'to' : 'from'} this clinic`}
-                                                            >
-                                                                {doctor.clinicLinkIsActive === false
-                                                                    ? 'Restore'
-                                                                    : 'Archive'}
-                                                            </Button>
-                                                        ) : null}
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            {isExpanded ? (
-                                                <tr className="operational-detail-row bg-slate-50/70">
-                                                    <td colSpan={6} className="px-4 py-4">
-                                                        <dl className="grid gap-4 text-sm md:grid-cols-3">
-                                                            <div>
-                                                                <dt className="font-medium text-slate-500">
-                                                                    Profile status
-                                                                </dt>
-                                                                <dd className="mt-1 text-slate-900">
-                                                                    {doctor.isActive
-                                                                        ? 'Active'
-                                                                        : 'Inactive'}
-                                                                </dd>
-                                                            </div>
-                                                            <div>
-                                                                <dt className="font-medium text-slate-500">
-                                                                    Clinic link status
-                                                                </dt>
-                                                                <dd className="mt-1 text-slate-900">
-                                                                    {doctor.clinicLinkIsActive ===
-                                                                    false
-                                                                        ? 'Inactive'
-                                                                        : 'Active'}
-                                                                </dd>
-                                                            </div>
-                                                            <div>
-                                                                <dt className="font-medium text-slate-500">
-                                                                    Gender
-                                                                </dt>
-                                                                <dd className="mt-1 text-slate-900">
-                                                                    {doctor.gender ?? 'Not added'}
-                                                                </dd>
-                                                            </div>
-                                                        </dl>
-                                                    </td>
-                                                </tr>
-                                            ) : null}
-                                        </Fragment>
+                                                    ) : null}
+                                                </div>
+                                            </td>
+                                        </tr>
                                     );
                                 })}
                             </tbody>

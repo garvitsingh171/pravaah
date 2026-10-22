@@ -11,8 +11,10 @@ Patient coordinates + Clinic coordinates
 ```
 
 Routing uses the server-only `GEOAPIFY_API_KEY`, `mode=drive`,
-`type=balanced`, `traffic=free_flow`, `units=metric`, and a five-second
-timeout. Provider distance is converted with `meters / 1000` and fixed to two
+`type=balanced`, `traffic=free_flow`, `units=metric`, `format=geojson`, and a five-second
+timeout. The response parser consumes the GeoJSON `FeatureCollection` shape
+(`features[0].properties.distance` and `.time`); requesting `format=json` would
+return the provider's distinct `results[]` contract and fail parsing. Provider distance is converted with `meters / 1000` and fixed to two
 decimal places; travel time is `Math.ceil(seconds / 60)`. Zero values are valid.
 No route geometry, live traffic, map, or navigation data is stored.
 
@@ -47,4 +49,10 @@ coordinates normalize to the same six-decimal values, existing routes remain
 current.
 
 Prediction thresholds, scores, reason codes, model version, and appointment
-booking behavior are unchanged. Travel time is not a prediction input.
+booking behavior are unchanged. Travel time is not a prediction input. Audit
+finding: the current no-show predictor does consume `PatientClinic.distanceFromClinicKm`
+for its distance bands, without checking `routingStatus`, source hash, or whether
+the value was produced by the current routing pipeline. Historical/manual values
+can therefore influence predictions while displayed as unverified in the
+patient profile. This UI/routing change does not alter that existing behavior;
+stale-distance eligibility needs a separately reviewed prediction change.

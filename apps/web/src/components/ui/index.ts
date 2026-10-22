@@ -9,6 +9,7 @@ export { default as FormSection } from './FormSection';
 export { default as LifecycleRail } from './LifecycleRail';
 export type { LifecycleRailStep } from './LifecycleRail';
 export { default as PageHeader } from './PageHeader';
+export { default as ProfileDialog } from './ProfileDialog';
 export { default as RiskBadge } from './RiskBadge';
 export { default as RiskExplanation } from './RiskExplanation';
 export type { RiskPredictionLike, RiskReasonLike } from './RiskExplanation';

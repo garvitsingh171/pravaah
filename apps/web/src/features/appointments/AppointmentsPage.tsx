@@ -19,6 +19,7 @@ import { AppointmentStatus, BookingSource } from '../../types';
 import type { DoctorSummary, PatientSummary, RiskLevel } from '../../types';
 import { listDoctors } from '../doctors/doctorApi';
 import { listPatients } from '../patients/patientApi';
+import AppointmentBookingDialog from './AppointmentBookingDialog';
 import AppointmentBookingForm, {
     type AppointmentBookingFormFieldErrors,
     type AppointmentBookingFormValues,
@@ -943,18 +944,45 @@ function AppointmentsPage() {
     const [formErrorDetails, setFormErrorDetails] = useState<BackendValidationDetail[]>([]);
     const [successState, setSuccessState] = useState<SuccessState | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(() =>
+        Boolean(
+            location.hash === '#book-appointment' ||
+            bookingReturnState?.bookingDraft ||
+            bookingReturnState?.patientId
+        )
+    );
     const [rescheduleFlow, setRescheduleFlow] = useState<RescheduleFlowState | null>(null);
 
     useEffect(() => {
-        if (location.hash !== '#book-appointment') return;
-        const frame = window.requestAnimationFrame(() => {
-            const target = document.getElementById('book-appointment');
-            if (typeof target?.scrollIntoView === 'function')
-                target.scrollIntoView({ block: 'start' });
-            target?.focus({ preventScroll: true });
+        const hasBookingReturn = Boolean(
+            bookingReturnState?.bookingDraft || bookingReturnState?.patientId
+        );
+        if (location.hash !== '#book-appointment' && !hasBookingReturn) return;
+        const nextState = hasBookingReturn
+            ? bookingReturnState?.appointmentId || bookingReturnState?.appointmentDate
+                ? {
+                      appointmentId: bookingReturnState.appointmentId,
+                      appointmentDate: bookingReturnState.appointmentDate,
+                  }
+                : null
+            : location.state;
+        navigate(`${location.pathname}${location.search}`, {
+            replace: true,
+            state: nextState,
         });
-        return () => window.cancelAnimationFrame(frame);
-    }, [location.hash]);
+    }, [
+        bookingReturnState?.appointmentDate,
+        bookingReturnState?.appointmentId,
+        bookingReturnState?.bookingDraft,
+        bookingReturnState?.patientId,
+        location.hash,
+        location.pathname,
+        location.search,
+        location.state,
+        navigate,
+    ]);
+
+    const closeBookingDialog = () => setIsBookingDialogOpen(false);
     const [activityAppointment, setActivityAppointment] = useState<AppointmentListItem | null>(
         null
     );
@@ -1811,12 +1839,7 @@ function AppointmentsPage() {
         <section className="space-y-5">
             <PageHeader
                 actions={
-                    <a
-                        href="#book-appointment"
-                        className="inline-flex min-h-10 items-center justify-center rounded-md border border-transparent bg-action px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
-                    >
-                        Book appointment
-                    </a>
+                    <Button onClick={() => setIsBookingDialogOpen(true)}>Book appointment</Button>
                 }
             />
 
@@ -1964,12 +1987,9 @@ function AppointmentsPage() {
                               : 'Book the first appointment to start the schedule and queue.'
                     }
                     action={
-                        <a
-                            href="#book-appointment"
-                            className="inline-flex min-h-10 items-center justify-center rounded-md border border-transparent bg-action px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
-                        >
+                        <Button onClick={() => setIsBookingDialogOpen(true)}>
                             Book appointment
-                        </a>
+                        </Button>
                     }
                     secondaryAction={
                         hasAppointmentFilters ? (
@@ -2221,112 +2241,103 @@ function AppointmentsPage() {
                 </div>
             ) : null}
 
-            <div
-                id="book-appointment"
-                tabIndex={-1}
-                className="scroll-mt-6 rounded-lg border border-slate-200 bg-white p-4 shadow-[var(--shadow-soft)] sm:p-6"
-            >
-                <div className="mb-6">
-                    <p className="text-sm font-medium uppercase tracking-wide text-brand-foreground">
-                        Booking
-                    </p>
-                    <h2 className="mt-2 text-2xl font-bold text-slate-900">Book appointment</h2>
-                    <p className="mt-2 max-w-2xl text-sm text-slate-600">
-                        Select an active doctor and patient, choose the appointment time, and book
-                        it into the clinic flow.
-                    </p>
-                </div>
+            {isBookingDialogOpen ? (
+                <AppointmentBookingDialog onClose={closeBookingDialog} isBusy={isSubmitting}>
+                    <div id="book-appointment" className="space-y-5">
+                        {referenceState.status === 'loading' ? (
+                            <LoadingState message="Loading doctors and patients..." />
+                        ) : null}
 
-                {referenceState.status === 'loading' ? (
-                    <LoadingState message="Loading doctors and patients..." />
-                ) : null}
+                        {referenceState.status === 'error' ? (
+                            <ErrorMessage
+                                title={referenceState.error.title}
+                                message={referenceState.error.message}
+                                code={referenceState.error.code}
+                                onRetry={handleRetryReferences}
+                            />
+                        ) : null}
 
-                {referenceState.status === 'error' ? (
-                    <ErrorMessage
-                        title={referenceState.error.title}
-                        message={referenceState.error.message}
-                        code={referenceState.error.code}
-                        onRetry={handleRetryReferences}
-                    />
-                ) : null}
+                        {referenceState.status === 'success' &&
+                        referenceState.doctors.length === 0 ? (
+                            <EmptyState
+                                title="No active doctors available."
+                                message="Add or activate a doctor before booking appointments for this clinic."
+                                action={
+                                    <Link
+                                        to="/doctors/new"
+                                        className="inline-flex min-h-10 items-center justify-center rounded-md border border-transparent bg-action px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+                                    >
+                                        Add doctor
+                                    </Link>
+                                }
+                            />
+                        ) : null}
 
-                {referenceState.status === 'success' && referenceState.doctors.length === 0 ? (
-                    <EmptyState
-                        title="No active doctors available."
-                        message="Add or activate a doctor before booking appointments for this clinic."
-                        action={
-                            <Link
-                                to="/doctors/new"
-                                className="inline-flex min-h-10 items-center justify-center rounded-md border border-transparent bg-action px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+                        {referenceState.status === 'success' &&
+                        referenceState.patients.length === 0 ? (
+                            <EmptyState
+                                title="No active patients available."
+                                message="Add a patient record before booking appointments for this clinic."
+                                action={
+                                    <Link
+                                        to="/patients/new"
+                                        state={{ returnToBooking: true, bookingDraft: values }}
+                                        className="inline-flex min-h-10 items-center justify-center rounded-md border border-transparent bg-action px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+                                    >
+                                        Add patient
+                                    </Link>
+                                }
+                            />
+                        ) : null}
+
+                        {successState ? (
+                            <div
+                                className="mb-6 rounded-lg border border-[var(--color-status-success-border)] bg-[var(--color-status-success-bg)] px-4 py-3 text-sm text-[var(--color-status-success-text)]"
+                                role="status"
                             >
-                                Add doctor
-                            </Link>
-                        }
-                    />
-                ) : null}
+                                <p className="font-semibold">{successState.message}</p>
+                                <p className="mt-1">
+                                    Scheduled for{' '}
+                                    {formatClinicDateTime(successState.scheduledAt, clinicTimezone)}
+                                    {successState.riskLevel
+                                        ? ` with ${successState.riskLevel.toLowerCase()} no-show risk.`
+                                        : '.'}
+                                </p>
+                            </div>
+                        ) : null}
 
-                {referenceState.status === 'success' && referenceState.patients.length === 0 ? (
-                    <EmptyState
-                        title="No active patients available."
-                        message="Add a patient record before booking appointments for this clinic."
-                        action={
-                            <Link
-                                to="/patients/new"
-                                state={{ returnToBooking: true, bookingDraft: values }}
-                                className="inline-flex min-h-10 items-center justify-center rounded-md border border-transparent bg-action px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
-                            >
-                                Add patient
-                            </Link>
-                        }
-                    />
-                ) : null}
+                        {formError ? (
+                            <div className="mb-6">
+                                <ErrorMessage
+                                    title={formErrorTitle}
+                                    message={formError}
+                                    code={formErrorCode}
+                                    details={formErrorDetails}
+                                />
+                            </div>
+                        ) : null}
 
-                {successState ? (
-                    <div
-                        className="mb-6 rounded-lg border border-[var(--color-status-success-border)] bg-[var(--color-status-success-bg)] px-4 py-3 text-sm text-[var(--color-status-success-text)]"
-                        role="status"
-                    >
-                        <p className="font-semibold">{successState.message}</p>
-                        <p className="mt-1">
-                            Scheduled for{' '}
-                            {formatClinicDateTime(successState.scheduledAt, clinicTimezone)}
-                            {successState.riskLevel
-                                ? ` with ${successState.riskLevel.toLowerCase()} no-show risk.`
-                                : '.'}
-                        </p>
-                    </div>
-                ) : null}
-
-                {formError ? (
-                    <div className="mb-6">
-                        <ErrorMessage
-                            title={formErrorTitle}
-                            message={formError}
-                            code={formErrorCode}
-                            details={formErrorDetails}
+                        <AppointmentBookingForm
+                            values={values}
+                            fieldErrors={fieldErrors}
+                            doctors={referenceState.doctors}
+                            patients={referenceState.patients}
+                            availableSlots={availableSlotsState.slots}
+                            isLoadingSlots={availableSlotsState.status === 'loading'}
+                            slotsError={availableSlotsState.error?.message ?? null}
+                            isSubmitting={isSubmitting}
+                            isDisabled={!canUseForm}
+                            onChange={handleChange}
+                            onSubmit={handleSubmit}
+                            onAddPatient={() =>
+                                navigate('/patients/new', {
+                                    state: { returnToBooking: true, bookingDraft: values },
+                                })
+                            }
                         />
                     </div>
-                ) : null}
-
-                <AppointmentBookingForm
-                    values={values}
-                    fieldErrors={fieldErrors}
-                    doctors={referenceState.doctors}
-                    patients={referenceState.patients}
-                    availableSlots={availableSlotsState.slots}
-                    isLoadingSlots={availableSlotsState.status === 'loading'}
-                    slotsError={availableSlotsState.error?.message ?? null}
-                    isSubmitting={isSubmitting}
-                    isDisabled={!canUseForm}
-                    onChange={handleChange}
-                    onSubmit={handleSubmit}
-                    onAddPatient={() =>
-                        navigate('/patients/new', {
-                            state: { returnToBooking: true, bookingDraft: values },
-                        })
-                    }
-                />
-            </div>
+                </AppointmentBookingDialog>
+            ) : null}
 
             {rescheduleFlow ? (
                 <RescheduleAppointmentDialog

@@ -103,12 +103,18 @@ describe('DoctorsPage edit workflow', () => {
 
         renderDoctorsPage();
 
-        expect(await screen.findByRole('button', { name: /edit dr\. asha raman/i })).toBeVisible();
+        expect(
+            await screen.findByRole('button', { name: /view profile for dr\. asha raman/i })
+        ).toBeVisible();
+        expect(screen.queryByRole('button', { name: /details/i })).not.toBeInTheDocument();
         expect(mockGetDoctorAvailability).not.toHaveBeenCalled();
 
-        await user.click(screen.getByRole('button', { name: /edit dr\. empty optional/i }));
+        await user.click(
+            screen.getByRole('button', { name: /view profile for dr\. empty optional/i })
+        );
+        await user.click(screen.getByRole('button', { name: /^edit$/i }));
 
-        expect(screen.getByRole('heading', { name: /edit dr\. empty optional/i })).toBeVisible();
+        expect(screen.getByRole('heading', { name: 'Dr. Empty Optional' })).toBeVisible();
         await waitFor(() => {
             expect(mockGetDoctorAvailability).toHaveBeenCalledWith(
                 adminActiveClinic.clinicId,
@@ -148,7 +154,10 @@ describe('DoctorsPage edit workflow', () => {
 
         renderDoctorsPage();
 
-        await user.click(await screen.findByRole('button', { name: /edit dr\. asha raman/i }));
+        await user.click(
+            await screen.findByRole('button', { name: /view profile for dr\. asha raman/i })
+        );
+        await user.click(screen.getByRole('button', { name: /^edit$/i }));
         await user.clear(screen.getByLabelText(/specialization/i));
         await user.type(screen.getByLabelText(/specialization/i), 'Cardiology');
         await user.click(screen.getByRole('button', { name: /save doctor/i }));
@@ -165,7 +174,7 @@ describe('DoctorsPage edit workflow', () => {
         expect(payload).not.toHaveProperty('clinicId');
         expect(payload).not.toHaveProperty('doctorClinicId');
         expect(payload).not.toHaveProperty('createdAt');
-        expect(await screen.findByText('Cardiology')).toBeInTheDocument();
+        expect(await screen.findAllByText('Cardiology')).not.toHaveLength(0);
     });
 
     it('validates client fields before submitting', async () => {
@@ -176,7 +185,10 @@ describe('DoctorsPage edit workflow', () => {
 
         renderDoctorsPage();
 
-        await user.click(await screen.findByRole('button', { name: /edit dr\. asha raman/i }));
+        await user.click(
+            await screen.findByRole('button', { name: /view profile for dr\. asha raman/i })
+        );
+        await user.click(screen.getByRole('button', { name: /^edit$/i }));
         await user.clear(screen.getByLabelText(/full name/i));
         await user.type(screen.getByLabelText(/full name/i), 'A');
         await user.clear(screen.getByLabelText(/email/i));
@@ -201,7 +213,10 @@ describe('DoctorsPage edit workflow', () => {
 
         renderDoctorsPage();
 
-        await user.click(await screen.findByRole('button', { name: /edit dr\. asha raman/i }));
+        await user.click(
+            await screen.findByRole('button', { name: /view profile for dr\. asha raman/i })
+        );
+        await user.click(screen.getByRole('button', { name: /^edit$/i }));
         await user.click(
             await screen
                 .findAllByRole('button', { name: /add period/i })
@@ -264,7 +279,10 @@ describe('DoctorsPage edit workflow', () => {
 
         renderDoctorsPage();
 
-        await user.click(await screen.findByRole('button', { name: /edit dr\. asha raman/i }));
+        await user.click(
+            await screen.findByRole('button', { name: /view profile for dr\. asha raman/i })
+        );
+        await user.click(screen.getByRole('button', { name: /^edit$/i }));
         await user.clear(screen.getByLabelText(/phone/i));
         await user.type(screen.getByLabelText(/phone/i), '+91 90000 09999');
         await user.click(screen.getByRole('button', { name: /save doctor/i }));
