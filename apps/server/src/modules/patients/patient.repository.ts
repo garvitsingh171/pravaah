@@ -2,6 +2,7 @@ import { prisma } from '../../config/prisma.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type { GeocodingResult } from '../../integrations/geoapify/geoapify.types.js';
 import { withTransientDatabaseTransactionRetry } from '../../utils/databaseRetry.js';
+import { MAX_COLLECTION_PAGE, paginationOffset } from '../../utils/collectionPagination.js';
 import { lifecycleRepository } from '../lifecycle/lifecycle.repository.js';
 import type {
     CreatePatientInput,
@@ -80,6 +81,28 @@ const patientClinicResponseSelect = {
     isActive: true,
     createdAt: true,
     updatedAt: true,
+} satisfies Prisma.PatientClinicSelect;
+
+const patientListSelect = {
+    id: true,
+    fullName: true,
+    phone: true,
+    email: true,
+    gender: true,
+    isActive: true,
+    createdAt: true,
+    updatedAt: true,
+} satisfies Prisma.PatientSelect;
+
+const patientClinicListSelect = {
+    id: true,
+    isActive: true,
+    totalAppointments: true,
+    totalCompletedVisits: true,
+    totalNoShows: true,
+    totalLateArrivals: true,
+    lastVisitAt: true,
+    patient: { select: patientListSelect },
 } satisfies Prisma.PatientClinicSelect;
 
 export const patientRepository = {
@@ -377,7 +400,7 @@ export const patientRepository = {
         });
     },
 
-    listPatientsByClinic(clinicId: string, query: ListPatientsQueryInput) {
+    async listPatientsByClinic(clinicId: string, query: ListPatientsQueryInput) {
         const patientWhere: Prisma.PatientWhereInput = {};
 
         if (query.search !== undefined) {
@@ -402,7 +425,7 @@ export const patientRepository = {
             ];
         }
 
-        return prisma.patientClinic.findMany({
+        const rows = await prisma.patientClinic.findMany({
             where: {
                 clinicId,
                 patient: patientWhere,
@@ -412,15 +435,18 @@ export const patientRepository = {
                       ? { OR: [{ isActive: false }, { patient: { isActive: false } }] }
                       : {}),
             },
-            select: {
-                ...patientClinicResponseSelect,
-                patient: {
-                    select: patientResponseSelect,
-                },
-            },
-            orderBy: {
-                createdAt: 'desc',
-            },
+            select: patientClinicListSelect,
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+            skip: paginationOffset(query),
+            take: query.limit + 1,
         });
+        return {
+            patients: rows.slice(0, query.limit),
+            pagination: {
+                page: query.page,
+                limit: query.limit,
+                hasNextPage: query.page < MAX_COLLECTION_PAGE && rows.length > query.limit,
+            },
+        };
     },
 };

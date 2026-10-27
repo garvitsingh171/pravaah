@@ -54,31 +54,28 @@ type PatientClinicListItem = {
     totalNoShows: number;
     totalLateArrivals: number;
     lastVisitAt?: string | null;
-    notes?: string | null;
-    distanceFromClinicKm?: number | string | null;
     isActive: boolean;
-    createdAt: string;
-    updatedAt: string;
-    estimatedTravelTimeMinutes?: number | null;
-    routingStatus: 'NOT_CALCULATED' | 'CALCULATED' | 'FAILED';
-    routingProvider?: 'GEOAPIFY' | null;
-    routingMode?: 'DRIVE' | null;
-    routingTrafficModel?: 'FREE_FLOW' | null;
-    routedAt?: string | null;
-    patient: PatientSummary;
+    patient: Pick<
+        PatientSummary,
+        'id' | 'fullName' | 'phone' | 'email' | 'gender' | 'isActive' | 'createdAt' | 'updatedAt'
+    >;
 };
 
 type PatientListApiResponseData = {
     patients: PatientClinicListItem[];
+    pagination: { page: number; limit: number; hasNextPage: boolean };
 };
 
 export type PatientListResponseData = {
     patients: PatientSummary[];
+    pagination: PatientListApiResponseData['pagination'];
 };
 
 export type PatientListFilters = {
     search?: string;
     isActive?: boolean;
+    page?: number;
+    limit?: number;
 };
 
 const getPatientCollectionPath = (clinicId: string): string => {
@@ -90,14 +87,6 @@ const toPatientSummary = (patientLink: PatientClinicListItem): PatientSummary =>
         ...patientLink.patient,
         patientClinicId: patientLink.id,
         clinicLinkIsActive: patientLink.isActive,
-        notes: patientLink.notes,
-        distanceFromClinicKm: patientLink.distanceFromClinicKm,
-        estimatedTravelTimeMinutes: patientLink.estimatedTravelTimeMinutes,
-        routingStatus: patientLink.routingStatus,
-        routingProvider: patientLink.routingProvider,
-        routingMode: patientLink.routingMode,
-        routingTrafficModel: patientLink.routingTrafficModel,
-        routedAt: patientLink.routedAt,
         totalAppointments: patientLink.totalAppointments,
         totalCompletedVisits: patientLink.totalCompletedVisits,
         totalNoShows: patientLink.totalNoShows,
@@ -117,6 +106,8 @@ export const listPatients = async (
             query: {
                 search: filters.search,
                 isActive: filters.isActive === undefined ? undefined : String(filters.isActive),
+                page: String(filters.page ?? 1),
+                limit: String(filters.limit ?? 20),
             },
             signal,
         }
@@ -124,6 +115,7 @@ export const listPatients = async (
 
     return {
         patients: data.patients.map(toPatientSummary),
+        pagination: data.pagination,
     };
 };
 
@@ -148,11 +140,55 @@ export type PatientLifecycleImpact = {
     activeQueueEntries: number;
 };
 
-export const getPatient = (clinicId: string, patientId: string, signal?: AbortSignal) =>
-    apiClient.get<{ patient: PatientSummary }>(
-        `${getPatientCollectionPath(clinicId)}/${encodeURIComponent(patientId)}`,
-        { signal }
-    );
+type PatientClinicDetail = Pick<
+    PatientClinicListItem,
+    | 'id'
+    | 'isActive'
+    | 'totalAppointments'
+    | 'totalCompletedVisits'
+    | 'totalNoShows'
+    | 'totalLateArrivals'
+    | 'lastVisitAt'
+> & {
+    notes?: string | null;
+    distanceFromClinicKm?: number | string | null;
+    estimatedTravelTimeMinutes?: number | null;
+    routingStatus?: PatientSummary['routingStatus'];
+    routingProvider?: PatientSummary['routingProvider'];
+    routingMode?: PatientSummary['routingMode'];
+    routingTrafficModel?: PatientSummary['routingTrafficModel'];
+    routedAt?: string | null;
+};
+
+export const getPatient = async (clinicId: string, patientId: string, signal?: AbortSignal) => {
+    const data = await apiClient.get<{
+        patient: PatientSummary & { patientClinics?: PatientClinicDetail[] };
+    }>(`${getPatientCollectionPath(clinicId)}/${encodeURIComponent(patientId)}`, { signal });
+    const { patientClinics, ...patient } = data.patient;
+    const link = patientClinics?.[0];
+    return {
+        patient: link
+            ? {
+                  ...patient,
+                  patientClinicId: link.id,
+                  clinicLinkIsActive: link.isActive,
+                  notes: link.notes,
+                  distanceFromClinicKm: link.distanceFromClinicKm,
+                  estimatedTravelTimeMinutes: link.estimatedTravelTimeMinutes,
+                  routingStatus: link.routingStatus,
+                  routingProvider: link.routingProvider,
+                  routingMode: link.routingMode,
+                  routingTrafficModel: link.routingTrafficModel,
+                  routedAt: link.routedAt,
+                  totalAppointments: link.totalAppointments,
+                  totalCompletedVisits: link.totalCompletedVisits,
+                  totalNoShows: link.totalNoShows,
+                  totalLateArrivals: link.totalLateArrivals,
+                  lastVisitAt: link.lastVisitAt,
+              }
+            : patient,
+    };
+};
 
 export const getPatientLifecycleImpact = (clinicId: string, patientId: string) =>
     apiClient.get<{ patient: PatientSummary; impact: PatientLifecycleImpact }>(

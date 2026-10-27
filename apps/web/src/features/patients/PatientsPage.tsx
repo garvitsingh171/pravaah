@@ -29,6 +29,7 @@ import { Gender, UserRole, type Gender as GenderType, type PatientSummary } from
 import PatientProfileDialog from './PatientProfileDialog';
 import {
     archivePatient,
+    getPatient,
     getPatientLifecycleImpact,
     listPatients,
     restorePatient,
@@ -197,13 +198,15 @@ const getVisitSummary = (patient: PatientSummary): string => {
 
 const getPatientListFilters = (
     searchTerm: string,
-    statusFilter: StatusFilter
+    statusFilter: StatusFilter,
+    page = 1
 ): PatientListFilters => {
     const search = searchTerm.trim();
 
     return {
         search: search || undefined,
-        isActive: statusFilter === 'active' ? true : undefined,
+        isActive: statusFilter === 'all' ? undefined : statusFilter === 'active',
+        page,
     };
 };
 
@@ -789,7 +792,7 @@ function PatientListSummary({
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                     <p className="text-sm font-semibold text-slate-900">
-                        {displayedCount} patients visible
+                        {displayedCount} patients on this page
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -816,9 +819,12 @@ function PatientsPage() {
     const locationState = location.state as PatientsLocationState | null;
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [hasNextPage, setHasNextPage] = useState(false);
     const [patientListState, setPatientListState] =
         useState<PatientListState>(emptyPatientListState);
     const [selectedPatient, setSelectedPatient] = useState<PatientSummary | null>(null);
+    const [loadingPatientId, setLoadingPatientId] = useState<string | null>(null);
     const [editingPatient, setEditingPatient] = useState<PatientSummary | null>(null);
     const [statusAction, setStatusAction] = useState<PatientStatusAction | null>(null);
     const [statusActionError, setStatusActionError] = useState<string | null>(null);
@@ -835,7 +841,7 @@ function PatientsPage() {
             try {
                 const data = await listPatients(
                     clinicId,
-                    getPatientListFilters(searchTerm, statusFilter),
+                    getPatientListFilters(searchTerm, statusFilter, currentPage),
                     signal
                 );
 
@@ -844,6 +850,7 @@ function PatientsPage() {
                     patients: data.patients,
                     error: null,
                 });
+                setHasNextPage(data.pagination?.hasNextPage ?? false);
             } catch (error) {
                 if (error instanceof Error && error.name === 'AbortError') {
                     return;
@@ -875,7 +882,7 @@ function PatientsPage() {
                 });
             }
         },
-        [clinicId, searchTerm, statusFilter]
+        [clinicId, searchTerm, statusFilter, currentPage]
     );
 
     const handleRetry = () => {
@@ -889,6 +896,7 @@ function PatientsPage() {
     };
 
     const handleSearchChange = (value: string) => {
+        setCurrentPage(1);
         setPatientListState((currentState) => ({
             status: 'loading',
             patients: currentState.patients,
@@ -898,6 +906,7 @@ function PatientsPage() {
     };
 
     const handleStatusFilterChange = (value: StatusFilter) => {
+        setCurrentPage(1);
         setPatientListState((currentState) => ({
             status: 'loading',
             patients: currentState.patients,
@@ -907,7 +916,11 @@ function PatientsPage() {
     };
 
     const refreshPatientsAfterSave = async () => {
-        const data = await listPatients(clinicId, getPatientListFilters(searchTerm, statusFilter));
+        const data = await listPatients(
+            clinicId,
+            getPatientListFilters(searchTerm, statusFilter, currentPage)
+        );
+        setHasNextPage(data.pagination?.hasNextPage ?? false);
 
         setPatientListState({
             status: 'success',
@@ -918,13 +931,20 @@ function PatientsPage() {
             const refreshedPatient = data.patients.find(
                 (patient) => patient.id === selectedPatient.id
             );
-            if (refreshedPatient) setSelectedPatient(refreshedPatient);
+            if (refreshedPatient)
+                setSelectedPatient((current) =>
+                    current ? { ...current, ...refreshedPatient } : null
+                );
         }
         setEditingPatient(null);
     };
 
     const refreshPatientsAfterStatusChange = async () => {
-        const data = await listPatients(clinicId, getPatientListFilters(searchTerm, statusFilter));
+        const data = await listPatients(
+            clinicId,
+            getPatientListFilters(searchTerm, statusFilter, currentPage)
+        );
+        setHasNextPage(data.pagination?.hasNextPage ?? false);
 
         setPatientListState({
             status: 'success',
@@ -935,7 +955,10 @@ function PatientsPage() {
             const refreshedPatient = data.patients.find(
                 (patient) => patient.id === selectedPatient.id
             );
-            if (refreshedPatient) setSelectedPatient(refreshedPatient);
+            if (refreshedPatient)
+                setSelectedPatient((current) =>
+                    current ? { ...current, ...refreshedPatient } : null
+                );
         }
     };
 
@@ -1040,7 +1063,7 @@ function PatientsPage() {
 
         listPatients(
             clinicId,
-            getPatientListFilters(searchTerm, statusFilter),
+            getPatientListFilters(searchTerm, statusFilter, currentPage),
             abortController.signal
         )
             .then((data) => {
@@ -1049,6 +1072,7 @@ function PatientsPage() {
                     patients: data.patients,
                     error: null,
                 });
+                setHasNextPage(data.pagination?.hasNextPage ?? false);
             })
             .catch((error: unknown) => {
                 if (error instanceof Error && error.name === 'AbortError') {
@@ -1084,7 +1108,7 @@ function PatientsPage() {
         return () => {
             abortController.abort();
         };
-    }, [clinicId, searchTerm, statusFilter]);
+    }, [clinicId, searchTerm, statusFilter, currentPage]);
 
     useEffect(() => {
         if (locationState?.statusMessage) {
@@ -1129,6 +1153,7 @@ function PatientsPage() {
                             onChange={(event) => handleSearchChange(event.target.value)}
                             placeholder="Name, phone, or email"
                             type="search"
+                            maxLength={100}
                         />
                     </label>
 
@@ -1273,14 +1298,51 @@ function PatientsPage() {
                                                                 type="button"
                                                                 className="cursor-pointer text-left hover:underline focus-visible:rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
                                                                 aria-label={`View profile for ${patient.fullName}`}
+                                                                aria-busy={
+                                                                    loadingPatientId === patient.id
+                                                                }
+                                                                disabled={
+                                                                    loadingPatientId === patient.id
+                                                                }
                                                                 onClick={() => {
-                                                                    setSelectedPatient(patient);
                                                                     setEditingPatient(null);
+                                                                    setLoadingPatientId(patient.id);
+                                                                    void getPatient(
+                                                                        clinicId,
+                                                                        patient.id
+                                                                    )
+                                                                        .then((data) => {
+                                                                            setSelectedPatient(
+                                                                                data.patient
+                                                                            );
+                                                                        })
+                                                                        .catch((error: unknown) =>
+                                                                            showErrorToast(
+                                                                                isApiClientError(
+                                                                                    error
+                                                                                )
+                                                                                    ? error.message
+                                                                                    : 'Patient profile could not be loaded.'
+                                                                            )
+                                                                        )
+                                                                        .finally(() =>
+                                                                            setLoadingPatientId(
+                                                                                null
+                                                                            )
+                                                                        );
                                                                 }}
                                                             >
                                                                 {patient.fullName}
                                                             </button>
                                                         </p>
+                                                        {loadingPatientId === patient.id ? (
+                                                            <span
+                                                                role="status"
+                                                                className="text-xs text-slate-500"
+                                                            >
+                                                                Loading profile...
+                                                            </span>
+                                                        ) : null}
                                                         <p className="mt-1 text-slate-600">
                                                             {getGenderLabel(patient.gender)}
                                                         </p>
@@ -1360,7 +1422,38 @@ function PatientsPage() {
                             </tbody>
                         </table>
                     </div>
+                    <nav
+                        aria-label="Patient pages"
+                        className="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-sm"
+                    >
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={currentPage === 1}
+                            onClick={() => setCurrentPage((page) => page - 1)}
+                        >
+                            Previous
+                        </Button>
+                        <span>Page {currentPage}</span>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={!hasNextPage}
+                            onClick={() => setCurrentPage((page) => page + 1)}
+                        >
+                            Next
+                        </Button>
+                    </nav>
                 </div>
+            ) : null}
+            {patientListState.status === 'success' && !hasPatients && currentPage > 1 ? (
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((page) => page - 1)}
+                >
+                    Previous patient page
+                </Button>
             ) : null}
             <ConfirmationDialog
                 open={Boolean(statusAction)}

@@ -36,8 +36,6 @@ const appointmentDetailsSelect = {
             fullName: true,
             phone: true,
             email: true,
-            gender: true,
-            age: true,
         },
     },
     noShowPredictions: {
@@ -70,8 +68,6 @@ const activityAppointmentSelect = {
             fullName: true,
             phone: true,
             email: true,
-            gender: true,
-            age: true,
         },
     },
 } satisfies Prisma.AppointmentSelect;
@@ -108,8 +104,6 @@ const activityQueueSelect = {
             fullName: true,
             phone: true,
             email: true,
-            gender: true,
-            age: true,
         },
     },
 } satisfies Prisma.QueueEntrySelect;
@@ -152,7 +146,8 @@ const findLatestPredictionAppointmentIds = async (
         FROM (
             SELECT DISTINCT ON (prediction."appointmentId")
                 prediction."appointmentId",
-                prediction."riskLevel"
+                prediction."riskLevel",
+                appointment."scheduledAt"
             FROM "no_show_predictions" prediction
             JOIN "appointments" appointment
                 ON appointment."id" = prediction."appointmentId"
@@ -163,6 +158,8 @@ const findLatestPredictionAppointmentIds = async (
             ORDER BY prediction."appointmentId", prediction."createdAt" DESC, prediction."id" DESC
         ) latest
         WHERE 1 = 1 ${riskFilter}
+        ORDER BY latest."scheduledAt" ASC, latest."appointmentId" ASC
+        LIMIT 101
     `;
 
     return rows.map((row) => row.appointmentId);
@@ -371,9 +368,8 @@ export const dashboardRepository = {
                 },
             },
             select: appointmentDetailsSelect,
-            orderBy: {
-                scheduledAt: 'asc',
-            },
+            orderBy: [{ scheduledAt: 'asc' }, { id: 'asc' }],
+            take: 101,
         });
     },
 
@@ -400,9 +396,8 @@ export const dashboardRepository = {
                 ],
             },
             select: activityAppointmentSelect,
-            orderBy: {
-                updatedAt: 'desc',
-            },
+            orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+            take: 100,
         });
     },
 
@@ -443,10 +438,9 @@ export const dashboardRepository = {
                     },
                 ],
             },
+            take: 100,
             select: activityQueueSelect,
-            orderBy: {
-                updatedAt: 'desc',
-            },
+            orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
         });
     },
 };

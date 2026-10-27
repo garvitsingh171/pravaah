@@ -1,7 +1,6 @@
 import type {
     AppointmentStatus,
     BookingSource,
-    Gender,
     QueueStatus,
     RiskLevel,
 } from '../../generated/prisma/client.js';
@@ -98,8 +97,6 @@ export type DashboardPatientDetails = {
     fullName: string;
     phone: string;
     email: string | null;
-    gender: Gender | null;
-    age: number | null;
 };
 
 export type HighRiskAppointmentCandidate = {

@@ -58,10 +58,7 @@ export type DashboardDoctorDetails = Pick<
     'id' | 'fullName' | 'specialization' | 'qualification'
 >;
 
-export type DashboardPatientDetails = Pick<
-    PatientSummary,
-    'id' | 'fullName' | 'phone' | 'email' | 'gender' | 'age'
->;
+export type DashboardPatientDetails = Pick<PatientSummary, 'id' | 'fullName' | 'phone' | 'email'>;
 
 export type DashboardNoShowPrediction = {
     id?: string;
@@ -114,6 +111,7 @@ export type HighRiskAppointmentsResponseData = {
     clinicId: string;
     date: string;
     highRiskAppointments: DashboardHighRiskAppointment[];
+    hasMoreHighRisk?: boolean;
 };
 
 export type TodayActivityResponseData = {

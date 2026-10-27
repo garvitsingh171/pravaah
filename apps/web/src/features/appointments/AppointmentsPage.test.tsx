@@ -7,6 +7,7 @@ import type { AppointmentListItem } from './appointmentApi';
 import AppointmentsPage from './AppointmentsPage';
 
 const listAppointments = vi.hoisted(() => vi.fn());
+const listPatients = vi.hoisted(() => vi.fn());
 const updateAppointmentStatus = vi.hoisted(() => vi.fn());
 
 vi.mock('./appointmentApi', async (importOriginal) => ({
@@ -20,7 +21,7 @@ vi.mock('../doctors/doctorApi', async (importOriginal) => ({
 }));
 vi.mock('../patients/patientApi', async (importOriginal) => ({
     ...(await importOriginal<typeof import('../patients/patientApi')>()),
-    listPatients: vi.fn().mockResolvedValue({ patients: [] }),
+    listPatients,
 }));
 
 const appointment: AppointmentListItem = {
@@ -43,6 +44,7 @@ const appointment: AppointmentListItem = {
 describe('AppointmentsPage primary status action', () => {
     beforeEach(() => {
         listAppointments.mockReset().mockResolvedValue({ appointments: [appointment] });
+        listPatients.mockReset().mockResolvedValue({ patients: [] });
         updateAppointmentStatus.mockReset().mockResolvedValue({
             appointment: { ...appointment, status: AppointmentStatus.CONFIRMED },
         });
@@ -79,6 +81,20 @@ describe('AppointmentsPage primary status action', () => {
         expect(screen.getByRole('dialog', { name: 'Book appointment' })).toBeVisible();
     });
 
+    it('searches booking patients through the bounded clinic API', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(<AppointmentsPage />, { activeClinic: adminActiveClinic });
+        await user.click(screen.getByRole('button', { name: 'Book appointment' }));
+        await user.type(screen.getByRole('searchbox', { name: 'Find patient' }), 'Kabir');
+        await waitFor(() =>
+            expect(listPatients).toHaveBeenCalledWith(
+                adminActiveClinic.clinicId,
+                expect.objectContaining({ search: 'Kabir', limit: 20, isActive: true }),
+                expect.any(AbortSignal)
+            )
+        );
+    });
+
     it('offers the next valid transition directly and saves through the API', async () => {
         const user = userEvent.setup();
         renderWithProviders(<AppointmentsPage />, { activeClinic: adminActiveClinic });
@@ -93,31 +109,73 @@ describe('AppointmentsPage primary status action', () => {
         expect(await screen.findByText('Status updated to confirmed.')).toBeInTheDocument();
     });
 
-    it('filters the loaded schedule by patient and pages long lists', async () => {
+    it('requests server pages and server patient search', async () => {
         const user = userEvent.setup();
-        listAppointments.mockResolvedValue({
-            appointments: Array.from({ length: 17 }, (_, index) => ({
-                ...appointment,
-                id: `appointment-${index}`,
-                patient: {
-                    ...appointment.patient,
-                    id: `patient-${index}`,
-                    fullName: `Patient ${index + 1}`,
-                    phone: `90000000${String(index).padStart(2, '0')}`,
-                },
-            })),
-        });
+        const rows = Array.from({ length: 17 }, (_, index) => ({
+            ...appointment,
+            id: `appointment-${index}`,
+            patient: {
+                ...appointment.patient,
+                id: `patient-${index}`,
+                fullName: `Patient ${index + 1}`,
+                phone: `90000000${String(index).padStart(2, '0')}`,
+            },
+        }));
+        listAppointments.mockImplementation(
+            async (_clinicId: string, filters: { page?: number; search?: string }) => {
+                const matches = filters.search
+                    ? rows.filter((row) => row.patient.phone.includes(filters.search ?? ''))
+                    : rows;
+                const page = filters.page ?? 1;
+                return {
+                    appointments: matches.slice((page - 1) * 15, page * 15),
+                    pagination: { page, limit: 15, hasNextPage: matches.length > page * 15 },
+                };
+            }
+        );
         renderWithProviders(<AppointmentsPage />, { activeClinic: adminActiveClinic });
 
         expect(await screen.findByText('Patient 1')).toBeInTheDocument();
         expect(screen.queryByText('Patient 17')).not.toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: 'Next' }));
-        expect(screen.getByText('Patient 17')).toBeInTheDocument();
+        expect(await screen.findByText('Patient 17')).toBeInTheDocument();
 
         await user.type(screen.getByRole('searchbox', { name: 'Search patient' }), '9000000016');
-        expect(screen.getByText('Patient 17')).toBeInTheDocument();
+        expect(await screen.findByText('Patient 17')).toBeInTheDocument();
         expect(screen.queryByText('Patient 1')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Next' })).not.toBeInTheDocument();
+    });
+
+    it('loads a returned appointment by ID and restores the schedule', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(<AppointmentsPage />, {
+            activeClinic: adminActiveClinic,
+            route: {
+                pathname: '/appointments',
+                state: {
+                    appointmentId: appointment.id,
+                    appointmentDate: appointment.scheduledAt,
+                },
+            },
+        });
+
+        await waitFor(() =>
+            expect(listAppointments).toHaveBeenCalledWith(
+                adminActiveClinic.clinicId,
+                { appointmentId: appointment.id, page: 1, limit: 15 },
+                expect.any(AbortSignal)
+            )
+        );
+        expect(await screen.findByText('Showing the selected appointment.')).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Show schedule' }));
+        await waitFor(() =>
+            expect(listAppointments).toHaveBeenCalledWith(
+                adminActiveClinic.clinicId,
+                expect.objectContaining({ date: '2026-10-15', page: 1, limit: 15 }),
+                expect.any(AbortSignal)
+            )
+        );
     });
 
     it('opens risk details in a dialog without adding an expanded appointment row', async () => {

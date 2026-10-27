@@ -1,4 +1,4 @@
-import { AppointmentStatus, BookingSource, Gender, RiskLevel } from '../../types';
+import { AppointmentStatus, BookingSource, RiskLevel } from '../../types';
 import type {
     DashboardActivityItem,
     DashboardHighRiskAppointment,
@@ -76,8 +76,6 @@ export const highRiskAppointment: DashboardHighRiskAppointment = {
         fullName: 'Riya Sharma',
         phone: '+91 90000 00000',
         email: 'riya@example.com',
-        gender: Gender.FEMALE,
-        age: 32,
     },
     noShowPrediction: {
         id: 'prediction-id',

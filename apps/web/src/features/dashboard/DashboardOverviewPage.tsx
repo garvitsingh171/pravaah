@@ -14,8 +14,9 @@ import {
 import { isApiClientError } from '../../lib';
 import { getClinicDateInputValue } from '../../lib/clinicDateTime';
 import { appRoutePaths } from '../../routes/dashboardRoutes';
-import { AppointmentStatus } from '../../types';
+import { AppointmentStatus, QueueStatus } from '../../types';
 import { listAppointments, type AppointmentListItem } from '../appointments/appointmentApi';
+import { listTodayQueue, type QueueListItem } from '../queues/queueApi';
 import {
     getDashboardSummary,
     listTodayActivity,
@@ -31,6 +32,7 @@ type DashboardData = {
     summary: DashboardSummary;
     activityItems: DashboardActivityItem[];
     appointments: AppointmentListItem[] | null;
+    queueEntries: QueueListItem[] | null;
 };
 
 type DashboardState =
@@ -158,16 +160,16 @@ const addCalendarDays = (date: string, days: number): string => {
     return value.toISOString().slice(0, 10);
 };
 
-const countArrivedWaiting = (appointments: AppointmentListItem[]): number =>
-    appointments.filter(
-        (appointment) =>
-            appointment.status === AppointmentStatus.ARRIVED ||
-            appointment.status === AppointmentStatus.IN_QUEUE
+const countArrivedWaiting = (queueEntries: QueueListItem[]): number =>
+    queueEntries.filter(
+        (entry) =>
+            entry.appointment.status === AppointmentStatus.ARRIVED ||
+            entry.appointment.status === AppointmentStatus.IN_QUEUE
     ).length;
 
 const buildSummaryCards = (
     summary: DashboardSummary,
-    appointments: AppointmentListItem[] | null
+    queueEntries: QueueListItem[] | null
 ): SummaryCard[] => {
     const cancelledNoShowCount =
         summary.appointmentSummary.cancelled + summary.appointmentSummary.noShow;
@@ -183,8 +185,8 @@ const buildSummaryCards = (
         },
         {
             label: 'Patients waiting',
-            value: appointments ? countArrivedWaiting(appointments) : '—',
-            helper: appointments
+            value: queueEntries ? countArrivedWaiting(queueEntries) : '—',
+            helper: queueEntries
                 ? `${summary.queueSummary.total} queue entries today`
                 : 'Open queue for the latest status',
             accentClassName: 'border-l-[var(--color-status-warning-text)]',
@@ -300,19 +302,21 @@ function TodayAppointmentsCard({
     );
 }
 
-function LiveQueuePreview({ appointments }: { appointments: AppointmentListItem[] | null }) {
-    const active = (appointments ?? [])
+function LiveQueuePreview({ queueEntries }: { queueEntries: QueueListItem[] | null }) {
+    const active = (queueEntries ?? [])
         .filter(
-            (appointment) =>
-                appointment.queueEntry &&
-                (appointment.status === AppointmentStatus.ARRIVED ||
-                    appointment.status === AppointmentStatus.IN_QUEUE ||
-                    appointment.status === AppointmentStatus.CALLED)
+            (entry) =>
+                (entry.status === QueueStatus.ARRIVED ||
+                    entry.status === QueueStatus.WAITING ||
+                    entry.status === QueueStatus.CALLED) &&
+                (entry.appointment.status === AppointmentStatus.ARRIVED ||
+                    entry.appointment.status === AppointmentStatus.IN_QUEUE ||
+                    entry.appointment.status === AppointmentStatus.CALLED)
         )
         .sort(
             (first, second) =>
                 first.doctor.fullName.localeCompare(second.doctor.fullName) ||
-                (first.queueEntry?.position ?? 0) - (second.queueEntry?.position ?? 0)
+                first.position - second.position
         )
         .slice(0, 4);
     return (
@@ -328,7 +332,7 @@ function LiveQueuePreview({ appointments }: { appointments: AppointmentListItem[
                 </Link>
             }
         >
-            {appointments === null ? (
+            {queueEntries === null ? (
                 <p
                     role="status"
                     className="rounded-app bg-app-background px-4 py-5 text-sm text-app-muted"
@@ -341,20 +345,20 @@ function LiveQueuePreview({ appointments }: { appointments: AppointmentListItem[
                 </p>
             ) : (
                 <ul className="divide-y divide-app-border">
-                    {active.map((appointment) => (
-                        <li key={appointment.id} className="flex flex-wrap items-center gap-3 py-3">
+                    {active.map((entry) => (
+                        <li key={entry.id} className="flex flex-wrap items-center gap-3 py-3">
                             <span className="flex h-8 min-w-8 items-center justify-center rounded-app bg-brand-subtle px-2 text-sm font-bold text-brand-foreground">
-                                #{appointment.queueEntry?.position}
+                                #{entry.position}
                             </span>
                             <span className="min-w-0 flex-1">
                                 <span className="block truncate text-sm font-semibold text-app-text">
-                                    {appointment.patient.fullName}
+                                    {entry.patient.fullName}
                                 </span>
                                 <span className="block truncate text-xs text-app-muted">
-                                    {appointment.doctor.fullName}
+                                    {entry.doctor.fullName}
                                 </span>
                             </span>
-                            <StatusBadge kind="appointment" status={appointment.status} />
+                            <StatusBadge kind="queue" status={entry.status} />
                         </li>
                     ))}
                 </ul>
@@ -454,7 +458,7 @@ function OperationalPulsePanel({ data }: { data: DashboardData }) {
         appointmentSummary.called;
     const finalAppointments =
         appointmentSummary.completed + appointmentSummary.cancelled + appointmentSummary.noShow;
-    const waitingNow = data.appointments ? countArrivedWaiting(data.appointments) : null;
+    const waitingNow = data.queueEntries ? countArrivedWaiting(data.queueEntries) : null;
     const actionableHighRisk = data.summary.noShowRiskSummary.high;
     const needsAttention = (waitingNow ?? 0) > 0 || actionableHighRisk > 0;
     const flowNodes = [
@@ -827,15 +831,25 @@ function DashboardOverviewPage() {
 
     const loadDashboard = useCallback(
         async (signal?: AbortSignal): Promise<DashboardData> => {
-            const [summaryData, activityData, appointments] = await Promise.all([
+            const [summaryData, activityData, appointments, queueEntries] = await Promise.all([
                 getDashboardSummary(clinicId, signal),
                 listTodayActivity(clinicId, signal),
                 listAppointments(
                     clinicId,
-                    { date: getClinicDateInputValue(activeClinic.clinic?.timezone) },
+                    { date: getClinicDateInputValue(activeClinic.clinic?.timezone), limit: 100 },
                     signal
                 )
                     .then((data) => data.appointments)
+                    .catch((error: unknown) => {
+                        if (signal?.aborted) throw error;
+                        return null;
+                    }),
+                listTodayQueue(
+                    clinicId,
+                    getClinicDateInputValue(activeClinic.clinic?.timezone),
+                    signal
+                )
+                    .then((data) => data.queueEntries)
                     .catch((error: unknown) => {
                         if (signal?.aborted) throw error;
                         return null;
@@ -846,6 +860,7 @@ function DashboardOverviewPage() {
                 summary: summaryData.dashboardSummary,
                 activityItems: activityData.activityItems,
                 appointments,
+                queueEntries,
             };
         },
         [clinicId, activeClinic.clinic?.timezone]
@@ -902,7 +917,7 @@ function DashboardOverviewPage() {
 
     const dashboardData = dashboardState.data;
     const summaryCards = dashboardData
-        ? buildSummaryCards(dashboardData.summary, dashboardData.appointments)
+        ? buildSummaryCards(dashboardData.summary, dashboardData.queueEntries)
         : [];
     const hasDashboardData = dashboardData ? hasUsefulDashboardData(dashboardData) : false;
     const clinicTimezone = activeClinic.clinic?.timezone;
@@ -910,8 +925,8 @@ function DashboardOverviewPage() {
     const currentRiskTo = addCalendarDays(currentRiskFrom, riskPeriodDays - 1);
     const clinicName = activeClinic.clinic?.name ?? 'your clinic';
     const firstName = activeClinic.currentUser?.fullName?.trim().split(/\s+/)[0];
-    const waitingCount = dashboardData?.appointments
-        ? countArrivedWaiting(dashboardData.appointments)
+    const waitingCount = dashboardData?.queueEntries
+        ? countArrivedWaiting(dashboardData.queueEntries)
         : null;
     const highRiskCount = dashboardData?.summary.noShowRiskSummary.high ?? 0;
 
@@ -996,7 +1011,7 @@ function DashboardOverviewPage() {
                             appointments={dashboardData.appointments}
                             timezone={clinicTimezone}
                         />
-                        <LiveQueuePreview appointments={dashboardData.appointments} />
+                        <LiveQueuePreview queueEntries={dashboardData.queueEntries} />
                     </div>
 
                     <OperationalPulsePanel data={dashboardData} />

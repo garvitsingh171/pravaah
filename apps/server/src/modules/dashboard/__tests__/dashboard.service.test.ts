@@ -56,20 +56,34 @@ describe('dashboardService.getNoShowIntelligence', () => {
             status: 'SCHEDULED',
             bookingSource: 'RECEPTION',
             reason: null,
-            doctor: { id: 'doctor-1', fullName: 'Dr. Rao', specialization: null, qualification: null },
-            patient: { id: `patient-${id}`, fullName: `Patient ${id}`, phone: '9000', email: null, gender: null, age: null },
-            noShowPredictions: riskLevel ? [{
-                id: `prediction-${id}`,
-                riskLevel,
-                score: 80,
-                reasons,
-                featureSnapshot: null,
-                featureSchemaVersion: 'v1',
-                ruleVersion: 'r1',
-                generationSource: 'BACKFILL',
-                createdAt: new Date('2026-06-19T01:00:00.000Z'),
-                updatedAt: new Date('2026-06-19T01:00:00.000Z'),
-            }] : [],
+            doctor: {
+                id: 'doctor-1',
+                fullName: 'Dr. Rao',
+                specialization: null,
+                qualification: null,
+            },
+            patient: {
+                id: `patient-${id}`,
+                fullName: `Patient ${id}`,
+                phone: '9000',
+                email: null,
+            },
+            noShowPredictions: riskLevel
+                ? [
+                      {
+                          id: `prediction-${id}`,
+                          riskLevel,
+                          score: 80,
+                          reasons,
+                          featureSnapshot: null,
+                          featureSchemaVersion: 'v1',
+                          ruleVersion: 'r1',
+                          generationSource: 'BACKFILL',
+                          createdAt: new Date('2026-06-19T01:00:00.000Z'),
+                          updatedAt: new Date('2026-06-19T01:00:00.000Z'),
+                      },
+                  ]
+                : [],
         });
         mockDashboardRepository.findUpcomingNoShowIntelligenceCandidates.mockResolvedValue([
             makeAppointment('1', 'HIGH', [
@@ -89,13 +103,21 @@ describe('dashboardService.getNoShowIntelligence', () => {
             '2026-06-26'
         );
 
-        expect(mockAccessService.verifyClinicAccess).toHaveBeenCalledWith(authenticatedUser, 'clinic-id');
-        expect(mockDashboardRepository.findUpcomingNoShowIntelligenceCandidates).toHaveBeenCalledWith(
-            'clinic-id', '2026-06-20', '2026-06-26', 'Asia/Kolkata'
+        expect(mockAccessService.verifyClinicAccess).toHaveBeenCalledWith(
+            authenticatedUser,
+            'clinic-id'
         );
+        expect(
+            mockDashboardRepository.findUpcomingNoShowIntelligenceCandidates
+        ).toHaveBeenCalledWith('clinic-id', '2026-06-20', '2026-06-26', 'Asia/Kolkata');
         expect(result.totalUpcoming).toBe(3);
         expect(result.riskCounts).toEqual({ high: 1, medium: 0, low: 1, unavailable: 1 });
-        expect(result.riskCounts.high + result.riskCounts.medium + result.riskCounts.low + result.riskCounts.unavailable).toBe(result.totalUpcoming);
+        expect(
+            result.riskCounts.high +
+                result.riskCounts.medium +
+                result.riskCounts.low +
+                result.riskCounts.unavailable
+        ).toBe(result.totalUpcoming);
         expect(result.contributingFactors[0]).toMatchObject({
             code: 'PREVIOUS_NO_SHOW_HISTORY',
             appointmentCount: 1,
@@ -363,8 +385,6 @@ describe('dashboardService.getHighRiskAppointments', () => {
                     fullName: 'Rohan Mehta',
                     phone: '9999999999',
                     email: null,
-                    gender: null,
-                    age: 34,
                 },
                 noShowPrediction: {
                     id: 'high-risk-prediction-id',
@@ -401,8 +421,6 @@ describe('dashboardService.getHighRiskAppointments', () => {
                     fullName: 'Nisha Shah',
                     phone: '8888888888',
                     email: 'nisha@example.com',
-                    gender: 'FEMALE',
-                    age: 29,
                 },
                 noShowPrediction: {
                     id: 'medium-risk-prediction-id',
@@ -457,8 +475,6 @@ describe('dashboardService.getHighRiskAppointments', () => {
                         fullName: 'Rohan Mehta',
                         phone: '9999999999',
                         email: null,
-                        gender: null,
-                        age: 34,
                     },
                     noShowPrediction: {
                         id: 'high-risk-prediction-id',
@@ -485,6 +501,7 @@ describe('dashboardService.getHighRiskAppointments', () => {
                     },
                 },
             ],
+            hasMoreHighRisk: false,
         });
         expect(result.highRiskAppointments).toEqual([
             expect.objectContaining({
@@ -493,6 +510,49 @@ describe('dashboardService.getHighRiskAppointments', () => {
                 }),
             }),
         ]);
+    });
+
+    it('caps the high-risk response at 100 and reports more matches', async () => {
+        mockAccessService.verifyClinicAccess.mockResolvedValue({
+            id: 'clinic-id',
+            isActive: true,
+            timezone: 'Asia/Kolkata',
+        });
+        mockDashboardRepository.findHighRiskAppointmentCandidates.mockResolvedValue(
+            Array.from({ length: 101 }, (_, index) => ({
+                id: `appointment-${index}`,
+                patientId: 'patient-id',
+                scheduledAt: new Date('2026-06-19T05:00:00.000Z'),
+                createdAt: new Date('2026-06-18T05:00:00.000Z'),
+                durationMinutes: 15,
+                status: 'SCHEDULED',
+                bookingSource: 'RECEPTION',
+                reason: null,
+                doctor: {
+                    id: 'doctor-id',
+                    fullName: 'Dr. Rao',
+                    specialization: null,
+                    qualification: null,
+                },
+                patient: { id: 'patient-id', fullName: 'Patient', phone: '9000', email: null },
+                noShowPrediction: {
+                    id: `prediction-${index}`,
+                    riskLevel: 'HIGH',
+                    score: 60,
+                    reasons: [],
+                    createdAt: new Date('2026-06-18T05:00:00.000Z'),
+                    updatedAt: new Date('2026-06-18T05:00:00.000Z'),
+                },
+            }))
+        );
+
+        const result = await dashboardService.getHighRiskAppointments(
+            authenticatedUser,
+            'clinic-id',
+            '2026-06-19'
+        );
+        expect(result.highRiskAppointments).toHaveLength(100);
+        expect(result.hasMoreHighRisk).toBe(true);
     });
 
     it('rejects users outside the requested clinic', async () => {
@@ -542,8 +602,6 @@ describe('dashboardService.getTodayActivity', () => {
             fullName: 'Rohan Mehta',
             phone: '9999999999',
             email: null,
-            gender: null,
-            age: 34,
         };
 
         mockAccessService.verifyClinicAccess.mockResolvedValue({
@@ -634,8 +692,6 @@ describe('dashboardService.getTodayActivity', () => {
             fullName: 'Rohan Mehta',
             phone: '9999999999',
             email: null,
-            gender: null,
-            age: 34,
         };
 
         mockAccessService.verifyClinicAccess.mockResolvedValue({

@@ -234,6 +234,12 @@ export default function NoShowRiskIntelligence({
                             Ordered by appointment time. Risk flags are advisory and do not trigger
                             actions.
                         </p>
+                        {data && data.riskCounts.high > data.highRiskAppointments.length ? (
+                            <p className="mt-1 text-sm text-slate-600">
+                                Showing the first {data.highRiskAppointments.length} of{' '}
+                                {data.riskCounts.high} high-risk appointments.
+                            </p>
+                        ) : null}
                     </div>
                 </div>
                 {data?.highRiskAppointments.length ? (

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useActiveClinic } from '../../app/activeClinicContext';
 import { EmptyState, ErrorMessage, LoadingState, useToast } from '../../components/feedback';
@@ -18,7 +18,7 @@ import useModalFocus from '../../components/ui/useModalFocus';
 import { AppointmentStatus, BookingSource } from '../../types';
 import type { DoctorSummary, PatientSummary, RiskLevel } from '../../types';
 import { listDoctors } from '../doctors/doctorApi';
-import { listPatients } from '../patients/patientApi';
+import { getPatient, listPatients } from '../patients/patientApi';
 import AppointmentBookingDialog from './AppointmentBookingDialog';
 import AppointmentBookingForm, {
     type AppointmentBookingFormFieldErrors,
@@ -665,7 +665,7 @@ function AppointmentRiskSummary({
 
 function AppointmentListInsightsStrip({ insights }: { insights: AppointmentListInsights }) {
     const items = [
-        { label: 'Matching appointments', value: insights.total },
+        { label: 'On this page', value: insights.total },
         { label: 'Active workflow', value: insights.active },
         { label: 'Final status', value: insights.final },
         { label: 'High risk', value: insights.highRisk },
@@ -899,7 +899,10 @@ function AppointmentsPage() {
     const [selectedDoctorId, setSelectedDoctorId] = useState('');
     const [selectedPatientId, setSelectedPatientId] = useState('');
     const [patientSearch, setPatientSearch] = useState('');
+    const [bookingPatientSearch, setBookingPatientSearch] = useState('');
+    const [filterPatientSearch, setFilterPatientSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
+    const [hasNextPage, setHasNextPage] = useState(false);
     const [selectedStatus, setSelectedStatus] = useState<AppointmentStatus | ''>('');
     const [navigationAppointmentId, setNavigationAppointmentId] = useState<string | null>(
         bookingReturnState?.appointmentId ?? null
@@ -936,6 +939,7 @@ function AppointmentsPage() {
     const [fieldErrors, setFieldErrors] = useState<AppointmentBookingFormFieldErrors>({});
     const [referenceState, setReferenceState] =
         useState<AppointmentReferenceState>(emptyReferenceState);
+    const doctorsCache = useRef<{ clinicId: string; doctors: DoctorSummary[] } | null>(null);
     const [availableSlotsState, setAvailableSlotsState] =
         useState<AvailableSlotsState>(emptyAvailableSlotsState);
     const [formError, setFormError] = useState<string | null>(null);
@@ -982,7 +986,10 @@ function AppointmentsPage() {
         navigate,
     ]);
 
-    const closeBookingDialog = () => setIsBookingDialogOpen(false);
+    const closeBookingDialog = () => {
+        setIsBookingDialogOpen(false);
+        setBookingPatientSearch('');
+    };
     const [activityAppointment, setActivityAppointment] = useState<AppointmentListItem | null>(
         null
     );
@@ -995,32 +1002,65 @@ function AppointmentsPage() {
 
     const loadAppointments = useCallback(
         async (signal?: AbortSignal) => {
-            const filters = getAppointmentListFilters(
-                selectedDate,
-                selectedDoctorId,
-                selectedPatientId,
-                selectedStatus
-            );
+            const filters: AppointmentListFilters = navigationAppointmentId
+                ? { appointmentId: navigationAppointmentId, page: 1, limit: 15 }
+                : {
+                      ...getAppointmentListFilters(
+                          selectedDate,
+                          selectedDoctorId,
+                          selectedPatientId,
+                          selectedStatus
+                      ),
+                      search: patientSearch.trim() || undefined,
+                      page: currentPage,
+                      limit: 15,
+                  };
             const data = await listAppointments(clinicId, filters, signal);
+
+            setHasNextPage(data.pagination?.hasNextPage ?? false);
 
             return data.appointments;
         },
-        [clinicId, selectedDate, selectedDoctorId, selectedPatientId, selectedStatus]
+        [
+            clinicId,
+            selectedDate,
+            selectedDoctorId,
+            selectedPatientId,
+            selectedStatus,
+            patientSearch,
+            currentPage,
+            navigationAppointmentId,
+        ]
     );
 
     const loadAppointmentReferences = useCallback(
         async (signal?: AbortSignal) => {
             const [doctorData, patientData] = await Promise.all([
-                listDoctors(clinicId, signal),
-                listPatients(clinicId, {}, signal),
+                doctorsCache.current?.clinicId === clinicId
+                    ? Promise.resolve({ doctors: doctorsCache.current.doctors })
+                    : listDoctors(clinicId, signal),
+                listPatients(
+                    clinicId,
+                    {
+                        isActive: true,
+                        search:
+                            (isBookingDialogOpen
+                                ? bookingPatientSearch
+                                : filterPatientSearch
+                            ).trim() || undefined,
+                        limit: 20,
+                    },
+                    signal
+                ),
             ]);
+            doctorsCache.current = { clinicId, doctors: doctorData.doctors };
 
             return {
                 doctors: doctorData.doctors.filter(isActiveDoctor),
                 patients: patientData.patients.filter(isActivePatient),
             };
         },
-        [clinicId]
+        [clinicId, bookingPatientSearch, filterPatientSearch, isBookingDialogOpen]
     );
 
     const handleRetryAppointments = () => {
@@ -1052,6 +1092,7 @@ function AppointmentsPage() {
     };
 
     const handleRetryReferences = () => {
+        doctorsCache.current = null;
         setReferenceState((currentState) => ({
             status: 'loading',
             doctors: currentState.doctors,
@@ -1078,6 +1119,7 @@ function AppointmentsPage() {
     };
 
     const prepareAppointmentFilterChange = () => {
+        setNavigationAppointmentId(null);
         setAppointmentListState((currentState) => ({
             status: 'loading',
             appointments: currentState.appointments,
@@ -1152,11 +1194,22 @@ function AppointmentsPage() {
 
         void loadAppointmentReferences(abortController.signal)
             .then((data) => {
-                setReferenceState({
-                    status: 'success',
-                    doctors: data.doctors,
-                    patients: data.patients,
-                    error: null,
+                setReferenceState((current) => {
+                    const selected = current.patients.filter(
+                        (patient) =>
+                            patient.id === values.patientId || patient.id === selectedPatientId
+                    );
+                    return {
+                        status: 'success',
+                        doctors: data.doctors,
+                        patients: [
+                            ...selected.filter(
+                                (patient) => !data.patients.some((item) => item.id === patient.id)
+                            ),
+                            ...data.patients,
+                        ],
+                        error: null,
+                    };
                 });
             })
             .catch((error: unknown) => {
@@ -1170,7 +1223,42 @@ function AppointmentsPage() {
         return () => {
             abortController.abort();
         };
-    }, [loadAppointmentReferences]);
+    }, [loadAppointmentReferences, values.patientId, selectedPatientId]);
+
+    useEffect(() => {
+        const patientId = bookingReturnState?.patientId;
+        if (
+            !patientId ||
+            referenceState.status !== 'success' ||
+            referenceState.patients.some((patient) => patient.id === patientId)
+        )
+            return;
+        const controller = new AbortController();
+        void getPatient(clinicId, patientId, controller.signal)
+            .then(({ patient }) => {
+                setReferenceState((current) =>
+                    current.status === 'success' &&
+                    !current.patients.some((item) => item.id === patient.id)
+                        ? { ...current, patients: [patient, ...current.patients] }
+                        : current
+                );
+            })
+            .catch((error: unknown) => {
+                if (!controller.signal.aborted)
+                    showErrorToast(
+                        isApiClientError(error)
+                            ? error.message
+                            : 'Selected patient could not be loaded.'
+                    );
+            });
+        return () => controller.abort();
+    }, [
+        bookingReturnState?.patientId,
+        clinicId,
+        referenceState.status,
+        referenceState.patients,
+        showErrorToast,
+    ]);
 
     useEffect(() => {
         const durationMinutes = getPositiveIntegerValue(values.durationMinutes);
@@ -1441,24 +1529,12 @@ function AppointmentsPage() {
                 scheduledAt: data.appointment.scheduledAt,
                 riskLevel: data.noShowPrediction?.riskLevel,
             });
+            setNavigationAppointmentId(data.appointment.id);
+            setCurrentPage(1);
+            setSelectedDate(
+                getClinicDateInputValue(clinicTimezone, new Date(data.appointment.scheduledAt))
+            );
             showSuccessToast('Appointment booked successfully.');
-
-            void loadAppointments()
-                .then((appointments) => {
-                    setAppointmentListState({
-                        status: 'success',
-                        appointments,
-                        error: null,
-                    });
-                })
-                .catch((error: unknown) => {
-                    const errorState = getAppointmentListErrorState(error);
-
-                    if (errorState?.status === 'error') {
-                        setAppointmentListState(errorState);
-                        showErrorToast(errorState.error.message);
-                    }
-                });
         } catch (error) {
             if (isApiClientError(error)) {
                 setFieldErrors(getBackendFieldErrors(error.details));
@@ -1702,9 +1778,13 @@ function AppointmentsPage() {
                 };
             });
             setRescheduleFlow(null);
+            setNavigationAppointmentId(data.appointment.id);
+            setCurrentPage(1);
+            setSelectedDate(
+                getClinicDateInputValue(clinicTimezone, new Date(data.appointment.scheduledAt))
+            );
             setStatusUpdateMessage('Appointment rescheduled successfully.');
             showSuccessToast('Appointment rescheduled successfully.');
-            refreshAppointmentsAfterReschedule();
         } catch (error) {
             if (isApiClientError(error)) {
                 if (
@@ -1783,7 +1863,8 @@ function AppointmentsPage() {
         selectedDoctorId ||
         selectedPatientId ||
         selectedStatus ||
-        patientSearch
+        patientSearch ||
+        navigationAppointmentId
     );
     const onlyTodaySelected =
         selectedDate === getClinicDateInputValue(clinicTimezone) &&
@@ -1791,40 +1872,23 @@ function AppointmentsPage() {
         !selectedPatientId &&
         !selectedStatus &&
         !patientSearch;
-    const filteredAppointments = useMemo(() => {
-        const searchTerm = patientSearch.trim().toLocaleLowerCase();
-        return appointmentListState.appointments.filter(
-            (appointment) =>
-                !searchTerm ||
-                appointment.patient.fullName.toLocaleLowerCase().includes(searchTerm) ||
-                (appointment.patient.phone ?? '').includes(searchTerm)
-        );
-    }, [appointmentListState.appointments, patientSearch]);
+    const filteredAppointments = appointmentListState.appointments;
     const pageSize = 15;
-    const pageCount = Math.max(1, Math.ceil(filteredAppointments.length / pageSize));
-    const safePage = Math.min(currentPage, pageCount);
-    const visibleAppointments = filteredAppointments.slice(
-        (safePage - 1) * pageSize,
-        safePage * pageSize
-    );
+    const safePage = currentPage;
+    const visibleAppointments = filteredAppointments;
     useEffect(() => {
         if (!navigationAppointmentId) return;
         const index = filteredAppointments.findIndex(
             (appointment) => appointment.id === navigationAppointmentId
         );
         if (index < 0) return;
-        const targetPage = Math.floor(index / pageSize) + 1;
-        if (targetPage !== currentPage) {
-            setCurrentPage(targetPage);
-            return;
-        }
         const frame = window.requestAnimationFrame(() => {
             const row = document.getElementById(`appointment-${navigationAppointmentId}`);
-            row?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            row?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
             row?.focus({ preventScroll: true });
         });
         return () => window.cancelAnimationFrame(frame);
-    }, [navigationAppointmentId, filteredAppointments, currentPage]);
+    }, [navigationAppointmentId, filteredAppointments]);
     const hasAppointments =
         appointmentListState.status === 'success' && filteredAppointments.length > 0;
     const appointmentInsights = useMemo(
@@ -1859,10 +1923,12 @@ function AppointmentsPage() {
                         Search patient
                         <input
                             type="search"
+                            maxLength={100}
                             className={fieldControlClassName}
                             placeholder="Name or phone"
                             value={patientSearch}
                             onChange={(event) => {
+                                setNavigationAppointmentId(null);
                                 setPatientSearch(event.target.value);
                                 setCurrentPage(1);
                             }}
@@ -1887,6 +1953,14 @@ function AppointmentsPage() {
 
                     <label className="block text-sm font-medium text-slate-700">
                         Patient
+                        <input
+                            type="search"
+                            className={fieldControlClassName}
+                            placeholder="Find patient by name or phone"
+                            maxLength={100}
+                            value={filterPatientSearch}
+                            onChange={(event) => setFilterPatientSearch(event.target.value)}
+                        />
                         <select
                             className={fieldControlClassName}
                             value={selectedPatientId}
@@ -1932,6 +2006,22 @@ function AppointmentsPage() {
                     ) : null}
                 </div>
             </FilterBar>
+
+            {navigationAppointmentId ? (
+                <div
+                    role="status"
+                    className="flex items-center justify-between rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm"
+                >
+                    <span>Showing the selected appointment.</span>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setNavigationAppointmentId(null)}
+                    >
+                        Show schedule
+                    </Button>
+                </div>
+            ) : null}
 
             {appointmentListState.status === 'loading' ? (
                 <LoadingState message="Loading appointments..." />
@@ -2105,14 +2195,6 @@ function AppointmentsPage() {
                                                 >
                                                     {getOptionalText(appointment.reason)}
                                                 </p>
-                                                {appointment.notes ? (
-                                                    <p
-                                                        className="mt-1 max-w-48 truncate text-xs leading-5 text-slate-500"
-                                                        title={appointment.notes}
-                                                    >
-                                                        Note: {appointment.notes}
-                                                    </p>
-                                                ) : null}
                                                 {terminalReason ? (
                                                     <div className="mt-1 max-w-48">
                                                         <p
@@ -2203,15 +2285,14 @@ function AppointmentsPage() {
                             </tbody>
                         </table>
                     </div>
-                    {pageCount > 1 ? (
+                    {safePage > 1 || hasNextPage ? (
                         <nav
                             className="flex flex-wrap items-center justify-between gap-3 border-t border-app-border px-4 py-3 text-sm"
                             aria-label="Appointment pages"
                         >
                             <p className="text-app-muted">
                                 Showing {(safePage - 1) * pageSize + 1}–
-                                {Math.min(safePage * pageSize, filteredAppointments.length)} of{' '}
-                                {filteredAppointments.length}
+                                {(safePage - 1) * pageSize + filteredAppointments.length}
                             </p>
                             <div className="flex items-center gap-2">
                                 <Button
@@ -2223,15 +2304,13 @@ function AppointmentsPage() {
                                     Previous
                                 </Button>
                                 <span aria-current="page" className="px-2 font-semibold">
-                                    {safePage} of {pageCount}
+                                    {safePage}
                                 </span>
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    disabled={safePage === pageCount}
-                                    onClick={() =>
-                                        setCurrentPage(Math.min(pageCount, safePage + 1))
-                                    }
+                                    disabled={!hasNextPage}
+                                    onClick={() => setCurrentPage(safePage + 1)}
                                 >
                                     Next
                                 </Button>
@@ -2239,6 +2318,15 @@ function AppointmentsPage() {
                         </nav>
                     ) : null}
                 </div>
+            ) : null}
+            {appointmentListState.status === 'success' && !hasAppointments && currentPage > 1 ? (
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((page) => page - 1)}
+                >
+                    Previous appointment page
+                </Button>
             ) : null}
 
             {isBookingDialogOpen ? (
@@ -2318,6 +2406,8 @@ function AppointmentsPage() {
                         ) : null}
 
                         <AppointmentBookingForm
+                            patientSearch={bookingPatientSearch}
+                            onPatientSearchChange={setBookingPatientSearch}
                             values={values}
                             fieldErrors={fieldErrors}
                             doctors={referenceState.doctors}

@@ -44,14 +44,12 @@ export async function listAppointmentsController(
         const { clinicId } = req.params as { clinicId: string };
         const query = res.locals.validatedQuery as ListAppointmentsQueryInput;
 
-        const appointments = await appointmentService.listAppointments(clinicId, query);
+        const data = await appointmentService.listAppointments(clinicId, query);
 
         res.status(200).json({
             success: true,
             message: 'Appointments fetched successfully',
-            data: {
-                appointments,
-            },
+            data,
         });
     } catch (error) {
         next(error);

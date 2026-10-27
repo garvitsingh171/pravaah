@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import type { FormEvent } from 'react';
 import { FieldError } from '../../components/feedback';
 import { Button, fieldControlClassName } from '../../components/ui';
 import type { DoctorSummary, PatientSummary } from '../../types';
@@ -31,6 +31,8 @@ type AppointmentBookingFormProps = {
     onChange: (field: keyof AppointmentBookingFormValues, value: string) => void;
     onSubmit: () => void;
     onAddPatient: () => void;
+    patientSearch: string;
+    onPatientSearchChange: (value: string) => void;
 };
 
 const fieldBaseClass = fieldControlClassName;
@@ -91,8 +93,9 @@ function AppointmentBookingForm({
     onChange,
     onSubmit,
     onAddPatient,
+    patientSearch,
+    onPatientSearchChange,
 }: AppointmentBookingFormProps) {
-    const [patientSearch, setPatientSearch] = useState('');
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         onSubmit();
@@ -154,10 +157,11 @@ function AppointmentBookingForm({
                             <input
                                 className={fieldControlClassName}
                                 type="search"
+                                maxLength={100}
                                 placeholder="Search by name or phone"
                                 value={patientSearch}
-                                onChange={(event) => setPatientSearch(event.target.value)}
-                                disabled={controlsDisabled}
+                                onChange={(event) => onPatientSearchChange(event.target.value)}
+                                disabled={isSubmitting}
                             />
                         </label>
                         <label className="mt-3 block text-sm font-medium text-slate-700">

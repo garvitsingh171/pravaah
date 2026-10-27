@@ -28,6 +28,20 @@ Most successful responses use:
 
 Some controllers return a shaped result directly under `data`, such as appointment booking and dashboard high-risk responses. The frontend API client requires `success: true` and then returns `data`.
 
+### Bounded patient and appointment collections (SEC-F-01 / #292)
+
+`GET /api/clinics/:clinicId/patients` and `GET /api/clinics/:clinicId/appointments` require an active Clerk-backed Admin or Staff user with access to the path clinic. Their Prisma queries retain that clinic predicate, including when a patient belongs to multiple clinics. Both accept `page` (default 1, maximum 500) and `limit` (default 20, maximum 100). Only plain positive decimal integers are accepted; repeated, unknown, fractional, overflowing, or out-of-range values return HTTP 400 `VALIDATION_ERROR`. The maximum offset is 49,900 rows. Database queries fetch at most `limit + 1` rows to compute `hasNextPage` and return at most `limit`.
+
+Patient filters: optional `search` (trimmed, 1–100 characters; name, phone, or email) and `isActive=true|false`. Appointment filters: optional clinic-local `date=YYYY-MM-DD`, `doctorId`, `patientId`, `appointmentId`, enum `status`, and trimmed `search` (1–100 characters; patient name or phone). The ID filter lets booking and rescheduling return to the selected appointment without loading a full page. Unknown filters are rejected. A cross-clinic doctor, patient, or appointment filter returns an empty appointment page; it does not disclose whether the ID exists elsewhere. Date filtering uses the clinic timezone and an inclusive start, exclusive next-day boundary.
+
+Patients sort by `PatientClinic.createdAt DESC, PatientClinic.id DESC`. Appointments sort by `scheduledAt ASC, id ASC` to preserve the operational schedule. Offset pages are deterministic for an unchanged dataset; inserts or deletions between requests can shift page boundaries. Use a fresh page-one request after writes when a current view is needed.
+
+Patient responses retain `data.patients` as clinic-link rows containing only link ID, active state, visit counters, last visit, and a nested patient with ID, name, phone, email, gender, active state, and timestamps. Appointment responses retain `data.appointments` with operational schedule/status, minimal patient and doctor identity/contact, queue position/status, and the latest rendered risk summary. Collection responses omit patient address, date of birth, emergency contacts, clinic notes, appointment notes, creator details, and raw prediction features. The authorized patient detail route supplies full profile fields when the profile or edit dialog opens.
+
+Both collection envelopes include `data.pagination: { page, limit, hasNextPage }`. For example, `GET .../patients?page=1&limit=20` returns `{ "success": true, "message": "Patients fetched successfully", "data": { "patients": [], "pagination": { "page": 1, "limit": 20, "hasNextPage": false } } }`; the appointment route uses the same metadata and an `appointments` array. `?limit=101` returns `{ "success": false, "error": { "code": "VALIDATION_ERROR", "message": "Invalid request data.", "details": [...] } }`. Missing authentication returns HTTP 401; a foreign clinic returns HTTP 403. The web patient and appointment pages pass page/filter state to these APIs. Booking patient lookup uses bounded server search.
+
+Dashboard appointment previews request at most 100 items; the live queue preview reads the deliberately day-scoped queue API. The high-risk dashboard endpoint returns at most 100 items plus `hasMoreHighRisk`; the no-show intelligence response caps its high-risk detail list at 100 while keeping aggregate counts over the requested 31-day maximum period. Today's activity feed returns at most 100 recent items. Prediction backfill and aggregate computation remain internal operations rather than collection responses.
+
 ## Error Response Format
 
 Expected errors use:

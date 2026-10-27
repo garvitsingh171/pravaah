@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { paginationQueryFields } from '../../utils/collectionPagination.js';
 import { calendarDateRegex, isValidCalendarDate } from '../../utils/dateValidation.js';
 import {
     appointmentCancellationReasonValues,
@@ -92,9 +93,12 @@ export const rescheduleAppointmentSchema = z
 
 export const listAppointmentsQuerySchema = z
     .object({
+        ...paginationQueryFields,
         date: dateSchema.optional(),
+        search: z.string().trim().min(1).max(100).optional(),
         doctorId: uuidSchema.optional(),
         patientId: uuidSchema.optional(),
+        appointmentId: uuidSchema.optional(),
         status: z
             .enum([
                 'SCHEDULED',
