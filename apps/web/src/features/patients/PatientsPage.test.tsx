@@ -337,6 +337,47 @@ describe('PatientsPage edit workflow', () => {
         expect(await screen.findAllByText('Not added')).not.toHaveLength(0);
     });
 
+    it('reloads detail-only fields after saving while the profile stays open', async () => {
+        const user = userEvent.setup();
+        const listPatient: PatientSummary = {
+            id: patient.id,
+            patientClinicId: patient.patientClinicId,
+            clinicLinkIsActive: true,
+            fullName: patient.fullName,
+            phone: patient.phone,
+            email: patient.email,
+            gender: patient.gender,
+            isActive: true,
+            createdAt: patient.createdAt,
+            updatedAt: patient.updatedAt,
+        };
+        const updatedPatient = { ...patient, notes: 'Updated clinic note' };
+        mockListPatients.mockResolvedValue({
+            patients: [listPatient],
+            pagination: { page: 1, limit: 20, hasNextPage: false },
+        });
+        mockGetPatient
+            .mockResolvedValueOnce({ patient })
+            .mockResolvedValueOnce({ patient: updatedPatient });
+        mockUpdatePatient.mockResolvedValue({ patient: updatedPatient });
+
+        renderPatientsPage();
+        await user.click(
+            await screen.findByRole('button', { name: /view profile for riya malhotra/i })
+        );
+        expect(await screen.findByText('Consistent attendance')).toBeVisible();
+        await user.click(screen.getByRole('button', { name: /^edit$/i }));
+        await user.clear(screen.getByLabelText(/^notes$/i));
+        await user.type(screen.getByLabelText(/^notes$/i), 'Updated clinic note');
+        await user.click(screen.getByRole('button', { name: /save patient/i }));
+
+        expect(await screen.findByText('Updated clinic note')).toBeVisible();
+        expect(mockGetPatient).toHaveBeenCalledTimes(2);
+        expect(mockGetPatient).toHaveBeenLastCalledWith(adminActiveClinic.clinicId, patient.id);
+        await user.click(screen.getByRole('button', { name: /^edit$/i }));
+        expect(screen.getByLabelText(/^notes$/i)).toHaveValue('Updated clinic note');
+    });
+
     it('pre-fills structured location fields and sends null when a location field is cleared', async () => {
         const user = userEvent.setup();
         const updatedPatient = {

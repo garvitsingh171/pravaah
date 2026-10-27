@@ -378,7 +378,7 @@ type PatientEditPanelProps = {
     clinicId: string;
     patient: PatientSummary;
     onCancel: () => void;
-    onSaved: () => Promise<void>;
+    onSaved: (patientId: string) => Promise<void>;
 };
 
 function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditPanelProps) {
@@ -449,7 +449,7 @@ function PatientEditPanel({ clinicId, patient, onCancel, onSaved }: PatientEditP
 
         try {
             await updatePatient(clinicId, patient.id, updatePayload);
-            await onSaved();
+            await onSaved(patient.id);
             showSuccessToast('Patient updated successfully.');
         } catch (error) {
             if (isApiClientError(error)) {
@@ -915,11 +915,11 @@ function PatientsPage() {
         setStatusFilter(value);
     };
 
-    const refreshPatientsAfterSave = async () => {
-        const data = await listPatients(
-            clinicId,
-            getPatientListFilters(searchTerm, statusFilter, currentPage)
-        );
+    const refreshPatientsAfterSave = async (patientId: string) => {
+        const [data, detail] = await Promise.all([
+            listPatients(clinicId, getPatientListFilters(searchTerm, statusFilter, currentPage)),
+            getPatient(clinicId, patientId),
+        ]);
         setHasNextPage(data.pagination?.hasNextPage ?? false);
 
         setPatientListState({
@@ -927,15 +927,7 @@ function PatientsPage() {
             patients: data.patients,
             error: null,
         });
-        if (selectedPatient) {
-            const refreshedPatient = data.patients.find(
-                (patient) => patient.id === selectedPatient.id
-            );
-            if (refreshedPatient)
-                setSelectedPatient((current) =>
-                    current ? { ...current, ...refreshedPatient } : null
-                );
-        }
+        setSelectedPatient((current) => (current?.id === patientId ? detail.patient : current));
         setEditingPatient(null);
     };
 
