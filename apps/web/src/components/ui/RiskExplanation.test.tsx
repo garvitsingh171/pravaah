@@ -16,6 +16,24 @@ describe('RiskExplanation', () => {
         feedbackMocks.get.mockResolvedValue(null);
     });
 
+    it('keeps stored prediction explanations and actions inert', () => {
+        const payload = "<svg onload=alert('XSS')>";
+        const view = render(
+            <RiskExplanation
+                subjectName="Fictional Patient"
+                disclosure={false}
+                prediction={{
+                    riskLevel: 'HIGH',
+                    reasons: [{ code: 'PRIVATE', message: payload }],
+                    suggestedActions: ['<script>alert(1)</script>'],
+                }}
+            />
+        );
+        expect(view.container.textContent).toContain(payload);
+        expect(view.container.textContent).toContain('<script>alert(1)</script>');
+        expect(view.container.querySelector('svg, script, [onload]')).toBeNull();
+    });
+
     it('shows the stored score, factors, historical context, metadata, actions, and feedback entry', async () => {
         const user = userEvent.setup();
         render(

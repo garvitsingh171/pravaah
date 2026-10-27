@@ -10,6 +10,8 @@
         "check": "tsc --noEmit",
         "lint": "echo \"server lint not configured yet\"",
         "test": "vitest run",
+        "test:security": "node scripts/security-test.mjs test",
+        "security:migrate": "node scripts/security-test.mjs migrate",
         "export:ml-dataset": "tsx src/modules/predictions/dataset-export/cli.ts",
         "seed": "prisma db seed",
         "seed:demo": "prisma db seed",
