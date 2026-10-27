@@ -48,6 +48,18 @@ describe('AppointmentsPage primary status action', () => {
         });
     });
 
+    it('renders appointment patient text without creating executable markup', async () => {
+        const payload = "<img src=x onerror=alert('XSS')>";
+        listAppointments.mockResolvedValue({
+            appointments: [
+                { ...appointment, patient: { ...appointment.patient, fullName: payload } },
+            ],
+        });
+        const view = renderWithProviders(<AppointmentsPage />, { activeClinic: adminActiveClinic });
+        await waitFor(() => expect(view.container.textContent).toContain(payload));
+        expect(view.container.querySelector('img, script, [onerror]')).toBeNull();
+    });
+
     it('opens booking only on request and converts the legacy fragment to the dialog', async () => {
         const user = userEvent.setup();
         renderWithProviders(<AppointmentsPage />, {

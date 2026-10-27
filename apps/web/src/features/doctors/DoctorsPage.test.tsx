@@ -95,6 +95,21 @@ describe('DoctorsPage edit workflow', () => {
         mockGetDoctorAvailability.mockResolvedValue(emptyAvailabilityResponse);
     });
 
+    it('renders doctor supplied HTML as inert text', async () => {
+        const payload = "<svg onload=alert('XSS')>";
+        mockListDoctors.mockResolvedValue({
+            doctors: [
+                { ...doctor, fullName: payload, specialization: '<script>alert(1)</script>' },
+            ],
+        });
+        const view = renderDoctorsPage();
+        const profileButton = await screen.findByRole('button', {
+            name: `View profile for ${payload}`,
+        });
+        expect(profileButton).toHaveTextContent(payload);
+        expect(view.container.querySelector('svg, script, [onload]')).toBeNull();
+    });
+
     it('shows edit actions, opens pre-filled values, handles optional empty values, and cancels', async () => {
         const user = userEvent.setup();
         mockListDoctors.mockResolvedValue({

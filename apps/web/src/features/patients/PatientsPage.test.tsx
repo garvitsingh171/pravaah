@@ -108,6 +108,21 @@ describe('PatientsPage edit workflow', () => {
         mockRetryPatientRouting.mockReset();
     });
 
+    it('renders patient supplied HTML as inert text in the list and profile', async () => {
+        const payload = "<img src=x onerror=alert('XSS')>";
+        mockListPatients.mockResolvedValue({
+            patients: [{ ...patient, fullName: payload, notes: "<script>alert('XSS')</script>" }],
+        });
+        const view = renderPatientsPage();
+        const profileButton = await screen.findByRole('button', {
+            name: `View profile for ${payload}`,
+        });
+        expect(profileButton).toHaveTextContent(payload);
+        await userEvent.setup().click(profileButton);
+        expect(view.container.textContent).toContain(payload);
+        expect(view.container.querySelector('img, script, [onerror]')).toBeNull();
+    });
+
     it('shows edit actions, opens pre-filled values, handles nullable values, and cancels', async () => {
         const user = userEvent.setup();
         mockListPatients.mockResolvedValue({
