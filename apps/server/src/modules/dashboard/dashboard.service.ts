@@ -233,7 +233,9 @@ const buildNoShowIntelligence = (
     clinicId: string,
     from: string,
     to: string,
-    candidates: Awaited<ReturnType<typeof dashboardRepository.findUpcomingNoShowIntelligenceCandidates>>
+    candidates: Awaited<
+        ReturnType<typeof dashboardRepository.findUpcomingNoShowIntelligenceCandidates>
+    >
 ): NoShowIntelligence => {
     const riskCounts = { high: 0, medium: 0, low: 0, unavailable: 0 };
     const factorInstances = new Map<string, { appointments: Set<string>; impacts: number[] }>();
@@ -254,7 +256,10 @@ const buildNoShowIntelligence = (
             const reason = rawReason as { code?: unknown; scoreImpact?: unknown };
             if (typeof reason.code !== 'string' || seenCodes.has(reason.code)) continue;
             seenCodes.add(reason.code);
-            const aggregate = factorInstances.get(reason.code) ?? { appointments: new Set<string>(), impacts: [] };
+            const aggregate = factorInstances.get(reason.code) ?? {
+                appointments: new Set<string>(),
+                impacts: [],
+            };
             aggregate.appointments.add(appointment.id);
             if (typeof reason.scoreImpact === 'number' && Number.isFinite(reason.scoreImpact)) {
                 aggregate.impacts.push(reason.scoreImpact);
@@ -262,7 +267,7 @@ const buildNoShowIntelligence = (
             factorInstances.set(reason.code, aggregate);
         }
 
-        if (prediction.riskLevel === 'HIGH') {
+        if (prediction.riskLevel === 'HIGH' && highRiskAppointments.length < 100) {
             highRiskAppointments.push({
                 appointment: {
                     id: appointment.id,
@@ -283,13 +288,14 @@ const buildNoShowIntelligence = (
         .map(([code, data]) => {
             const hasPositive = data.impacts.some((impact) => impact > 0);
             const hasNegative = data.impacts.some((impact) => impact < 0);
-            const direction: 'increases' | 'decreases' | 'mixed' | 'neutral' = hasPositive && hasNegative
-                ? 'mixed'
-                : hasPositive
-                  ? 'increases'
-                  : hasNegative
-                    ? 'decreases'
-                    : 'neutral';
+            const direction: 'increases' | 'decreases' | 'mixed' | 'neutral' =
+                hasPositive && hasNegative
+                    ? 'mixed'
+                    : hasPositive
+                      ? 'increases'
+                      : hasNegative
+                        ? 'decreases'
+                        : 'neutral';
             return {
                 code,
                 label: factorLabels[code] ?? code.replaceAll('_', ' ').toLowerCase(),
@@ -300,8 +306,10 @@ const buildNoShowIntelligence = (
                     : null,
             };
         })
-        .sort((first, second) =>
-            second.appointmentCount - first.appointmentCount || first.label.localeCompare(second.label)
+        .sort(
+            (first, second) =>
+                second.appointmentCount - first.appointmentCount ||
+                first.label.localeCompare(second.label)
         );
 
     return {
@@ -511,6 +519,7 @@ export const dashboardService = {
         clinicId: string;
         date: string;
         highRiskAppointments: DashboardHighRiskAppointment[];
+        hasMoreHighRisk: boolean;
     }> {
         const clinic = await accessService.verifyClinicAccess(user, clinicId);
         const selectedDate = requestedDate ?? getDateInTimeZone(new Date(), clinic.timezone);
@@ -526,7 +535,8 @@ export const dashboardService = {
         return {
             clinicId,
             date: selectedDate,
-            highRiskAppointments: buildHighRiskAppointments(appointmentCandidates),
+            highRiskAppointments: buildHighRiskAppointments(appointmentCandidates.slice(0, 100)),
+            hasMoreHighRisk: appointmentCandidates.length > 100,
         };
     },
 
@@ -561,9 +571,11 @@ export const dashboardService = {
         const activityItems = [
             ...buildAppointmentActivityItems(appointments, dateRange),
             ...buildQueueActivityItems(queueEntries, dateRange),
-        ].sort((firstItem, secondItem) => {
-            return secondItem.timestamp.getTime() - firstItem.timestamp.getTime();
-        });
+        ]
+            .sort((firstItem, secondItem) => {
+                return secondItem.timestamp.getTime() - firstItem.timestamp.getTime();
+            })
+            .slice(0, 100);
 
         return {
             clinicId,

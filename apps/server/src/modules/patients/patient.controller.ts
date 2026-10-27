@@ -109,14 +109,12 @@ export async function listPatientsByClinicController(
         const { clinicId } = req.params as { clinicId: string };
         const query = res.locals.validatedQuery as ListPatientsQueryInput;
 
-        const patients = await patientService.listPatientsByClinic(clinicId, query);
+        const data = await patientService.listPatientsByClinic(clinicId, query);
 
         res.status(200).json({
             success: true,
             message: 'Patients fetched successfully',
-            data: {
-                patients,
-            },
+            data,
         });
     } catch (error) {
         next(error);

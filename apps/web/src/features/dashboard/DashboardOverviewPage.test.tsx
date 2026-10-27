@@ -20,11 +20,16 @@ import {
 const mockGetDashboardSummary = vi.hoisted(() => vi.fn());
 const mockListTodayActivity = vi.hoisted(() => vi.fn());
 const mockListAppointments = vi.hoisted(() => vi.fn());
+const mockListTodayQueue = vi.hoisted(() => vi.fn());
 const mockGetNoShowIntelligence = vi.hoisted(() => vi.fn());
 
 vi.mock('../appointments/appointmentApi', async (importOriginal) => ({
     ...(await importOriginal<typeof import('../appointments/appointmentApi')>()),
     listAppointments: mockListAppointments,
+}));
+vi.mock('../queues/queueApi', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('../queues/queueApi')>()),
+    listTodayQueue: mockListTodayQueue,
 }));
 
 vi.mock('./dashboardApi', async (importOriginal) => {
@@ -57,13 +62,15 @@ const mockDashboardSuccess = () => {
             to: periodEnd.toISOString().slice(0, 10),
             totalUpcoming: 4,
             riskCounts: { high: 1, medium: 1, low: 1, unavailable: 1 },
-            contributingFactors: [{
-                code: 'PREVIOUS_NO_SHOW_HISTORY',
-                label: 'Previous no-show history',
-                appointmentCount: 1,
-                direction: 'increases',
-                averageScoreImpact: 30,
-            }],
+            contributingFactors: [
+                {
+                    code: 'PREVIOUS_NO_SHOW_HISTORY',
+                    label: 'Previous no-show history',
+                    appointmentCount: 1,
+                    direction: 'increases',
+                    averageScoreImpact: 30,
+                },
+            ],
             highRiskAppointments: [highRiskAppointment],
         },
     });
@@ -88,6 +95,7 @@ describe('DashboardOverviewPage', () => {
             },
         });
         mockListAppointments.mockReset().mockResolvedValue({ appointments: [] });
+        mockListTodayQueue.mockReset().mockResolvedValue({ queueEntries: [] });
     });
 
     it('loads dashboard data into operational command modules', async () => {
@@ -208,7 +216,7 @@ describe('DashboardOverviewPage', () => {
         ).toBeInTheDocument();
         expect(screen.getByText("Today's appointments")).toBeInTheDocument();
         expect(
-            screen.getByText('Queue preview unavailable; open the live queue')
+            screen.getByText('No arrived patients are in the queue right now.')
         ).toBeInTheDocument();
     });
 });

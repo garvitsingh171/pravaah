@@ -7,6 +7,7 @@ import { Gender, type PatientSummary } from '../../types';
 import { adminActiveClinic, renderWithProviders } from '../../test/renderWithProviders';
 
 const mockListPatients = vi.hoisted(() => vi.fn());
+const mockGetPatient = vi.hoisted(() => vi.fn());
 const mockUpdatePatient = vi.hoisted(() => vi.fn());
 const mockArchivePatient = vi.hoisted(() => vi.fn());
 const mockGetPatientLifecycleImpact = vi.hoisted(() => vi.fn());
@@ -18,6 +19,7 @@ vi.mock('./patientApi', async (importOriginal) => {
     return {
         ...actual,
         listPatients: mockListPatients,
+        getPatient: mockGetPatient,
         updatePatient: mockUpdatePatient,
         archivePatient: mockArchivePatient,
         getPatientLifecycleImpact: mockGetPatientLifecycleImpact,
@@ -99,6 +101,14 @@ const renderPatientsPage = () => {
 describe('PatientsPage edit workflow', () => {
     beforeEach(() => {
         mockListPatients.mockReset();
+        mockGetPatient
+            .mockReset()
+            .mockImplementation(async (_clinicId: string, patientId: string) => ({
+                patient:
+                    patientId === patientWithNullableValues.id
+                        ? patientWithNullableValues
+                        : patient,
+            }));
         mockUpdatePatient.mockReset();
         mockArchivePatient.mockReset();
         mockGetPatientLifecycleImpact.mockReset();
@@ -106,6 +116,35 @@ describe('PatientsPage edit workflow', () => {
             impact: { futureAppointments: 0, activeAppointments: 0, activeQueueEntries: 0 },
         });
         mockRetryPatientRouting.mockReset();
+    });
+
+    it('uses server pagination to reach patients beyond the first page', async () => {
+        const user = userEvent.setup();
+        mockListPatients.mockImplementation(
+            async (_clinicId: string, filters: { page?: number }) =>
+                filters.page === 2
+                    ? {
+                          patients: [patientWithNullableValues],
+                          pagination: { page: 2, limit: 20, hasNextPage: false },
+                      }
+                    : { patients: [patient], pagination: { page: 1, limit: 20, hasNextPage: true } }
+        );
+        renderPatientsPage();
+        expect(
+            await screen.findByRole('button', { name: /view profile for riya malhotra/i })
+        ).toBeVisible();
+        await user.click(screen.getByRole('button', { name: 'Next' }));
+        expect(
+            await screen.findByRole('button', { name: /view profile for kabir sen/i })
+        ).toBeVisible();
+        expect(
+            screen.queryByRole('button', { name: /view profile for riya malhotra/i })
+        ).not.toBeInTheDocument();
+        expect(mockListPatients).toHaveBeenLastCalledWith(
+            adminActiveClinic.clinicId,
+            expect.objectContaining({ page: 2 }),
+            expect.any(AbortSignal)
+        );
     });
 
     it('renders patient supplied HTML as inert text in the list and profile', async () => {
@@ -197,7 +236,8 @@ describe('PatientsPage edit workflow', () => {
             adminActiveClinic.clinicId,
             {
                 search: undefined,
-                isActive: undefined,
+                isActive: false,
+                page: 1,
             },
             expect.any(AbortSignal)
         );
@@ -213,6 +253,7 @@ describe('PatientsPage edit workflow', () => {
             {
                 search: undefined,
                 isActive: true,
+                page: 1,
             },
             expect.any(AbortSignal)
         );
@@ -225,6 +266,7 @@ describe('PatientsPage edit workflow', () => {
             routingStatus: 'NOT_CALCULATED',
             geocodingStatus: 'GEOCODED',
         };
+        mockGetPatient.mockResolvedValue({ patient: notCalculatedPatient });
         mockListPatients.mockResolvedValue({ patients: [notCalculatedPatient] });
         mockRetryPatientRouting.mockResolvedValue({
             patient: notCalculatedPatient,
@@ -293,6 +335,47 @@ describe('PatientsPage edit workflow', () => {
         expect(payload).not.toHaveProperty('totalNoShows');
         expect(payload).not.toHaveProperty('createdAt');
         expect(await screen.findAllByText('Not added')).not.toHaveLength(0);
+    });
+
+    it('reloads detail-only fields after saving while the profile stays open', async () => {
+        const user = userEvent.setup();
+        const listPatient: PatientSummary = {
+            id: patient.id,
+            patientClinicId: patient.patientClinicId,
+            clinicLinkIsActive: true,
+            fullName: patient.fullName,
+            phone: patient.phone,
+            email: patient.email,
+            gender: patient.gender,
+            isActive: true,
+            createdAt: patient.createdAt,
+            updatedAt: patient.updatedAt,
+        };
+        const updatedPatient = { ...patient, notes: 'Updated clinic note' };
+        mockListPatients.mockResolvedValue({
+            patients: [listPatient],
+            pagination: { page: 1, limit: 20, hasNextPage: false },
+        });
+        mockGetPatient
+            .mockResolvedValueOnce({ patient })
+            .mockResolvedValueOnce({ patient: updatedPatient });
+        mockUpdatePatient.mockResolvedValue({ patient: updatedPatient });
+
+        renderPatientsPage();
+        await user.click(
+            await screen.findByRole('button', { name: /view profile for riya malhotra/i })
+        );
+        expect(await screen.findByText('Consistent attendance')).toBeVisible();
+        await user.click(screen.getByRole('button', { name: /^edit$/i }));
+        await user.clear(screen.getByLabelText(/^notes$/i));
+        await user.type(screen.getByLabelText(/^notes$/i), 'Updated clinic note');
+        await user.click(screen.getByRole('button', { name: /save patient/i }));
+
+        expect(await screen.findByText('Updated clinic note')).toBeVisible();
+        expect(mockGetPatient).toHaveBeenCalledTimes(2);
+        expect(mockGetPatient).toHaveBeenLastCalledWith(adminActiveClinic.clinicId, patient.id);
+        await user.click(screen.getByRole('button', { name: /^edit$/i }));
+        expect(screen.getByLabelText(/^notes$/i)).toHaveValue('Updated clinic note');
     });
 
     it('pre-fills structured location fields and sends null when a location field is cleared', async () => {

@@ -15,6 +15,7 @@ import {
     withTransientDatabaseRetry,
     withTransientDatabaseTransactionRetry,
 } from '../../utils/databaseRetry.js';
+import { MAX_COLLECTION_PAGE, paginationOffset } from '../../utils/collectionPagination.js';
 import {
     finalAppointmentStatuses,
     isAppointmentStatusTransitionAllowed,
@@ -127,6 +128,38 @@ const appointmentDetailsInclude = {
     },
 } satisfies Prisma.AppointmentInclude;
 
+const appointmentListSelect = {
+    id: true,
+    clinicId: true,
+    doctorId: true,
+    patientId: true,
+    scheduledAt: true,
+    durationMinutes: true,
+    status: true,
+    bookingSource: true,
+    reason: true,
+    arrivedAt: true,
+    arrivalOffsetMinutes: true,
+    isLateArrival: true,
+    doctor: { select: { id: true, fullName: true, specialization: true } },
+    patient: { select: { id: true, fullName: true, phone: true, email: true } },
+    queueEntry: {
+        select: {
+            id: true,
+            position: true,
+            status: true,
+            queuedAt: true,
+            calledAt: true,
+            completedAt: true,
+        },
+    },
+    noShowPredictions: {
+        select: noShowPredictionBookingSelect,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 1,
+    },
+} satisfies Prisma.AppointmentSelect;
+
 export const appointmentRepository = {
     findClinicById(clinicId: string, client: PrismaQueryable = prisma) {
         return client.clinic.findUnique({
@@ -149,7 +182,10 @@ export const appointmentRepository = {
             const dateRange = await getClinicDateRange(prisma, filters.date, clinicTimezone);
 
             if (!dateRange) {
-                return [];
+                return {
+                    appointments: [],
+                    pagination: { page: filters.page, limit: filters.limit, hasNextPage: false },
+                };
             }
 
             where.scheduledAt = {
@@ -166,17 +202,44 @@ export const appointmentRepository = {
             where.patientId = filters.patientId;
         }
 
+        if (filters.appointmentId !== undefined) {
+            where.id = filters.appointmentId;
+        }
+
         if (filters.status !== undefined) {
             where.status = filters.status;
         }
 
-        return prisma.appointment.findMany({
+        if (filters.search !== undefined) {
+            where.patient = {
+                OR: [
+                    { fullName: { contains: filters.search, mode: 'insensitive' } },
+                    { phone: { contains: filters.search } },
+                ],
+            };
+        }
+
+        const rows = await prisma.appointment.findMany({
             where,
-            include: appointmentDetailsInclude,
-            orderBy: {
-                scheduledAt: 'asc',
+            select: {
+                ...appointmentListSelect,
+                noShowPredictions: {
+                    ...appointmentListSelect.noShowPredictions,
+                    where: { clinicId },
+                },
             },
+            orderBy: [{ scheduledAt: 'asc' }, { id: 'asc' }],
+            skip: paginationOffset(filters),
+            take: filters.limit + 1,
         });
+        return {
+            appointments: rows.slice(0, filters.limit),
+            pagination: {
+                page: filters.page,
+                limit: filters.limit,
+                hasNextPage: filters.page < MAX_COLLECTION_PAGE && rows.length > filters.limit,
+            },
+        };
     },
 
     findDoctorById(doctorId: string, client: PrismaQueryable = prisma) {

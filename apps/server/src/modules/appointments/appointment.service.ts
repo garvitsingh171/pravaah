@@ -979,55 +979,16 @@ export const appointmentService = {
             throw new AppError(400, 'CLINIC_INACTIVE', 'Clinic is inactive');
         }
 
-        if (filters.doctorId !== undefined) {
-            const doctor = await appointmentRepository.findDoctorById(filters.doctorId);
-
-            if (!doctor) {
-                throw new AppError(404, 'DOCTOR_NOT_FOUND', 'Doctor not found');
-            }
-
-            const doctorClinicLink = await appointmentRepository.findActiveDoctorClinicLink(
-                clinicId,
-                filters.doctorId
-            );
-
-            if (!doctorClinicLink) {
-                throw new AppError(
-                    403,
-                    'DOCTOR_NOT_LINKED_TO_CLINIC',
-                    'Doctor is not linked to this clinic'
-                );
-            }
-        }
-
-        if (filters.patientId !== undefined) {
-            const patient = await appointmentRepository.findPatientById(filters.patientId);
-
-            if (!patient) {
-                throw new AppError(404, 'PATIENT_NOT_FOUND', 'Patient not found');
-            }
-
-            const patientClinicLink = await appointmentRepository.findActivePatientClinicLink(
-                clinicId,
-                filters.patientId
-            );
-
-            if (!patientClinicLink) {
-                throw new AppError(
-                    403,
-                    'PATIENT_NOT_LINKED_TO_CLINIC',
-                    'Patient is not linked to this clinic'
-                );
-            }
-        }
-
-        const appointments = await appointmentRepository.findAppointmentsByClinicId(
+        const result = await appointmentRepository.findAppointmentsByClinicId(
             clinicId,
             filters,
             clinic.timezone
         );
 
-        return appointments.map(withNoShowPredictionResponse);
+        return {
+            appointments: result.appointments.map(withNoShowPredictionResponse),
+            pagination: result.pagination,
+        };
     },
 
     async updateAppointmentStatus(

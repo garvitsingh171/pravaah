@@ -765,6 +765,243 @@ describe('roles and two-clinic isolation', () => {
     });
 });
 
+describe('SEC-F-01 bounded collection responses', () => {
+    const listPath = (clinicId: string, resource: 'patients' | 'appointments') =>
+        `/api/clinics/${clinicId}/${resource}`;
+
+    it.each(['patients', 'appointments'] as const)(
+        'rejects malformed %s pagination and preserves clinic authorization',
+        async (resource) => {
+            const path = listPath(fixtures.ids.clinicA, resource);
+            for (const query of [
+                'page=0',
+                'page=-1',
+                'page=1.5',
+                'page=abc',
+                'page=501',
+                'page=9007199254740992',
+                'page=1&page=2',
+                'limit=0',
+                'limit=101',
+                'limit=1&limit=2',
+                'sort=id',
+            ]) {
+                const result = await request('GET', `${path}?${query}`, 'staff-a');
+                expect(result.status).toBe(400);
+                expect(result.body).toMatchObject({
+                    success: false,
+                    error: { code: 'VALIDATION_ERROR' },
+                });
+            }
+            expect(
+                (await request('GET', listPath(fixtures.ids.clinicB, resource), 'staff-a')).status
+            ).toBe(403);
+        }
+    );
+
+    it('returns a minimal clinic-scoped patient page and server-side search', async () => {
+        const { ids } = fixtures;
+        await prisma.patient.update({
+            where: { id: ids.patientA },
+            data: {
+                addressLine1: 'SECRET_PATIENT_ADDRESS',
+                emergencyContactPhone: 'SECRET_EMERGENCY_PHONE',
+                dateOfBirth: new Date('1990-01-01T00:00:00.000Z'),
+            },
+        });
+        const path = listPath(ids.clinicA, 'patients');
+        const result = await request('GET', `${path}?limit=1`, 'staff-a');
+        expect(result.status).toBe(200);
+        expect(result.body).toMatchObject({
+            data: { pagination: { page: 1, limit: 1, hasNextPage: true } },
+        });
+        const data = result.body.data as { patients: Array<Record<string, unknown>> };
+        expect(data.patients).toHaveLength(1);
+        expect(Object.keys(data.patients[0]).sort()).toEqual([
+            'id',
+            'isActive',
+            'lastVisitAt',
+            'patient',
+            'totalAppointments',
+            'totalCompletedVisits',
+            'totalLateArrivals',
+            'totalNoShows',
+        ]);
+        expect(Object.keys(data.patients[0].patient as object).sort()).toEqual([
+            'createdAt',
+            'email',
+            'fullName',
+            'gender',
+            'id',
+            'isActive',
+            'phone',
+            'updatedAt',
+        ]);
+        expect(JSON.stringify(result.body)).not.toMatch(/SECRET_|private note|Riverside note/);
+        const searched = await request('GET', `${path}?search=5550102001`, 'staff-a');
+        expect(searched.body).toMatchObject({
+            data: { patients: [], pagination: { hasNextPage: false } },
+        });
+    });
+
+    it('returns a minimal appointment page with stable tied timestamps and no foreign data', async () => {
+        const { ids } = fixtures;
+        await prisma.appointment.update({
+            where: { id: ids.appointmentA },
+            data: { notes: 'SECRET_APPOINTMENT_NOTE' },
+        });
+        await prisma.patient.update({
+            where: { id: ids.patientA },
+            data: { addressLine1: 'SECRET_PATIENT_ADDRESS' },
+        });
+        await prisma.noShowPrediction.create({
+            data: {
+                appointmentId: ids.appointmentA,
+                clinicId: ids.clinicB,
+                patientId: ids.patientB,
+                riskLevel: 'HIGH',
+                score: 99,
+                reasons: [{ code: 'PRIVATE', message: 'SECRET_FOREIGN_PREDICTION' }],
+                createdAt: new Date('2030-01-01T00:00:00.000Z'),
+            },
+        });
+        const path = listPath(ids.clinicA, 'appointments');
+        const first = await request('GET', `${path}?limit=1`, 'staff-a');
+        const second = await request('GET', `${path}?limit=1&page=2`, 'staff-a');
+        expect(first.status).toBe(200);
+        expect(second.status).toBe(200);
+        const firstData = first.body.data as { appointments: Array<Record<string, unknown>> };
+        const secondData = second.body.data as { appointments: Array<Record<string, unknown>> };
+        expect(firstData.appointments).toHaveLength(1);
+        expect(secondData.appointments).toHaveLength(1);
+        expect(firstData.appointments[0].id).not.toBe(secondData.appointments[0].id);
+        expect(firstData.appointments[0].noShowPrediction).toMatchObject({ riskLevel: 'LOW' });
+        expect(Object.keys(firstData.appointments[0]).sort()).toEqual([
+            'arrivalOffsetMinutes',
+            'arrivedAt',
+            'bookingSource',
+            'clinicId',
+            'doctor',
+            'doctorId',
+            'durationMinutes',
+            'id',
+            'isLateArrival',
+            'noShowPrediction',
+            'patient',
+            'patientId',
+            'queueEntry',
+            'reason',
+            'scheduledAt',
+            'status',
+        ]);
+        expect(Object.keys(firstData.appointments[0].patient as object).sort()).toEqual([
+            'email',
+            'fullName',
+            'id',
+            'phone',
+        ]);
+        expect(Object.keys(firstData.appointments[0].doctor as object).sort()).toEqual([
+            'fullName',
+            'id',
+            'specialization',
+        ]);
+        expect(JSON.stringify(first.body)).not.toMatch(
+            /SECRET_|Fictional Riverside Patient|Shared patient Riverside note/
+        );
+        const foreignFilter = await request('GET', `${path}?patientId=${ids.patientB}`, 'staff-a');
+        expect(foreignFilter.body).toMatchObject({ data: { appointments: [] } });
+        const foreignDoctorFilter = await request(
+            'GET',
+            `${path}?doctorId=${ids.doctorB}`,
+            'staff-a'
+        );
+        expect(foreignDoctorFilter.body).toMatchObject({ data: { appointments: [] } });
+        const foreignAppointmentFilter = await request(
+            'GET',
+            `${path}?appointmentId=${ids.appointmentB}`,
+            'staff-a'
+        );
+        expect(foreignAppointmentFilter.body).toMatchObject({ data: { appointments: [] } });
+    });
+
+    it('enforces a 100-record maximum and deterministic patient page boundaries', async () => {
+        const { ids } = fixtures;
+        const timestamp = new Date('2026-01-01T00:00:00.000Z');
+        const patientIds = Array.from(
+            { length: 105 },
+            (_, index) => `55555555-5555-4555-8555-${String(index + 1).padStart(12, '0')}`
+        );
+        await prisma.patient.createMany({
+            data: patientIds.map((id, index) => ({
+                id,
+                fullName: `Bounded Patient ${index}`,
+                phone: `55599${index}`,
+            })),
+        });
+        await prisma.patientClinic.createMany({
+            data: patientIds.map((patientId) => ({
+                patientId,
+                clinicId: ids.clinicA,
+                createdAt: timestamp,
+            })),
+        });
+        const path = listPath(ids.clinicA, 'patients');
+        const first = await request('GET', `${path}?limit=100`, 'staff-a');
+        const second = await request('GET', `${path}?limit=100&page=2`, 'staff-a');
+        const firstRows = (first.body.data as { patients: Array<{ patient: { id: string } }> })
+            .patients;
+        const secondRows = (second.body.data as { patients: Array<{ patient: { id: string } }> })
+            .patients;
+        expect(firstRows).toHaveLength(100);
+        expect(secondRows).toHaveLength(7);
+        expect(new Set([...firstRows, ...secondRows].map((row) => row.patient.id)).size).toBe(107);
+        expect(
+            (first.body.data as { pagination: { hasNextPage: boolean } }).pagination.hasNextPage
+        ).toBe(true);
+        expect(
+            (second.body.data as { pagination: { hasNextPage: boolean } }).pagination.hasNextPage
+        ).toBe(false);
+        expect((await request('GET', `${path}?limit=100`, 'staff-a')).body).toEqual(first.body);
+    });
+
+    it('bounds appointment pages and orders equal schedule times by ID', async () => {
+        const { ids } = fixtures;
+        const scheduledAt = new Date('2026-01-01T10:00:00.000Z');
+        const appointmentIds = Array.from(
+            { length: 105 },
+            (_, index) => `66666666-6666-4666-8666-${String(index + 1).padStart(12, '0')}`
+        );
+        await prisma.appointment.createMany({
+            data: appointmentIds.map((id) => ({
+                id,
+                clinicId: ids.clinicA,
+                doctorId: ids.doctorA,
+                patientId: ids.patientA,
+                createdByUserId: ids.staffA,
+                scheduledAt,
+                status: 'COMPLETED',
+            })),
+        });
+        const path = `${listPath(ids.clinicA, 'appointments')}?status=COMPLETED&limit=100`;
+        const first = await request('GET', path, 'staff-a');
+        const second = await request('GET', `${path}&page=2`, 'staff-a');
+        const firstRows = (first.body.data as { appointments: Array<{ id: string }> }).appointments;
+        const secondRows = (second.body.data as { appointments: Array<{ id: string }> })
+            .appointments;
+        expect(firstRows).toHaveLength(100);
+        expect(secondRows).toHaveLength(5);
+        expect(firstRows.map((row) => row.id)).toEqual(appointmentIds.slice(0, 100));
+        expect(secondRows.map((row) => row.id)).toEqual(appointmentIds.slice(100));
+        expect(
+            (first.body.data as { pagination: { hasNextPage: boolean } }).pagination.hasNextPage
+        ).toBe(true);
+        expect(
+            (second.body.data as { pagination: { hasNextPage: boolean } }).pagination.hasNextPage
+        ).toBe(false);
+        expect((await request('GET', path, 'staff-a')).body).toEqual(first.body);
+    });
+});
+
 describe('malicious input and validation', () => {
     it.each(["' OR '1'='1", "'; DROP TABLE patients; --", "' UNION SELECT NULL --"])(
         'treats patient search payload as literal text: %s',

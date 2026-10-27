@@ -291,9 +291,9 @@ Queue scope follows the linked appointment's clinic-local scheduled date. Same-d
 ```text
 AppointmentsPage -> loadAppointments()
     ↓
-appointmentApi.listAppointments(clinicId, filters)
+appointmentApi.listAppointments(clinicId, { ...filters, page, limit, search })
     ↓
-GET /api/clinics/:clinicId/appointments?date=&doctorId=&patientId=&status=
+GET /api/clinics/:clinicId/appointments?date=&doctorId=&patientId=&status=&search=&page=1&limit=20
     ↓
 validateRequest({ params, query: listAppointmentsQuerySchema })
     ↓
@@ -301,17 +301,17 @@ appointment.service.ts -> listAppointments(clinicId, filters)
     ↓
 clinic existence and active check
     ↓
-optional doctor and Patient clinic-link checks for filters
+clinicId remains in the Prisma predicate; foreign doctor/patient filter IDs yield an empty page
     ↓
 appointment.repository.ts -> findAppointmentsByClinicId(clinicId, filters, clinic.timezone)
     ↓
 SQL date range using `${date}::date::timestamp AT TIME ZONE ${clinicTimezone}`
     ↓
-prisma.appointment.findMany({ include: doctor, patient, createdBy, queueEntry, noShowPrediction })
+prisma.appointment.findMany({ select: minimalListFields, orderBy: [scheduledAt, id], skip, take: limit + 1 })
     ↓
 service maps stored prediction to response with suggestedActions and modelVersion
     ↓
-AppointmentsPage stores appointmentListState
+AppointmentsPage stores appointmentListState and hasNextPage, with server-side page/search state
 ```
 
 ## Appointment Lifecycle

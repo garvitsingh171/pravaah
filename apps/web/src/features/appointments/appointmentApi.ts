@@ -41,9 +41,25 @@ export type AppointmentNoShowPrediction = {
     predictionContext?: { distanceFromClinicKm: number | null };
 };
 
-export type AppointmentListItem = Omit<AppointmentSummary, 'reason'> & {
+export type AppointmentListItem = Pick<
+    AppointmentSummary,
+    | 'id'
+    | 'clinicId'
+    | 'doctorId'
+    | 'patientId'
+    | 'scheduledAt'
+    | 'durationMinutes'
+    | 'status'
+    | 'bookingSource'
+    | 'arrivedAt'
+    | 'arrivalOffsetMinutes'
+    | 'isLateArrival'
+> & {
     reason?: string | null;
     notes?: string | null;
+    createdAt?: string;
+    updatedAt?: string;
+    lateArrivalGraceMinutes?: number | null;
     doctor: Pick<DoctorSummary, 'id' | 'fullName' | 'specialization'>;
     patient: Pick<PatientSummary, 'id' | 'fullName' | 'phone' | 'email'>;
     queueEntry?:
@@ -59,7 +75,11 @@ export type AppointmentListFilters = {
     date?: string;
     doctorId?: string;
     patientId?: string;
+    appointmentId?: string;
     status?: AppointmentStatus;
+    search?: string;
+    page?: number;
+    limit?: number;
 };
 
 export type AvailableAppointmentSlot = {
@@ -122,6 +142,7 @@ export type UpdateAppointmentStatusRequest =
 
 export type AppointmentListResponseData = {
     appointments: AppointmentListItem[];
+    pagination: { page: number; limit: number; hasNextPage: boolean };
 };
 
 export type CreateAppointmentResponseData = {
@@ -231,7 +252,11 @@ export const listAppointments = (
             date: filters.date,
             doctorId: filters.doctorId,
             patientId: filters.patientId,
+            appointmentId: filters.appointmentId,
             status: filters.status,
+            search: filters.search,
+            page: String(filters.page ?? 1),
+            limit: String(filters.limit ?? 20),
         },
         signal,
     });

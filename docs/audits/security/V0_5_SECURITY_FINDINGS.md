@@ -10,6 +10,8 @@
 
 ### SEC-F-01 — Unbounded sensitive clinic list responses
 
+**Implementation in progress (#292, P1; local working tree; finding remains open pending full review):** The two primary collection routes now validate bounded page/limit inputs and use clinic-scoped, sorted Prisma projections with lookahead. Their React consumers request pages and booking patient search runs on the server. Dashboard appointment previews and high-risk/activity detail lists have response bounds; analytics and the operational daily queue retain deliberate scoped processing. Security regression cases were added to the isolated PostgreSQL suite. See `docs/architecture/API_STRUCTURE.md` for the current contract. The P2 label below reflects the earlier audit; issue #292 assigns P1 priority.
+
 - **Severity:** Medium (P2), as a data-minimization and availability risk within a clinic account. It is not evidence of unauthorized cross-clinic access.
 - **Confidence:** High; source trace confirms no pagination parameters or database result bound on these collection paths.
 - **Affected components:** GET /api/clinics/:clinicId/patients and GET /api/clinics/:clinicId/appointments.

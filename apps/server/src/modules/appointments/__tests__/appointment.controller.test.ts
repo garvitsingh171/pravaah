@@ -234,7 +234,10 @@ describe('listAppointmentsController', () => {
         } as unknown as Response;
         const next = vi.fn() as NextFunction;
 
-        mockAppointmentService.listAppointments.mockResolvedValue(appointments);
+        mockAppointmentService.listAppointments.mockResolvedValue({
+            appointments,
+            pagination: { page: 1, limit: 20, hasNextPage: false },
+        });
 
         await listAppointmentsController(req, res, next);
 
@@ -252,6 +255,7 @@ describe('listAppointmentsController', () => {
             message: 'Appointments fetched successfully',
             data: {
                 appointments,
+                pagination: { page: 1, limit: 20, hasNextPage: false },
             },
         });
     });

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { paginationQueryFields } from '../../utils/collectionPagination.js';
 import {
     nullableNormalizedText,
     optionalNormalizedText,
@@ -93,7 +94,8 @@ export const updatePatientSchema = z
 
 export const listPatientsQuerySchema = z
     .object({
-        search: z.string().trim().min(1, 'Search cannot be empty').optional(),
+        ...paginationQueryFields,
+        search: z.string().trim().min(1, 'Search cannot be empty').max(100).optional(),
 
         isActive: z
             .enum(['true', 'false'])

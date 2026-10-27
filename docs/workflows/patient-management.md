@@ -104,9 +104,9 @@ PatientCreatePage navigates to /patients with statusMessage
     ↓
 PatientsPage -> loadPatients()
     ↓
-patientApi.listPatients(clinicId, { search, isActive })
+patientApi.listPatients(clinicId, { search, isActive, page, limit })
     ↓
-GET /api/clinics/:clinicId/patients?search=...&isActive=...
+GET /api/clinics/:clinicId/patients?search=...&isActive=...&page=1&limit=20
     ↓
 validateRequest({ params, query: listPatientsQuerySchema })
     ↓
@@ -114,9 +114,9 @@ patient.service.ts -> listPatientsByClinic()
     ↓
 patient.repository.ts -> listPatientsByClinic()
     ↓
-prisma.patientClinic.findMany({ where: { clinicId, patient: patientWhere }, include: { patient: true } })
+prisma.patientClinic.findMany({ where: { clinicId, patient: patientWhere }, select: minimalListFields, orderBy, skip, take: limit + 1 })
     ↓
-patientApi.toPatientSummary() flattens PatientClinic history into frontend summaries
+patientApi.toPatientSummary() flattens clinic-specific list fields; the profile/edit dialog fetches the authorized detail route
 ```
 
 ```text

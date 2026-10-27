@@ -30,7 +30,7 @@ export const staffActiveClinic: ActiveClinicContext = {
 };
 
 type RenderOptions = {
-    route?: string;
+    route?: string | { pathname: string; state?: unknown };
     activeClinic?: ActiveClinicContext;
 };
 
