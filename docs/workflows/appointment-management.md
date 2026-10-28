@@ -28,7 +28,7 @@
 | Side effects          | Booking creates a queue entry and prediction and atomically increments `PatientClinic.totalAppointments`                                                                                                                                                                                                        |
 | Errors                | `APPOINTMENT_SLOT_UNAVAILABLE`, `APPOINTMENT_SLOT_CONFLICT`, `DOCTOR_NOT_LINKED_TO_CLINIC`, `PATIENT_NOT_LINKED_TO_CLINIC`, `APPOINTMENT_STATUS_FINAL`, `STATUS_SYNC_CONFLICT`, `QUEUE_ENTRY_NOT_FOUND`                                                                                                         |
 | Tests                 | `AppointmentsPage.test.tsx`, appointment service/controller/validation tests                                                                                                                                                                                                                                    |
-| Known gaps            | Booking now enforces weekly availability, clinic hours, slot duration, duration overlap, and buffer conflicts. Past-date booking remains a business-rule gap. Prediction refresh is durable deferred work for history/routing fan-out. |
+| Known gaps            | Booking now enforces weekly availability, clinic hours, slot duration, duration overlap, and buffer conflicts. Past-date booking remains a business-rule gap. Prediction refresh is durable deferred work for history/routing fan-out.                                                                          |
 
 ## Booking dialog interaction
 
@@ -293,7 +293,7 @@ AppointmentsPage -> loadAppointments()
     ↓
 appointmentApi.listAppointments(clinicId, { ...filters, page, limit, search })
     ↓
-GET /api/clinics/:clinicId/appointments?date=&doctorId=&patientId=&status=&search=&page=1&limit=20
+GET /api/clinics/:clinicId/appointments?date=&doctorId=&patientId=&status=&search=&page=1&limit=15
     ↓
 validateRequest({ params, query: listAppointmentsQuerySchema })
     ↓
@@ -311,8 +311,34 @@ prisma.appointment.findMany({ select: minimalListFields, orderBy: [scheduledAt, 
     ↓
 service maps stored prediction to response with suggestedActions and modelVersion
     ↓
-AppointmentsPage stores appointmentListState and hasNextPage, with server-side page/search state
+AppointmentsPage reads non-sensitive date, doctor, patient, status, page, and limit from the URL;
+patient search stays transient and is debounced by 350 ms
+    ↓
+the page stores only the active response, uses hasNextPage for navigation, and revalidates
+after booking, status changes, and rescheduling
 ```
+
+The appointment list uses the SEC-09A bounded collection contract. Its UI defaults
+to 15 appointments per page and allows 15, 20, 50, or 100; the API defaults to 20
+if no limit is supplied. There is one server-supported order: appointment time
+ascending, then appointment ID ascending. No total count or alternate sort is
+available, so the UI shows the current page and range without inventing a total.
+
+The URL carries `date` (`YYYY-MM-DD` or `all`), `doctorId`, `patientId`, `status`,
+`page`, and `limit`. Missing date means the current clinic-local day. Invalid
+values are normalized before making the request. Browser Back and refresh restore
+the URL state. Patient name or phone search remains in memory and is never added
+to the URL. Switching clinics clears clinic-specific doctor and patient filters.
+Opening and closing a dialog leaves the list query in place.
+
+Changing criteria resets the page. A request transition hides rows from the old
+query until the new page arrives, and an aborted request cannot replace the latest
+result. If a non-first page becomes empty after a mutation or an old link, the page
+probes a bounded number of pages to find the nearest nonempty predecessor, then
+uses page 1 if the result changes again. This works with the API's
+`hasNextPage`-only metadata without loading the collection. A list failure keeps the filters visible and
+offers Retry. Empty results distinguish today's schedule from a filtered no-match
+state; booking and filter clearing remain available.
 
 ## Appointment Lifecycle
 
@@ -409,7 +435,8 @@ if this transaction owned the first transition to NO_SHOW:
     ↓
 tx.appointment.findFirst({ include: appointmentDetailsInclude })
     ↓
-Frontend replaces or removes item depending on current filter and shows toast
+Frontend shows a toast and revalidates the active filtered page; a newly invalid
+last page is reconciled without changing the other filters
 ```
 
 Same-status requests and concurrent requests that discover the same committed target remain successful retries but do not run terminal outcome effects. Competing `COMPLETED` and `NO_SHOW` requests use the same exact-status compare-and-set, so only one terminal outcome can own patient-statistic updates.
@@ -471,7 +498,6 @@ Successful reschedules insert `APPOINTMENT_RESCHEDULED` in the guarded schedulin
 Cancellation and no-show actions open a reason dialog instead of submitting immediately. `CANCELLED` requires `cancellationReason` and accepts an optional trimmed `cancellationNote`; `NO_SHOW` requires `noShowReason` and accepts an optional trimmed `noShowNote`. Other statuses reject all terminal-reason fields. The appointment-purpose `Appointment.reason` is unchanged.
 
 The status controller passes the complete validated payload through the service. The repository writes the applicable status, structured reason, and optional note in the same exact-current-status `updateMany` that owns the first transition. Only that owner updates patient statistics and enriches the existing `APPOINTMENT_CANCELLED` or `APPOINTMENT_NO_SHOW` activity. Same-status retries and losing concurrent requests cannot replace the winning reason or add another activity. Historical terminal appointments and activities remain valid with no recorded reason.
-
 
 ## Versioned prediction-run persistence
 

@@ -1,9 +1,10 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { adminActiveClinic, renderWithProviders } from '../../test/renderWithProviders';
 import { AppointmentStatus, BookingSource } from '../../types';
-import type { AppointmentListItem } from './appointmentApi';
+import type { AppointmentListItem, AppointmentListResponseData } from './appointmentApi';
 import AppointmentsPage from './AppointmentsPage';
 
 const listAppointments = vi.hoisted(() => vi.fn());
@@ -41,9 +42,22 @@ const appointment: AppointmentListItem = {
     noShowPrediction: null,
 };
 
+function QueryProbe() {
+    const location = useLocation();
+    return <output data-testid="appointment-query">{location.search}</output>;
+}
+
+function BackProbe() {
+    const navigate = useNavigate();
+    return <button onClick={() => navigate(-1)}>Browser Back</button>;
+}
+
 describe('AppointmentsPage primary status action', () => {
     beforeEach(() => {
-        listAppointments.mockReset().mockResolvedValue({ appointments: [appointment] });
+        listAppointments.mockReset().mockResolvedValue({
+            appointments: [appointment],
+            pagination: { page: 1, limit: 15, hasNextPage: false },
+        });
         listPatients.mockReset().mockResolvedValue({ patients: [] });
         updateAppointmentStatus.mockReset().mockResolvedValue({
             appointment: { ...appointment, status: AppointmentStatus.CONFIRMED },
@@ -56,6 +70,7 @@ describe('AppointmentsPage primary status action', () => {
             appointments: [
                 { ...appointment, patient: { ...appointment.patient, fullName: payload } },
             ],
+            pagination: { page: 1, limit: 15, hasNextPage: false },
         });
         const view = renderWithProviders(<AppointmentsPage />, { activeClinic: adminActiveClinic });
         await waitFor(() => expect(view.container.textContent).toContain(payload));
@@ -146,6 +161,255 @@ describe('AppointmentsPage primary status action', () => {
         expect(screen.queryByRole('button', { name: 'Next' })).not.toBeInTheDocument();
     });
 
+    it('restores a filtered page, retains it through a dialog, then reconciles after a status change', async () => {
+        const user = userEvent.setup();
+        let rows = Array.from({ length: 16 }, (_, index) => ({
+            ...appointment,
+            id: `appointment-${index + 1}`,
+            patient: { ...appointment.patient, fullName: `Patient ${index + 1}` },
+        }));
+        listAppointments.mockImplementation(
+            async (
+                _clinicId: string,
+                filters: {
+                    page: number;
+                    limit: number;
+                    status?: AppointmentStatus;
+                }
+            ) => {
+                const matches = rows.filter(
+                    (row) => !filters.status || row.status === filters.status
+                );
+                const start = (filters.page - 1) * filters.limit;
+                return {
+                    appointments: matches.slice(start, start + filters.limit),
+                    pagination: {
+                        page: filters.page,
+                        limit: filters.limit,
+                        hasNextPage: matches.length > start + filters.limit,
+                    },
+                };
+            }
+        );
+        updateAppointmentStatus.mockImplementation(async (id: string) => {
+            rows = rows.map((row) =>
+                row.id === id ? { ...row, status: AppointmentStatus.CONFIRMED } : row
+            );
+            return { appointment: rows.find((row) => row.id === id) };
+        });
+        renderWithProviders(
+            <>
+                <AppointmentsPage />
+                <QueryProbe />
+            </>,
+            {
+                activeClinic: adminActiveClinic,
+                route: '/appointments?date=2026-10-15&status=SCHEDULED&page=2',
+            }
+        );
+
+        expect(await screen.findByText('Patient 16')).toBeInTheDocument();
+        expect(listAppointments).toHaveBeenCalledWith(
+            adminActiveClinic.clinicId,
+            expect.objectContaining({
+                date: '2026-10-15',
+                status: AppointmentStatus.SCHEDULED,
+                page: 2,
+                limit: 15,
+            }),
+            expect.any(AbortSignal)
+        );
+        await user.click(screen.getByRole('button', { name: 'View risk details for Patient 16' }));
+        expect(screen.getByRole('dialog', { name: 'No-show risk assessment' })).toBeInTheDocument();
+        await user.keyboard('{Escape}');
+        expect(screen.getByTestId('appointment-query')).toHaveTextContent('page=2');
+
+        await user.click(screen.getByRole('button', { name: 'Confirm' }));
+        await waitFor(() =>
+            expect(screen.getByTestId('appointment-query')).not.toHaveTextContent('page=2')
+        );
+        expect(screen.getByTestId('appointment-query')).toHaveTextContent('status=SCHEDULED');
+        expect(await screen.findByText('Patient 1')).toBeInTheDocument();
+        expect(screen.queryByText('Patient 16')).not.toBeInTheDocument();
+        expect(
+            listAppointments.mock.calls.some(
+                (call) => call[1].page === 1 && call[1].status === AppointmentStatus.SCHEDULED
+            )
+        ).toBe(true);
+    });
+
+    it('hides old rows during a page request and ignores a late response after filtering', async () => {
+        const user = userEvent.setup();
+        const nextPage = {
+            ...appointment,
+            id: 'appointment-2',
+            patient: { ...appointment.patient, fullName: 'Next page patient' },
+        };
+        const confirmed = {
+            ...appointment,
+            id: 'appointment-3',
+            status: AppointmentStatus.CONFIRMED,
+            patient: { ...appointment.patient, fullName: 'Confirmed patient' },
+        };
+        let resolveNextPage!: (data: AppointmentListResponseData) => void;
+        const pendingPage = new Promise<AppointmentListResponseData>((resolve) => {
+            resolveNextPage = resolve;
+        });
+        listAppointments.mockImplementation(
+            (_clinicId: string, filters: { page: number; status?: AppointmentStatus }) => {
+                if (filters.page === 2) return pendingPage;
+                return Promise.resolve({
+                    appointments:
+                        filters.status === AppointmentStatus.CONFIRMED
+                            ? [confirmed]
+                            : [appointment],
+                    pagination: { page: 1, limit: 15, hasNextPage: !filters.status },
+                });
+            }
+        );
+        renderWithProviders(<AppointmentsPage />, { activeClinic: adminActiveClinic });
+        expect(await screen.findByText('Asha Mehra')).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Next' }));
+        expect(screen.queryByText('Asha Mehra')).not.toBeInTheDocument();
+        expect(screen.getByText('Loading appointments...')).toBeInTheDocument();
+        await user.selectOptions(
+            screen.getByRole('combobox', { name: 'Status' }),
+            AppointmentStatus.CONFIRMED
+        );
+        expect(await screen.findByText('Confirmed patient')).toBeInTheDocument();
+        resolveNextPage({
+            appointments: [nextPage],
+            pagination: { page: 2, limit: 15, hasNextPage: false },
+        });
+        await waitFor(() =>
+            expect(screen.queryByText('Next page patient')).not.toBeInTheDocument()
+        );
+        expect(screen.getByText('Confirmed patient')).toBeInTheDocument();
+    });
+
+    it('requests the selected bounded page size and records it in the URL', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(
+            <>
+                <AppointmentsPage />
+                <QueryProbe />
+            </>,
+            {
+                activeClinic: adminActiveClinic,
+            }
+        );
+        await screen.findByText('Asha Mehra');
+        await user.selectOptions(
+            screen.getByRole('combobox', { name: 'Appointments per page' }),
+            '20'
+        );
+        await waitFor(() =>
+            expect(listAppointments).toHaveBeenCalledWith(
+                adminActiveClinic.clinicId,
+                expect.objectContaining({ page: 1, limit: 20 }),
+                expect.any(AbortSignal)
+            )
+        );
+        expect(screen.getByTestId('appointment-query')).toHaveTextContent('limit=20');
+    });
+
+    it('restores a prior filtered page on browser Back', async () => {
+        const user = userEvent.setup();
+        const confirmed = {
+            ...appointment,
+            id: 'appointment-confirmed',
+            status: AppointmentStatus.CONFIRMED,
+            patient: { ...appointment.patient, fullName: 'Confirmed patient' },
+        };
+        listAppointments.mockImplementation(
+            async (
+                _clinicId: string,
+                filters: {
+                    page: number;
+                    status?: AppointmentStatus;
+                }
+            ) => ({
+                appointments:
+                    filters.status === AppointmentStatus.CONFIRMED ? [confirmed] : [appointment],
+                pagination: { page: filters.page, limit: 15, hasNextPage: false },
+            })
+        );
+        renderWithProviders(
+            <>
+                <AppointmentsPage />
+                <QueryProbe />
+                <BackProbe />
+            </>,
+            {
+                activeClinic: adminActiveClinic,
+                route: '/appointments?date=2026-10-15&status=SCHEDULED&page=2',
+            }
+        );
+        expect(await screen.findByText('Asha Mehra')).toBeInTheDocument();
+        await user.selectOptions(
+            screen.getByRole('combobox', { name: 'Status' }),
+            AppointmentStatus.CONFIRMED
+        );
+        expect(await screen.findByText('Confirmed patient')).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Browser Back' }));
+        await waitFor(() =>
+            expect(screen.getByTestId('appointment-query')).toHaveTextContent('page=2')
+        );
+        expect(await screen.findByText('Asha Mehra')).toBeInTheDocument();
+        expect(listAppointments).toHaveBeenLastCalledWith(
+            adminActiveClinic.clinicId,
+            expect.objectContaining({ status: AppointmentStatus.SCHEDULED, page: 2 }),
+            expect.any(AbortSignal)
+        );
+    });
+
+    it('normalizes an invalid deep link before requesting appointments', async () => {
+        renderWithProviders(
+            <>
+                <AppointmentsPage />
+                <QueryProbe />
+            </>,
+            {
+                activeClinic: adminActiveClinic,
+                route: '/appointments?date=2026-02-30&page=999&search=private',
+            }
+        );
+        expect(await screen.findByText('Asha Mehra')).toBeInTheDocument();
+        expect(screen.getByTestId('appointment-query').textContent).toBe('');
+        expect(listAppointments).toHaveBeenCalledTimes(1);
+        expect(listAppointments).toHaveBeenCalledWith(
+            adminActiveClinic.clinicId,
+            expect.objectContaining({ page: 1, limit: 15, search: undefined }),
+            expect.any(AbortSignal)
+        );
+    });
+
+    it('finds the nearest valid page for an outdated deep link with bounded requests', async () => {
+        listAppointments.mockImplementation(
+            async (_clinicId: string, filters: { page: number; limit: number }) => ({
+                appointments: filters.page <= 3 ? [appointment] : [],
+                pagination: {
+                    page: filters.page,
+                    limit: filters.limit,
+                    hasNextPage: filters.page < 3,
+                },
+            })
+        );
+        renderWithProviders(
+            <>
+                <AppointmentsPage />
+                <QueryProbe />
+            </>,
+            {
+                activeClinic: adminActiveClinic,
+                route: '/appointments?date=2026-10-15&page=5',
+            }
+        );
+        expect(await screen.findByText('Asha Mehra')).toBeInTheDocument();
+        expect(screen.getByTestId('appointment-query')).toHaveTextContent('page=3');
+        expect(listAppointments.mock.calls.map((call) => call[1].page)).toEqual([5, 3, 4, 3]);
+    });
+
     it('loads a returned appointment by ID and restores the schedule', async () => {
         const user = userEvent.setup();
         renderWithProviders(<AppointmentsPage />, {
@@ -154,7 +418,7 @@ describe('AppointmentsPage primary status action', () => {
                 pathname: '/appointments',
                 state: {
                     appointmentId: appointment.id,
-                    appointmentDate: appointment.scheduledAt,
+                    appointmentDate: '2026-10-14T20:00:00.000Z',
                 },
             },
         });
