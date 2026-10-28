@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useActiveClinic } from '../../app/activeClinicContext';
 import { EmptyState, ErrorMessage, LoadingState, useToast } from '../../components/feedback';
@@ -70,6 +70,10 @@ const emptyQueueListState: QueueListState = {
     queueEntries: [],
     error: null,
 };
+
+// One foreground request every 30 seconds; two missed polls make the view stale.
+const QUEUE_POLL_INTERVAL_MS = 30_000;
+const QUEUE_STALE_AFTER_MS = 90_000;
 
 const queueStatusOptions: Array<{ value: QueueStatusType; label: string }> = [
     QueueStatus.WAITING,
@@ -184,6 +188,12 @@ const formatTime = (value: string | null | undefined, timezone?: string | null):
         timeZone: timezone ?? undefined,
     }).format(date);
 };
+
+const formatSyncTime = (value: Date, timezone?: string | null): string =>
+    new Intl.DateTimeFormat('en-IN', {
+        timeStyle: 'medium',
+        timeZone: timezone || undefined,
+    }).format(value);
 
 const getOptionalText = (value: string | number | null | undefined): string => {
     if (value === undefined || value === null) {
@@ -519,6 +529,7 @@ function QueueEntryCard({
     updatingQueueEntryId,
     timezone,
     onOpenRiskDetails,
+    rowError,
 }: {
     activeQueueIndexesByDoctor: Map<string, Map<string, number>>;
     allActiveQueueEntries: QueueListItem[];
@@ -530,6 +541,7 @@ function QueueEntryCard({
     updatingQueueEntryId: string | null;
     timezone?: string | null;
     onOpenRiskDetails: (queueEntry: QueueListItem) => void;
+    rowError?: string;
 }) {
     const statusActions = getQueueStatusActions(queueEntry);
     const isUpdating = updatingQueueEntryId === queueEntry.id;
@@ -665,6 +677,11 @@ function QueueEntryCard({
                         queueEntry={queueEntry}
                         statusActions={statusActions}
                     />
+                    {rowError ? (
+                        <p className="text-sm text-red-700" role="alert">
+                            {rowError}
+                        </p>
+                    ) : null}
                 </div>
             </div>
         </li>
@@ -683,6 +700,7 @@ function ActiveQueueBoard({
     updatingQueueEntryId,
     timezone,
     onOpenRiskDetails,
+    statusUpdateError,
 }: {
     activeQueueEntries: QueueListItem[];
     activeQueueIndexesByDoctor: Map<string, Map<string, number>>;
@@ -695,6 +713,7 @@ function ActiveQueueBoard({
     updatingQueueEntryId: string | null;
     timezone?: string | null;
     onOpenRiskDetails: (queueEntry: QueueListItem) => void;
+    statusUpdateError: { message: string; queueEntryId?: string } | null;
 }) {
     const lanes = getQueueDoctorLanes(activeQueueEntries);
 
@@ -755,6 +774,11 @@ function ActiveQueueBoard({
                                     updatingQueueEntryId={updatingQueueEntryId}
                                     timezone={timezone}
                                     onOpenRiskDetails={onOpenRiskDetails}
+                                    rowError={
+                                        statusUpdateError?.queueEntryId === queueEntry.id
+                                            ? statusUpdateError.message
+                                            : undefined
+                                    }
                                 />
                             ))}
                         </ol>
@@ -846,20 +870,26 @@ function FinalQueueEntriesSection({
     );
 }
 
-function QueuePage() {
+function QueuePageContent({ todayDate }: { todayDate: string }) {
     const activeClinic = useActiveClinic();
     const { clinicId } = activeClinic;
     const clinicTimezone = activeClinic.clinic?.timezone;
     const { showErrorToast, showSuccessToast } = useToast();
-    const todayDate = getClinicDateInputValue(clinicTimezone);
     const [selectedDoctorId, setSelectedDoctorId] = useState('');
     const [selectedStatus, setSelectedStatus] = useState<QueueStatusType | ''>('');
     const [queueListState, setQueueListState] = useState<QueueListState>(emptyQueueListState);
     const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+    const [lastAttemptedAt, setLastAttemptedAt] = useState<Date | null>(null);
+    const [clockNow, setClockNow] = useState(Date.now());
+    const activeFetchRef = useRef<AbortController | null>(null);
+    const fetchGenerationRef = useRef(0);
+    const mountedRef = useRef(true);
+    const mutationInFlightRef = useRef(false);
     const [updatingQueueEntryId, setUpdatingQueueEntryId] = useState<string | null>(null);
     const [statusUpdateError, setStatusUpdateError] = useState<{
         message: string;
         code?: string;
+        queueEntryId?: string;
     } | null>(null);
     const [statusUpdateMessage, setStatusUpdateMessage] = useState<string | null>(null);
     const [reorderingQueueEntryId, setReorderingQueueEntryId] = useState<string | null>(null);
@@ -881,66 +911,89 @@ function QueuePage() {
         [clinicId, todayDate]
     );
 
-    const refreshQueue = useCallback(() => {
-        setQueueListState((currentState) => ({
-            status: 'loading',
-            queueEntries: currentState.queueEntries,
-            error: null,
-        }));
+    const refreshQueue = useCallback(
+        async (restart = false) => {
+            if (!mountedRef.current) return;
+            if (mutationInFlightRef.current && !restart) return;
+            if (activeFetchRef.current) {
+                if (!restart) return;
+                activeFetchRef.current.abort();
+            }
+            const controller = new AbortController();
+            activeFetchRef.current = controller;
+            const generation = ++fetchGenerationRef.current;
+            setLastAttemptedAt(new Date());
+            setQueueListState((currentState) => ({
+                status: 'loading',
+                queueEntries: currentState.queueEntries,
+                error: null,
+            }));
 
-        void loadQueue()
-            .then((queueEntries) => {
-                setQueueListState({
-                    status: 'success',
-                    queueEntries,
-                    error: null,
-                });
-                setLastRefreshedAt(new Date());
-            })
-            .catch((error: unknown) => {
-                const errorState = getQueueListErrorState(error, queueListState.queueEntries);
-
-                if (errorState) {
-                    setQueueListState(errorState);
+            try {
+                const queueEntries = await loadQueue(controller.signal);
+                if (generation === fetchGenerationRef.current && !controller.signal.aborted) {
+                    setQueueListState({
+                        status: 'success',
+                        queueEntries,
+                        error: null,
+                    });
+                    setLastRefreshedAt(new Date());
                 }
-            });
-    }, [loadQueue, queueListState.queueEntries]);
+            } catch (error) {
+                if (generation === fetchGenerationRef.current && !controller.signal.aborted) {
+                    setQueueListState(
+                        (current) => getQueueListErrorState(error, current.queueEntries) ?? current
+                    );
+                }
+            } finally {
+                if (activeFetchRef.current === controller) activeFetchRef.current = null;
+            }
+        },
+        [loadQueue]
+    );
 
     useEffect(() => {
-        const abortController = new AbortController();
-
-        void loadQueue(abortController.signal)
-            .then((queueEntries) => {
-                setQueueListState({
-                    status: 'success',
-                    queueEntries,
-                    error: null,
-                });
-                setLastRefreshedAt(new Date());
-            })
-            .catch((error: unknown) => {
-                const errorState = getQueueListErrorState(error);
-
-                if (errorState) {
-                    setQueueListState(errorState);
-                }
-            });
+        mountedRef.current = true;
+        void refreshQueue();
+        const poll = window.setInterval(() => {
+            setClockNow(Date.now());
+            if (document.visibilityState === 'visible' && navigator.onLine) void refreshQueue();
+        }, QUEUE_POLL_INTERVAL_MS);
+        const tick = window.setInterval(() => setClockNow(Date.now()), 5_000);
+        const onResume = () => {
+            setClockNow(Date.now());
+            if (document.visibilityState === 'visible' && navigator.onLine) void refreshQueue();
+        };
+        document.addEventListener('visibilitychange', onResume);
+        window.addEventListener('online', onResume);
 
         return () => {
-            abortController.abort();
+            mountedRef.current = false;
+            window.clearInterval(poll);
+            window.clearInterval(tick);
+            document.removeEventListener('visibilitychange', onResume);
+            window.removeEventListener('online', onResume);
+            activeFetchRef.current?.abort();
+            activeFetchRef.current = null;
+            fetchGenerationRef.current += 1;
         };
-    }, [loadQueue]);
+    }, [refreshQueue]);
 
     const handleRetryQueue = () => {
         setStatusUpdateError(null);
         setStatusUpdateMessage(null);
         setReorderError(null);
         setReorderMessage(null);
-        refreshQueue();
+        void refreshQueue(true);
     };
 
     const handleStatusUpdate = async (queueEntry: QueueListItem, nextStatus: QueueStatusType) => {
-        if (nextStatus === queueEntry.status || reorderingQueueEntryId) {
+        if (
+            queueListState.status !== 'success' ||
+            nextStatus === queueEntry.status ||
+            reorderingQueueEntryId ||
+            updatingQueueEntryId
+        ) {
             return;
         }
 
@@ -961,6 +1014,9 @@ function QueuePage() {
         queueEntry: QueueListItem,
         payload: UpdateQueueStatusRequest
     ): Promise<string | null> => {
+        mutationInFlightRef.current = true;
+        activeFetchRef.current?.abort();
+        fetchGenerationRef.current += 1;
         setUpdatingQueueEntryId(queueEntry.id);
         setStatusUpdateError(null);
         setStatusUpdateMessage(null);
@@ -968,7 +1024,10 @@ function QueuePage() {
         setReorderMessage(null);
 
         try {
-            const data = await updateQueueStatus(clinicId, queueEntry.id, payload);
+            const data = await updateQueueStatus(clinicId, queueEntry.id, {
+                ...payload,
+                expectedStatus: queueEntry.status,
+            });
 
             setStatusUpdateMessage(
                 `${queueEntry.patient.fullName} is now ${getQueueStatusLabelLower(
@@ -978,27 +1037,39 @@ function QueuePage() {
             showSuccessToast(
                 `Queue status updated to ${getQueueStatusLabelLower(data.queueEntry.status)}.`
             );
-            refreshQueue();
+            void refreshQueue(true);
             return null;
         } catch (error) {
             if (isApiClientError(error)) {
+                const message =
+                    error.code === 'API_NETWORK_ERROR'
+                        ? 'The status change may have been applied. Refresh and check the patient before acting again.'
+                        : error.status === 409
+                          ? 'Another staff member changed this entry. Refresh and review it before acting again.'
+                          : error.message;
                 setStatusUpdateError({
-                    message: error.message,
+                    message,
                     code: error.code,
+                    queueEntryId: queueEntry.id,
                 });
-                showErrorToast(error.message);
-                return error.message;
+                showErrorToast(message);
+                void refreshQueue(true);
+                return message;
             }
 
-            const fallbackMessage = 'Queue status could not be updated. Please try again.';
+            const fallbackMessage =
+                'The status change may have been applied. Refresh and check the patient before acting again.';
 
             setStatusUpdateError({
                 message: fallbackMessage,
                 code: 'QUEUE_STATUS_UPDATE_FAILED',
+                queueEntryId: queueEntry.id,
             });
             showErrorToast(fallbackMessage);
+            void refreshQueue(true);
             return fallbackMessage;
         } finally {
+            mutationInFlightRef.current = false;
             setUpdatingQueueEntryId(null);
         }
     };
@@ -1024,19 +1095,19 @@ function QueuePage() {
         setTerminalReasonFlow((current) =>
             current ? { ...current, error: null, isSubmitting: true } : current
         );
-        const errorMessage = await persistQueueStatusUpdate(terminalReasonFlow.queueEntry, payload);
+        await persistQueueStatusUpdate(terminalReasonFlow.queueEntry, payload);
 
-        if (!errorMessage) {
-            setTerminalReasonFlow(null);
-        } else {
-            setTerminalReasonFlow((current) =>
-                current ? { ...current, error: errorMessage, isSubmitting: false } : current
-            );
-        }
+        // An uncertain outcome must be reconciled before staff can open a fresh action.
+        setTerminalReasonFlow(null);
     };
 
     const handleQueueMove = async (queueEntry: QueueListItem, offset: -1 | 1) => {
-        if (queueListState.status !== 'success' || reorderingQueueEntryId || updatingQueueEntryId) {
+        if (
+            queueListState.status !== 'success' ||
+            isStale ||
+            reorderingQueueEntryId ||
+            updatingQueueEntryId
+        ) {
             return;
         }
 
@@ -1056,6 +1127,9 @@ function QueuePage() {
         }
 
         setReorderingQueueEntryId(queueEntry.id);
+        mutationInFlightRef.current = true;
+        activeFetchRef.current?.abort();
+        fetchGenerationRef.current += 1;
         setReorderError(null);
         setReorderMessage(null);
         setStatusUpdateError(null);
@@ -1065,6 +1139,7 @@ function QueuePage() {
             const data = await reorderQueue(clinicId, {
                 date: todayDate,
                 queueEntryIds: nextQueueEntryIds,
+                expectedQueueEntryIds: activeQueueEntryIds,
             });
 
             setQueueListState({
@@ -1075,7 +1150,7 @@ function QueuePage() {
                 ),
                 error: null,
             });
-            setLastRefreshedAt(new Date());
+            void refreshQueue(true);
             const updatedPosition = data.queueEntries.find(
                 (entry) => entry.id === queueEntry.id
             )?.position;
@@ -1092,34 +1167,45 @@ function QueuePage() {
             });
 
             if (isApiClientError(error)) {
+                const isConflict = error.status === 409;
                 setReorderError({
-                    message: error.message,
+                    message: isConflict
+                        ? 'Another staff member changed this queue. Refresh and review its order before moving anyone again.'
+                        : 'The move may have been applied. Refresh and review the order before trying again.',
                     code: error.code,
                 });
-                showErrorToast(error.message);
+                showErrorToast(
+                    isConflict
+                        ? 'Queue changed. Review the latest order.'
+                        : 'Queue order could not be confirmed.'
+                );
+                void refreshQueue(true);
                 return;
             }
 
-            const fallbackMessage = 'Queue order could not be updated. Please try again.';
+            const fallbackMessage =
+                'The move may have been applied. Refresh and review the order before trying again.';
 
             setReorderError({
                 message: fallbackMessage,
                 code: 'QUEUE_REORDER_FAILED',
             });
             showErrorToast(fallbackMessage);
+            void refreshQueue(true);
         } finally {
+            mutationInFlightRef.current = false;
             setReorderingQueueEntryId(null);
         }
     };
 
-    const hasQueueEntries =
-        queueListState.status === 'success' && queueListState.queueEntries.length > 0;
+    const hasConfirmedSnapshot = lastRefreshedAt !== null;
+    const hasQueueEntries = hasConfirmedSnapshot && queueListState.queueEntries.length > 0;
     const queueDoctors = useMemo(
         () => getUniqueQueueDoctors(queueListState.queueEntries),
         [queueListState.queueEntries]
     );
     const displayedQueueEntries = useMemo(() => {
-        if (queueListState.status !== 'success') {
+        if (!hasConfirmedSnapshot) {
             return [];
         }
 
@@ -1129,9 +1215,8 @@ function QueuePage() {
 
             return doctorMatches && statusMatches;
         });
-    }, [queueListState, selectedDoctorId, selectedStatus]);
-    const hasFilteredQueueEntries =
-        queueListState.status === 'success' && displayedQueueEntries.length > 0;
+    }, [queueListState, selectedDoctorId, selectedStatus, hasConfirmedSnapshot]);
+    const hasFilteredQueueEntries = hasConfirmedSnapshot && displayedQueueEntries.length > 0;
     const hasQueueFilters = Boolean(selectedDoctorId || selectedStatus);
     const activeQueueEntries = useMemo(
         () => getActiveQueueEntries(displayedQueueEntries),
@@ -1174,7 +1259,14 @@ function QueuePage() {
             }
         );
     }, [queueListState.queueEntries]);
-    const isReordering = Boolean(reorderingQueueEntryId);
+    const isStale =
+        hasConfirmedSnapshot && clockNow - lastRefreshedAt.getTime() >= QUEUE_STALE_AFTER_MS;
+    const isReordering =
+        Boolean(reorderingQueueEntryId) || queueListState.status !== 'success' || isStale;
+    const failedAttemptTime = lastAttemptedAt
+        ? ` at ${formatSyncTime(lastAttemptedAt, clinicTimezone)}`
+        : '';
+    const refreshFailureLabel = ` · Refresh failed${failedAttemptTime}${lastRefreshedAt ? '; queue information may be outdated.' : '.'}`;
 
     return (
         <section className="space-y-4">
@@ -1183,13 +1275,19 @@ function QueuePage() {
                     <div className="flex flex-wrap items-center gap-3">
                         <span className="text-xs text-app-muted" role="status">
                             {lastRefreshedAt
-                                ? `Last updated ${new Intl.DateTimeFormat('en-IN', { timeStyle: 'short', timeZone: clinicTimezone || undefined }).format(lastRefreshedAt)} · Manual refresh`
-                                : 'Manual refresh'}
+                                ? `Last updated ${formatSyncTime(lastRefreshedAt, clinicTimezone)}`
+                                : 'No confirmed queue data yet'}
+                            {queueListState.status === 'loading' ? ' · Refreshing…' : null}
+                            {queueListState.status === 'error' ? refreshFailureLabel : null}
+                            {queueListState.status === 'success' && isStale
+                                ? ' · Queue information may be outdated.'
+                                : null}
                         </span>
                         <Button
                             variant="outline"
                             onClick={handleRetryQueue}
                             isLoading={queueListState.status === 'loading'}
+                            disabled={Boolean(updatingQueueEntryId || reorderingQueueEntryId)}
                             loadingText="Refreshing..."
                         >
                             Refresh
@@ -1298,7 +1396,7 @@ function QueuePage() {
                 </div>
             </FilterBar>
 
-            {queueListState.status === 'loading' ? (
+            {queueListState.status === 'loading' && !hasConfirmedSnapshot ? (
                 <LoadingState message="Loading today's queue..." />
             ) : null}
 
@@ -1308,14 +1406,6 @@ function QueuePage() {
                     message={queueListState.error.message}
                     code={queueListState.error.code}
                     onRetry={handleRetryQueue}
-                />
-            ) : null}
-
-            {statusUpdateError ? (
-                <ErrorMessage
-                    title="Queue status was not updated"
-                    message={statusUpdateError.message}
-                    code={statusUpdateError.code}
                 />
             ) : null}
 
@@ -1359,7 +1449,9 @@ function QueuePage() {
                 </div>
             ) : null}
 
-            {queueListState.status === 'success' && queueListState.queueEntries.length === 0 ? (
+            {hasConfirmedSnapshot &&
+            queueListState.status === 'success' &&
+            queueListState.queueEntries.length === 0 ? (
                 <EmptyState
                     title="No queue entries for today yet."
                     message="Book appointments for today to add patients into the clinic queue."
@@ -1398,6 +1490,7 @@ function QueuePage() {
                     updatingQueueEntryId={updatingQueueEntryId}
                     timezone={clinicTimezone}
                     onOpenRiskDetails={setRiskDetailsEntry}
+                    statusUpdateError={statusUpdateError}
                 />
             ) : null}
 
@@ -1448,6 +1541,27 @@ function QueuePage() {
                 />
             ) : null}
         </section>
+    );
+}
+
+function QueuePage() {
+    const activeClinic = useActiveClinic();
+    const [today, setToday] = useState(() =>
+        getClinicDateInputValue(activeClinic.clinic?.timezone)
+    );
+
+    useEffect(() => {
+        const updateToday = () => setToday(getClinicDateInputValue(activeClinic.clinic?.timezone));
+        updateToday();
+        const timer = window.setInterval(updateToday, 30_000);
+        return () => window.clearInterval(timer);
+    }, [activeClinic.clinic?.timezone]);
+
+    return (
+        <QueuePageContent
+            key={`${activeClinic.clinicId}:${activeClinic.clinic?.timezone ?? ''}:${today}`}
+            todayDate={today}
+        />
     );
 }
 

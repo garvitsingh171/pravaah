@@ -1,5 +1,29 @@
 import { describe, expect, it } from 'vitest';
-import { updateQueueStatusBodySchema } from '../queue.validation.js';
+import { reorderQueueBodySchema, updateQueueStatusBodySchema } from '../queue.validation.js';
+
+describe('reorderQueueBodySchema', () => {
+    const first = '40000000-0000-4000-8000-000000000001';
+    const second = '40000000-0000-4000-8000-000000000002';
+    const request = {
+        date: '2026-09-15',
+        queueEntryIds: [second, first],
+        expectedQueueEntryIds: [first, second],
+    };
+
+    it('requires the complete confirmed order', () => {
+        expect(reorderQueueBodySchema.safeParse(request).success).toBe(true);
+        expect(
+            reorderQueueBodySchema.safeParse({
+                date: request.date,
+                queueEntryIds: request.queueEntryIds,
+            }).success
+        ).toBe(false);
+        expect(
+            reorderQueueBodySchema.safeParse({ ...request, expectedQueueEntryIds: [first, first] })
+                .success
+        ).toBe(false);
+    });
+});
 
 describe('updateQueueStatusBodySchema', () => {
     it('uses the same terminal reason contract as appointment status updates', () => {

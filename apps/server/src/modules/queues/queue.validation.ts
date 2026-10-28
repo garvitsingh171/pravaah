@@ -34,6 +34,9 @@ export const updateQueueStatusBodySchema = z.discriminatedUnion('status', [
     z
         .object({
             status: z.literal('CANCELLED'),
+            expectedStatus: z
+                .enum(['ARRIVED', 'WAITING', 'CALLED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'])
+                .optional(),
             cancellationReason: cancellationReasonSchema,
             cancellationNote: terminalAppointmentNoteSchema,
         })
@@ -41,6 +44,9 @@ export const updateQueueStatusBodySchema = z.discriminatedUnion('status', [
     z
         .object({
             status: z.literal('NO_SHOW'),
+            expectedStatus: z
+                .enum(['ARRIVED', 'WAITING', 'CALLED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'])
+                .optional(),
             noShowReason: noShowReasonSchema,
             noShowNote: terminalAppointmentNoteSchema,
         })
@@ -48,6 +54,9 @@ export const updateQueueStatusBodySchema = z.discriminatedUnion('status', [
     z
         .object({
             status: z.enum(['ARRIVED', 'WAITING', 'CALLED', 'COMPLETED']),
+            expectedStatus: z
+                .enum(['ARRIVED', 'WAITING', 'CALLED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'])
+                .optional(),
         })
         .strict(),
 ]);
@@ -61,6 +70,13 @@ export const reorderQueueBodySchema = z
             .refine(
                 (queueEntryIds) => new Set(queueEntryIds).size === queueEntryIds.length,
                 'Queue entry ids must be unique'
+            ),
+        expectedQueueEntryIds: z
+            .array(uuidSchema)
+            .min(1, 'The confirmed queue order is required')
+            .refine(
+                (queueEntryIds) => new Set(queueEntryIds).size === queueEntryIds.length,
+                'Confirmed queue entry ids must be unique'
             ),
     })
     .strict();

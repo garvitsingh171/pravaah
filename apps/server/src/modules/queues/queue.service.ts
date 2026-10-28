@@ -93,6 +93,14 @@ export const queueService = {
             );
         }
 
+        if (statusUpdate.expectedStatus && queueEntry.status !== statusUpdate.expectedStatus) {
+            throw new AppError(
+                409,
+                'STATUS_SYNC_CONFLICT',
+                'Queue status changed. Refresh and review the latest entry.'
+            );
+        }
+
         if (queueEntry.status === status) {
             return withQueueNoShowPredictionResponse(queueEntry);
         }
@@ -204,7 +212,8 @@ export const queueService = {
         user: AuthenticatedUser | undefined,
         clinicId: string,
         date: string,
-        queueEntryIds: string[]
+        queueEntryIds: string[],
+        expectedQueueEntryIds: string[]
     ) {
         const clinic = await accessService.verifyClinicAccess(user, clinicId);
 
@@ -213,6 +222,18 @@ export const queueService = {
                 400,
                 'QUEUE_REORDER_DUPLICATE_ENTRY',
                 'Reorder request cannot contain duplicate queue entries'
+            );
+        }
+
+        if (
+            expectedQueueEntryIds.length !== queueEntryIds.length ||
+            new Set(expectedQueueEntryIds).size !== expectedQueueEntryIds.length ||
+            queueEntryIds.some((id) => !expectedQueueEntryIds.includes(id))
+        ) {
+            throw new AppError(
+                400,
+                'QUEUE_REORDER_INVALID_SNAPSHOT',
+                'Confirmed queue order must contain the same active entries'
             );
         }
 
@@ -273,9 +294,9 @@ export const queueService = {
 
         if (activeQueueEntries.length !== queueEntryIds.length) {
             throw new AppError(
-                400,
-                'QUEUE_REORDER_INCOMPLETE',
-                'Reorder request must include all active queue entries for the selected doctor and date'
+                409,
+                'QUEUE_REORDER_CONFLICT',
+                'Queue membership changed while reordering. Refresh and review the latest order.'
             );
         }
 
@@ -287,9 +308,9 @@ export const queueService = {
 
         if (hasInvalidQueueEntryForDate) {
             throw new AppError(
-                400,
-                'QUEUE_REORDER_INVALID_ENTRIES',
-                'Reorder request contains queue entries outside the active queue for this doctor and date'
+                409,
+                'QUEUE_REORDER_CONFLICT',
+                'Queue membership changed while reordering. Refresh and review the latest order.'
             );
         }
 
@@ -300,6 +321,7 @@ export const queueService = {
                 date,
                 clinic.timezone,
                 queueEntryIds,
+                expectedQueueEntryIds,
                 activeQueueStatuses
             );
 

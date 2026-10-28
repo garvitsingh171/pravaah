@@ -158,6 +158,7 @@ export const queueRepository = {
                         scheduledAt: 'asc',
                     },
                 },
+                { id: 'asc' },
             ],
         });
     },
@@ -197,6 +198,7 @@ export const queueRepository = {
                         scheduledAt: 'asc',
                     },
                 },
+                { id: 'asc' },
             ],
         });
     },
@@ -238,6 +240,7 @@ export const queueRepository = {
                         scheduledAt: 'asc',
                     },
                 },
+                { id: 'asc' },
             ],
         });
     },
@@ -501,6 +504,7 @@ export const queueRepository = {
         date: string,
         clinicTimezone: string,
         queueEntryIds: string[],
+        expectedQueueEntryIds: string[],
         activeStatuses: QueueStatus[]
     ) {
         return withTransientDatabaseTransactionRetry(
@@ -540,6 +544,7 @@ export const queueRepository = {
                                 scheduledAt: 'asc',
                             },
                         },
+                        { id: 'asc' },
                     ],
                 });
 
@@ -550,6 +555,9 @@ export const queueRepository = {
 
                 if (
                     activeQueueEntries.length !== queueEntryIds.length ||
+                    activeQueueEntries.some(
+                        (entry, index) => entry.id !== expectedQueueEntryIds[index]
+                    ) ||
                     activeQueueEntries.some(
                         (queueEntry) => !requestedQueueEntryIds.has(queueEntry.id)
                     ) ||
@@ -619,6 +627,7 @@ export const queueRepository = {
                                 scheduledAt: 'asc',
                             },
                         },
+                        { id: 'asc' },
                     ],
                 });
             }

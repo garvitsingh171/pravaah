@@ -66,13 +66,14 @@ export async function reorderQueueController(
 ): Promise<void> {
     try {
         const { clinicId } = req.params as QueueClinicIdParamsInput;
-        const { date, queueEntryIds } = req.body as ReorderQueueBodyInput;
+        const { date, queueEntryIds, expectedQueueEntryIds } = req.body as ReorderQueueBodyInput;
 
         const queueEntries = await queueService.reorderQueue(
             req.user,
             clinicId,
             date,
-            queueEntryIds
+            queueEntryIds,
+            expectedQueueEntryIds
         );
 
         res.status(200).json({
