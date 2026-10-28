@@ -39,6 +39,18 @@ describe('StaffManagementPage lifecycle', () => {
         api.getStaffMember.mockResolvedValue({ member: staff });
     });
 
+    it('focuses the invitation email and associates a validation error', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(<StaffManagementPage />, { activeClinic: adminActiveClinic });
+        await user.click(await screen.findByRole('button', { name: 'Send invitation' }));
+        const email = screen.getByRole('textbox', { name: 'Email address' });
+        expect(email).toHaveFocus();
+        expect(email).toHaveAccessibleName('Email address');
+        expect(email).toHaveAttribute('aria-invalid', 'true');
+        expect(email).toHaveAccessibleDescription('Enter a valid staff email address.');
+        expect(api.createStaffInvitation).not.toHaveBeenCalled();
+    });
+
     it('loads details and saves only editable profile fields', async () => {
         const user = userEvent.setup();
         api.updateStaffProfile.mockResolvedValue({

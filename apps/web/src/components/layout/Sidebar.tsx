@@ -185,7 +185,7 @@ function MobileWorkspaceNavigation({ navigationItems, clinicName, clinicMeta }: 
         setIsOpen(false);
 
         if (restoreFocus) {
-            window.setTimeout(() => triggerButtonRef.current?.focus(), 0);
+            triggerButtonRef.current?.focus({ preventScroll: true });
         }
     }, []);
 
@@ -336,6 +336,7 @@ function MobileWorkspaceNavigation({ navigationItems, clinicName, clinicMeta }: 
                               id="mobile-workspace-navigation"
                               role="dialog"
                               aria-modal="true"
+                              inert={!isOpen}
                               className="fixed inset-y-0 left-0 z-[51] flex w-[min(22rem,calc(100vw-2rem))] flex-col md:hidden overflow-y-auto border-r border-slate-200 bg-white shadow-xl"
                               aria-label="Clinic workspace navigation menu"
                               tabIndex={-1}
@@ -380,7 +381,12 @@ function MobileWorkspaceNavigation({ navigationItems, clinicName, clinicMeta }: 
                               <div className="flex-1 px-3 py-4">
                                   <WorkspaceNavigation
                                       navigationItems={navigationItems}
-                                      onNavigate={() => closeMenu(false)}
+                                      onNavigate={() => {
+                                          closeMenu(false);
+                                          document
+                                              .getElementById('main-content')
+                                              ?.focus({ preventScroll: true });
+                                      }}
                                   />
                               </div>
                           </motion.aside>,

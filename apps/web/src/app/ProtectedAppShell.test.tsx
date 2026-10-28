@@ -280,10 +280,11 @@ describe('ProtectedAppShell', () => {
         ).toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: /test admin/i }));
-        const menu = screen.getByRole('menu');
-        expect(menu.className).toContain('z-[60]');
+        const menu = document.getElementById('workspace-user-menu');
+        expect(menu).toBeInTheDocument();
+        expect(menu?.className).toContain('z-[60]');
 
-        await user.click(screen.getByRole('menuitem', { name: /^sign out$/i }));
+        await user.click(screen.getByRole('button', { name: /^sign out$/i }));
 
         await waitFor(() => {
             expect(signOut).toHaveBeenCalledWith({ redirectUrl: '/' });
@@ -303,16 +304,20 @@ describe('ProtectedAppShell', () => {
 
         const trigger = screen.getByRole('button', { name: /test admin/i });
         await user.click(trigger);
-        expect(screen.getByRole('menu')).toBeInTheDocument();
+        expect(document.getElementById('workspace-user-menu')).toBeInTheDocument();
 
         await user.click(document.body);
-        await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+        await waitFor(() =>
+            expect(document.getElementById('workspace-user-menu')).not.toBeInTheDocument()
+        );
 
         await user.click(trigger);
-        expect(screen.getByRole('menu')).toBeInTheDocument();
+        expect(document.getElementById('workspace-user-menu')).toBeInTheDocument();
 
         await user.keyboard('{Escape}');
-        await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+        await waitFor(() =>
+            expect(document.getElementById('workspace-user-menu')).not.toBeInTheDocument()
+        );
         expect(trigger).toHaveFocus();
     });
 
@@ -327,7 +332,7 @@ describe('ProtectedAppShell', () => {
             await screen.findByRole('heading', { name: /protected dashboard/i })
         ).toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: /test admin/i }));
-        await user.click(screen.getByRole('menuitem', { name: /^profile$/i }));
+        await user.click(screen.getByRole('link', { name: /^profile$/i }));
 
         expect(
             await screen.findByRole('heading', { name: /profile destination/i })
@@ -457,6 +462,21 @@ describe('ProtectedAppShell', () => {
             ).not.toBeInTheDocument();
         });
         await waitFor(() => expect(openButton).toHaveFocus());
+    });
+
+    it('moves focus into main content after mobile route navigation', async () => {
+        const user = userEvent.setup();
+        setClerkSignedIn();
+        mockGetOnboardingStatus.mockResolvedValue(completedAdminOnboarding);
+        renderShell('/dashboard');
+        await screen.findByRole('heading', { name: /protected dashboard/i });
+        await user.click(screen.getByRole('button', { name: /open clinic navigation/i }));
+        const drawer = screen.getByRole('dialog', { name: /clinic workspace navigation menu/i });
+        await user.click(within(drawer).getByRole('link', { name: /appointments/i }));
+        await waitFor(() =>
+            expect(screen.getAllByRole('heading', { name: /^appointments$/i })).toHaveLength(2)
+        );
+        expect(document.getElementById('main-content')).toHaveFocus();
     });
 
     it('closes the mobile workspace navigation when the desktop breakpoint matches', async () => {

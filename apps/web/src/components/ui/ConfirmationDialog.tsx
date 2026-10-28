@@ -1,5 +1,6 @@
-import { useEffect, useId, useRef } from 'react';
+import { useId } from 'react';
 import Button from './Button';
+import useModalFocus from './useModalFocus';
 
 type ConfirmationDialogProps = {
     open: boolean;
@@ -16,17 +17,11 @@ type ConfirmationDialogProps = {
     onCancel: () => void;
 };
 
-const focusableSelector = [
-    'a[href]',
-    'button:not([disabled])',
-    'textarea:not([disabled])',
-    'input:not([disabled])',
-    'select:not([disabled])',
-    '[tabindex]:not([tabindex="-1"])',
-].join(',');
+function ConfirmationDialog({ open, ...props }: ConfirmationDialogProps) {
+    return open ? <ConfirmationDialogContent {...props} /> : null;
+}
 
-function ConfirmationDialog({
-    open,
+function ConfirmationDialogContent({
     title,
     description,
     confirmLabel,
@@ -38,89 +33,10 @@ function ConfirmationDialog({
     error,
     onConfirm,
     onCancel,
-}: ConfirmationDialogProps) {
+}: Omit<ConfirmationDialogProps, 'open'>) {
     const titleId = useId();
     const descriptionId = useId();
-    const dialogRef = useRef<HTMLDivElement>(null);
-    const cancelButtonRef = useRef<HTMLButtonElement>(null);
-    const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
-    const isConfirmingRef = useRef(isConfirming);
-    const onCancelRef = useRef(onCancel);
-
-    useEffect(() => {
-        isConfirmingRef.current = isConfirming;
-        onCancelRef.current = onCancel;
-    }, [isConfirming, onCancel]);
-
-    useEffect(() => {
-        if (!open) {
-            return undefined;
-        }
-
-        previouslyFocusedElementRef.current =
-            document.activeElement instanceof HTMLElement ? document.activeElement : null;
-        const previousOverflow = document.body.style.overflow;
-        const workspaceScrollContainer = document.querySelector<HTMLElement>(
-            '[data-workspace-scroll-container="true"]'
-        );
-        const previousWorkspaceOverflow = workspaceScrollContainer?.style.overflow ?? null;
-        document.body.style.overflow = 'hidden';
-        if (workspaceScrollContainer) {
-            workspaceScrollContainer.style.overflow = 'hidden';
-        }
-        cancelButtonRef.current?.focus();
-
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape' && !isConfirmingRef.current) {
-                event.preventDefault();
-                onCancelRef.current();
-                return;
-            }
-
-            if (event.key !== 'Tab') {
-                return;
-            }
-
-            const focusableElements = Array.from(
-                dialogRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ?? []
-            ).filter((element) => !element.hasAttribute('disabled'));
-
-            if (focusableElements.length === 0) {
-                event.preventDefault();
-                dialogRef.current?.focus();
-                return;
-            }
-
-            const firstElement = focusableElements[0];
-            const lastElement = focusableElements[focusableElements.length - 1];
-
-            if (!dialogRef.current?.contains(document.activeElement)) {
-                event.preventDefault();
-                (event.shiftKey ? lastElement : firstElement).focus();
-            } else if (event.shiftKey && document.activeElement === firstElement) {
-                event.preventDefault();
-                lastElement.focus();
-            } else if (!event.shiftKey && document.activeElement === lastElement) {
-                event.preventDefault();
-                firstElement.focus();
-            }
-        };
-
-        document.addEventListener('keydown', handleKeyDown);
-
-        return () => {
-            document.body.style.overflow = previousOverflow;
-            if (workspaceScrollContainer) {
-                workspaceScrollContainer.style.overflow = previousWorkspaceOverflow ?? '';
-            }
-            document.removeEventListener('keydown', handleKeyDown);
-            previouslyFocusedElementRef.current?.focus();
-        };
-    }, [open]);
-
-    if (!open) {
-        return null;
-    }
+    const dialogRef = useModalFocus(onCancel, isConfirming);
 
     return (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/40 px-4 py-6">
@@ -151,12 +67,7 @@ function ConfirmationDialog({
                 </div>
 
                 <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                    <Button
-                        ref={cancelButtonRef}
-                        variant="outline"
-                        onClick={onCancel}
-                        disabled={isConfirming}
-                    >
+                    <Button variant="outline" onClick={onCancel} disabled={isConfirming}>
                         {cancelLabel}
                     </Button>
                     <Button

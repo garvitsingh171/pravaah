@@ -986,6 +986,7 @@ function AppointmentsPage() {
     const [patientSearch, setPatientSearch] = useState('');
     const [debouncedPatientSearch, setDebouncedPatientSearch] = useState('');
     const [bookingPatientSearch, setBookingPatientSearch] = useState('');
+    const [isSearchingBookingPatients, setIsSearchingBookingPatients] = useState(false);
     const [filterPatientSearch, setFilterPatientSearch] = useState('');
     const [hasNextPage, setHasNextPage] = useState(false);
     const [navigationAppointmentId, setNavigationAppointmentId] = useState<string | null>(
@@ -1010,6 +1011,7 @@ function AppointmentsPage() {
         code?: string;
     } | null>(null);
     const [statusUpdateMessage, setStatusUpdateMessage] = useState<string | null>(null);
+    const focusStatusAfterRefreshRef = useRef(false);
     const [riskDetailsAppointment, setRiskDetailsAppointment] =
         useState<AppointmentListItem | null>(null);
     const [values, setValues] = useState<AppointmentBookingFormValues>(() => ({
@@ -1071,6 +1073,7 @@ function AppointmentsPage() {
     const closeBookingDialog = () => {
         setIsBookingDialogOpen(false);
         setBookingPatientSearch('');
+        setIsSearchingBookingPatients(false);
     };
     const [activityAppointment, setActivityAppointment] = useState<AppointmentListItem | null>(
         null
@@ -1243,6 +1246,22 @@ function AppointmentsPage() {
             : emptyAppointmentListState;
 
     useEffect(() => {
+        if (
+            !focusStatusAfterRefreshRef.current ||
+            visibleListState.status !== 'success' ||
+            !statusUpdateMessage ||
+            terminalReasonFlow ||
+            rescheduleFlow
+        ) {
+            return;
+        }
+        document
+            .getElementById('appointment-status-update-feedback')
+            ?.focus({ preventScroll: true });
+        focusStatusAfterRefreshRef.current = false;
+    }, [visibleListState.status, statusUpdateMessage, terminalReasonFlow, rescheduleFlow]);
+
+    useEffect(() => {
         if (searchIsPending || queryNeedsNormalization) return;
         const abortController = new AbortController();
         setAppointmentListState(emptyAppointmentListState);
@@ -1313,6 +1332,7 @@ function AppointmentsPage() {
 
         void loadAppointmentReferences(abortController.signal)
             .then((data) => {
+                if (abortController.signal.aborted) return;
                 setReferenceState((current) => {
                     const selected = current.patients.filter(
                         (patient) =>
@@ -1330,13 +1350,16 @@ function AppointmentsPage() {
                         error: null,
                     };
                 });
+                setIsSearchingBookingPatients(false);
             })
             .catch((error: unknown) => {
+                if (abortController.signal.aborted) return;
                 const errorState = getReferenceLoadErrorState(error);
 
                 if (errorState) {
                     setReferenceState(errorState);
                 }
+                setIsSearchingBookingPatients(false);
             });
 
         return () => {
@@ -1717,11 +1740,7 @@ function AppointmentsPage() {
             setStatusUpdateMessage(
                 `Status updated to ${getAppointmentStatusLabelLower(data.appointment.status)}.`
             );
-            showSuccessToast(
-                `Appointment status updated to ${getAppointmentStatusLabelLower(
-                    data.appointment.status
-                )}.`
-            );
+            focusStatusAfterRefreshRef.current = true;
             return null;
         } catch (error) {
             if (isApiClientError(error)) {
@@ -2151,6 +2170,8 @@ function AppointmentsPage() {
 
             {statusUpdateMessage ? (
                 <div
+                    id="appointment-status-update-feedback"
+                    tabIndex={-1}
                     className="rounded-lg border border-[var(--color-status-success-border)] bg-[var(--color-status-success-bg)] px-4 py-3 text-sm font-medium text-[var(--color-status-success-text)]"
                     role="status"
                 >
@@ -2505,7 +2526,18 @@ function AppointmentsPage() {
 
                         <AppointmentBookingForm
                             patientSearch={bookingPatientSearch}
-                            onPatientSearchChange={setBookingPatientSearch}
+                            isLoadingPatients={
+                                referenceState.status === 'loading' || isSearchingBookingPatients
+                            }
+                            patientSearchError={
+                                referenceState.status === 'error'
+                                    ? referenceState.error.message
+                                    : null
+                            }
+                            onPatientSearchChange={(value) => {
+                                setBookingPatientSearch(value);
+                                setIsSearchingBookingPatients(true);
+                            }}
                             values={values}
                             fieldErrors={fieldErrors}
                             doctors={referenceState.doctors}

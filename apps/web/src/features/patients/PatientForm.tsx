@@ -1,4 +1,4 @@
-import type { FormEvent } from 'react';
+import { useLayoutEffect, useRef, type FormEvent } from 'react';
 import { FieldError } from '../../components/feedback';
 import { Button, FormSection, fieldControlClassName } from '../../components/ui';
 import { Gender } from '../../types';
@@ -43,6 +43,15 @@ const getFieldClassName = (hasError: boolean): string => {
     } disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500`;
 };
 
+const getErrorId = (field: keyof PatientFormValues) => `patient-${field}-error`;
+const getLabelId = (field: keyof PatientFormValues) => `patient-${field}-label`;
+
+const getErrorAttributes = (field: keyof PatientFormValues, errors: PatientFormFieldErrors) => ({
+    'aria-invalid': Boolean(errors[field]) as boolean,
+    'aria-labelledby': getLabelId(field),
+    'aria-describedby': errors[field] ? getErrorId(field) : undefined,
+});
+
 function RequiredMark() {
     return <span className="text-[var(--color-status-danger-text)]">*</span>;
 }
@@ -58,62 +67,80 @@ function PatientForm({
     onSubmit,
     onCancel,
 }: PatientFormProps) {
+    const formRef = useRef<HTMLFormElement>(null);
+    const focusErrorAfterSubmit = useRef(false);
+
+    useLayoutEffect(() => {
+        if (!focusErrorAfterSubmit.current || !Object.values(fieldErrors).some(Boolean)) return;
+        formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+        focusErrorAfterSubmit.current = false;
+    }, [fieldErrors]);
+
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+        focusErrorAfterSubmit.current = true;
         onSubmit();
     };
 
     return (
-        <form className="space-y-6" noValidate onSubmit={handleSubmit}>
+        <form ref={formRef} className="space-y-6" noValidate onSubmit={handleSubmit}>
             <FormSection
                 title="Identity"
                 description="These fields identify the patient record used for booking and queue workflows."
             >
                 <label className="block text-sm font-medium text-slate-700 md:col-span-2">
-                    Full name <RequiredMark />
+                    <span id={getLabelId('fullName')}>
+                        Full name <RequiredMark />
+                    </span>
                     <input
                         className={getFieldClassName(Boolean(fieldErrors.fullName))}
                         value={values.fullName}
                         onChange={(event) => onChange('fullName', event.target.value)}
+                        {...getErrorAttributes('fullName', fieldErrors)}
                         disabled={isSubmitting}
                         autoComplete="name"
-                        aria-invalid={Boolean(fieldErrors.fullName)}
+                        required
                     />
-                    <FieldError message={fieldErrors.fullName} />
+                    <FieldError id={getErrorId('fullName')} message={fieldErrors.fullName} />
                 </label>
 
                 <label className="block text-sm font-medium text-slate-700">
-                    Phone <RequiredMark />
+                    <span id={getLabelId('phone')}>
+                        Phone <RequiredMark />
+                    </span>
                     <input
                         className={getFieldClassName(Boolean(fieldErrors.phone))}
                         value={values.phone}
                         onChange={(event) => onChange('phone', event.target.value)}
+                        {...getErrorAttributes('phone', fieldErrors)}
                         disabled={isSubmitting}
                         autoComplete="tel"
-                        aria-invalid={Boolean(fieldErrors.phone)}
+                        required
                     />
-                    <FieldError message={fieldErrors.phone} />
+                    <FieldError id={getErrorId('phone')} message={fieldErrors.phone} />
                 </label>
 
                 <label className="block text-sm font-medium text-slate-700">
-                    Email
+                    <span id={getLabelId('email')}>Email</span>
                     <input
                         className={getFieldClassName(Boolean(fieldErrors.email))}
                         value={values.email}
                         onChange={(event) => onChange('email', event.target.value)}
+                        {...getErrorAttributes('email', fieldErrors)}
                         disabled={isSubmitting}
                         autoComplete="email"
                         inputMode="email"
                     />
-                    <FieldError message={fieldErrors.email} />
+                    <FieldError id={getErrorId('email')} message={fieldErrors.email} />
                 </label>
 
                 <label className="block text-sm font-medium text-slate-700">
-                    Gender
+                    <span id={getLabelId('gender')}>Gender</span>
                     <select
                         className={getFieldClassName(Boolean(fieldErrors.gender))}
                         value={values.gender}
                         onChange={(event) => onChange('gender', event.target.value)}
+                        {...getErrorAttributes('gender', fieldErrors)}
                         disabled={isSubmitting}
                     >
                         <option value="">Not specified</option>
@@ -122,33 +149,35 @@ function PatientForm({
                         <option value={Gender.OTHER}>Other</option>
                         <option value={Gender.PREFER_NOT_TO_SAY}>Prefer not to say</option>
                     </select>
-                    <FieldError message={fieldErrors.gender} />
+                    <FieldError id={getErrorId('gender')} message={fieldErrors.gender} />
                 </label>
             </FormSection>
 
             <FormSection title="Demographics" description="Age or date of birth is optional.">
                 <label className="block text-sm font-medium text-slate-700">
-                    Date of birth
+                    <span id={getLabelId('dateOfBirth')}>Date of birth</span>
                     <input
                         className={getFieldClassName(Boolean(fieldErrors.dateOfBirth))}
                         value={values.dateOfBirth}
                         onChange={(event) => onChange('dateOfBirth', event.target.value)}
+                        {...getErrorAttributes('dateOfBirth', fieldErrors)}
                         disabled={isSubmitting}
                         type="date"
                     />
-                    <FieldError message={fieldErrors.dateOfBirth} />
+                    <FieldError id={getErrorId('dateOfBirth')} message={fieldErrors.dateOfBirth} />
                 </label>
 
                 <label className="block text-sm font-medium text-slate-700">
-                    Age
+                    <span id={getLabelId('age')}>Age</span>
                     <input
                         className={getFieldClassName(Boolean(fieldErrors.age))}
                         value={values.age}
                         onChange={(event) => onChange('age', event.target.value)}
+                        {...getErrorAttributes('age', fieldErrors)}
                         disabled={isSubmitting}
                         inputMode="numeric"
                     />
-                    <FieldError message={fieldErrors.age} />
+                    <FieldError id={getErrorId('age')} message={fieldErrors.age} />
                 </label>
             </FormSection>
 
@@ -157,83 +186,90 @@ function PatientForm({
                 description="Residential location is optional and can be completed later."
             >
                 <label className="block text-sm font-medium text-slate-700 md:col-span-2">
-                    Address line 1
+                    <span id={getLabelId('addressLine1')}>Address line 1</span>
                     <textarea
                         className={getFieldClassName(Boolean(fieldErrors.addressLine1))}
                         value={values.addressLine1}
                         onChange={(event) => onChange('addressLine1', event.target.value)}
+                        {...getErrorAttributes('addressLine1', fieldErrors)}
                         disabled={isSubmitting}
                         rows={2}
                         autoComplete="address-line1"
-                        aria-invalid={Boolean(fieldErrors.addressLine1)}
                     />
-                    <FieldError message={fieldErrors.addressLine1} />
+                    <FieldError
+                        id={getErrorId('addressLine1')}
+                        message={fieldErrors.addressLine1}
+                    />
                 </label>
 
                 <label className="block text-sm font-medium text-slate-700 md:col-span-2">
-                    Address line 2
+                    <span id={getLabelId('addressLine2')}>Address line 2</span>
                     <textarea
                         className={getFieldClassName(Boolean(fieldErrors.addressLine2))}
                         value={values.addressLine2}
                         onChange={(event) => onChange('addressLine2', event.target.value)}
+                        {...getErrorAttributes('addressLine2', fieldErrors)}
                         disabled={isSubmitting}
                         rows={2}
                         autoComplete="address-line2"
-                        aria-invalid={Boolean(fieldErrors.addressLine2)}
                     />
-                    <FieldError message={fieldErrors.addressLine2} />
+                    <FieldError
+                        id={getErrorId('addressLine2')}
+                        message={fieldErrors.addressLine2}
+                    />
                 </label>
 
                 <label className="block text-sm font-medium text-slate-700">
-                    City
+                    <span id={getLabelId('city')}>City</span>
                     <input
                         className={getFieldClassName(Boolean(fieldErrors.city))}
                         value={values.city}
                         onChange={(event) => onChange('city', event.target.value)}
+                        {...getErrorAttributes('city', fieldErrors)}
                         disabled={isSubmitting}
                         autoComplete="address-level2"
                     />
-                    <FieldError message={fieldErrors.city} />
+                    <FieldError id={getErrorId('city')} message={fieldErrors.city} />
                 </label>
 
                 <label className="block text-sm font-medium text-slate-700">
-                    State
+                    <span id={getLabelId('state')}>State</span>
                     <input
                         className={getFieldClassName(Boolean(fieldErrors.state))}
                         value={values.state}
                         onChange={(event) => onChange('state', event.target.value)}
+                        {...getErrorAttributes('state', fieldErrors)}
                         disabled={isSubmitting}
                         autoComplete="address-level1"
-                        aria-invalid={Boolean(fieldErrors.state)}
                     />
-                    <FieldError message={fieldErrors.state} />
+                    <FieldError id={getErrorId('state')} message={fieldErrors.state} />
                 </label>
 
                 <label className="block text-sm font-medium text-slate-700">
-                    Pincode
+                    <span id={getLabelId('pincode')}>Pincode</span>
                     <input
                         className={getFieldClassName(Boolean(fieldErrors.pincode))}
                         value={values.pincode}
                         onChange={(event) => onChange('pincode', event.target.value)}
+                        {...getErrorAttributes('pincode', fieldErrors)}
                         disabled={isSubmitting}
                         autoComplete="postal-code"
                         inputMode="numeric"
-                        aria-invalid={Boolean(fieldErrors.pincode)}
                     />
-                    <FieldError message={fieldErrors.pincode} />
+                    <FieldError id={getErrorId('pincode')} message={fieldErrors.pincode} />
                 </label>
 
                 <label className="block text-sm font-medium text-slate-700">
-                    Country
+                    <span id={getLabelId('country')}>Country</span>
                     <input
                         className={getFieldClassName(Boolean(fieldErrors.country))}
                         value={values.country}
                         onChange={(event) => onChange('country', event.target.value)}
+                        {...getErrorAttributes('country', fieldErrors)}
                         disabled={isSubmitting}
                         autoComplete="country-name"
-                        aria-invalid={Boolean(fieldErrors.country)}
                     />
-                    <FieldError message={fieldErrors.country} />
+                    <FieldError id={getErrorId('country')} message={fieldErrors.country} />
                 </label>
             </FormSection>
 
@@ -249,40 +285,49 @@ function PatientForm({
 
             <FormSection title="Emergency Contact">
                 <label className="block text-sm font-medium text-slate-700">
-                    Emergency contact name
+                    <span id={getLabelId('emergencyContactName')}>Emergency contact name</span>
                     <input
                         className={getFieldClassName(Boolean(fieldErrors.emergencyContactName))}
                         value={values.emergencyContactName}
                         onChange={(event) => onChange('emergencyContactName', event.target.value)}
+                        {...getErrorAttributes('emergencyContactName', fieldErrors)}
                         disabled={isSubmitting}
                     />
-                    <FieldError message={fieldErrors.emergencyContactName} />
+                    <FieldError
+                        id={getErrorId('emergencyContactName')}
+                        message={fieldErrors.emergencyContactName}
+                    />
                 </label>
 
                 <label className="block text-sm font-medium text-slate-700">
-                    Emergency contact phone
+                    <span id={getLabelId('emergencyContactPhone')}>Emergency contact phone</span>
                     <input
                         className={getFieldClassName(Boolean(fieldErrors.emergencyContactPhone))}
                         value={values.emergencyContactPhone}
                         onChange={(event) => onChange('emergencyContactPhone', event.target.value)}
+                        {...getErrorAttributes('emergencyContactPhone', fieldErrors)}
                         disabled={isSubmitting}
                         autoComplete="tel"
                     />
-                    <FieldError message={fieldErrors.emergencyContactPhone} />
+                    <FieldError
+                        id={getErrorId('emergencyContactPhone')}
+                        message={fieldErrors.emergencyContactPhone}
+                    />
                 </label>
             </FormSection>
 
             <FormSection title="Notes">
                 <label className="block text-sm font-medium text-slate-700 md:col-span-2">
-                    Notes
+                    <span id={getLabelId('notes')}>Notes</span>
                     <textarea
                         className={getFieldClassName(Boolean(fieldErrors.notes))}
                         value={values.notes}
                         onChange={(event) => onChange('notes', event.target.value)}
+                        {...getErrorAttributes('notes', fieldErrors)}
                         disabled={isSubmitting}
                         rows={3}
                     />
-                    <FieldError message={fieldErrors.notes} />
+                    <FieldError id={getErrorId('notes')} message={fieldErrors.notes} />
                 </label>
             </FormSection>
 

@@ -302,6 +302,7 @@ function StaffManagementPage() {
 
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
             setEmailError('Enter a valid staff email address.');
+            document.getElementById('staff-invite-email')?.focus();
             return;
         }
 
@@ -497,9 +498,14 @@ function StaffManagementPage() {
             >
                 <form
                     className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end"
+                    noValidate
                     onSubmit={(event) => void handleCreateInvitation(event)}
                 >
-                    <FormField label="Email address" error={emailError ?? undefined}>
+                    <FormField
+                        label="Email address"
+                        error={emailError ?? undefined}
+                        errorId="staff-invite-email-error"
+                    >
                         <Input
                             id="staff-invite-email"
                             type="email"
@@ -509,6 +515,8 @@ function StaffManagementPage() {
                             placeholder="staff@example.com"
                             disabled={isCreating}
                             required
+                            aria-invalid={Boolean(emailError)}
+                            aria-describedby={emailError ? 'staff-invite-email-error' : undefined}
                         />
                     </FormField>
                     <Button type="submit" isLoading={isCreating} loadingText="Sending...">
