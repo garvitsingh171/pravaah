@@ -254,14 +254,22 @@ describe('roles and two-clinic isolation', () => {
         expect(
             (await prisma.appointment.findUniqueOrThrow({ where: { id: ids.appointmentA } })).status
         ).toBe('CONFIRMED');
-        expect(
-            (
-                await request('PATCH', `/api/clinics/${ids.clinicA}/queue/reorder`, 'staff-a', {
-                    date: fixtures.fixtureDate,
-                    queueEntryIds: [ids.queueSharedA, ids.queueA],
-                })
-            ).status
-        ).toBe(200);
+        const clinicBQueueBefore = await prisma.queueEntry.findMany({
+            where: { clinicId: ids.clinicB },
+            orderBy: { id: 'asc' },
+            select: { id: true, position: true, status: true },
+        });
+        const reorderResult = await request(
+            'PATCH',
+            `/api/clinics/${ids.clinicA}/queue/reorder`,
+            'staff-a',
+            {
+                date: fixtures.fixtureDate,
+                queueEntryIds: [ids.queueSharedA, ids.queueA],
+                expectedQueueEntryIds: [ids.queueA, ids.queueSharedA],
+            }
+        );
+        expect(reorderResult.status).toBe(200);
         const positions = await prisma.queueEntry.findMany({
             where: { clinicId: ids.clinicA },
             orderBy: { position: 'asc' },
@@ -271,6 +279,13 @@ describe('roles and two-clinic isolation', () => {
             { id: ids.queueSharedA, position: 1 },
             { id: ids.queueA, position: 2 },
         ]);
+        expect(
+            await prisma.queueEntry.findMany({
+                where: { clinicId: ids.clinicB },
+                orderBy: { id: 'asc' },
+                select: { id: true, position: true, status: true },
+            })
+        ).toEqual(clinicBQueueBefore);
     });
 
     it.each([
@@ -464,32 +479,128 @@ describe('roles and two-clinic isolation', () => {
 
     it('blocks foreign queue status and reorder operations without shifting any positions', async () => {
         const { ids } = fixtures;
-        for (const [identity, foreignClinic, foreignEntry] of [
-            ['staff-a', ids.clinicB, ids.queueB],
-            ['staff-b', ids.clinicA, ids.queueA],
+        for (const [identity, foreignClinic, foreignEntry, observedOrder, proposedOrder] of [
+            ['staff-a', ids.clinicB, ids.queueB, [ids.queueB], [ids.queueB]],
+            [
+                'staff-b',
+                ids.clinicA,
+                ids.queueA,
+                [ids.queueA, ids.queueSharedA],
+                [ids.queueSharedA, ids.queueA],
+            ],
         ] as const) {
             await deniedWithoutMutation(
                 'PATCH',
                 `/api/clinics/${foreignClinic}/queue/${foreignEntry}/status`,
                 identity,
-                { status: 'ARRIVED' },
+                { status: 'ARRIVED', expectedStatus: 'WAITING' },
                 403
             );
-            await deniedWithoutMutation(
+            const deniedReorder = await deniedWithoutMutation(
                 'PATCH',
                 `/api/clinics/${foreignClinic}/queue/reorder`,
                 identity,
-                { date: fixtures.fixtureDate, queueEntryIds: [foreignEntry] },
+                {
+                    date: fixtures.fixtureDate,
+                    queueEntryIds: proposedOrder,
+                    expectedQueueEntryIds: observedOrder,
+                },
                 403
             );
+            expect(deniedReorder.body).toMatchObject({
+                error: { code: 'CLINIC_ACCESS_DENIED' },
+            });
+            expect(deniedReorder.body).not.toHaveProperty('data');
         }
-        await deniedWithoutMutation(
+        const deniedForeignEntry = await deniedWithoutMutation(
             'PATCH',
             `/api/clinics/${ids.clinicA}/queue/reorder`,
             'staff-a',
-            { date: fixtures.fixtureDate, queueEntryIds: [ids.queueB] },
-            [400, 403, 404]
+            {
+                date: fixtures.fixtureDate,
+                queueEntryIds: [ids.queueB],
+                expectedQueueEntryIds: [ids.queueB],
+            },
+            403
         );
+        expect(deniedForeignEntry.body).toMatchObject({
+            error: { code: 'QUEUE_ENTRY_CLINIC_MISMATCH' },
+        });
+        expect(deniedForeignEntry.body).not.toHaveProperty('data');
+    });
+
+    it('rejects a malformed same-clinic reorder before changing queue state', async () => {
+        const { ids } = fixtures;
+        const result = await deniedWithoutMutation(
+            'PATCH',
+            `/api/clinics/${ids.clinicA}/queue/reorder`,
+            'staff-a',
+            { date: fixtures.fixtureDate, queueEntryIds: [ids.queueSharedA, ids.queueA] },
+            400
+        );
+        expect(result.body).toMatchObject({
+            error: {
+                code: 'VALIDATION_ERROR',
+                details: expect.arrayContaining([
+                    expect.objectContaining({ field: 'body.expectedQueueEntryIds' }),
+                ]),
+            },
+        });
+    });
+
+    it('rejects a cross-doctor reorder within the same clinic without side effects', async () => {
+        const { ids } = fixtures;
+        const result = await deniedWithoutMutation(
+            'PATCH',
+            `/api/clinics/${ids.clinicB}/queue/reorder`,
+            'staff-b',
+            {
+                date: fixtures.fixtureDate,
+                queueEntryIds: [ids.queueSharedB, ids.queueB],
+                expectedQueueEntryIds: [ids.queueB, ids.queueSharedB],
+            },
+            400
+        );
+        expect(result.body).toMatchObject({ error: { code: 'QUEUE_SCOPE_MISMATCH' } });
+    });
+
+    it('rejects a stale same-doctor reorder and preserves the winning order', async () => {
+        const { ids } = fixtures;
+        const observedOrder = [ids.queueA, ids.queueSharedA];
+        const winningOrder = [ids.queueSharedA, ids.queueA];
+        const winner = await request(
+            'PATCH',
+            `/api/clinics/${ids.clinicA}/queue/reorder`,
+            'staff-a',
+            {
+                date: fixtures.fixtureDate,
+                queueEntryIds: winningOrder,
+                expectedQueueEntryIds: observedOrder,
+            }
+        );
+        expect(winner.status).toBe(200);
+
+        const stale = await deniedWithoutMutation(
+            'PATCH',
+            `/api/clinics/${ids.clinicA}/queue/reorder`,
+            'admin-a',
+            {
+                date: fixtures.fixtureDate,
+                queueEntryIds: observedOrder,
+                expectedQueueEntryIds: observedOrder,
+            },
+            409
+        );
+        expect(stale.body).toMatchObject({ error: { code: 'QUEUE_REORDER_CONFLICT' } });
+        const positions = await prisma.queueEntry.findMany({
+            where: { clinicId: ids.clinicA, doctorId: ids.doctorA },
+            orderBy: { position: 'asc' },
+            select: { id: true, position: true },
+        });
+        expect(positions).toEqual([
+            { id: ids.queueSharedA, position: 1 },
+            { id: ids.queueA, position: 2 },
+        ]);
     });
 
     it('blocks foreign prediction feedback reads and writes', async () => {
