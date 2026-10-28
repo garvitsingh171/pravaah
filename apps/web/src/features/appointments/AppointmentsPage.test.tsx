@@ -124,6 +124,29 @@ describe('AppointmentsPage primary status action', () => {
         expect(await screen.findByText('Status updated to confirmed.')).toBeInTheDocument();
     });
 
+    it('moves focus to status feedback when an updated row leaves the filtered list', async () => {
+        const user = userEvent.setup();
+        let currentStatus: AppointmentStatus = AppointmentStatus.SCHEDULED;
+        listAppointments.mockImplementation(
+            async (_clinicId: string, filters: { status?: AppointmentStatus }) => ({
+                appointments: filters.status === currentStatus ? [appointment] : [],
+                pagination: { page: 1, limit: 15, hasNextPage: false },
+            })
+        );
+        updateAppointmentStatus.mockImplementation(async () => {
+            currentStatus = AppointmentStatus.CONFIRMED;
+            return { appointment: { ...appointment, status: currentStatus } };
+        });
+        renderWithProviders(<AppointmentsPage />, {
+            activeClinic: adminActiveClinic,
+            route: '/appointments?status=SCHEDULED',
+        });
+        await user.click(await screen.findByRole('button', { name: 'Confirm' }));
+        const feedback = await screen.findByText('Status updated to confirmed.');
+        await waitFor(() => expect(feedback).toHaveFocus());
+        expect(screen.queryByRole('button', { name: 'Confirm' })).not.toBeInTheDocument();
+    });
+
     it('requests server pages and server patient search', async () => {
         const user = userEvent.setup();
         const rows = Array.from({ length: 17 }, (_, index) => ({

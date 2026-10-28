@@ -173,7 +173,25 @@ describe('QueuePage manual reorder controls', () => {
         expect(new Set(payload.queueEntryIds).size).toBe(payload.queueEntryIds.length);
         expect(payload.queueEntryIds).not.toContain(firstEntry.patientId);
         expect(payload.queueEntryIds).not.toContain(firstEntry.appointmentId);
-        expect((await screen.findAllByText('Moved Riya Malhotra.'))[0]).toBeVisible();
+        expect(await screen.findByText('Queue entry moved to position 2.')).toBeVisible();
+    });
+
+    it('moves an entry with the keyboard and keeps a contextual action available', async () => {
+        const user = userEvent.setup();
+        mockListTodayQueue.mockResolvedValue({ queueEntries: [firstEntry, secondEntry] });
+        mockReorderQueue.mockResolvedValue({
+            queueEntries: [
+                { ...secondEntry, position: 1 },
+                { ...firstEntry, position: 2 },
+            ],
+        });
+        renderQueuePage();
+        const moveDown = await screen.findByRole('button', { name: /move riya malhotra down/i });
+        moveDown.focus();
+        await user.keyboard('{Enter}');
+        await waitFor(() => expect(mockReorderQueue).toHaveBeenCalledOnce());
+        expect(await screen.findByText('Position 2')).toBeVisible();
+        expect(screen.getByRole('button', { name: /move riya malhotra up/i })).toBeEnabled();
     });
 
     it('disables move and status controls while saving and prevents repeated reorder requests', async () => {
@@ -217,7 +235,7 @@ describe('QueuePage manual reorder controls', () => {
             ],
         });
 
-        expect((await screen.findAllByText('Moved Riya Malhotra.'))[0]).toBeVisible();
+        expect(await screen.findByText('Queue entry moved to position 2.')).toBeVisible();
     });
 
     it('keeps the last confirmed order and selected filters after reorder failure', async () => {

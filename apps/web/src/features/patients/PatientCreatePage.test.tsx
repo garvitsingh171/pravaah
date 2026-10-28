@@ -24,6 +24,31 @@ describe('PatientCreatePage booking return', () => {
         createPatient.mockReset().mockResolvedValue({ patient: { id: 'new-patient-id' } });
     });
 
+    it('focuses the first invalid field and connects its error text', async () => {
+        const user = userEvent.setup();
+        render(
+            <MemoryRouter initialEntries={['/patients/new']}>
+                <ActiveClinicReactContext.Provider value={adminActiveClinic}>
+                    <ToastProvider>
+                        <Routes>
+                            <Route path="/patients/new" element={<PatientCreatePage />} />
+                        </Routes>
+                    </ToastProvider>
+                </ActiveClinicReactContext.Provider>
+            </MemoryRouter>
+        );
+        await user.click(screen.getByRole('button', { name: 'Create patient' }));
+        const name = screen.getByRole('textbox', { name: /full name/i });
+        expect(name).toHaveFocus();
+        expect(name).toHaveAccessibleName('Full name *');
+        expect(name).toHaveAttribute('aria-invalid', 'true');
+        expect(name).toHaveAccessibleDescription('Patient name is required.');
+        expect(screen.getByRole('textbox', { name: /^phone/i })).toHaveAccessibleDescription(
+            'Patient phone number is required.'
+        );
+        expect(createPatient).not.toHaveBeenCalled();
+    });
+
     it('returns the booking draft and selects the newly created patient', async () => {
         const user = userEvent.setup();
         const bookingDraft = {

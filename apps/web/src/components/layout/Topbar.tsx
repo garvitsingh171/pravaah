@@ -85,7 +85,7 @@ function Topbar({ clinicName, supportingText, title, userName, userEmail, userRo
                             {clinicName} <span aria-hidden="true">/</span> Workspace
                         </p>
                         <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-                            <h1 className="truncate text-lg font-semibold leading-tight tracking-tight text-app-text sm:text-xl">
+                            <h1 className="break-words text-lg font-semibold leading-tight tracking-tight text-app-text sm:text-xl">
                                 {title}
                             </h1>
                             {supportingText ? (
@@ -111,15 +111,17 @@ function Topbar({ clinicName, supportingText, title, userName, userEmail, userRo
                             ref={triggerRef}
                             type="button"
                             className="flex min-h-10 items-center gap-2 rounded-full bg-white py-1 pl-1 pr-3 text-sm font-semibold text-slate-800 ring-1 ring-slate-200 transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
-                            aria-haspopup="menu"
+                            aria-label={`Account options for ${userName}`}
                             aria-expanded={isMenuOpen}
-                            aria-controls="workspace-user-menu"
+                            aria-controls={isMenuOpen ? 'workspace-user-menu' : undefined}
                             onClick={() => setIsMenuOpen((current) => !current)}
                         >
                             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-xs font-bold text-white">
                                 {userInitials}
                             </span>
-                            <span className="max-w-[10rem] truncate">{userName}</span>
+                            <span className="hidden max-w-[10rem] truncate sm:inline">
+                                {userName}
+                            </span>
                         </button>
                         <AnimatePresence initial={false}>
                             {isMenuOpen ? (
@@ -129,7 +131,6 @@ function Topbar({ clinicName, supportingText, title, userName, userEmail, userRo
                                     exit={{ opacity: 0, y: -4, scale: 0.98 }}
                                     transition={{ duration: 0.16 }}
                                     id="workspace-user-menu"
-                                    role="menu"
                                     className="setup-dock-enter absolute right-0 top-12 z-[60] w-[min(18rem,calc(100vw-2rem))] min-w-60 rounded-lg bg-white p-2 shadow-[var(--shadow-command)] ring-1 ring-slate-200"
                                 >
                                     <div className="px-3 py-2">
@@ -162,7 +163,6 @@ function Topbar({ clinicName, supportingText, title, userName, userEmail, userRo
                                     </div>
                                     <Link
                                         to={appRoutePaths.profile}
-                                        role="menuitem"
                                         className="mt-1 inline-flex min-h-10 w-full items-center justify-start gap-2 rounded-md px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
                                         onClick={() => setIsMenuOpen(false)}
                                     >
@@ -170,7 +170,6 @@ function Topbar({ clinicName, supportingText, title, userName, userEmail, userRo
                                     </Link>
                                     <button
                                         type="button"
-                                        role="menuitem"
                                         className="mt-1 inline-flex min-h-10 w-full items-center justify-start gap-2 rounded-md px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-[var(--color-status-danger-bg)] hover:text-[var(--color-status-danger-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action disabled:cursor-wait disabled:opacity-70"
                                         disabled={isSigningOut}
                                         onClick={() => void handleSignOut()}

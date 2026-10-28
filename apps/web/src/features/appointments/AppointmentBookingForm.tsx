@@ -1,4 +1,4 @@
-import type { FormEvent } from 'react';
+import { useLayoutEffect, useRef, type FormEvent } from 'react';
 import { FieldError } from '../../components/feedback';
 import { Button, fieldControlClassName } from '../../components/ui';
 import type { DoctorSummary, PatientSummary } from '../../types';
@@ -32,6 +32,8 @@ type AppointmentBookingFormProps = {
     onSubmit: () => void;
     onAddPatient: () => void;
     patientSearch: string;
+    isLoadingPatients: boolean;
+    patientSearchError?: string | null;
     onPatientSearchChange: (value: string) => void;
 };
 
@@ -42,6 +44,9 @@ const getFieldClassName = (hasError: boolean): string => {
         hasError ? 'border-[var(--color-status-danger-border)]' : ''
     } disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500`;
 };
+
+const getFieldLabelId = (field: keyof AppointmentBookingFormValues) =>
+    `appointment-booking-${field}-label`;
 
 const getFieldErrorId = (field: keyof AppointmentBookingFormValues): string => {
     return `appointment-booking-${field}-error`;
@@ -94,26 +99,39 @@ function AppointmentBookingForm({
     onSubmit,
     onAddPatient,
     patientSearch,
+    isLoadingPatients,
+    patientSearchError,
     onPatientSearchChange,
 }: AppointmentBookingFormProps) {
+    const formRef = useRef<HTMLFormElement>(null);
+    const focusErrorAfterSubmit = useRef(false);
+
+    useLayoutEffect(() => {
+        if (!focusErrorAfterSubmit.current || !Object.values(fieldErrors).some(Boolean)) return;
+        formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+        focusErrorAfterSubmit.current = false;
+    }, [fieldErrors]);
+
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+        focusErrorAfterSubmit.current = true;
         onSubmit();
     };
 
     const controlsDisabled = isSubmitting || isDisabled;
     const selectedDoctor = doctors.find((doctor) => doctor.id === values.doctorId);
     const selectedPatient = patients.find((patient) => patient.id === values.patientId);
+    const searchMatches = patients.filter((patient) =>
+        getPatientOptionLabel(patient)
+            .toLocaleLowerCase()
+            .includes(patientSearch.trim().toLocaleLowerCase())
+    );
     const matchingPatients = patients.filter(
-        (patient) =>
-            getPatientOptionLabel(patient)
-                .toLocaleLowerCase()
-                .includes(patientSearch.trim().toLocaleLowerCase()) ||
-            patient.id === values.patientId
+        (patient) => searchMatches.includes(patient) || patient.id === values.patientId
     );
 
     return (
-        <form className="space-y-6" noValidate onSubmit={handleSubmit}>
+        <form ref={formRef} className="space-y-6" noValidate onSubmit={handleSubmit}>
             <fieldset className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                 <legend className="px-1 text-sm font-semibold text-slate-950">
                     Clinic records
@@ -123,13 +141,16 @@ function AppointmentBookingForm({
                 </p>
                 <div className="grid gap-5 md:grid-cols-2">
                     <label className="block text-sm font-medium text-slate-700">
-                        Doctor <RequiredMark />
+                        <span id={getFieldLabelId('doctorId')}>
+                            Doctor <RequiredMark />
+                        </span>
                         <select
                             className={getFieldClassName(Boolean(fieldErrors.doctorId))}
                             value={values.doctorId}
                             onChange={(event) => onChange('doctorId', event.target.value)}
                             disabled={controlsDisabled}
                             aria-invalid={Boolean(fieldErrors.doctorId)}
+                            aria-labelledby={getFieldLabelId('doctorId')}
                             aria-describedby={getFieldErrorDescriptionId('doctorId', fieldErrors)}
                             required
                         >
@@ -162,16 +183,26 @@ function AppointmentBookingForm({
                                 value={patientSearch}
                                 onChange={(event) => onPatientSearchChange(event.target.value)}
                                 disabled={isSubmitting}
+                                aria-describedby="appointment-booking-patient-search-help appointment-booking-patient-search-status"
                             />
                         </label>
+                        <p
+                            id="appointment-booking-patient-search-help"
+                            className="mt-1 text-xs text-slate-600"
+                        >
+                            Search by name or phone, then choose a patient from the list below.
+                        </p>
                         <label className="mt-3 block text-sm font-medium text-slate-700">
-                            Patient <RequiredMark />
+                            <span id={getFieldLabelId('patientId')}>
+                                Patient <RequiredMark />
+                            </span>
                             <select
                                 className={getFieldClassName(Boolean(fieldErrors.patientId))}
                                 value={values.patientId}
                                 onChange={(event) => onChange('patientId', event.target.value)}
                                 disabled={controlsDisabled}
                                 aria-invalid={Boolean(fieldErrors.patientId)}
+                                aria-labelledby={getFieldLabelId('patientId')}
                                 aria-describedby={getFieldErrorDescriptionId(
                                     'patientId',
                                     fieldErrors
@@ -195,11 +226,19 @@ function AppointmentBookingForm({
                                 </span>
                             ) : null}
                         </label>
-                        {matchingPatients.length === 0 && patientSearch ? (
-                            <p className="mt-2 text-xs text-app-muted">
-                                No matching patients in this clinic.
-                            </p>
-                        ) : null}
+                        <p
+                            id="appointment-booking-patient-search-status"
+                            role="status"
+                            className="mt-2 text-xs text-app-muted"
+                        >
+                            {isLoadingPatients
+                                ? 'Searching patients…'
+                                : patientSearchError
+                                  ? 'Patient and doctor options could not be loaded. Retry above.'
+                                  : patientSearch && searchMatches.length === 0
+                                    ? 'No matching patients in this clinic.'
+                                    : `${searchMatches.length} patient${searchMatches.length === 1 ? '' : 's'} available in the list.`}
+                        </p>
                         <button
                             type="button"
                             className="mt-2 min-h-10 text-sm font-semibold text-action underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-action"
@@ -216,7 +255,9 @@ function AppointmentBookingForm({
                 <legend className="px-1 text-sm font-semibold text-slate-950">Timing</legend>
                 <div className="grid gap-5 md:grid-cols-2">
                     <label className="block text-sm font-medium text-slate-700">
-                        Appointment date <RequiredMark />
+                        <span id={getFieldLabelId('appointmentDate')}>
+                            Appointment date <RequiredMark />
+                        </span>
                         <input
                             className={getFieldClassName(Boolean(fieldErrors.appointmentDate))}
                             type="date"
@@ -224,6 +265,7 @@ function AppointmentBookingForm({
                             onChange={(event) => onChange('appointmentDate', event.target.value)}
                             disabled={controlsDisabled}
                             aria-invalid={Boolean(fieldErrors.appointmentDate)}
+                            aria-labelledby={getFieldLabelId('appointmentDate')}
                             aria-describedby={getFieldErrorDescriptionId(
                                 'appointmentDate',
                                 fieldErrors
@@ -237,7 +279,9 @@ function AppointmentBookingForm({
                     </label>
 
                     <label className="block text-sm font-medium text-slate-700">
-                        Duration minutes <RequiredMark />
+                        <span id={getFieldLabelId('durationMinutes')}>
+                            Duration minutes <RequiredMark />
+                        </span>
                         <input
                             className={getFieldClassName(Boolean(fieldErrors.durationMinutes))}
                             value={values.durationMinutes}
@@ -248,6 +292,7 @@ function AppointmentBookingForm({
                             step="1"
                             inputMode="numeric"
                             aria-invalid={Boolean(fieldErrors.durationMinutes)}
+                            aria-labelledby={getFieldLabelId('durationMinutes')}
                             aria-describedby={getFieldErrorDescriptionId(
                                 'durationMinutes',
                                 fieldErrors
@@ -261,7 +306,9 @@ function AppointmentBookingForm({
                     </label>
 
                     <label className="block text-sm font-medium text-slate-700 md:col-span-2">
-                        Available slot <RequiredMark />
+                        <span id={getFieldLabelId('scheduledAt')}>
+                            Available slot <RequiredMark />
+                        </span>
                         <select
                             className={getFieldClassName(Boolean(fieldErrors.scheduledAt))}
                             value={values.scheduledAt}
@@ -273,6 +320,7 @@ function AppointmentBookingForm({
                                 availableSlots.length === 0
                             }
                             aria-invalid={Boolean(fieldErrors.scheduledAt)}
+                            aria-labelledby={getFieldLabelId('scheduledAt')}
                             aria-describedby={getFieldErrorDescriptionId(
                                 'scheduledAt',
                                 fieldErrors
@@ -313,29 +361,39 @@ function AppointmentBookingForm({
                 </p>
                 <div className="grid gap-5">
                     <label className="block text-sm font-medium text-slate-700 md:col-span-2">
-                        Reason{' '}
-                        <span className="text-xs font-normal text-slate-500">(optional)</span>
+                        <span id={getFieldLabelId('reason')}>
+                            Reason{' '}
+                            <span className="text-xs font-normal text-slate-500">(optional)</span>
+                        </span>
                         <input
                             className={getFieldClassName(Boolean(fieldErrors.reason))}
                             value={values.reason}
                             onChange={(event) => onChange('reason', event.target.value)}
                             disabled={controlsDisabled}
                             placeholder="Fever, follow-up, consultation"
+                            aria-invalid={Boolean(fieldErrors.reason)}
+                            aria-labelledby={getFieldLabelId('reason')}
+                            aria-describedby={getFieldErrorDescriptionId('reason', fieldErrors)}
                         />
-                        <FieldError message={fieldErrors.reason} />
+                        <FieldError id={getFieldErrorId('reason')} message={fieldErrors.reason} />
                     </label>
 
                     <label className="block text-sm font-medium text-slate-700 md:col-span-2">
-                        Staff notes{' '}
-                        <span className="text-xs font-normal text-slate-500">(optional)</span>
+                        <span id={getFieldLabelId('notes')}>
+                            Staff notes{' '}
+                            <span className="text-xs font-normal text-slate-500">(optional)</span>
+                        </span>
                         <textarea
                             className={getFieldClassName(Boolean(fieldErrors.notes))}
                             value={values.notes}
                             onChange={(event) => onChange('notes', event.target.value)}
                             disabled={controlsDisabled}
                             rows={3}
+                            aria-invalid={Boolean(fieldErrors.notes)}
+                            aria-labelledby={getFieldLabelId('notes')}
+                            aria-describedby={getFieldErrorDescriptionId('notes', fieldErrors)}
                         />
-                        <FieldError message={fieldErrors.notes} />
+                        <FieldError id={getFieldErrorId('notes')} message={fieldErrors.notes} />
                     </label>
                 </div>
             </fieldset>

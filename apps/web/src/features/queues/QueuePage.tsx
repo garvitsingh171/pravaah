@@ -570,14 +570,14 @@ function QueueEntryCard({
                             direction="up"
                             disabled={!canMoveUp || queueActionBusy}
                             isBusy={isMoving && canMoveUp}
-                            label={`Move ${queueEntry.patient.fullName} up`}
+                            label={`Move ${queueEntry.patient.fullName} up from position ${queueEntry.position}`}
                             onClick={() => handleQueueMove(queueEntry, -1)}
                         />
                         <QueueMoveButton
                             direction="down"
                             disabled={!canMoveDown || queueActionBusy}
                             isBusy={isMoving && canMoveDown}
-                            label={`Move ${queueEntry.patient.fullName} down`}
+                            label={`Move ${queueEntry.patient.fullName} down from position ${queueEntry.position}`}
                             onClick={() => handleQueueMove(queueEntry, 1)}
                         />
                     </div>
@@ -1076,8 +1076,14 @@ function QueuePage() {
                 error: null,
             });
             setLastRefreshedAt(new Date());
-            setReorderMessage(`Moved ${queueEntry.patient.fullName}.`);
-            showSuccessToast('Queue order updated successfully.');
+            const updatedPosition = data.queueEntries.find(
+                (entry) => entry.id === queueEntry.id
+            )?.position;
+            setReorderMessage(
+                updatedPosition
+                    ? `Queue entry moved to position ${updatedPosition}.`
+                    : 'Queue order updated.'
+            );
         } catch (error) {
             setQueueListState({
                 status: 'success',

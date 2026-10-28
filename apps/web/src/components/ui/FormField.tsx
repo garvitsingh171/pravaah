@@ -9,6 +9,7 @@ import { cx } from './classNames';
 type FormFieldProps = LabelHTMLAttributes<HTMLLabelElement> & {
     label: string;
     error?: string;
+    errorId?: string;
     hint?: ReactNode;
 };
 
@@ -19,26 +20,32 @@ export function FormField({
     children,
     className,
     error,
+    errorId,
     hint,
     label,
     ...labelProps
 }: FormFieldProps) {
     return (
-        <label
-            {...labelProps}
-            className={cx('block text-sm font-medium text-app-muted', className)}
-        >
-            {label}
-            {children}
+        <div>
+            <label
+                {...labelProps}
+                className={cx('block text-sm font-medium text-app-muted', className)}
+            >
+                {label}
+                {children}
+            </label>
             {hint ? (
                 <span className="mt-1 block text-xs font-normal text-app-subtle">{hint}</span>
             ) : null}
             {error ? (
-                <span className="mt-1 block text-xs font-medium text-[var(--color-status-danger-text)]">
+                <span
+                    id={errorId}
+                    className="mt-1 block text-xs font-medium text-[var(--color-status-danger-text)]"
+                >
                     {error}
                 </span>
             ) : null}
-        </label>
+        </div>
     );
 }
 
