@@ -196,6 +196,20 @@ describe('queueService.updateQueueStatus', () => {
         });
     });
 
+    it('rejects a status action based on an older row snapshot', async () => {
+        mockQueueRepository.findQueueEntryById.mockResolvedValue(
+            createQueueEntry({ status: QueueStatus.CALLED })
+        );
+
+        await expect(
+            queueService.updateQueueStatus(authenticatedUser, 'clinic-id', 'queue-entry-id', {
+                status: QueueStatus.COMPLETED,
+                expectedStatus: QueueStatus.WAITING,
+            })
+        ).rejects.toMatchObject({ statusCode: 409, code: 'STATUS_SYNC_CONFLICT' });
+        expect(mockQueueRepository.updateQueueEntryStatus).not.toHaveBeenCalled();
+    });
+
     it('returns a domain error when a queue update implies an invalid appointment transition', async () => {
         mockQueueRepository.findQueueEntryById.mockResolvedValue(createQueueEntry());
         mockQueueRepository.updateQueueEntryStatus.mockRejectedValue(
@@ -353,7 +367,8 @@ describe('queueService.reorderQueue', () => {
             authenticatedUser,
             'clinic-id',
             '2026-06-20',
-            requestedIds
+            requestedIds,
+            [firstEntry.id, secondEntry.id]
         );
 
         expect(mockQueueRepository.findActiveQueueByClinicDoctorDate).toHaveBeenCalledWith(
@@ -369,6 +384,7 @@ describe('queueService.reorderQueue', () => {
             '2026-06-20',
             'Asia/Kolkata',
             requestedIds,
+            [firstEntry.id, secondEntry.id],
             ['ARRIVED', 'WAITING', 'CALLED']
         );
         expect(result.map((queueEntry) => queueEntry.id)).toEqual(requestedIds);
@@ -376,10 +392,13 @@ describe('queueService.reorderQueue', () => {
 
     it('rejects duplicate queue entry ids before repository membership reads', async () => {
         await expect(
-            queueService.reorderQueue(authenticatedUser, 'clinic-id', '2026-06-20', [
-                'queue-entry-1',
-                'queue-entry-1',
-            ])
+            queueService.reorderQueue(
+                authenticatedUser,
+                'clinic-id',
+                '2026-06-20',
+                ['queue-entry-1', 'queue-entry-1'],
+                ['queue-entry-1', 'queue-entry-1']
+            )
         ).rejects.toMatchObject({
             code: 'QUEUE_REORDER_DUPLICATE_ENTRY',
             statusCode: 400,
@@ -401,10 +420,13 @@ describe('queueService.reorderQueue', () => {
         ]);
 
         await expect(
-            queueService.reorderQueue(authenticatedUser, 'clinic-id', '2026-06-20', [
-                'queue-entry-1',
-                'queue-entry-2',
-            ])
+            queueService.reorderQueue(
+                authenticatedUser,
+                'clinic-id',
+                '2026-06-20',
+                ['queue-entry-1', 'queue-entry-2'],
+                ['queue-entry-1', 'queue-entry-2']
+            )
         ).rejects.toMatchObject({
             code: 'QUEUE_SCOPE_MISMATCH',
             statusCode: 400,
@@ -428,12 +450,16 @@ describe('queueService.reorderQueue', () => {
         ]);
 
         await expect(
-            queueService.reorderQueue(authenticatedUser, 'clinic-id', '2026-06-20', [
-                'queue-entry-1',
-            ])
+            queueService.reorderQueue(
+                authenticatedUser,
+                'clinic-id',
+                '2026-06-20',
+                ['queue-entry-1'],
+                ['queue-entry-1']
+            )
         ).rejects.toMatchObject({
-            code: 'QUEUE_REORDER_INCOMPLETE',
-            statusCode: 400,
+            code: 'QUEUE_REORDER_CONFLICT',
+            statusCode: 409,
         });
     });
 
@@ -446,9 +472,13 @@ describe('queueService.reorderQueue', () => {
         ]);
 
         await expect(
-            queueService.reorderQueue(authenticatedUser, 'clinic-id', '2026-06-20', [
-                'queue-entry-1',
-            ])
+            queueService.reorderQueue(
+                authenticatedUser,
+                'clinic-id',
+                '2026-06-20',
+                ['queue-entry-1'],
+                ['queue-entry-1']
+            )
         ).rejects.toMatchObject({
             code: 'QUEUE_ENTRY_FINAL_STATUS',
             statusCode: 409,

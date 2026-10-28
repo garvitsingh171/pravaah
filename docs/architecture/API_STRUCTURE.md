@@ -210,6 +210,10 @@ The global error handler maps `AppError` to the standard error response.
 
 ## Known Endpoint Groups
 
+### Queue concurrency contract
+
+`PATCH /api/clinics/:clinicId/queue/reorder` requires `date`, the proposed complete doctor queue in `queueEntryIds`, and the complete order last fetched by the client in `expectedQueueEntryIds`. Both arrays must contain the same unique IDs. After taking the clinic/doctor/date transaction lock, the server returns `QUEUE_REORDER_CONFLICT` (409) if membership or order has changed. It writes no positions for that request. A queue status PATCH may include `expectedStatus`; a changed row returns `STATUS_SYNC_CONFLICT` (409). The existing clinic, role, lifecycle, and transaction checks remain in force.
+
 - Health
 - Auth/current user
 - Auth/onboarding status

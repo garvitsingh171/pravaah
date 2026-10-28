@@ -76,6 +76,7 @@ export type UpdateQueueStatusResponseData = {
 export type ReorderQueueRequest = {
     date: string;
     queueEntryIds: string[];
+    expectedQueueEntryIds: string[];
 };
 
 export type UpdateQueueStatusRequest =
@@ -83,11 +84,13 @@ export type UpdateQueueStatusRequest =
           status: typeof QueueStatus.CANCELLED;
           cancellationReason: AppointmentCancellationReason;
           cancellationNote?: string;
+          expectedStatus?: QueueStatus;
       }
     | {
           status: typeof QueueStatus.NO_SHOW;
           noShowReason: AppointmentNoShowReason;
           noShowNote?: string;
+          expectedStatus?: QueueStatus;
       }
     | {
           status:
@@ -95,6 +98,7 @@ export type UpdateQueueStatusRequest =
               | typeof QueueStatus.ARRIVED
               | typeof QueueStatus.CALLED
               | typeof QueueStatus.COMPLETED;
+          expectedStatus?: QueueStatus;
       };
 
 export type ReorderQueueResponseData = {

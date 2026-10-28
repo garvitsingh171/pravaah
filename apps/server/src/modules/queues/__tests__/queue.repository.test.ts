@@ -51,6 +51,41 @@ const transactionClient = {
 };
 const eventTimestamp = new Date('2026-09-15T10:20:00.000Z');
 
+describe('queueRepository.reorderQueueEntries', () => {
+    it('rejects an old ordering after the scope lock without writing positions', async () => {
+        const updateMany = vi.fn();
+        const tx = {
+            $executeRaw: vi.fn().mockResolvedValue(1),
+            $queryRaw: vi.fn().mockResolvedValue([
+                {
+                    start: new Date('2026-09-15T00:00:00Z'),
+                    end: new Date('2026-09-16T00:00:00Z'),
+                },
+            ]),
+            queueEntry: {
+                findMany: vi.fn().mockResolvedValue([{ id: 'second' }, { id: 'first' }]),
+                updateMany,
+            },
+        };
+        mockTransaction.mockImplementation(async (operation) => operation(tx));
+
+        await expect(
+            queueRepository.reorderQueueEntries(
+                'clinic',
+                'doctor',
+                '2026-09-15',
+                'Asia/Kolkata',
+                ['first', 'second'],
+                ['first', 'second'],
+                [QueueStatus.WAITING]
+            )
+        ).rejects.toThrow('QUEUE_REORDER_CONFLICT');
+
+        expect(tx.$executeRaw).toHaveBeenCalledOnce();
+        expect(updateMany).not.toHaveBeenCalled();
+    });
+});
+
 describe('queueRepository.updateQueueEntryStatus', () => {
     beforeEach(() => {
         vi.clearAllMocks();

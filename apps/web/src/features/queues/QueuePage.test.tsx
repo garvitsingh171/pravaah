@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import QueuePage from './QueuePage';
@@ -165,6 +165,7 @@ describe('QueuePage manual reorder controls', () => {
             expect(mockReorderQueue).toHaveBeenCalledWith(adminActiveClinic.clinicId, {
                 date: getClinicDateInputValue(adminActiveClinic.clinic?.timezone),
                 queueEntryIds: [secondEntry.id, firstEntry.id],
+                expectedQueueEntryIds: [firstEntry.id, secondEntry.id],
             });
         });
 
@@ -178,20 +179,22 @@ describe('QueuePage manual reorder controls', () => {
 
     it('moves an entry with the keyboard and keeps a contextual action available', async () => {
         const user = userEvent.setup();
-        mockListTodayQueue.mockResolvedValue({ queueEntries: [firstEntry, secondEntry] });
-        mockReorderQueue.mockResolvedValue({
-            queueEntries: [
-                { ...secondEntry, position: 1 },
-                { ...firstEntry, position: 2 },
-            ],
-        });
+        const reorderedEntries = [
+            { ...secondEntry, position: 1 },
+            { ...firstEntry, position: 2 },
+        ];
+        mockListTodayQueue.mockResolvedValueOnce({ queueEntries: [firstEntry, secondEntry] });
+        mockListTodayQueue.mockResolvedValue({ queueEntries: reorderedEntries });
+        mockReorderQueue.mockResolvedValue({ queueEntries: reorderedEntries });
         renderQueuePage();
         const moveDown = await screen.findByRole('button', { name: /move riya malhotra down/i });
         moveDown.focus();
         await user.keyboard('{Enter}');
         await waitFor(() => expect(mockReorderQueue).toHaveBeenCalledOnce());
         expect(await screen.findByText('Position 2')).toBeVisible();
-        expect(screen.getByRole('button', { name: /move riya malhotra up/i })).toBeEnabled();
+        await waitFor(() =>
+            expect(screen.getByRole('button', { name: /move riya malhotra up/i })).toBeEnabled()
+        );
     });
 
     it('disables move and status controls while saving and prevents repeated reorder requests', async () => {
@@ -240,8 +243,14 @@ describe('QueuePage manual reorder controls', () => {
 
     it('keeps the last confirmed order and selected filters after reorder failure', async () => {
         const user = userEvent.setup();
-        mockListTodayQueue.mockResolvedValue({
+        mockListTodayQueue.mockResolvedValueOnce({
             queueEntries: [firstEntry, secondEntry],
+        });
+        mockListTodayQueue.mockResolvedValue({
+            queueEntries: [
+                { ...secondEntry, position: 1 },
+                { ...firstEntry, position: 2 },
+            ],
         });
         mockReorderQueue.mockRejectedValue(
             new ApiClientError({
@@ -262,7 +271,7 @@ describe('QueuePage manual reorder controls', () => {
 
         expect(
             await screen.findAllByText(
-                'Queue changed while reordering. Please refresh and try again.'
+                'Another staff member changed this queue. Refresh and review its order before moving anyone again.'
             )
         ).not.toHaveLength(0);
         expect(screen.getByText('QUEUE_REORDER_CONFLICT')).toBeVisible();
@@ -270,10 +279,73 @@ describe('QueuePage manual reorder controls', () => {
             QueueStatus.WAITING
         );
 
-        const cards = getActiveQueueCards();
+        await waitFor(() => expect(getActiveQueueCards()[0]).toHaveTextContent('Kabir Sen'));
+        expect(getActiveQueueCards()[1]).toHaveTextContent('Riya Malhotra');
+    });
 
-        expect(cards[0]).toHaveTextContent('Riya Malhotra');
-        expect(cards[1]).toHaveTextContent('Kabir Sen');
+    it('keeps the last successful timestamp and rows when refresh fails', async () => {
+        mockListTodayQueue.mockResolvedValueOnce({ queueEntries: [firstEntry, secondEntry] });
+        mockListTodayQueue.mockRejectedValueOnce(
+            new ApiClientError({
+                code: 'API_NETWORK_ERROR',
+                message: 'Could not reach the API.',
+            })
+        );
+        mockListTodayQueue.mockResolvedValue({ queueEntries: [firstEntry, secondEntry] });
+
+        renderQueuePage();
+        await screen.findByText('Riya Malhotra');
+        const timestamp = screen.getByText(/Last updated/).textContent;
+        expect(timestamp).toMatch(/Last updated/);
+
+        await userEvent.click(screen.getByRole('button', { name: /^refresh$/i }));
+        expect(await screen.findByText('Could not reach the API.')).toBeVisible();
+        expect(screen.getByText('Riya Malhotra')).toBeVisible();
+        expect(screen.getByRole('button', { name: /move riya malhotra down/i })).toBeDisabled();
+        expect(
+            screen.getByText(/Refresh failed at .*queue information may be outdated/i)
+        ).toBeVisible();
+        expect(screen.getByText(/Last updated/).textContent).toContain(timestamp);
+
+        await userEvent.click(screen.getByRole('button', { name: /^refresh$/i }));
+        await waitFor(() =>
+            expect(screen.getByRole('button', { name: /move riya malhotra down/i })).toBeEnabled()
+        );
+    });
+
+    it('does not show an empty queue after the first fetch fails', async () => {
+        mockListTodayQueue.mockRejectedValue(
+            new ApiClientError({
+                code: 'API_NETWORK_ERROR',
+                message: 'Could not reach the API.',
+            })
+        );
+        renderQueuePage();
+        expect(await screen.findByText('Could not reach the API.')).toBeVisible();
+        expect(screen.queryByText('No queue entries for today yet.')).not.toBeInTheDocument();
+        expect(screen.getByText(/No confirmed queue data yet/)).toBeVisible();
+    });
+
+    it('marks an unseen queue stale and blocks moves until it can refresh', async () => {
+        vi.useFakeTimers();
+        const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+        try {
+            mockListTodayQueue.mockResolvedValue({ queueEntries: [firstEntry, secondEntry] });
+            await act(async () => {
+                renderQueuePage();
+            });
+            expect(screen.getByText(/Last updated/)).toBeVisible();
+
+            await act(async () => {
+                vi.advanceTimersByTime(90_000);
+            });
+            expect(screen.getByText(/Queue information may be outdated/)).toBeVisible();
+            expect(screen.getByRole('button', { name: /move riya malhotra down/i })).toBeDisabled();
+            expect(mockListTodayQueue).toHaveBeenCalledTimes(1);
+        } finally {
+            visibility.mockRestore();
+            vi.useRealTimers();
+        }
     });
 
     it('does not reorder automatically from no-show risk visibility and leaves status updates available', async () => {
@@ -311,7 +383,7 @@ describe('QueuePage manual reorder controls', () => {
         expect(mockUpdateQueueStatus).toHaveBeenCalledWith(
             adminActiveClinic.clinicId,
             secondEntry.id,
-            { status: QueueStatus.COMPLETED }
+            { status: QueueStatus.COMPLETED, expectedStatus: QueueStatus.WAITING }
         );
     });
 
@@ -350,6 +422,7 @@ describe('QueuePage manual reorder controls', () => {
             firstEntry.id,
             {
                 status: QueueStatus.CANCELLED,
+                expectedStatus: QueueStatus.WAITING,
                 cancellationReason: 'PATIENT_REQUEST',
                 cancellationNote: 'Patient called reception.',
             }
