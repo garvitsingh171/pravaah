@@ -917,6 +917,16 @@ Query:
 - `doctorId` optional UUID
 - `patientId` optional UUID
 - `status` optional appointment status
+- `search` optional trimmed patient name or phone text, 1–100 characters
+- `appointmentId` optional UUID for a selected appointment
+- `page` positive integer, default `1`, maximum `500`
+- `limit` positive integer, default `20`, maximum `100`
+
+The list is ordered by `scheduledAt ASC, id ASC`; the API does not accept a sort field.
+Pagination is applied after clinic-scoped filtering. The response includes
+`data.pagination: { page, limit, hasNextPage }`. It does not include a total count.
+The endpoint selects only the appointment list projection and at most `limit + 1`
+rows to determine whether another page exists.
 
 Response summary:
 
