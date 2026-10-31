@@ -9,7 +9,7 @@ on:
 
 jobs:
     security-regression:
-        name: Security regression (PostgreSQL + XSS)
+        name: Security and concurrency regression (PostgreSQL + XSS)
         runs-on: ubuntu-latest
         timeout-minutes: 20
         env:
@@ -45,7 +45,7 @@ jobs:
             - name: Apply committed migrations to isolated PostgreSQL
               id: migrate
               run: npm run security:migrate -w apps/server
-            - name: Run backend security integration suite
+            - name: Run backend security and concurrency integration suite
               id: backend
               run: npm run test:security -w apps/server
             - name: Run frontend XSS regression tests
