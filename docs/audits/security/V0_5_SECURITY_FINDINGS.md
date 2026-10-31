@@ -4,31 +4,22 @@
 
 | Finding ID | Severity | Confidence | Category | Affected Module | Impact | Evidence | Proposed Fix | Related Issue |
 |---|---|---|---|---|---|---|---|---|
-| SEC-F-01 | Medium (P2) | High | Sensitive data exposure / resource exhaustion | Patient and appointment list APIs | Authorized clinic account can obtain an unbounded response containing patient identity/contact/location and appointment/prediction context; large result sets can increase DB, memory, and response costs. No cross-clinic bypass found. | patient.repository.ts:380-425; appointment.validation.ts:93-111; appointment.repository.ts:139-179; patient.routes.ts:80-90; appointment.routes.ts:55-65 | Add server-enforced pagination and maximum page size; minimize list projections; test clinic scope and limits. | SEC-09, SEC-13, SEC-19 |
+| SEC-F-01 | Medium (P2), resolved | High | Sensitive data exposure / resource exhaustion | Patient and appointment list APIs | Formerly unbounded clinic-local responses; current source enforces pagination and a 100-row maximum. No cross-clinic bypass was identified. | `patient.repository.ts`, `appointment.repository.ts`; Issue #300 PostgreSQL security suite | Resolved before Issue #300; retain list scoping and page-boundary regressions. | SEC-09, SEC-13, SEC-19, #292 |
+| SEC-300-01 | Medium (P1), mitigated | High | Cross-tenant shared-profile integrity | Doctor and patient profile update/geocoding APIs | A linked clinic user could mutate global fields on a Doctor/Patient shared with another clinic, changing data observed and relied upon by that clinic. | Issue #300 PostgreSQL security regression: two clinics, shared profiles, both directions, unchanged state after denied writes | Reject global profile writes whenever another clinic link exists; preserve clinic-local PatientClinic notes. | #300 |
 
-## Confirmed behavior requiring remediation
+## Resolved finding: SEC-F-01 — Unbounded sensitive clinic list responses
 
-### SEC-F-01 — Unbounded sensitive clinic list responses
+The implementation now validates page and limit inputs, uses clinic-scoped deterministic queries, caps pages at 100 records, and returns minimal patient list fields. Issue #300's PostgreSQL suite exercises tenant scoping, default and maximum page boundaries, search, and stable appointment ordering. This supersedes the historical source observations below in earlier audit artifacts.
 
-**Implementation in progress (#292, P1; local working tree; finding remains open pending full review):** The two primary collection routes now validate bounded page/limit inputs and use clinic-scoped, sorted Prisma projections with lookahead. Their React consumers request pages and booking patient search runs on the server. Dashboard appointment previews and high-risk/activity detail lists have response bounds; analytics and the operational daily queue retain deliberate scoped processing. Security regression cases were added to the isolated PostgreSQL suite. See `docs/architecture/API_STRUCTURE.md` for the current contract. The P2 label below reflects the earlier audit; issue #292 assigns P1 priority.
+## Confirmed finding mitigated by Issue #300: SEC-300-01 — Shared profile mutation
 
-- **Severity:** Medium (P2), as a data-minimization and availability risk within a clinic account. It is not evidence of unauthorized cross-clinic access.
-- **Confidence:** High; source trace confirms no pagination parameters or database result bound on these collection paths.
-- **Affected components:** GET /api/clinics/:clinicId/patients and GET /api/clinics/:clinicId/appointments.
-- **Prerequisites:** Attacker has a valid active Staff or Admin account in the clinic, or has compromised such a session. The account is authorized to see clinic records, but current endpoint behavior makes bulk extraction easy and boundedness dependent on database size.
-- **Evidence:**
-  - apps/server/src/modules/patients/patient.validation.ts:94-103 accepts only optional search and active filters.
-  - apps/server/src/modules/patients/patient.repository.ts:380-425 queries clinic-linked rows and has no take/cursor/offset. Its response projection includes name, phone, email, gender, DOB/age, full address, coordinates, emergency contacts, notes and visit counters (:32-83, :415-420).
-  - apps/server/src/modules/appointments/appointment.validation.ts:93-111 accepts optional date, doctor, patient and status only.
-  - apps/server/src/modules/appointments/appointment.repository.ts:139-179 filters by clinic and optional filters, then calls findMany without a result bound. appointmentDetailsInclude (:74-128) includes patient identity/contact/address, doctor/creator data, queue timing and latest prediction feature snapshot.
-  - Both routes require authenticateRequest, clinic access and Staff/Admin role (patient.routes.ts:80-90; appointment.routes.ts:55-65). This materially reduces exposure: a caller cannot use these paths to enumerate another clinic based on traced checks.
-- **Observed result:** Static source trace establishes that a request with omitted filters can return the entire matching clinic collection. No production or database dataset was queried; no volume or performance measurement was attempted.
-- **Impact:** Bulk disclosure by a compromised/insider clinic account, excess exposure beyond the immediate screen need, and avoidable database/memory/network load. No evidence of public access or cross-tenant data.
-- **Root cause:** Collection read contracts do not require page bounds and repositories do not cap result count; list responses reuse detailed record projections.
-- **Recommended fix:** Add stable cursor pagination and a conservative server-enforced maximum page size including a default. Select only fields needed by list screens; fetch full details through object routes. Preserve clinic scope in every page query and use deterministic ordering with a tie-break key. Add request-level rate limits as a separate abuse control.
-- **Safe verification:** In a local/test database with fictional Clinic A and Clinic B rows, request both collections as Clinic A Staff without pagination and confirm current responses include all Clinic A rows and no Clinic B rows. After remediation, test default/max page sizes, cursor stability under inserts, invalid cursor behavior, filters and tenant scope. Do not enumerate production records.
-- **Regression tests:** Patient and appointment repository/service/route tests; see SEC-01 test cases PAG-01 through PAG-06.
-- **References:** SEC-09 (rate limit), SEC-13 (data exposure/logging controls), SEC-19 (regressions).
+- **Severity:** Medium; this is a cross-tenant integrity issue through an intentionally shared identity row.
+- **Affected endpoints:** `PATCH /api/clinics/:clinicId/doctors/:doctorId`, `PATCH /api/clinics/:clinicId/patients/:patientId`, and `POST /api/clinics/:clinicId/patients/:patientId/geocode`.
+- **Root cause:** Route/service checks established that the DoctorClinic or PatientClinic link belonged to the caller's clinic, but the repository then updated the global `Doctor` or `Patient` row. Geocoding also writes global Patient location fields. A second clinic's appointment and list/detail views use that same row.
+- **Reproduction evidence:** The isolated PostgreSQL fixture creates one Doctor and one Patient linked to both fictional clinics. The new HTTP regression sends profile updates as Staff A and Staff B in both directions, plus shared-patient geocoding. Every request is rejected and the business-state snapshot remains unchanged. Clinic A can still change its own PatientClinic notes without changing Clinic B's notes.
+- **Fix:** Doctor profile update runs in a transaction, locks the profile row, and rejects an update when another clinic link exists. Patient profile update uses the same guarded transaction; clinic-local notes remain available. Patient geocoding checks for another clinic link before preparing or calling the provider, and the repository repeats the guard at mutation time.
+- **Regression result:** Passed in the 61-test Issue #300 security suite against isolated PostgreSQL 16. Same-clinic operations are covered by existing positive integration cases.
+- **Residual limitation:** No API currently provides a global shared-profile editing authority. When a Doctor or Patient is shared, neither clinic can change its global profile fields through clinic-scoped endpoints. A future explicit global profile workflow would need separate authorization and audit policy.
 
 ## Preventative hardening and unverified risks
 
@@ -51,14 +42,6 @@ These are not confirmed exploitable vulnerabilities and must not be reported as 
 - **Recommendation:** Verify deployed origins; include localhost only in development. Define appropriate API and frontend headers at the correct hosting layer, with a CSP compatible with Clerk and app resources. Confirm preflight behavior and do not treat CORS as authorization.
 - **Related:** SEC-07, SEC-19.
 
-### SEC-H-03 — Shared Doctor/Patient profile model can cross clinic contexts conditionally
-
-- **Severity:** Low architecture/data-integrity hardening; confidence medium.
-- **Evidence:** Prisma schema models global Doctor and Patient entities linked through DoctorClinic and PatientClinic. Current create flows make one clinic link; update services check the link but update the shared Doctor/Patient profile record. No ordinary endpoint to link an existing record to a second clinic was found.
-- **Risk:** If records acquire multiple clinic links through future functionality, imports, or privileged direct DB operations, changing a global profile through one clinic may affect another clinic's view. This is conditional, not a demonstrated cross-clinic authorization bypass.
-- **Recommendation:** Decide whether profile fields are intentionally global or clinic-scoped. Document the invariant; if multi-clinic sharing is supported, explicitly authorize and test shared-profile updates. If not, enforce single-link invariant and migrate safely.
-- **Related:** SEC-02, SEC-16, SEC-18, SEC-19.
-
 ### SEC-H-04 — Production controls cannot be verified from this repository
 
 - **Severity:** Informational.
@@ -71,7 +54,7 @@ These are not confirmed exploitable vulnerabilities and must not be reported as 
 
 | Hypothesis | Disposition and evidence |
 |---|---|
-| Cross-clinic object access / BOLA | No confirmed bypass. access.service.ts:42-64 enforces exact clinic equality and active clinic state; :66-79 resolves appointment clinic; service paths check patient/doctor clinic links, queue membership, staff target scope and prediction clinic ownership. Clinic lifecycle service enforces same-clinic ownership despite omitted common middleware. Deployed two-clinic regression remains necessary. |
+| Cross-clinic object access / BOLA | No direct foreign-object read/write bypass was confirmed. `access.service.ts` enforces exact clinic equality and appointment ownership; service paths check patient/doctor clinic links, queue membership, staff target scope, and prediction clinic ownership. The shared-profile cross-clinic write defect is recorded above and rejected by the passing two-clinic PostgreSQL regression. |
 | Missing Admin enforcement | Not confirmed. Staff management and lifecycle routes use Admin middleware; service checks reinforce sensitive flows. |
 | SQL injection | Not confirmed. Reviewed raw SQL uses Prisma tagged template parameters; no unsafe raw-query call found. |
 | XSS | Not confirmed. Source search found no dangerouslySetInnerHTML path; React renders structured values. Redirect handling uses same-origin path constraints. |
@@ -84,4 +67,4 @@ These are not confirmed exploitable vulnerabilities and must not be reported as 
 
 ## Severity rationale
 
-No Critical or High confirmed issue was established. SEC-F-01 is Medium because sensitive clinic records are returned in bulk without a response bound and may amplify resource cost, while access still requires an account authorized to that clinic. SEC-H-01/02/03 are Low preventative controls or conditional risks and are not counted as confirmed vulnerabilities. SEC-H-04 is informational and represents evidence gaps.
+No Critical or High confirmed issue was established in the historical review. SEC-F-01 was resolved by bounded pagination. SEC-300-01 was a confirmed Medium cross-clinic integrity issue and is mitigated with regression evidence. SEC-H-01/02 remain hardening or deployment-verification items; SEC-H-04 is informational. See the Issue #300 audit for current status.

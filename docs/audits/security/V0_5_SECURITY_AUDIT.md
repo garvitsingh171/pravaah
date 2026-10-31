@@ -1,5 +1,7 @@
 # Pravaah v0.5 Security Audit (SEC-01)
 
+> **Historical baseline:** This report predates Issue #300's PostgreSQL-backed two-clinic run and shared-profile fix. Its statements about no live tenant test, unbounded lists, and the conditional shared-profile risk are superseded by [OBJECT_AUTHORIZATION_AUDIT.md](../../security/OBJECT_AUTHORIZATION_AUDIT.md) and the current [API security matrix](V0_5_API_SECURITY_MATRIX.md).
+
 **Assessment type:** Repository-based security review and safe, mocked-test verification  
 **Audit baseline:** `main` at `add66870635961386c29bb0eb3e3e286900c2eed`; root package reports `0.4.0`  
 **Scope:** Source, configuration, schema, documentation, existing tests, and local non-production analysis. No production access or secrets were used.  

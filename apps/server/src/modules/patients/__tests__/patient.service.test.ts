@@ -5,6 +5,7 @@ const mockPatientRepository = vi.hoisted(() => ({
     findClinicById: vi.fn(),
     findPatientById: vi.fn(),
     findPatientClinicLink: vi.fn(),
+    hasOtherClinicLinks: vi.fn(),
     createPatientWithClinicLink: vi.fn(),
     updatePatientWithClinicDetails: vi.fn(),
     saveGeocodingResultIfCurrent: vi.fn(),
@@ -219,6 +220,25 @@ describe('patientService geocoding orchestration', () => {
                 'Patient is not linked to this clinic'
             )
         );
+        expect(mockGeocodingService.geocodeAddress).not.toHaveBeenCalled();
+    });
+
+    it('does not geocode or mutate a patient profile shared with another clinic', async () => {
+        mockPatientRepository.findPatientById.mockResolvedValue({
+            id: 'patient-id',
+            ...completeAddress,
+        });
+        mockPatientRepository.findPatientClinicLink.mockResolvedValue({ id: 'patient-clinic-id' });
+        mockPatientRepository.hasOtherClinicLinks.mockResolvedValue(true);
+
+        await expect(patientService.retryGeocoding('clinic-id', 'patient-id')).rejects.toThrow(
+            new AppError(
+                403,
+                'SHARED_PATIENT_PROFILE_READ_ONLY',
+                'This patient profile cannot be changed from this clinic'
+            )
+        );
+        expect(mockPatientRepository.prepareGeocoding).not.toHaveBeenCalled();
         expect(mockGeocodingService.geocodeAddress).not.toHaveBeenCalled();
     });
 });
