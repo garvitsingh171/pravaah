@@ -1,0 +1,53 @@
+# Issue #302: PostgreSQL concurrency audit and verification
+
+## Scope and execution path
+
+The current implementation routes appointment and queue requests through Express validation and Clerk authentication, clinic access middleware, controllers, services, repositories, Prisma, and PostgreSQL. The security integration suite replaces only external Clerk verification with synthetic identities. Its HTTP requests exercise the application middleware and database logic. Prediction refresh is a persisted worker path and is tested through its real drain function.
+
+The code is the authority for current behavior. The issue requests a broader race audit than the existing tests provided. Before this change, `tests/security/security.integration.test.ts` covered tenant authorization mainly through sequential HTTP requests, and `src/modules/queues/__tests__/queue.concurrent.integration.test.ts` covered a separate opt-in reorder scenario. The latter uses `QUEUE_INTEGRATION_TEST_DATABASE_URL` and is not part of the guarded security CI suite. Issue #302 scenarios now run through the guarded security suite.
+
+## Invariants and audit matrix
+
+| Workflow    | Shared resource and race window                                        | Existing protection                                                                                                         | Required committed state                                                                                              | Added test                                                   |
+| ----------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Booking     | Same clinic, doctor, and slot; availability read before insert         | Transaction, doctor/date advisory lock, overlap query, partial unique index for exact active slot                           | At most one active booking at a conflicting time; one queue entry, prediction run, and outcome per successful booking | Eight contenders; partial overlap                            |
+| Booking     | Different clinic bookings at the same instant                          | Clinic-scoped membership and schedule checks                                                                                | Both authorized independent bookings can commit                                                                       | Independent clinics                                          |
+| Booking     | Cancellation or reschedule while another request books the target slot | Transactional status/queue update; schedule and queue scope locks                                                           | No conflicting active appointments; cancellation updates queue                                                        | Booking/cancellation; booking/reschedule                     |
+| Booking     | Foreign doctor/patient IDs in a simultaneous request                   | Clinic membership validation, including a locked recheck in booking transaction                                             | Foreign clinic data unchanged                                                                                         | Authorized plus foreign booking                              |
+| Queue       | Two reorder requests from the same observed order                      | Scope advisory lock and snapshot comparison                                                                                 | One complete reorder; stale request gets 409; no foreign entry mutation                                               | Concurrent reorder plus foreign entry                        |
+| Queue       | Terminal transition during reorder or another status update            | Transaction, conditional appointment and queue updates                                                                      | Linked appointment and queue statuses agree; active queue membership remains valid                                    | Reorder/cancel; appointment/queue cancel                     |
+| Invitations | Two accepts, or accept versus revoke                                   | Invitation row lock, conditional transition, transactional user provisioning                                                | One staff membership and one acceptance event; final status matches access                                            | Duplicate accept; accept/revoke                              |
+| Prediction  | Two workers claim the same revision                                    | Conditional claim with lease owner, revision and status predicates; appointment prediction advisory lock and unique run key | One completed claim and one generated run; different clinic work remains scoped                                       | Two drains for one work row; replay; independent clinic work |
+| Rollback    | Queue insert fails after appointment insert                            | Booking transaction                                                                                                         | No new appointment, queue row, or prediction row                                                                      | Disposable PostgreSQL trigger injects insert error           |
+
+### Appointment scheduling
+
+`appointment.service.ts#createAppointment` checks clinic, doctor, and patient links; validates a generated slot; then runs the conflict query, appointment insert, queue insert, prediction insert, outcome insert, history increment, and activity insert in one transaction. `appointment.repository.ts#acquireDoctorScheduleLock` serializes booking attempts for a clinic, doctor, and clinic-local day. The partial index `appointment_active_doctor_slot_unique` rejects equal starts for active statuses, while the service overlap query handles intervals and clinic buffer rules. Rescheduling uses transaction and scope locks. This implementation defines scheduling conflicts within a clinic; a Doctor linked to two clinics is a shared profile, with clinic-specific availability and private appointments. A global cross-clinic schedule policy is not documented or enforced here.
+
+### Queue lifecycle
+
+`queue.repository.ts#reorderQueueEntries` locks the queue scope, compares the submitted `expectedQueueEntryIds` with the current active order, and updates positions transactionally. The caller must refresh after a 409. Queue and appointment terminal status writes use conditional predicates within a transaction. Queue positions belong to a clinic, doctor, and date scope; canceled rows remain stored for history, while active ordering excludes terminal entries. Reordering is not defined as last writer wins.
+
+### Invitation lifecycle
+
+`staff.repository.ts#acceptInvitation` and `#revokeInvitation` lock the same invitation row with `FOR UPDATE`. Only a pending, unexpired invitation can transition. Acceptance creates or activates a staff user and marks the invitation accepted in one transaction. Repeating acceptance with the same verified Clerk identity returns an idempotent result. Revocation after acceptance returns conflict; acceptance after revocation returns conflict. A different Clerk identity cannot take an accepted invitation. `User.clerkUserId` and `User.email` are unique; a user belongs to one clinic in the present schema.
+
+### Prediction refresh
+
+`prediction.recalculation.service.ts#claimNextRefreshWork` conditionally claims a due revision with a lease. The worker recalculates eligible future appointments in clinic and patient scope, then acknowledges only the captured revision. Prediction runs are immutable, with a unique `runKey` and an appointment-level advisory lock to avoid duplicate runs for unchanged inputs. The work row has a unique `(clinicId, patientId)` pair. On processing failure the worker marks the work retryable. The new database tests cover duplicate claim, replay after completion, and separate clinic work; forced worker failure, lease expiry, and stale acknowledgment remain unverified by PostgreSQL integration tests.
+
+## Test database safety and execution
+
+The suite uses `tests/security/testDatabaseGuard.ts` and the existing `test:security` and `security:migrate` scripts. It requires `NODE_ENV=test`, `SECURITY_TEST_MODE=1`, and `TEST_DATABASE_URL` pointing to the dedicated `pravaah_security_test` database on an allowed local/container host. `DATABASE_URL` must either be absent or match it. The test fixture truncation runs only after this guard. The existing CI workflow provisions a disposable PostgreSQL 16 service with test-only credentials, applies committed migrations, and runs the suite. The new scenarios are automatically included; the workflow step now names concurrency explicitly.
+
+For local execution, follow [SECURITY_TESTING.md](SECURITY_TESTING.md). Verify that the container is newly created and owned by the test run before migration or fixture cleanup. The URL guard is necessary but cannot itself prove ownership of an arbitrary local PostgreSQL server.
+
+## Evidence from 31 October 2026
+
+- Baseline before changes: 61 security tests passed on an isolated PostgreSQL 16 container.
+- New tests: 11 scenarios passed on the same disposable container. The 11-scenario group passed five targeted runs after the final scenario additions (55 scenario executions), plus full-suite execution.
+- Full security suite after changes: 72 tests passed, 0 failed.
+- Booking rollback fault: an insert trigger raised a PostgreSQL exception at the queue insert; HTTP returned 500 and the appointment, queue, and prediction counts remained at their pre-request values. The trigger and function were removed in `finally`.
+- No production concurrency defect was confirmed. A first draft of the reorder test submitted the existing order as one request and observed two valid 200 responses; the test was corrected to submit two actual competing changes. This was a test-design error, not a product defect.
+
+The HTTP scenarios start requests together against the real five-connection Prisma PostgreSQL pool and check committed state. They do not place a deterministic barrier at every internal read/write point. Passing runs establish the observed outcomes and guard against regressions; they do not prove the absence of every possible schedule. Lease expiry, injected worker failure, a broader cancellation/no-show transition matrix, and cross-clinic shared Doctor scheduling policy need separate tests or product decisions.

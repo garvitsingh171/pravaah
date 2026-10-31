@@ -116,6 +116,475 @@ beforeAll(async () => {
     baseUrl = `http://127.0.0.1:${address.port}`;
 });
 
+// Issue #302: real HTTP requests share the application's PostgreSQL pool. Each test
+// starts operations together and checks the committed rows after both responses.
+describe('PostgreSQL concurrency invariants', () => {
+    async function openBookingDay() {
+        const weekday = [
+            'SUNDAY',
+            'MONDAY',
+            'TUESDAY',
+            'WEDNESDAY',
+            'THURSDAY',
+            'FRIDAY',
+            'SATURDAY',
+        ][new Date(`${fixtures.fixtureDate}T12:00:00.000Z`).getUTCDay()] as
+            | 'SUNDAY'
+            | 'MONDAY'
+            | 'TUESDAY'
+            | 'WEDNESDAY'
+            | 'THURSDAY'
+            | 'FRIDAY'
+            | 'SATURDAY';
+        const links = await prisma.doctorClinic.findMany({
+            where: { clinicId: { in: [fixtures.ids.clinicA, fixtures.ids.clinicB] } },
+        });
+        await prisma.doctorAvailabilityPeriod.createMany({
+            data: links.map((link) => ({
+                doctorClinicId: link.id,
+                weekday,
+                startTime: '09:00',
+                endTime: '18:00',
+            })),
+        });
+    }
+
+    function bookingAt(hour: number, minute = 0, durationMinutes = 15) {
+        const localMidnight = new Date(`${fixtures.fixtureDate}T00:00:00.000Z`);
+        const scheduledAt = new Date(localMidnight.getTime() + (hour * 60 + minute - 330) * 60_000);
+        return {
+            doctorId: fixtures.ids.doctorA,
+            patientId: fixtures.ids.patientA,
+            scheduledAt: scheduledAt.toISOString(),
+            durationMinutes,
+        };
+    }
+
+    it('commits one of eight same-slot bookings and no dependent orphan rows', async () => {
+        await openBookingDay();
+        const ids = fixtures.ids;
+        const slot = bookingAt(13);
+        const results = await Promise.all(
+            Array.from({ length: 8 }, (_, index) =>
+                request(
+                    'POST',
+                    `/api/clinics/${ids.clinicA}/appointments`,
+                    index % 2 ? 'admin-a' : 'staff-a',
+                    slot
+                )
+            )
+        );
+        expect(results.filter((result) => result.status === 201)).toHaveLength(1);
+        expect(results.filter((result) => result.status === 409)).toHaveLength(7);
+        const appointments = await prisma.appointment.findMany({
+            where: {
+                clinicId: ids.clinicA,
+                doctorId: ids.doctorA,
+                scheduledAt: new Date(slot.scheduledAt),
+            },
+        });
+        expect(appointments).toHaveLength(1);
+        const appointmentId = appointments[0]!.id;
+        expect(await prisma.queueEntry.count({ where: { appointmentId } })).toBe(1);
+        expect(await prisma.noShowPrediction.count({ where: { appointmentId } })).toBe(1);
+        expect(await prisma.appointmentPredictionOutcome.count({ where: { appointmentId } })).toBe(
+            1
+        );
+        expect(await prisma.queueEntry.count({ where: { clinicId: ids.clinicA } })).toBe(3);
+        expect(await prisma.noShowPrediction.count({ where: { clinicId: ids.clinicA } })).toBe(3);
+        expect(
+            await prisma.appointmentPredictionOutcome.count({ where: { clinicId: ids.clinicA } })
+        ).toBe(1);
+    });
+
+    it('rejects partially overlapping bookings and permits independent clinic bookings', async () => {
+        await openBookingDay();
+        const ids = fixtures.ids;
+        const first = bookingAt(13, 0, 30);
+        const second = { ...bookingAt(13, 15, 30), patientId: ids.sharedPatient };
+        const overlap = await Promise.all(
+            [first, second].map((body) =>
+                request('POST', `/api/clinics/${ids.clinicA}/appointments`, 'staff-a', body)
+            )
+        );
+        expect(overlap.map((result) => result.status).sort()).toEqual([201, 409]);
+        expect(
+            await prisma.appointment.count({
+                where: {
+                    clinicId: ids.clinicA,
+                    doctorId: ids.doctorA,
+                    scheduledAt: {
+                        in: [new Date(first.scheduledAt), new Date(second.scheduledAt)],
+                    },
+                },
+            })
+        ).toBe(1);
+
+        const independent = await Promise.all([
+            request('POST', `/api/clinics/${ids.clinicA}/appointments`, 'staff-a', bookingAt(14)),
+            request('POST', `/api/clinics/${ids.clinicB}/appointments`, 'staff-b', {
+                ...bookingAt(14),
+                doctorId: ids.doctorB,
+                patientId: ids.patientB,
+            }),
+        ]);
+        expect(independent.map((result) => result.status)).toEqual([201, 201]);
+    });
+
+    it('serializes conflicting reorders and rejects a simultaneous foreign entry', async () => {
+        const ids = fixtures.ids;
+        const path = `/api/clinics/${ids.clinicA}/queue/reorder`;
+        const expectedQueueEntryIds = [ids.queueA, ids.queueSharedA];
+        const [reverse, stale, foreign] = await Promise.all([
+            request('PATCH', path, 'staff-a', {
+                date: fixtures.fixtureDate,
+                queueEntryIds: [...expectedQueueEntryIds].reverse(),
+                expectedQueueEntryIds,
+            }),
+            request('PATCH', path, 'admin-a', {
+                date: fixtures.fixtureDate,
+                queueEntryIds: [...expectedQueueEntryIds].reverse(),
+                expectedQueueEntryIds,
+            }),
+            request('PATCH', path, 'staff-a', {
+                date: fixtures.fixtureDate,
+                queueEntryIds: [ids.queueB],
+                expectedQueueEntryIds: [ids.queueB],
+            }),
+        ]);
+        expect([reverse.status, stale.status].sort()).toEqual([200, 409]);
+        expect(foreign.status).toBe(403);
+        const order = await prisma.queueEntry.findMany({
+            where: { clinicId: ids.clinicA, doctorId: ids.doctorA },
+            orderBy: { position: 'asc' },
+            select: { id: true, position: true },
+        });
+        expect(order).toEqual([
+            { id: ids.queueSharedA, position: 1 },
+            { id: ids.queueA, position: 2 },
+        ]);
+        expect(
+            (await prisma.queueEntry.findUniqueOrThrow({ where: { id: ids.queueB } })).position
+        ).toBe(1);
+    });
+
+    it('keeps appointment and queue statuses together under conflicting updates', async () => {
+        const ids = fixtures.ids;
+        const results = await Promise.all([
+            request('PATCH', `/api/appointments/${ids.appointmentA}/status`, 'staff-a', {
+                status: 'CANCELLED',
+                cancellationReason: 'PATIENT_REQUEST',
+            }),
+            request('PATCH', `/api/clinics/${ids.clinicA}/queue/${ids.queueA}/status`, 'admin-a', {
+                status: 'CANCELLED',
+                cancellationReason: 'PATIENT_REQUEST',
+                expectedStatus: 'WAITING',
+            }),
+        ]);
+        expect(
+            results.map((result) => result.status).every((status) => [200, 409].includes(status))
+        ).toBe(true);
+        const appointment = await prisma.appointment.findUniqueOrThrow({
+            where: { id: ids.appointmentA },
+        });
+        const queue = await prisma.queueEntry.findUniqueOrThrow({ where: { id: ids.queueA } });
+        expect([appointment.status, queue.status]).toEqual(['CANCELLED', 'CANCELLED']);
+    });
+
+    it('keeps a booking versus cancellation race free of active slot conflicts', async () => {
+        await openBookingDay();
+        const ids = fixtures.ids;
+        const original = await prisma.appointment.findUniqueOrThrow({
+            where: { id: ids.appointmentA },
+        });
+        const [cancel, book] = await Promise.all([
+            request('PATCH', `/api/appointments/${ids.appointmentA}/status`, 'staff-a', {
+                status: 'CANCELLED',
+                cancellationReason: 'PATIENT_REQUEST',
+            }),
+            request('POST', `/api/clinics/${ids.clinicA}/appointments`, 'admin-a', {
+                doctorId: ids.doctorA,
+                patientId: ids.sharedPatient,
+                scheduledAt: original.scheduledAt.toISOString(),
+            }),
+        ]);
+        expect(cancel.status).toBe(200);
+        expect([201, 409]).toContain(book.status);
+        const active = await prisma.appointment.count({
+            where: {
+                clinicId: ids.clinicA,
+                doctorId: ids.doctorA,
+                scheduledAt: original.scheduledAt,
+                status: { in: ['SCHEDULED', 'CONFIRMED', 'ARRIVED', 'IN_QUEUE', 'CALLED'] },
+            },
+        });
+        expect(active).toBe(book.status === 201 ? 1 : 0);
+        expect(
+            (
+                await prisma.queueEntry.findUniqueOrThrow({
+                    where: { appointmentId: ids.appointmentA },
+                })
+            ).status
+        ).toBe('CANCELLED');
+    });
+
+    it('keeps booking versus rescheduling to the same slot conflict free', async () => {
+        await openBookingDay();
+        const ids = fixtures.ids;
+        const slot = bookingAt(14);
+        const original = await prisma.appointment.findUniqueOrThrow({
+            where: { id: ids.appointmentA },
+        });
+        const [moved, booked] = await Promise.all([
+            request('PATCH', `/api/appointments/${ids.appointmentA}/reschedule`, 'staff-a', {
+                scheduledAt: slot.scheduledAt,
+                currentScheduledAt: original.scheduledAt.toISOString(),
+            }),
+            request('POST', `/api/clinics/${ids.clinicA}/appointments`, 'admin-a', {
+                ...slot,
+                patientId: ids.sharedPatient,
+            }),
+        ]);
+        expect(
+            [moved.status, booked.status].filter((status) => [200, 201].includes(status))
+        ).toHaveLength(1);
+        expect([moved.status, booked.status].filter((status) => status === 409)).toHaveLength(1);
+        expect(
+            await prisma.appointment.count({
+                where: {
+                    clinicId: ids.clinicA,
+                    doctorId: ids.doctorA,
+                    scheduledAt: new Date(slot.scheduledAt),
+                    status: { in: ['SCHEDULED', 'CONFIRMED', 'ARRIVED', 'IN_QUEUE', 'CALLED'] },
+                },
+            })
+        ).toBe(1);
+    });
+
+    it('keeps a reorder and terminal status transition consistent', async () => {
+        const ids = fixtures.ids;
+        const [reordered, cancelled] = await Promise.all([
+            request('PATCH', `/api/clinics/${ids.clinicA}/queue/reorder`, 'staff-a', {
+                date: fixtures.fixtureDate,
+                queueEntryIds: [ids.queueSharedA, ids.queueA],
+                expectedQueueEntryIds: [ids.queueA, ids.queueSharedA],
+            }),
+            request('PATCH', `/api/clinics/${ids.clinicA}/queue/${ids.queueA}/status`, 'admin-a', {
+                status: 'CANCELLED',
+                expectedStatus: 'WAITING',
+                cancellationReason: 'PATIENT_REQUEST',
+            }),
+        ]);
+        expect([200, 409]).toContain(reordered.status);
+        expect(cancelled.status).toBe(200);
+        expect(
+            (await prisma.appointment.findUniqueOrThrow({ where: { id: ids.appointmentA } })).status
+        ).toBe('CANCELLED');
+        expect(
+            (await prisma.queueEntry.findUniqueOrThrow({ where: { id: ids.queueA } })).status
+        ).toBe('CANCELLED');
+        const active = await prisma.queueEntry.findMany({
+            where: { clinicId: ids.clinicA, doctorId: ids.doctorA, status: 'WAITING' },
+        });
+        expect(active.map((entry) => entry.id)).toEqual([ids.queueSharedA]);
+        expect(
+            new Set(
+                (await prisma.queueEntry.findMany({ where: { clinicId: ids.clinicA } })).map(
+                    (entry) => entry.appointmentId
+                )
+            ).size
+        ).toBe(2);
+    });
+
+    it('rejects a foreign booking alongside an authorized booking without foreign writes', async () => {
+        await openBookingDay();
+        const ids = fixtures.ids;
+        const slot = bookingAt(14);
+        const beforeForeign = await prisma.appointment.count({ where: { clinicId: ids.clinicB } });
+        const [valid, foreign] = await Promise.all([
+            request('POST', `/api/clinics/${ids.clinicA}/appointments`, 'staff-a', slot),
+            request('POST', `/api/clinics/${ids.clinicA}/appointments`, 'admin-a', {
+                ...slot,
+                doctorId: ids.doctorB,
+                patientId: ids.patientB,
+            }),
+        ]);
+        expect(valid.status).toBe(201);
+        expect([400, 403, 404]).toContain(foreign.status);
+        expect(await prisma.appointment.count({ where: { clinicId: ids.clinicB } })).toBe(
+            beforeForeign
+        );
+        expect(
+            await prisma.appointment.count({
+                where: { clinicId: ids.clinicA, doctorId: ids.doctorB },
+            })
+        ).toBe(0);
+    });
+
+    it('rolls back a booking when a dependent queue insert fails', async () => {
+        await openBookingDay();
+        const ids = fixtures.ids;
+        const slot = bookingAt(14);
+        // This trigger exists only inside the disposable test database and is removed in finally.
+        assertSecurityTestDatabase();
+        await prisma.$executeRawUnsafe(
+            `CREATE FUNCTION issue302_reject_queue_insert() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'issue302 injected queue failure'; END $$`
+        );
+        try {
+            await prisma.$executeRawUnsafe(
+                `CREATE TRIGGER issue302_reject_queue BEFORE INSERT ON queue_entries FOR EACH ROW EXECUTE FUNCTION issue302_reject_queue_insert()`
+            );
+            const result = await request(
+                'POST',
+                `/api/clinics/${ids.clinicA}/appointments`,
+                'staff-a',
+                slot
+            );
+            expect(result.status).toBe(500);
+            expect(
+                await prisma.appointment.count({
+                    where: { clinicId: ids.clinicA, scheduledAt: new Date(slot.scheduledAt) },
+                })
+            ).toBe(0);
+            expect(await prisma.queueEntry.count({ where: { clinicId: ids.clinicA } })).toBe(2);
+            expect(await prisma.noShowPrediction.count({ where: { clinicId: ids.clinicA } })).toBe(
+                2
+            );
+        } finally {
+            await prisma.$executeRawUnsafe(
+                `DROP TRIGGER IF EXISTS issue302_reject_queue ON queue_entries`
+            );
+            await prisma.$executeRawUnsafe(
+                `DROP FUNCTION IF EXISTS issue302_reject_queue_insert()`
+            );
+        }
+    });
+
+    it('makes duplicate invitation acceptance idempotent and resolves accept versus revoke', async () => {
+        const ids = fixtures.ids;
+        const acceptPath = `/api/staff/invitations/${fixtures.invitationTokenB}/accept`;
+        const [first, second] = await Promise.all([
+            request('POST', acceptPath, 'invitee-b', {}),
+            request('POST', acceptPath, 'invitee-b', {}),
+        ]);
+        expect([first.status, second.status].sort()).toEqual([200, 201]);
+        expect(
+            await prisma.user.count({
+                where: { clerkUserId: 'sec19-invitee-b', clinicId: ids.clinicB },
+            })
+        ).toBe(1);
+        expect(
+            await prisma.lifecycleEvent.count({
+                where: { entityId: ids.invitationB, action: 'ACCEPTED' },
+            })
+        ).toBe(1);
+
+        await fixtures.resetFixtures();
+        const [accepted, revoked] = await Promise.all([
+            request('POST', acceptPath, 'invitee-b', {}),
+            request(
+                'PATCH',
+                `/api/clinics/${ids.clinicB}/staff/invitations/${ids.invitationB}/revoke`,
+                'admin-b'
+            ),
+        ]);
+        const invitation = await prisma.staffInvitation.findUniqueOrThrow({
+            where: { id: ids.invitationB },
+        });
+        const membershipCount = await prisma.user.count({
+            where: { clerkUserId: 'sec19-invitee-b', clinicId: ids.clinicB },
+        });
+        expect(['ACCEPTED', 'REVOKED']).toContain(invitation.status);
+        expect([accepted.status, revoked.status]).toEqual(
+            invitation.status === 'ACCEPTED' ? [201, 409] : [409, 200]
+        );
+        expect(membershipCount).toBe(invitation.status === 'ACCEPTED' ? 1 : 0);
+        expect(
+            await prisma.lifecycleEvent.count({
+                where: { entityId: ids.invitationB, action: invitation.status },
+            })
+        ).toBe(1);
+    });
+
+    it('claims one prediction refresh revision once across two workers', async () => {
+        const ids = fixtures.ids;
+        const work = await prisma.predictionRefreshWork.create({
+            data: {
+                clinicId: ids.clinicA,
+                patientId: ids.patientA,
+                latestTrigger: 'PATIENT_HISTORY_CHANGED',
+            },
+        });
+        const { drainPendingPredictionRefreshWork } =
+            await import('../../src/modules/predictions/prediction.recalculation.service.js');
+        await Promise.all([
+            drainPendingPredictionRefreshWork(1),
+            drainPendingPredictionRefreshWork(1),
+        ]);
+        const finalWork = await prisma.predictionRefreshWork.findUniqueOrThrow({
+            where: { id: work.id },
+        });
+        expect(finalWork).toMatchObject({
+            status: 'COMPLETED',
+            requestedRevision: 1,
+            processedRevision: 1,
+            attemptCount: 1,
+        });
+        const runs = await prisma.noShowPrediction.findMany({
+            where: { appointmentId: ids.appointmentA, generationSource: 'PATIENT_HISTORY_CHANGED' },
+        });
+        expect(runs).toHaveLength(1);
+        await drainPendingPredictionRefreshWork(1);
+        expect(
+            await prisma.noShowPrediction.count({
+                where: {
+                    appointmentId: ids.appointmentA,
+                    generationSource: 'PATIENT_HISTORY_CHANGED',
+                },
+            })
+        ).toBe(1);
+        expect(await prisma.noShowPrediction.count({ where: { clinicId: ids.clinicB } })).toBe(2);
+
+        const workB = await prisma.predictionRefreshWork.create({
+            data: {
+                clinicId: ids.clinicB,
+                patientId: ids.patientB,
+                latestTrigger: 'PATIENT_HISTORY_CHANGED',
+            },
+        });
+        await Promise.all([
+            drainPendingPredictionRefreshWork(1),
+            drainPendingPredictionRefreshWork(1),
+        ]);
+        expect(
+            await prisma.predictionRefreshWork.findUniqueOrThrow({ where: { id: workB.id } })
+        ).toMatchObject({
+            status: 'COMPLETED',
+            requestedRevision: 1,
+            processedRevision: 1,
+            attemptCount: 1,
+        });
+        expect(
+            await prisma.noShowPrediction.count({
+                where: {
+                    clinicId: ids.clinicB,
+                    appointmentId: ids.appointmentB,
+                    generationSource: 'PATIENT_HISTORY_CHANGED',
+                },
+            })
+        ).toBe(1);
+        expect(
+            await prisma.noShowPrediction.count({
+                where: {
+                    clinicId: ids.clinicA,
+                    appointmentId: ids.appointmentA,
+                    generationSource: 'PATIENT_HISTORY_CHANGED',
+                },
+            })
+        ).toBe(1);
+    });
+});
+
 beforeEach(async () => {
     await fixtures.resetFixtures();
 });
@@ -454,13 +923,17 @@ describe('roles and two-clinic isolation', () => {
         expect(noteUpdate.status).toBe(200);
         expect(
             await prisma.patientClinic.findUniqueOrThrow({
-                where: { patientId_clinicId: { patientId: ids.sharedPatient, clinicId: ids.clinicA } },
+                where: {
+                    patientId_clinicId: { patientId: ids.sharedPatient, clinicId: ids.clinicA },
+                },
                 select: { notes: true },
             })
         ).toEqual({ notes: 'Updated Sunrise private note' });
         expect(
             await prisma.patientClinic.findUniqueOrThrow({
-                where: { patientId_clinicId: { patientId: ids.sharedPatient, clinicId: ids.clinicB } },
+                where: {
+                    patientId_clinicId: { patientId: ids.sharedPatient, clinicId: ids.clinicB },
+                },
                 select: { notes: true },
             })
         ).toEqual({ notes: 'Shared patient Riverside note' });
