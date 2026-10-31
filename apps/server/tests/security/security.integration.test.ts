@@ -488,7 +488,6 @@ describe('PostgreSQL concurrency invariants', () => {
                 'admin-b'
             ),
         ]);
-        expect([accepted.status, revoked.status].sort()).toEqual([201, 409]);
         const invitation = await prisma.staffInvitation.findUniqueOrThrow({
             where: { id: ids.invitationB },
         });
@@ -496,7 +495,15 @@ describe('PostgreSQL concurrency invariants', () => {
             where: { clerkUserId: 'sec19-invitee-b', clinicId: ids.clinicB },
         });
         expect(['ACCEPTED', 'REVOKED']).toContain(invitation.status);
+        expect([accepted.status, revoked.status]).toEqual(
+            invitation.status === 'ACCEPTED' ? [201, 409] : [409, 200]
+        );
         expect(membershipCount).toBe(invitation.status === 'ACCEPTED' ? 1 : 0);
+        expect(
+            await prisma.lifecycleEvent.count({
+                where: { entityId: ids.invitationB, action: invitation.status },
+            })
+        ).toBe(1);
     });
 
     it('claims one prediction refresh revision once across two workers', async () => {
