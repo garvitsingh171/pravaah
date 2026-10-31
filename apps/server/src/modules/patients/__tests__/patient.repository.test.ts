@@ -7,6 +7,7 @@ const mockPatientFindUnique = vi.hoisted(() => vi.fn());
 const mockPatientUpdateMany = vi.hoisted(() => vi.fn());
 const mockPatientClinicCreate = vi.hoisted(() => vi.fn());
 const mockPatientClinicUpdate = vi.hoisted(() => vi.fn());
+const mockPatientClinicCount = vi.hoisted(() => vi.fn());
 
 vi.mock('../../../config/prisma.js', () => ({
     prisma: {
@@ -28,7 +29,9 @@ const transactionClient = {
     patientClinic: {
         create: mockPatientClinicCreate,
         update: mockPatientClinicUpdate,
+        count: mockPatientClinicCount,
     },
+    $queryRaw: vi.fn(),
 };
 
 describe('patientRepository structured location persistence', () => {
@@ -37,6 +40,7 @@ describe('patientRepository structured location persistence', () => {
         mockTransaction.mockImplementation(async (operation) => operation(transactionClient));
         mockPatientCreate.mockResolvedValue({ id: 'patient-id' });
         mockPatientFindUnique.mockResolvedValue({ id: 'patient-id' });
+        mockPatientClinicCount.mockResolvedValue(0);
     });
 
     it('stores structured location on Patient and clinic-specific fields on PatientClinic', async () => {

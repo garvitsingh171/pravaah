@@ -219,7 +219,16 @@ export const doctorService = {
             );
         }
 
-        return doctorRepository.updateDoctor(doctorId, input);
+        const updatedDoctor = await doctorRepository.updateDoctor(clinicId, doctorId, input);
+        if (!updatedDoctor) {
+            throw new AppError(
+                403,
+                'SHARED_DOCTOR_PROFILE_READ_ONLY',
+                'This doctor profile cannot be changed from this clinic'
+            );
+        }
+
+        return updatedDoctor;
     },
 
     async getDoctorAvailability(clinicId: string, doctorId: string) {

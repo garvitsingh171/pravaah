@@ -147,6 +147,14 @@ export const patientRepository = {
         });
     },
 
+    async hasOtherClinicLinks(patientId: string, clinicId: string) {
+        return (
+            (await prisma.patientClinic.count({
+                where: { patientId, clinicId: { not: clinicId } },
+            })) > 0
+        );
+    },
+
     getLifecycleImpact(clinicId: string, patientId: string) {
         return prisma.$transaction(async (tx) => {
             const link = await tx.patientClinic.findUnique({
@@ -315,6 +323,13 @@ export const patientRepository = {
         return withTransientDatabaseTransactionRetry(
             (callback) => prisma.$transaction(callback),
             async (tx) => {
+                await tx.$queryRaw`
+                    SELECT "id" FROM "patients" WHERE "id" = ${patientId}::uuid FOR UPDATE
+                `;
+                if (Object.keys(patientUpdateData).length > 0) {
+                    const clinicLinks = await tx.patientClinic.count({ where: { patientId } });
+                    if (clinicLinks > 1) return null;
+                }
                 if (Object.keys(patientUpdateData).length > 0) {
                     await tx.patient.update({
                         where: {
@@ -354,10 +369,21 @@ export const patientRepository = {
     },
 
     prepareGeocoding(patientId: string, sourceHash: string, attemptId: string) {
-        return prisma.patient.update({
-            where: { id: patientId },
-            data: geocodingInvalidationData(sourceHash, attemptId),
-        });
+        return withTransientDatabaseTransactionRetry(
+            (callback) => prisma.$transaction(callback),
+            async (tx) => {
+                await tx.$queryRaw`
+                    SELECT "id" FROM "patients" WHERE "id" = ${patientId}::uuid FOR UPDATE
+                `;
+                const clinicLinks = await tx.patientClinic.count({ where: { patientId } });
+                if (clinicLinks > 1) return false;
+                await tx.patient.update({
+                    where: { id: patientId },
+                    data: geocodingInvalidationData(sourceHash, attemptId),
+                });
+                return true;
+            }
+        );
     },
 
     saveGeocodingResultIfCurrent(

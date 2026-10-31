@@ -181,7 +181,7 @@ export const doctorRepository = {
         });
     },
 
-    updateDoctor(id: string, data: UpdateDoctorInput) {
+    updateDoctor(clinicId: string, id: string, data: UpdateDoctorInput) {
         const updateData: Prisma.DoctorUpdateInput = {};
 
         if (data.fullName !== undefined) updateData.fullName = data.fullName;
@@ -207,12 +207,19 @@ export const doctorRepository = {
             updateData.experienceYears = data.experienceYears;
         }
 
-        return prisma.doctor.update({
-            where: {
-                id,
-            },
-            data: updateData,
-        });
+        return withTransientDatabaseTransactionRetry(
+            (callback) => prisma.$transaction(callback),
+            async (tx) => {
+                await tx.$queryRaw`
+                    SELECT "id" FROM "doctors" WHERE "id" = ${id}::uuid FOR UPDATE
+                `;
+                const otherClinicLinks = await tx.doctorClinic.count({
+                    where: { doctorId: id, clinicId: { not: clinicId } },
+                });
+                if (otherClinicLinks > 0) return null;
+                return tx.doctor.update({ where: { id }, data: updateData });
+            }
+        );
     },
 
     findDoctorAvailabilityPeriods(doctorClinicId: string) {

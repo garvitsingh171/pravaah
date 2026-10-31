@@ -240,6 +240,19 @@ describe('roles and two-clinic isolation', () => {
         expect(
             (await prisma.patient.findUniqueOrThrow({ where: { id: ids.patientB } })).fullName
         ).toBe('Updated Fictional Riverside Patient');
+        expect(
+            (
+                await request(
+                    'PATCH',
+                    `/api/clinics/${ids.clinicA}/doctors/${ids.doctorA}`,
+                    'staff-a',
+                    { fullName: 'Updated Sunrise Doctor' }
+                )
+            ).status
+        ).toBe(200);
+        expect(
+            (await prisma.doctor.findUniqueOrThrow({ where: { id: ids.doctorA } })).fullName
+        ).toBe('Updated Sunrise Doctor');
     });
 
     it('allows a same-clinic appointment status change and queue reorder', async () => {
@@ -400,6 +413,57 @@ describe('roles and two-clinic isolation', () => {
             { fullName: 'Stolen' },
             [403, 404]
         );
+    });
+
+    it('prevents either clinic from changing shared Doctor or Patient profiles', async () => {
+        const { ids } = fixtures;
+        for (const [identity, clinic] of [
+            ['staff-a', ids.clinicA],
+            ['staff-b', ids.clinicB],
+        ] as const) {
+            await deniedWithoutMutation(
+                'PATCH',
+                `/api/clinics/${clinic}/doctors/${ids.sharedDoctor}`,
+                identity,
+                { fullName: 'Unauthorized Shared Doctor Change' },
+                403
+            );
+            await deniedWithoutMutation(
+                'PATCH',
+                `/api/clinics/${clinic}/patients/${ids.sharedPatient}`,
+                identity,
+                { phone: '5550199999' },
+                403
+            );
+            await deniedWithoutMutation(
+                'POST',
+                `/api/clinics/${clinic}/patients/${ids.sharedPatient}/geocode`,
+                identity,
+                {},
+                403
+            );
+        }
+
+        // PatientClinic notes are clinic-owned and remain editable for a shared profile.
+        const noteUpdate = await request(
+            'PATCH',
+            `/api/clinics/${ids.clinicA}/patients/${ids.sharedPatient}`,
+            'staff-a',
+            { notes: 'Updated Sunrise private note' }
+        );
+        expect(noteUpdate.status).toBe(200);
+        expect(
+            await prisma.patientClinic.findUniqueOrThrow({
+                where: { patientId_clinicId: { patientId: ids.sharedPatient, clinicId: ids.clinicA } },
+                select: { notes: true },
+            })
+        ).toEqual({ notes: 'Updated Sunrise private note' });
+        expect(
+            await prisma.patientClinic.findUniqueOrThrow({
+                where: { patientId_clinicId: { patientId: ids.sharedPatient, clinicId: ids.clinicB } },
+                select: { notes: true },
+            })
+        ).toEqual({ notes: 'Shared patient Riverside note' });
     });
 
     it('does not allow shared associations to reveal foreign appointment activity', async () => {

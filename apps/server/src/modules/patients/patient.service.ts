@@ -249,6 +249,14 @@ export const patientService = {
               })
             : await patientRepository.updatePatientWithClinicDetails(clinicId, patientId, input);
 
+        if (!patient) {
+            throw new AppError(
+                403,
+                'SHARED_PATIENT_PROFILE_READ_ONLY',
+                'This patient profile cannot be changed from this clinic'
+            );
+        }
+
         if (!addressChanged || !sourceHash) {
             return patient;
         }
@@ -337,6 +345,14 @@ export const patientService = {
             );
         }
 
+        if (await patientRepository.hasOtherClinicLinks(patientId, clinicId)) {
+            throw new AppError(
+                403,
+                'SHARED_PATIENT_PROFILE_READ_ONLY',
+                'This patient profile cannot be changed from this clinic'
+            );
+        }
+
         const address = toPatientAddress(patient);
 
         if (!hasGeocodableAddress(address)) {
@@ -357,7 +373,18 @@ export const patientService = {
 
         const sourceHash = createGeocodingSourceHash(address);
         const attemptId = createGeocodingAttemptId();
-        await patientRepository.prepareGeocoding(patientId, sourceHash, attemptId);
+        const geocodingPrepared = await patientRepository.prepareGeocoding(
+            patientId,
+            sourceHash,
+            attemptId
+        );
+        if (!geocodingPrepared) {
+            throw new AppError(
+                403,
+                'SHARED_PATIENT_PROFILE_READ_ONLY',
+                'This patient profile cannot be changed from this clinic'
+            );
+        }
 
         const attempt = await geocodingService.geocodeAddress(address);
 
