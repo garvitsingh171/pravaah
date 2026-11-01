@@ -587,6 +587,13 @@ describe('PostgreSQL concurrency invariants', () => {
 
 beforeEach(async () => {
     await fixtures.resetFixtures();
+    if (process.env.RATE_LIMIT_TEST_SHARED === '1') {
+        // Security tests use only the guarded disposable database. Reset test quotas
+        // alongside fixtures so repeated suite runs cannot block later cases.
+        await prisma.apiRateLimitCounter.deleteMany({
+            where: { key: { startsWith: 'pravaah:rl:v1:' } },
+        });
+    }
 });
 
 afterAll(async () => {

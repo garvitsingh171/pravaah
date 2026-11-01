@@ -1,3 +1,4 @@
+import { rateLimit } from '../../middleware/rateLimit.js';
 import { Router } from 'express';
 import { validateRequest } from '../../utils/validateRequest.js';
 import {
@@ -29,6 +30,7 @@ queueRouter.get(
     }),
     requireClinicAccess,
     requireClinicStaffRole,
+    rateLimit('queueRead'),
     listQueueByClinicDateController
 );
 
@@ -41,6 +43,7 @@ queueRouter.patch(
     }),
     requireClinicAccess,
     requireClinicStaffRole,
+    rateLimit('mutation'),
     reorderQueueController
 );
 
@@ -53,6 +56,7 @@ queueRouter.patch(
     }),
     requireClinicAccess,
     requireClinicStaffRole,
+    rateLimit('mutation'),
     updateQueueStatusController
 );
 

@@ -1,3 +1,4 @@
+import { rateLimit } from '../../middleware/rateLimit.js';
 import { Router } from 'express';
 import { validateRequest } from '../../utils/validateRequest.js';
 import {
@@ -37,6 +38,7 @@ clinicAppointmentRouter.post(
     }),
     requireClinicAccess,
     requireClinicStaffRole,
+    rateLimit('mutation'),
     createAppointmentController
 );
 
@@ -49,6 +51,7 @@ clinicAppointmentRouter.get(
     }),
     requireClinicAccess,
     requireClinicStaffRole,
+    rateLimit('collection'),
     listAvailableAppointmentSlotsController
 );
 
@@ -61,6 +64,7 @@ clinicAppointmentRouter.get(
     }),
     requireClinicAccess,
     requireClinicStaffRole,
+    rateLimit('collection'),
     listAppointmentsController
 );
 
@@ -72,6 +76,7 @@ appointmentRouter.patch(
         body: updateAppointmentStatusSchema,
     }),
     requireClinicStaffRole,
+    rateLimit('mutation'),
     updateAppointmentStatusController
 );
 
@@ -82,6 +87,7 @@ appointmentRouter.get(
         params: appointmentIdParamsSchema,
     }),
     requireClinicStaffRole,
+    rateLimit('collection'),
     listAppointmentActivitiesController
 );
 
@@ -93,6 +99,7 @@ appointmentRouter.get(
         query: rescheduleAppointmentSlotsQuerySchema,
     }),
     requireClinicStaffRole,
+    rateLimit('collection'),
     listAppointmentRescheduleSlotsController
 );
 
@@ -104,6 +111,7 @@ appointmentRouter.patch(
         body: rescheduleAppointmentSchema,
     }),
     requireClinicStaffRole,
+    rateLimit('mutation'),
     rescheduleAppointmentController
 );
 

@@ -1,3 +1,4 @@
+import { rateLimit } from '../../middleware/rateLimit.js';
 import { Router } from 'express';
 import { validateRequest } from '../../utils/validateRequest.js';
 import {
@@ -36,6 +37,7 @@ doctorRouter.post(
     }),
     requireClinicAccess,
     requireClinicStaffRole,
+    rateLimit('mutation'),
     createDoctorController
 );
 
@@ -47,6 +49,7 @@ doctorRouter.get(
     }),
     requireClinicAccess,
     requireClinicStaffRole,
+    rateLimit('collection'),
     listDoctorsByClinicController
 );
 
@@ -59,6 +62,7 @@ doctorRouter.patch(
     }),
     requireClinicAccess,
     requireClinicStaffRole,
+    rateLimit('mutation'),
     updateDoctorController
 );
 
@@ -68,6 +72,7 @@ doctorRouter.get(
     validateRequest({ params: doctorClinicParamsSchema }),
     requireClinicAccess,
     requireClinicStaffRole,
+    rateLimit('collection'),
     getDoctorByClinicController
 );
 
@@ -77,6 +82,7 @@ doctorRouter.get(
     validateRequest({ params: doctorClinicParamsSchema }),
     requireClinicAccess,
     requireAdminRole,
+    rateLimit('collection'),
     getDoctorLifecycleImpactController
 );
 
@@ -86,6 +92,7 @@ doctorRouter.delete(
     validateRequest({ params: doctorClinicParamsSchema }),
     requireClinicAccess,
     requireAdminRole,
+    rateLimit('mutation'),
     archiveDoctorController
 );
 
@@ -95,6 +102,7 @@ doctorRouter.post(
     validateRequest({ params: doctorClinicParamsSchema }),
     requireClinicAccess,
     requireAdminRole,
+    rateLimit('mutation'),
     restoreDoctorController
 );
 
@@ -106,6 +114,7 @@ doctorRouter.get(
     }),
     requireClinicAccess,
     requireClinicStaffRole,
+    rateLimit('collection'),
     getDoctorAvailabilityController
 );
 
@@ -118,6 +127,7 @@ doctorRouter.put(
     }),
     requireClinicAccess,
     requireClinicStaffRole,
+    rateLimit('mutation'),
     replaceDoctorAvailabilityController
 );
 

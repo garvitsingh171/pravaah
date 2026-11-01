@@ -12,6 +12,14 @@ datasource db {
   provider = "postgresql"
 }
 
+model ApiRateLimitCounter {
+  key       String   @id
+  hits      Int
+  expiresAt DateTime @db.Timestamptz(6)
+
+  @@index([expiresAt])
+}
+
 enum UserRole {
   ADMIN
   STAFF

@@ -26,6 +26,13 @@ const nodeEnv = process.env.NODE_ENV ?? 'development';
 const clientUrl = process.env.CLIENT_URL ?? 'http://localhost:5173';
 const localClientUrl = process.env.LOCAL_CLIENT_URL ?? 'http://localhost:5173';
 const allowedClientOrigins = Array.from(new Set([clientUrl, localClientUrl].filter(Boolean)));
+const trustProxyCidrs = (process.env.TRUST_PROXY_CIDRS ?? '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+if (trustProxyCidrs.some((value) => value === '*' || value === '0.0.0.0/0' || value === '::/0')) {
+    throw new Error('TRUST_PROXY_CIDRS must contain only specific trusted proxy networks');
+}
 
 export const env = {
     nodeEnv,
@@ -39,4 +46,5 @@ export const env = {
     invitationFromEmail: process.env.INVITATION_FROM_EMAIL?.trim() || undefined,
     localClientUrl,
     allowedClientOrigins,
+    trustProxyCidrs,
 };

@@ -1,3 +1,4 @@
+import { rateLimit } from '../../middleware/rateLimit.js';
 import { Router } from 'express';
 import { validateRequest } from '../../utils/validateRequest.js';
 import {
@@ -40,6 +41,7 @@ staffRouter.get(
     ...adminClinicMiddleware,
     validateRequest({ params: clinicIdParamsSchema }),
     requireClinicAccess,
+    rateLimit('collection'),
     listStaffController
 );
 
@@ -48,6 +50,7 @@ staffRouter.patch(
     ...adminClinicMiddleware,
     validateRequest({ params: staffMemberParamsSchema, body: updateStaffStatusSchema }),
     requireClinicAccess,
+    rateLimit('mutation'),
     updateStaffStatusController
 );
 
@@ -56,6 +59,7 @@ staffRouter.post(
     ...adminClinicMiddleware,
     validateRequest({ params: staffInvitationManagementParamsSchema }),
     requireClinicAccess,
+    rateLimit('invitationWrite'),
     resendStaffInvitationController
 );
 
@@ -64,6 +68,7 @@ staffRouter.get(
     ...adminClinicMiddleware,
     validateRequest({ params: clinicIdParamsSchema }),
     requireClinicAccess,
+    rateLimit('collection'),
     listStaffInvitationsController
 );
 
@@ -72,6 +77,7 @@ staffRouter.post(
     ...adminClinicMiddleware,
     validateRequest({ params: clinicIdParamsSchema, body: createStaffInvitationSchema }),
     requireClinicAccess,
+    rateLimit('invitationWrite'),
     createStaffInvitationController
 );
 
@@ -80,6 +86,7 @@ staffRouter.patch(
     ...adminClinicMiddleware,
     validateRequest({ params: staffInvitationManagementParamsSchema }),
     requireClinicAccess,
+    rateLimit('mutation'),
     revokeStaffInvitationController
 );
 
@@ -88,6 +95,7 @@ staffRouter.get(
     ...adminClinicMiddleware,
     validateRequest({ params: staffMemberParamsSchema }),
     requireClinicAccess,
+    rateLimit('collection'),
     getStaffMemberController
 );
 
@@ -96,6 +104,7 @@ staffRouter.patch(
     ...adminClinicMiddleware,
     validateRequest({ params: staffMemberParamsSchema, body: updateStaffProfileSchema }),
     requireClinicAccess,
+    rateLimit('mutation'),
     updateStaffProfileController
 );
 
@@ -104,6 +113,7 @@ staffRouter.delete(
     ...adminClinicMiddleware,
     validateRequest({ params: staffMemberParamsSchema }),
     requireClinicAccess,
+    rateLimit('mutation'),
     removeStaffMemberController
 );
 
@@ -112,6 +122,7 @@ staffRouter.post(
     ...adminClinicMiddleware,
     validateRequest({ params: staffMemberParamsSchema }),
     requireClinicAccess,
+    rateLimit('mutation'),
     restoreStaffMemberController
 );
 
@@ -121,6 +132,7 @@ staffInvitationRouter.get(
     '/invitations/:token',
     authenticateClerkIdentity,
     validateRequest({ params: staffInvitationTokenParamsSchema }),
+    rateLimit('invitationRead'),
     previewStaffInvitationController
 );
 
@@ -131,6 +143,7 @@ staffInvitationRouter.post(
         params: staffInvitationTokenParamsSchema,
         body: acceptStaffInvitationBodySchema,
     }),
+    rateLimit('invitationAccept'),
     acceptStaffInvitationController
 );
 

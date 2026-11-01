@@ -15,6 +15,7 @@ jobs:
         env:
             NODE_ENV: test
             SECURITY_TEST_MODE: '1'
+            RATE_LIMIT_TEST_SHARED: '1'
             TEST_DATABASE_URL: postgresql://pravaah_test:pravaah_test@127.0.0.1:5432/pravaah_security_test
         services:
             postgres:
@@ -48,6 +49,9 @@ jobs:
             - name: Run backend security and concurrency integration suite
               id: backend
               run: npm run test:security -w apps/server
+            - name: Verify rate-limit HTTP policy behavior
+              id: rate_limits
+              run: npm run test -w apps/server -- src/middleware/rateLimit.test.ts
             - name: Run frontend XSS regression tests
               id: frontend
               run: npm run test -w apps/web -- src/features/patients/PatientsPage.test.tsx src/features/doctors/DoctorsPage.test.tsx src/features/appointments/AppointmentsPage.test.tsx src/components/ui/RiskExplanation.test.tsx
@@ -57,4 +61,5 @@ jobs:
                   echo '## Security regression' >> "$GITHUB_STEP_SUMMARY"
                   echo '- Migrations: ${{ steps.migrate.outcome }}' >> "$GITHUB_STEP_SUMMARY"
                   echo '- Backend: ${{ steps.backend.outcome }}' >> "$GITHUB_STEP_SUMMARY"
+                  echo '- Rate limits: ${{ steps.rate_limits.outcome }}' >> "$GITHUB_STEP_SUMMARY"
                   echo '- Frontend XSS: ${{ steps.frontend.outcome }}' >> "$GITHUB_STEP_SUMMARY"

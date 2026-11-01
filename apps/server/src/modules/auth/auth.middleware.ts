@@ -4,6 +4,7 @@ import { AppError } from '../../utils/AppError.js';
 import { accessService } from './access.service.js';
 import { authService } from './auth.service.js';
 import type { ClerkIdentity } from './auth.types.js';
+import { rateLimit } from '../../middleware/rateLimit.js';
 
 const bearerAuthorizationHeaderPattern = /^Bearer\s+\S+$/i;
 
@@ -46,14 +47,14 @@ export const authenticateClerkIdentity: RequestHandler = (req, _res, next) => {
     }
 };
 
-export const authenticateRequest: RequestHandler = async (req, _res, next) => {
+export const authenticateRequest: RequestHandler = async (req, res, next) => {
     try {
         const identity = resolveClerkIdentity(req);
 
         req.authIdentity = identity;
         req.user = await authService.getActiveUserByClerkUserId(identity.clerkUserId);
 
-        next();
+        await rateLimit('general')(req, res, next);
     } catch (error) {
         next(error);
     }

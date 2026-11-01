@@ -1,3 +1,4 @@
+import { rateLimit } from '../../middleware/rateLimit.js';
 import { Router } from 'express';
 import { validateRequest } from '../../utils/validateRequest.js';
 import {
@@ -29,6 +30,7 @@ dashboardRouter.get(
     }),
     requireClinicAccess,
     requireClinicStaffRole,
+    rateLimit('dashboard'),
     getDashboardSummaryController
 );
 
@@ -41,6 +43,7 @@ dashboardRouter.get(
     }),
     requireClinicAccess,
     requireClinicStaffRole,
+    rateLimit('dashboard'),
     getHighRiskAppointmentsController
 );
 
@@ -53,6 +56,7 @@ dashboardRouter.get(
     }),
     requireClinicAccess,
     requireClinicStaffRole,
+    rateLimit('dashboard'),
     getNoShowIntelligenceController
 );
 
@@ -64,6 +68,7 @@ dashboardRouter.get(
     }),
     requireClinicAccess,
     requireClinicStaffRole,
+    rateLimit('dashboard'),
     getTodayActivityController
 );
 
