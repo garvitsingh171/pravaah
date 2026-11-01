@@ -479,7 +479,8 @@ function StaffManagementPage() {
     return (
         <div className="space-y-6">
             <PageHeader
-                eyebrow="Admin workspace"
+                title="Staff management"
+                eyebrow="Administration"
                 description="Invite Staff into this clinic, manage access, and review invitation history."
             />
 
@@ -531,6 +532,7 @@ function StaffManagementPage() {
             >
                 <div className="mb-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
                     <Input
+                        type="search"
                         aria-label="Search team"
                         placeholder="Search by name or email"
                         value={search}
@@ -549,6 +551,9 @@ function StaffManagementPage() {
                         <option value="INVITED">Invited</option>
                     </select>
                 </div>
+                <p className="mb-3 text-xs text-app-muted" role="status">
+                    {visibleMembers.length} of {state.members.length} team members
+                </p>
                 {state.members.length === 0 ? (
                     <EmptyState
                         title="No clinic members found"
@@ -582,9 +587,21 @@ function StaffManagementPage() {
                     </div>
                 )}
                 {state.members.length > 0 && visibleMembers.length === 0 ? (
-                    <p className="mt-4 text-sm text-app-muted">
-                        No team members match these filters.
-                    </p>
+                    <EmptyState
+                        title="No matching team members"
+                        message="Try another name, email address, or account status."
+                        action={
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setSearch('');
+                                    setStatusFilter('ALL');
+                                }}
+                            >
+                                Clear filters
+                            </Button>
+                        }
+                    />
                 ) : null}
                 {staffMembers.length === 0 && state.members.length > 0 ? (
                     <p className="mt-4 rounded-lg bg-app-surface-muted p-4 text-sm text-app-muted">

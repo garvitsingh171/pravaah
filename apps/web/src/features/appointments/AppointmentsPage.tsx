@@ -1016,6 +1016,7 @@ function AppointmentsPage() {
         useState<AppointmentListItem | null>(null);
     const [values, setValues] = useState<AppointmentBookingFormValues>(() => ({
         ...emptyFormValues,
+        appointmentDate: selectedDate || today,
         ...(bookingReturnState?.bookingDraft ?? {}),
         patientId:
             bookingReturnState?.patientId ?? bookingReturnState?.bookingDraft?.patientId ?? '',
@@ -1212,7 +1213,8 @@ function AppointmentsPage() {
 
     const handleClearAppointmentFilters = () => {
         prepareAppointmentFilterChange();
-        updateListQuery({ date: '', doctorId: '', patientId: '', status: '', page: 1 });
+        updateListQuery({ date: today, doctorId: '', patientId: '', status: '', page: 1 });
+        setFilterPatientSearch('');
         setPatientSearch('');
     };
 
@@ -1665,7 +1667,7 @@ function AppointmentsPage() {
         try {
             const data = await createAppointment(clinicId, toCreateAppointmentRequest(values));
 
-            setValues(emptyFormValues);
+            setValues({ ...emptyFormValues, appointmentDate: selectedDate || today });
             setFieldErrors({});
             setSuccessState({
                 message: 'Appointment booked successfully.',
@@ -1946,8 +1948,16 @@ function AppointmentsPage() {
         referenceState.status === 'success' &&
         referenceState.doctors.length > 0 &&
         referenceState.patients.length > 0;
+    const activeFilterCount = [
+        selectedDate !== getClinicDateInputValue(clinicTimezone),
+        selectedDoctorId,
+        selectedPatientId,
+        selectedStatus,
+        patientSearch.trim(),
+        navigationAppointmentId,
+    ].filter(Boolean).length;
     const hasAppointmentFilters = Boolean(
-        (selectedDate && selectedDate !== getClinicDateInputValue(clinicTimezone)) ||
+        selectedDate !== getClinicDateInputValue(clinicTimezone) ||
         selectedDoctorId ||
         selectedPatientId ||
         selectedStatus ||
@@ -1989,13 +1999,16 @@ function AppointmentsPage() {
     return (
         <section className="space-y-5">
             <PageHeader
+                title="Appointments"
+                eyebrow="Daily operations"
+                description="Find a visit, book a time, or update patient progress."
                 actions={
                     <Button onClick={() => setIsBookingDialogOpen(true)}>Book appointment</Button>
                 }
             />
 
             <FilterBar>
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-[repeat(5,minmax(0,1fr))_auto_auto] xl:items-end">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-[repeat(4,minmax(0,1fr))] xl:items-end">
                     <label className="block text-sm font-medium text-slate-700">
                         Appointment date
                         <input
@@ -2039,30 +2052,6 @@ function AppointmentsPage() {
                     </label>
 
                     <label className="block text-sm font-medium text-slate-700">
-                        Patient
-                        <input
-                            type="search"
-                            className={fieldControlClassName}
-                            placeholder="Find patient by name or phone"
-                            maxLength={100}
-                            value={filterPatientSearch}
-                            onChange={(event) => setFilterPatientSearch(event.target.value)}
-                        />
-                        <select
-                            className={fieldControlClassName}
-                            value={selectedPatientId}
-                            onChange={(event) => handlePatientFilterChange(event.target.value)}
-                        >
-                            <option value="">All patients</option>
-                            {referenceState.patients.map((patient) => (
-                                <option key={patient.id} value={patient.id}>
-                                    {patient.fullName}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-
-                    <label className="block text-sm font-medium text-slate-700">
                         Status
                         <select
                             className={fieldControlClassName}
@@ -2081,23 +2070,62 @@ function AppointmentsPage() {
                             ))}
                         </select>
                     </label>
-
-                    <Button variant="outline" onClick={handleTodayFilterClick}>
-                        Today
-                    </Button>
-
-                    {hasAppointmentFilters ? (
-                        <Button variant="outline" onClick={handleClearAppointmentFilters}>
-                            Clear filters
-                        </Button>
-                    ) : null}
                 </div>
-                <div className="mt-4 flex flex-wrap items-end gap-4 border-t border-slate-200 pt-4 text-sm text-slate-600">
-                    <p>Order: appointment time, earliest first</p>
-                    <label className="min-w-32">
-                        Appointments per page
+                <details
+                    className="mt-3 rounded-app border border-app-border px-3 py-2"
+                    open={selectedPatientId ? true : undefined}
+                >
+                    <summary className="min-h-8 cursor-pointer text-sm font-medium text-app-muted">
+                        Specific patient{selectedPatientId ? ' · Patient selected' : ' (optional)'}
+                    </summary>
+                    <div className="block text-sm font-medium text-slate-700">
+                        <label htmlFor="appointment-patient-filter">Patient</label>
+                        <input
+                            aria-label="Find patient for filter"
+                            type="search"
+                            className={fieldControlClassName}
+                            placeholder="Find patient by name or phone"
+                            maxLength={100}
+                            value={filterPatientSearch}
+                            onChange={(event) => setFilterPatientSearch(event.target.value)}
+                        />
                         <select
                             className={fieldControlClassName}
+                            id="appointment-patient-filter"
+                            value={selectedPatientId}
+                            onChange={(event) => handlePatientFilterChange(event.target.value)}
+                        >
+                            <option value="">All patients</option>
+                            {referenceState.patients.map((patient) => (
+                                <option key={patient.id} value={patient.id}>
+                                    {patient.fullName}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                </details>
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-app-border pt-3 text-xs text-app-muted">
+                    <div className="flex flex-wrap gap-2">
+                        {' '}
+                        <Button variant="outline" onClick={handleTodayFilterClick}>
+                            Today
+                        </Button>
+                        {hasAppointmentFilters ? (
+                            <Button variant="outline" onClick={handleClearAppointmentFilters}>
+                                Clear filters
+                            </Button>
+                        ) : null}
+                    </div>
+                    <p role="status">
+                        {activeFilterCount
+                            ? `${activeFilterCount} active filter${activeFilterCount === 1 ? '' : 's'}`
+                            : 'Today · All doctors and statuses'}
+                    </p>
+                    <p>Order: appointment time, earliest first</p>
+                    <label className="flex items-center gap-2">
+                        Appointments per page
+                        <select
+                            className={`${fieldControlClassName} !mt-0 !w-20`}
                             value={pageSize}
                             onChange={(event) =>
                                 updateListQuery({ limit: Number(event.target.value), page: 1 })

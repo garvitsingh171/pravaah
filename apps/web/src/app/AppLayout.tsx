@@ -1,6 +1,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Navigate, Outlet, useLocation, useNavigationType } from 'react-router-dom';
 import Sidebar, { MobileWorkspaceNavigation } from '../components/layout/Sidebar';
+import CommandPalette from '../components/layout/CommandPalette';
 import Topbar from '../components/layout/Topbar';
 import { LoadingState } from '../components/feedback';
 import { useActiveClinic } from './activeClinicContext';
@@ -98,6 +99,10 @@ const getSetupDockErrorState = (
 
 function AppLayout({ initialSetup }: AppLayoutProps) {
     const location = useLocation();
+    const navigationType = useNavigationType();
+    const [commandsOpen, setCommandsOpen] = useState(false);
+    const previousScrollPath = useRef<string | null>(null);
+    const scrollPositions = useRef(new Map<string, number>());
     const activeClinic = useActiveClinic();
     const currentRoute = getRouteForPath(location.pathname);
     const currentUserRole = activeClinic.currentUser?.role ?? null;
@@ -170,16 +175,26 @@ function AppLayout({ initialSetup }: AppLayoutProps) {
 
     useEffect(() => {
         const scrollContainer = mainScrollRef.current;
+        const positions = scrollPositions.current;
 
         if (!scrollContainer) {
             return;
         }
 
-        scrollContainer.scrollTop = 0;
+        const isFirstPage = previousScrollPath.current === null;
+        const samePage = previousScrollPath.current === location.pathname;
+        previousScrollPath.current = location.pathname;
+        const savedTop = samePage
+            ? scrollContainer.scrollTop
+            : navigationType === 'POP'
+              ? (positions.get(location.key) ?? 0)
+              : 0;
+        scrollContainer.scrollTop = savedTop;
+        if (!samePage && !isFirstPage) scrollContainer.focus({ preventScroll: true });
         scrollContainer.scrollLeft = 0;
 
         if (typeof scrollContainer.scrollTo === 'function') {
-            scrollContainer.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+            scrollContainer.scrollTo({ top: savedTop, left: 0, behavior: 'auto' });
         }
         if (location.hash) {
             const frame = window.requestAnimationFrame(() => {
@@ -188,10 +203,59 @@ function AppLayout({ initialSetup }: AppLayoutProps) {
                     target.scrollIntoView({ block: 'start' });
                 }
             });
-            return () => window.cancelAnimationFrame(frame);
+            return () => {
+                window.cancelAnimationFrame(frame);
+            };
+        }
+        // History may return before a lazy page or its data has filled the scroll area.
+        // Restore when the content is tall enough, unless the user starts scrolling.
+        const content = scrollContainer.firstElementChild;
+        if (savedTop > 0 && content && typeof ResizeObserver !== 'undefined') {
+            const observer = new ResizeObserver(() => {
+                scrollContainer.scrollTop = savedTop;
+                if (scrollContainer.scrollHeight - scrollContainer.clientHeight >= savedTop)
+                    observer.disconnect();
+            });
+            const stopRestoring = () => observer.disconnect();
+            observer.observe(content);
+            scrollContainer.addEventListener('wheel', stopRestoring, { passive: true });
+            scrollContainer.addEventListener('touchstart', stopRestoring, { passive: true });
+            scrollContainer.addEventListener('keydown', stopRestoring);
+            return () => {
+                observer.disconnect();
+                scrollContainer.removeEventListener('wheel', stopRestoring);
+                scrollContainer.removeEventListener('touchstart', stopRestoring);
+                scrollContainer.removeEventListener('keydown', stopRestoring);
+            };
         }
         return undefined;
-    }, [location.pathname, location.hash]);
+    }, [location.pathname, location.hash, location.key, navigationType]);
+
+    useEffect(() => {
+        const handleShortcut = (event: KeyboardEvent) => {
+            const target = event.target as HTMLElement | null;
+            if (
+                target?.closest(
+                    'input, textarea, select, [contenteditable="true"], [role="dialog"]'
+                ) ||
+                event.isComposing
+            )
+                return;
+            if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+                event.preventDefault();
+                setCommandsOpen(true);
+            } else if (event.key === '/' && !event.metaKey && !event.ctrlKey && !event.altKey) {
+                const search =
+                    mainScrollRef.current?.querySelector<HTMLInputElement>('input[type="search"]');
+                if (search) {
+                    event.preventDefault();
+                    search.focus();
+                }
+            }
+        };
+        document.addEventListener('keydown', handleShortcut);
+        return () => document.removeEventListener('keydown', handleShortcut);
+    }, []);
 
     useEffect(() => {
         if (!isAdmin) {
@@ -239,6 +303,7 @@ function AppLayout({ initialSetup }: AppLayoutProps) {
 
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                     <Topbar
+                        onOpenCommands={() => setCommandsOpen(true)}
                         title={currentRoute.title}
                         supportingText={topbarSupportingText}
                         clinicName={clinicName}
@@ -250,13 +315,16 @@ function AppLayout({ initialSetup }: AppLayoutProps) {
                     <main
                         ref={mainScrollRef}
                         id="main-content"
-                        tabIndex={-1}
+                        tabIndex={0}
                         data-workspace-scroll-container="true"
+                        onScroll={(event) =>
+                            scrollPositions.current.set(location.key, event.currentTarget.scrollTop)
+                        }
                         className="min-h-0 min-w-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4 md:px-6 md:py-6"
                     >
                         <div className="mx-auto w-full max-w-[1440px]">
                             <Suspense fallback={<ProtectedRouteLoadingState />}>
-                                <div key={location.pathname} className="page-reveal">
+                                <div key={location.pathname} className="workspace-page">
                                     <Outlet />
                                 </div>
                             </Suspense>
@@ -264,6 +332,12 @@ function AppLayout({ initialSetup }: AppLayoutProps) {
                     </main>
                 </div>
             </div>
+            {commandsOpen && (
+                <CommandPalette
+                    navigationItems={navigationItems}
+                    onClose={() => setCommandsOpen(false)}
+                />
+            )}
             <FloatingSetupDock
                 key={activeClinic.clinicId}
                 clinicId={activeClinic.clinicId}

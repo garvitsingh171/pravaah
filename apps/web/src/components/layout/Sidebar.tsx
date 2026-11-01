@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { PravaahLogoLink } from '../brand';
 import type { AppRoute } from '../../routes/dashboardRoutes';
 
@@ -80,10 +80,12 @@ function WorkspaceNavigation({
     navigationItems,
     onNavigate,
     surface = 'light',
+    collapsed = false,
 }: {
     navigationItems: AppRoute[];
     onNavigate?: () => void;
     surface?: 'light' | 'dark';
+    collapsed?: boolean;
 }) {
     const getGroup = (path: string) => {
         if (['/dashboard', '/appointments', '/queue'].includes(path)) return 'Daily operations';
@@ -107,7 +109,7 @@ function WorkspaceNavigation({
                     <div key={item.path}>
                         {beginsGroup ? (
                             <p
-                                className={`mb-2 px-3 text-[11px] font-bold uppercase tracking-[0.12em] ${index === 0 ? 'mt-0' : 'mt-5'} ${darkSurface ? 'text-slate-400' : 'text-slate-500'}`}
+                                className={`${collapsed ? 'sr-only' : ''} mb-2 px-3 text-[11px] font-bold uppercase tracking-[0.12em] ${index === 0 ? 'mt-0' : 'mt-5'} ${darkSurface ? 'text-slate-400' : 'text-slate-500'}`}
                             >
                                 {group}
                             </p>
@@ -116,9 +118,10 @@ function WorkspaceNavigation({
                             to={item.path}
                             end={item.path === '/dashboard'}
                             onClick={onNavigate}
-                            title={item.navigationDescription}
+                            title={collapsed ? label : item.navigationDescription}
+                            aria-label={collapsed ? label : undefined}
                             className={({ isActive }) =>
-                                `group relative flex min-w-0 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition duration-[var(--motion-fast)] ease-[var(--motion-ease)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-500 ${
+                                `workspace-nav-link ${collapsed ? 'is-compact' : ''} group relative flex min-w-0 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition duration-[var(--motion-fast)] ease-[var(--motion-ease)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-500 ${
                                     isActive
                                         ? darkSurface
                                             ? 'bg-white/10 text-white'
@@ -157,7 +160,7 @@ function WorkspaceNavigation({
                                     >
                                         <NavigationIcon name={item.navigationIcon} />
                                     </span>
-                                    <span className="min-w-0 truncate">
+                                    <span className={collapsed ? 'sr-only' : 'min-w-0 truncate'}>
                                         {label}
                                         <span className="sr-only">
                                             , {item.navigationDescription}
@@ -234,6 +237,9 @@ function MobileWorkspaceNavigation({ navigationItems, clinicName, clinicMeta }: 
         }
 
         const previousOverflow = document.body.style.overflow;
+        const workspace = document.querySelector<HTMLElement>('[data-workspace-scroll-container]');
+        const previousWorkspaceOverflow = workspace?.style.overflow;
+        if (workspace) workspace.style.overflow = 'hidden';
         document.body.style.overflow = 'hidden';
         closeButtonRef.current?.focus();
 
@@ -277,6 +283,7 @@ function MobileWorkspaceNavigation({ navigationItems, clinicName, clinicMeta }: 
 
         return () => {
             document.body.style.overflow = previousOverflow;
+            if (workspace) workspace.style.overflow = previousWorkspaceOverflow ?? '';
             document.removeEventListener('keydown', handleKeyDown);
         };
     }, [closeMenu, isOpen]);
@@ -398,26 +405,96 @@ function MobileWorkspaceNavigation({ navigationItems, clinicName, clinicMeta }: 
 }
 
 function Sidebar({ navigationItems, clinicName, clinicMeta }: SidebarProps) {
+    const [collapsed, setCollapsed] = useState(() => {
+        try {
+            const preference = localStorage.getItem('pravaah.sidebar.compact');
+            return preference === null
+                ? typeof window.matchMedia === 'function' &&
+                      window.matchMedia('(min-width: 768px) and (max-width: 1023px)').matches
+                : preference === 'true';
+        } catch {
+            return false;
+        }
+    });
+    const toggleSidebar = () => {
+        const next = !collapsed;
+        setCollapsed(next);
+        try {
+            localStorage.setItem('pravaah.sidebar.compact', String(next));
+        } catch {
+            /* Navigation remains usable when storage is unavailable. */
+        }
+    };
     return (
-        <aside className="hidden h-full bg-[var(--color-pravaah-navy)] text-white md:flex md:w-64 md:shrink-0 md:flex-col">
-            <div className="px-4 py-4 md:px-5 md:py-6">
-                <PravaahLogoLink layout="horizontal" surface="dark" size="md" />
-                <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-brand">
-                    Workspace
-                </p>
-
-                <div className="mt-4 rounded-lg bg-white/5 p-3 ring-1 ring-white/10">
-                    <p className="break-words text-sm font-semibold leading-5 text-white">
-                        {clinicName}
-                    </p>
-                    <p className="mt-1 break-words text-xs leading-5 text-slate-400">
-                        {clinicMeta}
-                    </p>
-                </div>
+        <aside
+            className={`workspace-sidebar ${collapsed ? 'is-compact' : ''}`}
+            aria-label="Workspace sidebar"
+        >
+            <div className="workspace-sidebar-brand">
+                <PravaahLogoLink
+                    layout={collapsed ? 'mark' : 'horizontal'}
+                    surface="dark"
+                    size="md"
+                />
+                {!collapsed && (
+                    <span className="mt-1 block text-[11px] font-medium tracking-wide text-slate-400">
+                        CLINIC WORKSPACE
+                    </span>
+                )}
             </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
-                <WorkspaceNavigation navigationItems={navigationItems} surface="dark" />
+            <div className="workspace-clinic" title={clinicName}>
+                <span
+                    aria-hidden="true"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-sm font-bold text-teal-200"
+                >
+                    {clinicName.slice(0, 1).toUpperCase()}
+                </span>
+                {!collapsed && (
+                    <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">{clinicName}</p>
+                        <p className="truncate text-xs text-slate-400">{clinicMeta}</p>
+                    </div>
+                )}
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4 pt-5">
+                <WorkspaceNavigation
+                    navigationItems={navigationItems}
+                    surface="dark"
+                    collapsed={collapsed}
+                />
+            </div>
+            <div className="space-y-1 border-t border-white/10 p-2">
+                <Link
+                    to="/profile"
+                    className="sidebar-footer-control"
+                    title="Your account"
+                    aria-label={collapsed ? 'Your account' : undefined}
+                >
+                    <NavigationIcon name="staff" />
+                    {!collapsed && <span>Your account</span>}
+                </Link>
+                <button
+                    type="button"
+                    className="sidebar-footer-control"
+                    onClick={toggleSidebar}
+                    aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                    aria-expanded={!collapsed}
+                >
+                    <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        aria-hidden="true"
+                    >
+                        <rect x="3" y="4" width="18" height="16" rx="3" />
+                        <path d="M9 4v16" />
+                        <path d={collapsed ? 'm13 9 3 3-3 3' : 'm16 9-3 3 3 3'} />
+                    </svg>
+                    {!collapsed && <span>Collapse sidebar</span>}
+                </button>
             </div>
         </aside>
     );

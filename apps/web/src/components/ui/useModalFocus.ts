@@ -43,7 +43,11 @@ export default function useModalFocus(onClose: () => void, isBusy = false) {
                     getComputedStyle(element).visibility !== 'hidden' &&
                     getComputedStyle(element).display !== 'none'
             );
-        (getFocusableElements()[0] ?? dialogRef.current)?.focus();
+        (
+            dialogRef.current?.querySelector<HTMLElement>('[data-autofocus="true"]') ??
+            getFocusableElements()[0] ??
+            dialogRef.current
+        )?.focus();
 
         const handleFocusIn = (event: FocusEvent) => {
             if (modalStack.at(-1) !== dialog) return;

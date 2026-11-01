@@ -223,7 +223,7 @@ describe('ProtectedAppShell', () => {
         expect(screen.getByRole('link', { name: /clinic settings/i })).toBeInTheDocument();
     });
 
-    it('uses the topbar for current page context without repeating clinic identity', async () => {
+    it('keeps topbar context separate from the page heading', async () => {
         setClerkSignedIn();
         mockGetOnboardingStatus.mockResolvedValue(completedAdminOnboarding);
 
@@ -234,7 +234,7 @@ describe('ProtectedAppShell', () => {
         ).toBeInTheDocument();
 
         const topbar = screen.getByRole('banner');
-        expect(within(topbar).getByRole('heading', { name: /today at pravaah/i })).toBeVisible();
+        expect(within(topbar).getByText(/today at pravaah/i)).toBeVisible();
         expect(within(topbar).queryByText('Pravaah Test Clinic')).not.toBeInTheDocument();
         expect(screen.getByText('Pravaah Test Clinic')).toBeInTheDocument();
     });
@@ -258,7 +258,7 @@ describe('ProtectedAppShell', () => {
 
         renderShell('/doctors');
 
-        expect(await screen.findAllByRole('heading', { name: /^doctors$/i })).toHaveLength(2);
+        expect(await screen.findAllByRole('heading', { name: /^doctors$/i })).toHaveLength(1);
 
         await user.click(screen.getAllByRole('link', { name: /pravaah home/i })[0]);
 
@@ -474,7 +474,7 @@ describe('ProtectedAppShell', () => {
         const drawer = screen.getByRole('dialog', { name: /clinic workspace navigation menu/i });
         await user.click(within(drawer).getByRole('link', { name: /appointments/i }));
         await waitFor(() =>
-            expect(screen.getAllByRole('heading', { name: /^appointments$/i })).toHaveLength(2)
+            expect(screen.getAllByRole('heading', { name: /^appointments$/i })).toHaveLength(1)
         );
         expect(document.getElementById('main-content')).toHaveFocus();
     });

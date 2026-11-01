@@ -604,6 +604,7 @@ function DoctorsPage() {
     const { showErrorToast, showSuccessToast } = useToast();
     const locationState = location.state as DoctorsLocationState | null;
     const [searchTerm, setSearchTerm] = useState('');
+    const [specialty, setSpecialty] = useState('');
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
     const [doctorListState, setDoctorListState] = useState<DoctorListState>(emptyDoctorListState);
     const [selectedDoctor, setSelectedDoctor] = useState<DoctorSummary | null>(null);
@@ -762,16 +763,28 @@ function DoctorsPage() {
 
         return doctorListState.doctors.filter(
             (doctor) =>
-                doctorMatchesSearch(doctor, searchTerm) && doctorMatchesStatus(doctor, statusFilter)
+                doctorMatchesSearch(doctor, searchTerm) &&
+                doctorMatchesStatus(doctor, statusFilter) &&
+                (!specialty || doctor.specialization?.trim() === specialty)
         );
-    }, [doctorListState, searchTerm, statusFilter]);
+    }, [doctorListState, searchTerm, statusFilter, specialty]);
     const hasSearch = searchTerm.trim().length > 0;
-    const hasFilters = hasSearch || statusFilter !== 'active';
+    const hasFilters = hasSearch || statusFilter !== 'active' || Boolean(specialty);
+    const specialties = [
+        ...new Set(
+            doctorListState.doctors
+                .map((doctor) => doctor.specialization?.trim())
+                .filter((value): value is string => Boolean(value))
+        ),
+    ].sort();
     const hasDoctors = doctorListState.status === 'success' && displayedDoctors.length > 0;
 
     return (
         <section className="space-y-6">
             <PageHeader
+                title="Doctors"
+                eyebrow="Clinic directory"
+                description="Find providers and manage their profiles and availability."
                 actions={
                     <Link
                         to="/doctors/new"
@@ -795,6 +808,21 @@ function DoctorsPage() {
                         />
                     </label>
 
+                    <label className="block text-sm font-medium text-app-muted md:w-48">
+                        Specialty
+                        <select
+                            className={fieldControlClassName}
+                            value={specialty}
+                            onChange={(event) => setSpecialty(event.target.value)}
+                        >
+                            <option value="">All specialties</option>
+                            {specialties.map((value) => (
+                                <option key={value} value={value}>
+                                    {value}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
                     <label className="block text-sm font-medium text-slate-700 md:w-56">
                         Status
                         <select
@@ -816,12 +844,22 @@ function DoctorsPage() {
                             onClick={() => {
                                 setSearchTerm('');
                                 setStatusFilter('active');
+                                setSpecialty('');
                             }}
                         >
                             Clear
                         </Button>
                     ) : null}
                 </div>
+                <p
+                    className="mt-3 border-t border-app-border pt-3 text-xs text-app-muted"
+                    role="status"
+                >
+                    {doctorListState.status === 'success'
+                        ? `${displayedDoctors.length} of ${doctorListState.doctors.length} doctors`
+                        : 'Loading directory…'}
+                    <span className="ml-2 hidden sm:inline">· Press / to search</span>
+                </p>
             </FilterBar>
 
             {doctorListState.status === 'success' && doctorListState.doctors.length > 0 ? (
@@ -853,7 +891,7 @@ function DoctorsPage() {
             ) : null}
 
             {doctorListState.status === 'loading' ? (
-                <LoadingState message="Loading doctors..." />
+                <LoadingState message="Loading doctors..." variant="table" />
             ) : null}
 
             {doctorListState.status === 'error' ? (

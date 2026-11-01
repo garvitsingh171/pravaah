@@ -171,9 +171,6 @@ const buildSummaryCards = (
     summary: DashboardSummary,
     queueEntries: QueueListItem[] | null
 ): SummaryCard[] => {
-    const cancelledNoShowCount =
-        summary.appointmentSummary.cancelled + summary.appointmentSummary.noShow;
-
     return [
         {
             label: "Today's appointments",
@@ -202,8 +199,8 @@ const buildSummaryCards = (
             icon: 'check',
         },
         {
-            label: 'Cancelled / no-show',
-            value: cancelledNoShowCount,
+            label: 'No-shows',
+            value: summary.appointmentSummary.noShow,
             helper: `${summary.appointmentSummary.cancelled} cancelled, ${summary.appointmentSummary.noShow} no-show`,
             accentClassName: 'border-l-[var(--color-status-danger-text)]',
             toneClassName: 'bg-[var(--color-status-danger-bg)]',
@@ -239,12 +236,17 @@ function TodayAppointmentsCard({
                 appointment.status !== AppointmentStatus.CANCELLED &&
                 appointment.status !== AppointmentStatus.NO_SHOW
         )
-        .sort((first, second) => first.scheduledAt.localeCompare(second.scheduledAt))
+        .sort(
+            (first, second) =>
+                Number(first.status === AppointmentStatus.COMPLETED) -
+                    Number(second.status === AppointmentStatus.COMPLETED) ||
+                first.scheduledAt.localeCompare(second.scheduledAt)
+        )
         .slice(0, 5);
     return (
         <Card
             title="Today’s appointments"
-            description="Five visits from today’s clinic schedule."
+            description="Up to five visits, with active appointments first."
             actions={
                 <Link
                     to={appRoutePaths.appointments}
@@ -276,12 +278,20 @@ function TodayAppointmentsCard({
                             <span className="text-sm font-bold text-app-text">
                                 {formatTime(appointment.scheduledAt, timezone)}
                             </span>
-                            <span
-                                className="min-w-0 truncate text-sm font-semibold text-app-text"
+                            <Link
+                                to={appRoutePaths.appointments}
+                                state={{
+                                    appointmentId: appointment.id,
+                                    appointmentDate: getClinicDateInputValue(
+                                        timezone,
+                                        new Date(appointment.scheduledAt)
+                                    ),
+                                }}
+                                className="min-w-0 truncate text-sm font-semibold text-action underline-offset-4 hover:underline"
                                 title={appointment.patient.fullName}
                             >
                                 {appointment.patient.fullName}
-                            </span>
+                            </Link>
                             <span
                                 className="min-w-0 truncate text-sm text-app-muted"
                                 title={appointment.doctor.fullName}
@@ -321,8 +331,8 @@ function LiveQueuePreview({ queueEntries }: { queueEntries: QueueListItem[] | nu
         .slice(0, 4);
     return (
         <Card
-            title="Live queue preview"
-            description="Patients with an active arrival or call status."
+            title="Queue preview"
+            description="Arrivals and calls at your last refresh."
             actions={
                 <Link
                     to={appRoutePaths.queue}
@@ -367,7 +377,7 @@ function LiveQueuePreview({ queueEntries }: { queueEntries: QueueListItem[] | nu
     );
 }
 
-function SummaryCardItem({ card }: { card: SummaryCard }) {
+function SummaryCardItem({ card, date }: { card: SummaryCard; date: string }) {
     const iconPath = {
         calendar:
             'M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z',
@@ -375,36 +385,49 @@ function SummaryCardItem({ card }: { card: SummaryCard }) {
         check: 'M20 6 9 17l-5-5',
         alert: 'M12 9v4m0 4h.01M10.3 3.8 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3l-8.3-14.2a2 2 0 0 0-3.4 0Z',
     }[card.icon];
+    const query = new URLSearchParams({ date });
+    if (card.icon === 'check') query.set('status', AppointmentStatus.COMPLETED);
+    if (card.icon === 'alert') query.set('status', AppointmentStatus.NO_SHOW);
+    const destination =
+        card.icon === 'queue' ? appRoutePaths.queue : `${appRoutePaths.appointments}?${query}`;
     return (
-        <article
-            className={`rounded-app-lg border border-app-border border-l-[3px] bg-white p-4 shadow-[var(--shadow-soft)] ${card.accentClassName}`}
+        <Link
+            to={destination}
+            className="metric-link"
+            aria-label={`${card.label}: ${card.value}. ${card.icon === 'queue' ? 'Open queue' : 'View appointments'}`}
         >
-            <div className="flex items-start justify-between gap-4">
-                <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        {card.label}
-                    </p>
-                    <p className="mt-2 text-2xl font-bold text-slate-900">{card.value}</p>
-                </div>
-                <span
-                    className={`flex h-9 w-9 items-center justify-center rounded-app ${card.toneClassName} text-app-text`}
-                    aria-hidden="true"
-                >
-                    <svg
-                        className="h-5 w-5"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
+            <article
+                className={`rounded-app-lg border border-app-border border-l-[3px] bg-white p-4 shadow-[var(--shadow-soft)] ${card.accentClassName}`}
+            >
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            {card.label}
+                        </p>
+                        <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight text-slate-900">
+                            {card.value}
+                        </p>
+                    </div>
+                    <span
+                        className={`flex h-9 w-9 items-center justify-center rounded-app ${card.toneClassName} text-app-text`}
+                        aria-hidden="true"
                     >
-                        <path d={iconPath} />
-                    </svg>
-                </span>
-            </div>
-            <p className="mt-2 text-xs leading-5 text-slate-500">{card.helper}</p>
-        </article>
+                        <svg
+                            className="h-5 w-5"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        >
+                            <path d={iconPath} />
+                        </svg>
+                    </span>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-slate-500">{card.helper}</p>
+            </article>
+        </Link>
     );
 }
 
@@ -496,7 +519,7 @@ function OperationalPulsePanel({ data }: { data: DashboardData }) {
                     </h2>
                     <p className="mt-3 max-w-md text-sm leading-6 text-slate-200">
                         {waitingNow === null
-                            ? 'The live preview is unavailable. Open the queue to review current arrivals.'
+                            ? 'The queue preview is unavailable. Open the queue to review current arrivals.'
                             : waitingNow > 0
                               ? `${waitingNow} arrived and waiting, with ${queueSummary.called} called. Open the queue to see who is next.`
                               : actionableHighRisk > 0
@@ -933,6 +956,9 @@ function DashboardOverviewPage() {
     return (
         <section className="space-y-6">
             <PageHeader
+                title={firstName ? `Good day, ${firstName}` : 'Clinic overview'}
+                eyebrow={formatClinicDate(dashboardData?.summary.date ?? currentRiskFrom)}
+                description={`${clinicName} · Your clinic day at a glance.`}
                 actions={
                     <>
                         <Button
@@ -953,37 +979,7 @@ function DashboardOverviewPage() {
                 }
             />
 
-            {dashboardData ? (
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-brand-foreground">
-                            {formatClinicDate(dashboardData.summary.date)}
-                        </p>
-                        <h2 className="mt-1 text-xl font-semibold tracking-tight text-app-text sm:text-2xl">
-                            {firstName ? `Good day, ${firstName}` : 'Clinic overview'}
-                        </h2>
-                        <p className="mt-1 text-sm text-app-muted">
-                            {clinicName} ·{' '}
-                            {waitingCount === null
-                                ? 'Queue preview unavailable'
-                                : waitingCount > 0
-                                  ? `${waitingCount} waiting in the queue`
-                                  : 'No patients waiting'}
-                            {highRiskCount > 0
-                                ? ` · ${highRiskCount} risk flag${highRiskCount === 1 ? '' : 's'} to review`
-                                : ''}
-                        </p>
-                    </div>
-                    <Link
-                        to={appRoutePaths.queue}
-                        className="text-sm font-semibold text-action underline-offset-4 hover:underline"
-                    >
-                        Open live queue →
-                    </Link>
-                </div>
-            ) : null}
-
-            {dashboardState.status === 'loading' ? (
+            {dashboardState.status === 'loading' && !dashboardData ? (
                 <LoadingState message="Loading dashboard summary..." variant="panel" />
             ) : null}
 
@@ -1000,11 +996,15 @@ function DashboardOverviewPage() {
                 <>
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                         {summaryCards.map((card) => (
-                            <SummaryCardItem key={card.label} card={card} />
+                            <SummaryCardItem
+                                key={card.label}
+                                card={card}
+                                date={dashboardData.summary.date}
+                            />
                         ))}
                     </div>
 
-                    <DashboardActionPanel waiting={waitingCount} highRisk={highRiskCount} />
+                    <OperationalPulsePanel data={dashboardData} />
 
                     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
                         <TodayAppointmentsCard
@@ -1014,7 +1014,7 @@ function DashboardOverviewPage() {
                         <LiveQueuePreview queueEntries={dashboardData.queueEntries} />
                     </div>
 
-                    <OperationalPulsePanel data={dashboardData} />
+                    <DashboardActionPanel waiting={waitingCount} highRisk={highRiskCount} />
 
                     {!hasDashboardData ? (
                         <EmptyState
@@ -1056,11 +1056,13 @@ function DashboardOverviewPage() {
                         }}
                         timezone={clinicTimezone}
                     />
-                    <TodayActivitySection
-                        activityItems={dashboardData.activityItems}
-                        timezone={clinicTimezone}
-                    />
-                    <OperationalDistributionCard data={dashboardData} />
+                    <div className="grid gap-5 xl:grid-cols-2">
+                        <TodayActivitySection
+                            activityItems={dashboardData.activityItems}
+                            timezone={clinicTimezone}
+                        />
+                        <OperationalDistributionCard data={dashboardData} />
+                    </div>
                 </>
             ) : null}
         </section>

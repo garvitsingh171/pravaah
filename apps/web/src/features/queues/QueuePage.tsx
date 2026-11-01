@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { DragEvent, HTMLAttributes } from 'react';
 import { Link } from 'react-router-dom';
 import { useActiveClinic } from '../../app/activeClinicContext';
 import { EmptyState, ErrorMessage, LoadingState, useToast } from '../../components/feedback';
@@ -305,7 +306,7 @@ const getInitials = (name: string): string => {
     return initials || 'P';
 };
 
-const moveQueueEntryId = (queueEntryIds: string[], queueEntryId: string, offset: -1 | 1) => {
+const moveQueueEntryId = (queueEntryIds: string[], queueEntryId: string, offset: number) => {
     const currentIndex = queueEntryIds.indexOf(queueEntryId);
     const nextIndex = currentIndex + offset;
 
@@ -314,15 +315,8 @@ const moveQueueEntryId = (queueEntryIds: string[], queueEntryId: string, offset:
     }
 
     const nextQueueEntryIds = [...queueEntryIds];
-    const currentId = nextQueueEntryIds[currentIndex];
-    const targetId = nextQueueEntryIds[nextIndex];
-
-    if (!currentId || !targetId) {
-        return queueEntryIds;
-    }
-
-    nextQueueEntryIds[currentIndex] = targetId;
-    nextQueueEntryIds[nextIndex] = currentId;
+    const [currentId] = nextQueueEntryIds.splice(currentIndex, 1);
+    nextQueueEntryIds.splice(nextIndex, 0, currentId);
 
     return nextQueueEntryIds;
 };
@@ -388,7 +382,7 @@ function QueueTimeline({
     const completedAt = formatTime(queueEntry.completedAt, timezone);
 
     return (
-        <div className="space-y-1 text-xs text-slate-500">
+        <div className="space-y-1 text-xs text-app-subtle">
             {queuedAt ? <p>Queued {queuedAt}</p> : null}
             {calledAt ? <p>Called {calledAt}</p> : null}
             {completedAt ? <p>Completed {completedAt}</p> : null}
@@ -478,7 +472,7 @@ function QueueStatusActions({
     const primaryAction = statusActions[0];
 
     if (statusActions.length === 0) {
-        return <span className="text-sm text-slate-500">Final status</span>;
+        return <span className="text-sm text-app-subtle">Final status</span>;
     }
 
     return (
@@ -530,10 +524,14 @@ function QueueEntryCard({
     timezone,
     onOpenRiskDetails,
     rowError,
+    dragProps,
+    onDragStart,
+    onDragEnd,
+    dropTarget,
 }: {
     activeQueueIndexesByDoctor: Map<string, Map<string, number>>;
     allActiveQueueEntries: QueueListItem[];
-    handleQueueMove: (queueEntry: QueueListItem, offset: -1 | 1) => void;
+    handleQueueMove: (queueEntry: QueueListItem, offset: number) => void;
     handleStatusUpdate: (queueEntry: QueueListItem, nextStatus: QueueStatusType) => void;
     isReordering: boolean;
     queueEntry: QueueListItem;
@@ -542,11 +540,15 @@ function QueueEntryCard({
     timezone?: string | null;
     onOpenRiskDetails: (queueEntry: QueueListItem) => void;
     rowError?: string;
+    dragProps?: Pick<HTMLAttributes<HTMLLIElement>, 'onDragOver' | 'onDrop'>;
+    onDragStart?: (event: DragEvent<HTMLSpanElement>) => void;
+    onDragEnd?: () => void;
+    dropTarget?: boolean;
 }) {
     const statusActions = getQueueStatusActions(queueEntry);
     const isUpdating = updatingQueueEntryId === queueEntry.id;
     const isMoving = reorderingQueueEntryId === queueEntry.id;
-    const isWaiting = queueEntry.status === QueueStatus.WAITING;
+    const isCalled = queueEntry.status === QueueStatus.CALLED;
     const activeQueueIndex =
         activeQueueIndexesByDoctor.get(queueEntry.doctor.id)?.get(queueEntry.id) ?? -1;
     const doctorActiveQueueEntryIds = getQueueEntryIds(
@@ -562,18 +564,31 @@ function QueueEntryCard({
 
     return (
         <li
+            {...dragProps}
+            data-drop-target={dropTarget || undefined}
+            id={`queue-entry-${queueEntry.id}`}
             className={`queue-card-confirmed rounded-lg border border-app-border bg-white p-3 shadow-[var(--shadow-soft)] sm:p-4 ${
-                isWaiting ? 'bg-[var(--color-status-warning-bg)]' : ''
+                isCalled ? 'border-l-4 border-l-action' : ''
             }`}
             data-testid="active-queue-card"
         >
             <div className="grid min-w-0 gap-4 xl:grid-cols-[auto_minmax(0,1.2fr)_minmax(15rem,0.8fr)]">
                 <div className="flex gap-3 lg:flex-col">
+                    <span
+                        draggable={!queueActionBusy && hasMoreThanOneActiveEntry}
+                        onDragStart={onDragStart}
+                        onDragEnd={onDragEnd}
+                        className="queue-drag-handle"
+                        title="Drag to another position in this doctor’s queue. You can also use the move arrows."
+                        aria-hidden="true"
+                    >
+                        ⠿
+                    </span>
                     <div>
                         <p className="inline-flex min-w-20 justify-center rounded-md bg-slate-950 px-3 py-2 text-xl font-bold leading-none text-white">
                             #{String(queueEntry.position).padStart(2, '0')}
                         </p>
-                        <p className="mt-2 text-xs font-semibold text-slate-500">
+                        <p className="mt-2 text-xs font-semibold text-app-subtle">
                             Position {queueEntry.position}
                         </p>
                     </div>
@@ -594,7 +609,7 @@ function QueueEntryCard({
                         />
                     </div>
                     {!hasMoreThanOneActiveEntry ? (
-                        <p className="text-xs font-medium text-slate-500">
+                        <p className="text-xs font-medium text-app-subtle">
                             Only active queue entry.
                         </p>
                     ) : null}
@@ -616,28 +631,28 @@ function QueueEntryCard({
                                 {getOptionalText(queueEntry.patient.phone)}
                             </p>
                             {queueEntry.patient.age ? (
-                                <p className="mt-1 text-xs text-slate-500">
+                                <p className="mt-1 text-xs text-app-subtle">
                                     Age {queueEntry.patient.age}
                                 </p>
                             ) : null}
                         </div>
                     </div>
 
-                    <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-                        <div className="rounded-md bg-slate-50 p-3">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                        <div className="rounded-md bg-app-surface-muted px-3 py-2">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-app-subtle">
                                 Appointment
                             </p>
                             <p className="mt-1 font-semibold text-slate-900">
                                 {formatClinicDateTime(queueEntry.appointment.scheduledAt, timezone)}
                             </p>
-                            <p className="mt-1 text-xs text-slate-500">
+                            <p className="mt-1 text-xs text-app-subtle">
                                 {queueEntry.appointment.durationMinutes} min
                             </p>
                             <QueueArrivalSummary queueEntry={queueEntry} timezone={timezone} />
                         </div>
-                        <div className="rounded-md bg-slate-50 p-3">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <div className="rounded-md bg-app-surface-muted px-3 py-2">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-app-subtle">
                                 Timeline
                             </p>
                             <div className="mt-1">
@@ -661,7 +676,7 @@ function QueueEntryCard({
                     </div>
 
                     <div className="border-t border-slate-200 pt-3">
-                        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-app-subtle">
                             No-show risk
                         </p>
                         <QueueRiskSummary
@@ -705,7 +720,7 @@ function ActiveQueueBoard({
     activeQueueEntries: QueueListItem[];
     activeQueueIndexesByDoctor: Map<string, Map<string, number>>;
     allActiveQueueEntries: QueueListItem[];
-    handleQueueMove: (queueEntry: QueueListItem, offset: -1 | 1) => void;
+    handleQueueMove: (queueEntry: QueueListItem, offset: number) => void;
     handleStatusUpdate: (queueEntry: QueueListItem, nextStatus: QueueStatusType) => void;
     isReordering: boolean;
     reorderingQueueEntryId: string | null;
@@ -716,6 +731,19 @@ function ActiveQueueBoard({
     statusUpdateError: { message: string; queueEntryId?: string } | null;
 }) {
     const lanes = getQueueDoctorLanes(activeQueueEntries);
+    const [draggedId, setDraggedId] = useState<string | null>(null);
+    const [dropId, setDropId] = useState<string | null>(null);
+    const clearDrag = () => {
+        setDraggedId(null);
+        setDropId(null);
+    };
+    const dragged = allActiveQueueEntries.find((entry) => entry.id === draggedId);
+    const canDrop = (entry: QueueListItem) =>
+        !isReordering &&
+        !updatingQueueEntryId &&
+        dragged &&
+        dragged.id !== entry.id &&
+        dragged.doctor.id === entry.doctor.id;
 
     return (
         <section className="space-y-4">
@@ -748,7 +776,7 @@ function ActiveQueueBoard({
                                     <h3 className="truncate text-base font-bold text-slate-950">
                                         {lane.doctor.fullName}
                                     </h3>
-                                    <p className="truncate text-xs text-slate-500">
+                                    <p className="truncate text-xs text-app-subtle">
                                         {getOptionalText(lane.doctor.specialization)}
                                     </p>
                                 </div>
@@ -763,6 +791,45 @@ function ActiveQueueBoard({
                         >
                             {lane.entries.map((queueEntry) => (
                                 <QueueEntryCard
+                                    dropTarget={dropId === queueEntry.id}
+                                    onDragStart={(event) => {
+                                        setDraggedId(queueEntry.id);
+                                        event.dataTransfer.effectAllowed = 'move';
+                                        event.dataTransfer.setData('text/plain', queueEntry.id);
+                                    }}
+                                    onDragEnd={clearDrag}
+                                    dragProps={{
+                                        onDragOver: (event) => {
+                                            if (!canDrop(queueEntry)) return;
+                                            event.preventDefault();
+                                            event.dataTransfer.dropEffect = 'move';
+                                            setDropId(queueEntry.id);
+                                            const main = document.getElementById('main-content');
+                                            if (main) {
+                                                const bounds = main.getBoundingClientRect();
+                                                if (event.clientY > bounds.bottom - 70)
+                                                    main.scrollBy({ top: 20 });
+                                                else if (event.clientY < bounds.top + 70)
+                                                    main.scrollBy({ top: -20 });
+                                            }
+                                        },
+                                        onDrop: (event) => {
+                                            event.preventDefault();
+                                            if (canDrop(queueEntry) && dragged) {
+                                                const ids = getQueueEntryIds(
+                                                    getQueueEntriesForDoctorScope(
+                                                        allActiveQueueEntries,
+                                                        queueEntry.doctor.id
+                                                    )
+                                                );
+                                                const offset =
+                                                    ids.indexOf(queueEntry.id) -
+                                                    ids.indexOf(dragged.id);
+                                                if (offset) handleQueueMove(dragged, offset);
+                                            }
+                                            clearDrag();
+                                        },
+                                    }}
                                     key={queueEntry.id}
                                     activeQueueIndexesByDoctor={activeQueueIndexesByDoctor}
                                     allActiveQueueEntries={allActiveQueueEntries}
@@ -804,7 +871,7 @@ function FinalQueueEntriesSection({
                         <h2 className="text-base font-semibold text-slate-900">
                             Final queue entries
                         </h2>
-                        <p className="mt-1 text-sm text-slate-500">
+                        <p className="mt-1 text-sm text-app-subtle">
                             Completed, cancelled, and no-show entries are retained for review.
                         </p>
                     </div>
@@ -826,7 +893,7 @@ function FinalQueueEntriesSection({
                                 <p className="font-semibold text-slate-900">
                                     {queueEntry.patient.fullName}
                                 </p>
-                                <p className="mt-1 text-slate-500">
+                                <p className="mt-1 text-app-subtle">
                                     Historical position {queueEntry.position}
                                 </p>
                             </div>
@@ -834,7 +901,7 @@ function FinalQueueEntriesSection({
                                 <p className="font-semibold text-slate-900">
                                     {queueEntry.doctor.fullName}
                                 </p>
-                                <p className="mt-1 text-slate-500">
+                                <p className="mt-1 text-app-subtle">
                                     {formatClinicDateTime(
                                         queueEntry.appointment.scheduledAt,
                                         timezone
@@ -844,7 +911,7 @@ function FinalQueueEntriesSection({
                             </div>
                             <div className="space-y-2">
                                 <StatusBadge kind="queue" status={queueEntry.status} />
-                                <p className="text-slate-500">
+                                <p className="text-app-subtle">
                                     Appointment:{' '}
                                     {getAppointmentStatusLabel(queueEntry.appointment.status)}
                                 </p>
@@ -861,7 +928,7 @@ function FinalQueueEntriesSection({
                                     </div>
                                 ) : null}
                             </div>
-                            <p className="font-medium text-slate-500">Reorder unavailable</p>
+                            <p className="font-medium text-app-subtle">Reorder unavailable</p>
                         </article>
                     );
                 })}
@@ -1101,10 +1168,11 @@ function QueuePageContent({ todayDate }: { todayDate: string }) {
         setTerminalReasonFlow(null);
     };
 
-    const handleQueueMove = async (queueEntry: QueueListItem, offset: -1 | 1) => {
+    const handleQueueMove = async (queueEntry: QueueListItem, offset: number) => {
         if (
             queueListState.status !== 'success' ||
             isStale ||
+            mutationInFlightRef.current ||
             reorderingQueueEntryId ||
             updatingQueueEntryId
         ) {
@@ -1271,6 +1339,9 @@ function QueuePageContent({ todayDate }: { todayDate: string }) {
     return (
         <section className="space-y-4">
             <PageHeader
+                title="Today’s queue"
+                eyebrow="Daily operations"
+                description="Manage arrivals, calls, and the order for each doctor."
                 actions={
                     <div className="flex flex-wrap items-center gap-3">
                         <span className="text-xs text-app-muted" role="status">
@@ -1297,9 +1368,9 @@ function QueuePageContent({ todayDate }: { todayDate: string }) {
             />
 
             <div className="rounded-lg border border-slate-200 bg-white p-3 sm:p-4">
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
                     <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-app-subtle">
                             Clinic and date
                         </p>
                         <p className="mt-1 text-sm font-semibold text-slate-900">{todayDate}</p>
@@ -1308,31 +1379,37 @@ function QueuePageContent({ todayDate }: { todayDate: string }) {
                         </p>
                     </div>
                     <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-app-subtle">
                             Active entries
                         </p>
                         <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
-                            {allActiveQueueEntries.length}
+                            {hasConfirmedSnapshot ? allActiveQueueEntries.length : '—'}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                            Waiting {queueCounts.WAITING} / Arrived {queueCounts.ARRIVED} / Called{' '}
-                            {queueCounts.CALLED}
+                        <p className="mt-1 text-xs text-app-subtle">
+                            {hasConfirmedSnapshot
+                                ? `Waiting ${queueCounts.WAITING} / Arrived ${queueCounts.ARRIVED} / Called ${queueCounts.CALLED}`
+                                : 'Waiting for the first confirmed update'}
                         </p>
                     </div>
                     <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-app-subtle">
                             Final entries
                         </p>
                         <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
-                            {queueCounts.COMPLETED + queueCounts.CANCELLED + queueCounts.NO_SHOW}
+                            {hasConfirmedSnapshot
+                                ? queueCounts.COMPLETED +
+                                  queueCounts.CANCELLED +
+                                  queueCounts.NO_SHOW
+                                : '—'}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                            Completed {queueCounts.COMPLETED} / Cancelled {queueCounts.CANCELLED} /
-                            No-show {queueCounts.NO_SHOW}
+                        <p className="mt-1 text-xs text-app-subtle">
+                            {hasConfirmedSnapshot
+                                ? `Completed ${queueCounts.COMPLETED} / Cancelled ${queueCounts.CANCELLED} / No-show ${queueCounts.NO_SHOW}`
+                                : 'Waiting for the first confirmed update'}
                         </p>
                     </div>
                     <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-app-subtle">
                             Current filter
                         </p>
                         <p className="mt-1 text-sm font-semibold text-slate-900">
@@ -1341,7 +1418,7 @@ function QueuePageContent({ todayDate }: { todayDate: string }) {
                                       ?.fullName
                                 : 'All doctors'}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">Manual doctor-scoped order.</p>
+                        <p className="mt-1 text-xs text-app-subtle">Manual doctor-scoped order.</p>
                     </div>
                 </div>
             </div>
@@ -1457,7 +1534,7 @@ function QueuePageContent({ todayDate }: { todayDate: string }) {
                     message="Book appointments for today to add patients into the clinic queue."
                     action={
                         <Link
-                            to={appRoutePaths.appointments}
+                            to={`${appRoutePaths.appointments}#book-appointment`}
                             className="inline-flex min-h-10 items-center justify-center rounded-md border border-transparent bg-action px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
                         >
                             Book appointment
@@ -1472,6 +1549,46 @@ function QueuePageContent({ todayDate }: { todayDate: string }) {
                     message="Try another doctor or queue status to find matching entries."
                 />
             ) : null}
+
+            {activeQueueEntries.some((entry) => entry.status === QueueStatus.CALLED) && (
+                <section
+                    aria-label="Currently called patients"
+                    className="rounded-app-lg border border-brand-soft bg-brand-subtle p-4"
+                >
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <h2 className="text-sm font-semibold text-brand-foreground">
+                            Currently called
+                        </h2>
+                        <span className="text-xs text-app-muted">
+                            Shown for your current filters
+                        </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        {activeQueueEntries
+                            .filter((entry) => entry.status === QueueStatus.CALLED)
+                            .map((entry) => (
+                                <a
+                                    key={entry.id}
+                                    href={`#queue-entry-${entry.id}`}
+                                    className="flex min-h-11 items-center gap-3 rounded-app border border-brand-soft bg-white px-3 py-2 text-sm hover:border-action"
+                                >
+                                    <span className="font-semibold text-brand-foreground">
+                                        #{entry.position}
+                                    </span>
+                                    <span>
+                                        <span className="block font-semibold">
+                                            {entry.patient.fullName}
+                                        </span>
+                                        <span className="block text-xs text-app-muted">
+                                            {entry.doctor.fullName}
+                                        </span>
+                                    </span>
+                                    <span aria-hidden="true">↓</span>
+                                </a>
+                            ))}
+                    </div>
+                </section>
+            )}
 
             {hasFilteredQueueEntries && activeQueueEntries.length > 0 ? (
                 <ActiveQueueBoard

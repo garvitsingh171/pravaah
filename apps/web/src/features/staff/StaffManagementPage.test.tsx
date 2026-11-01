@@ -106,7 +106,7 @@ describe('StaffManagementPage lifecycle', () => {
         renderWithProviders(<StaffManagementPage />, { activeClinic: adminActiveClinic });
 
         expect(await screen.findByText('Asha Staff')).toBeVisible();
-        await user.type(screen.getByRole('textbox', { name: 'Search team' }), 'Bela');
+        await user.type(screen.getByRole('searchbox', { name: 'Search team' }), 'Bela');
         expect(screen.queryByText('Asha Staff')).not.toBeInTheDocument();
         expect(screen.getByText('Bela Staff')).toBeVisible();
         await user.selectOptions(
@@ -114,7 +114,7 @@ describe('StaffManagementPage lifecycle', () => {
             'ACTIVE'
         );
         expect(screen.queryByText('Bela Staff')).not.toBeInTheDocument();
-        expect(screen.getByText('No team members match these filters.')).toBeVisible();
+        expect(screen.getByRole('heading', { name: 'No matching team members' })).toBeVisible();
     });
 
     it('sends an invitation and displays the provider submission state', async () => {

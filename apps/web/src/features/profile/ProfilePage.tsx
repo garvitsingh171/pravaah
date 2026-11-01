@@ -40,6 +40,7 @@ function ProfilePage() {
     return (
         <div className="space-y-6">
             <PageHeader
+                title="Your profile"
                 eyebrow="Account"
                 description="Review your Pravaah account details and clinic access."
             />

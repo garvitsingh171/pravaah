@@ -1,0 +1,660 @@
+{
+    "results": [
+        {
+            "route": "dashboard",
+            "width": 320,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "dashboard",
+            "width": 375,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "dashboard",
+            "width": 390,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "dashboard",
+            "width": 768,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "dashboard",
+            "width": 1024,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "dashboard",
+            "width": 1280,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "dashboard",
+            "width": 1440,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "dashboard",
+            "width": 1920,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "appointments",
+            "width": 320,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "appointments",
+            "width": 375,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "appointments",
+            "width": 390,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "appointments",
+            "width": 768,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "appointments",
+            "width": 1024,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "appointments",
+            "width": 1280,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "appointments",
+            "width": 1440,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "appointments",
+            "width": 1920,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "queue",
+            "width": 320,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "queue",
+            "width": 375,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "queue",
+            "width": 390,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "queue",
+            "width": 768,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "queue",
+            "width": 1024,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "queue",
+            "width": 1280,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "queue",
+            "width": 1440,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "queue",
+            "width": 1920,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "doctors",
+            "width": 320,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "doctors",
+            "width": 375,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "doctors",
+            "width": 390,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "doctors",
+            "width": 768,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "doctors",
+            "width": 1024,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "doctors",
+            "width": 1280,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "doctors",
+            "width": 1440,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "doctors",
+            "width": 1920,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "patients",
+            "width": 320,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "patients",
+            "width": 375,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "patients",
+            "width": 390,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "patients",
+            "width": 768,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "patients",
+            "width": 1024,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "patients",
+            "width": 1280,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "patients",
+            "width": 1440,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "patients",
+            "width": 1920,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "staff",
+            "width": 320,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "staff",
+            "width": 375,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "staff",
+            "width": 390,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "staff",
+            "width": 768,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "staff",
+            "width": 1024,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "staff",
+            "width": 1280,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "staff",
+            "width": 1440,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "staff",
+            "width": 1920,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "clinic-settings",
+            "width": 320,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "clinic-settings",
+            "width": 375,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "clinic-settings",
+            "width": 390,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "clinic-settings",
+            "width": 768,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "clinic-settings",
+            "width": 1024,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "clinic-settings",
+            "width": 1280,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "clinic-settings",
+            "width": 1440,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "clinic-settings",
+            "width": 1920,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "profile",
+            "width": 320,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "profile",
+            "width": 375,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "profile",
+            "width": 390,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "profile",
+            "width": 768,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "profile",
+            "width": 1024,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "profile",
+            "width": 1280,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "profile",
+            "width": 1440,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "profile",
+            "width": 1920,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "doctors/new",
+            "width": 320,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "doctors/new",
+            "width": 375,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "doctors/new",
+            "width": 390,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "doctors/new",
+            "width": 768,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "doctors/new",
+            "width": 1024,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "doctors/new",
+            "width": 1280,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "doctors/new",
+            "width": 1440,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "doctors/new",
+            "width": 1920,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "patients/new",
+            "width": 320,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "patients/new",
+            "width": 375,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "patients/new",
+            "width": 390,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "patients/new",
+            "width": 768,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "patients/new",
+            "width": 1024,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "patients/new",
+            "width": 1280,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "patients/new",
+            "width": 1440,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "patients/new",
+            "width": 1920,
+            "bodyOverflow": false,
+            "mainOverflow": false,
+            "headingCount": 1,
+            "violations": []
+        },
+        {
+            "route": "booking-dialog",
+            "width": 390,
+            "violations": []
+        },
+        {
+            "route": "risk-dialog",
+            "width": 390,
+            "violations": []
+        },
+        {
+            "route": "command-dialog",
+            "width": 390,
+            "violations": []
+        }
+    ],
+    "errors": []
+}

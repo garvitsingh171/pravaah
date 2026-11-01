@@ -55,8 +55,9 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
             ref={ref}
             type={type}
             disabled={isDisabled}
+            aria-busy={isLoading || undefined}
             className={cx(
-                'inline-flex items-center justify-center gap-2 rounded-md border font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:border-app-border disabled:bg-app-surface-muted disabled:text-app-subtle disabled:shadow-none',
+                'workspace-button inline-flex items-center justify-center gap-2 rounded-md border font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:border-app-border disabled:bg-app-surface-muted disabled:text-app-subtle disabled:shadow-none',
                 'active:translate-y-px disabled:translate-y-0',
                 variantClassNames[variant],
                 sizeClassNames[size],

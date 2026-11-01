@@ -1125,6 +1125,9 @@ function PatientsPage() {
     return (
         <section className="space-y-6">
             <PageHeader
+                title="Patients"
+                eyebrow="Clinic directory"
+                description="Find a patient, review their history, or create a record."
                 actions={
                     <Link
                         to="/patients/new"
@@ -1211,7 +1214,7 @@ function PatientsPage() {
             ) : null}
 
             {patientListState.status === 'loading' ? (
-                <LoadingState message="Loading patients..." />
+                <LoadingState message="Loading patients..." variant="table" />
             ) : null}
 
             {patientListState.status === 'error' ? (

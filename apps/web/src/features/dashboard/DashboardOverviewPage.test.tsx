@@ -98,6 +98,26 @@ describe('DashboardOverviewPage', () => {
         mockListTodayQueue.mockReset().mockResolvedValue({ queueEntries: [] });
     });
 
+    it('links operational metrics to the correct date and supported status filters', async () => {
+        mockDashboardSuccess();
+        renderWithProviders(<DashboardOverviewPage />, { activeClinic: adminActiveClinic });
+        const completed = await screen.findByRole('link', {
+            name: /Completed visits:.*View appointments/,
+        });
+        expect(completed).toHaveAttribute(
+            'href',
+            `/appointments?date=${activeDashboardSummary.date}&status=COMPLETED`
+        );
+        expect(screen.getByRole('link', { name: /No-shows:.*View appointments/ })).toHaveAttribute(
+            'href',
+            `/appointments?date=${activeDashboardSummary.date}&status=NO_SHOW`
+        );
+        expect(screen.getByRole('link', { name: /Patients waiting:.*Open queue/ })).toHaveAttribute(
+            'href',
+            '/queue'
+        );
+    });
+
     it('loads dashboard data into operational command modules', async () => {
         mockDashboardSuccess();
 
@@ -198,7 +218,7 @@ describe('DashboardOverviewPage', () => {
         expect(
             within(waitingLabel.parentElement as HTMLElement).getByText('0')
         ).toBeInTheDocument();
-        expect(screen.getByText('Live queue preview')).toBeInTheDocument();
+        expect(screen.getByText('Queue preview')).toBeInTheDocument();
         expect(
             screen.getByText('No arrived patients are in the queue right now.')
         ).toBeInTheDocument();

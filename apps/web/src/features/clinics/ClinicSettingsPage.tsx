@@ -681,6 +681,16 @@ function ClinicSettingsPage() {
         setStatusMessage(null);
     };
 
+    useEffect(() => {
+        if (!hasChanges) return;
+        const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+            event.preventDefault();
+            event.returnValue = '';
+        };
+        window.addEventListener('beforeunload', warnBeforeLeaving);
+        return () => window.removeEventListener('beforeunload', warnBeforeLeaving);
+    }, [hasChanges]);
+
     const handleChange = (field: keyof ClinicSettingsFormValues, value: string) => {
         setValues((currentValues) =>
             currentValues
@@ -852,11 +862,17 @@ function ClinicSettingsPage() {
     return (
         <section className="space-y-6">
             <PageHeader
+                title="Clinic settings"
+                eyebrow="Administration"
+                description="Manage your clinic details and appointment rules."
                 actions={
                     <Button
                         variant="outline"
                         onClick={() => loadSettings()}
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || hasChanges}
+                        title={
+                            hasChanges ? 'Save or reset your changes before reloading' : undefined
+                        }
                     >
                         Reload
                     </Button>
@@ -881,6 +897,11 @@ function ClinicSettingsPage() {
                 </div>
             ) : null}
 
+            <nav aria-label="Settings sections" className="settings-section-nav">
+                <a href="#clinic-identity-heading">Identity & contact</a>
+                <a href="#clinic-address-heading">Address</a>
+                <a href="#clinic-hours-heading">Hours & appointments</a>
+            </nav>
             <ClinicSettingsSummary clinic={state.clinic} />
 
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4">
@@ -1173,7 +1194,10 @@ function ClinicSettingsPage() {
                     </div>
                 </section>
 
-                <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
+                <div className="settings-save-bar">
+                    <p className="mr-auto text-sm text-app-muted" role="status">
+                        {hasChanges ? 'You have unsaved changes' : 'All changes saved'}
+                    </p>
                     <Button
                         variant="outline"
                         onClick={handleReset}

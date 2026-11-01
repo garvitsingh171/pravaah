@@ -23,7 +23,7 @@ function PageHeader({ actions, description, eyebrow, title }: PageHeaderProps) {
     }
 
     return (
-        <div className="flex min-w-0 flex-col gap-4 border-b border-app-border pb-5 md:flex-row md:items-end md:justify-between">
+        <div className="workspace-page-header">
             <div className="min-w-0">
                 {eyebrow ? (
                     <p className="text-xs font-semibold uppercase tracking-wide text-brand-foreground">
@@ -34,24 +34,18 @@ function PageHeader({ actions, description, eyebrow, title }: PageHeaderProps) {
                     <h1
                         className={
                             eyebrow
-                                ? 'mt-2 break-words text-2xl font-bold leading-tight text-app-text sm:text-3xl'
-                                : 'break-words text-2xl font-bold leading-tight text-app-text sm:text-3xl'
+                                ? 'mt-2 break-words text-2xl font-semibold leading-tight tracking-tight text-app-text'
+                                : 'break-words text-2xl font-semibold leading-tight tracking-tight text-app-text'
                         }
                     >
                         {title}
                     </h1>
                 ) : null}
                 {description ? (
-                    <p className="mt-3 max-w-3xl text-sm leading-6 text-app-muted sm:text-base">
-                        {description}
-                    </p>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-app-muted">{description}</p>
                 ) : null}
             </div>
-            {actions ? (
-                <div className="flex w-full shrink-0 flex-col gap-2 md:w-auto md:flex-row md:flex-wrap md:justify-end [&>*]:w-full md:[&>*]:w-auto">
-                    {actions}
-                </div>
-            ) : null}
+            {actions ? <div className="workspace-page-actions">{actions}</div> : null}
         </div>
     );
 }

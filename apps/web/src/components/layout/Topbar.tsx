@@ -11,6 +11,7 @@ type TopbarProps = {
     userName: string;
     userEmail?: string;
     userRole: string;
+    onOpenCommands: () => void;
 };
 
 const getInitials = (name: string): string => {
@@ -24,10 +25,19 @@ const getInitials = (name: string): string => {
     return initials || 'P';
 };
 
-function Topbar({ clinicName, supportingText, title, userName, userEmail, userRole }: TopbarProps) {
+function Topbar({
+    clinicName,
+    supportingText,
+    title,
+    userName,
+    userEmail,
+    userRole,
+    onOpenCommands,
+}: TopbarProps) {
     const { signOut } = useClerk();
     const location = useLocation();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [signOutError, setSignOutError] = useState<string | null>(null);
     const [isSigningOut, setIsSigningOut] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const triggerRef = useRef<HTMLButtonElement>(null);
@@ -67,10 +77,13 @@ function Topbar({ clinicName, supportingText, title, userName, userEmail, userRo
     }, [location.key]);
 
     const handleSignOut = async () => {
+        setSignOutError(null);
         setIsSigningOut(true);
         try {
             await signOut({ redirectUrl: '/' });
             setIsMenuOpen(false);
+        } catch {
+            setSignOutError('Sign out failed. Please try again.');
         } finally {
             setIsSigningOut(false);
         }
@@ -84,12 +97,12 @@ function Topbar({ clinicName, supportingText, title, userName, userEmail, userRo
                         <p className="truncate text-xs font-medium text-app-muted">
                             {clinicName} <span aria-hidden="true">/</span> Workspace
                         </p>
-                        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-                            <h1 className="break-words text-lg font-semibold leading-tight tracking-tight text-app-text sm:text-xl">
+                        <div className="mt-1 hidden min-w-0 flex-wrap items-center gap-x-3 gap-y-1 md:flex">
+                            <p className="break-words text-lg font-semibold leading-tight tracking-tight text-app-text sm:text-xl">
                                 {title}
-                            </h1>
+                            </p>
                             {supportingText ? (
-                                <span className="inline-flex min-w-0 items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold leading-none text-slate-500 ring-1 ring-slate-200/80">
+                                <span className="inline-flex min-w-0 items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold leading-none text-app-subtle ring-1 ring-slate-200/80">
                                     <span
                                         className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand"
                                         aria-hidden="true"
@@ -102,6 +115,28 @@ function Topbar({ clinicName, supportingText, title, userName, userEmail, userRo
                 </div>
 
                 <div className="flex shrink-0 items-center justify-end gap-2">
+                    <button
+                        type="button"
+                        onClick={onOpenCommands}
+                        className="workspace-command-trigger"
+                        aria-label="Open quick actions and page search"
+                        aria-keyshortcuts="Control+k Meta+k"
+                    >
+                        <svg
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            aria-hidden="true"
+                        >
+                            <circle cx="10.5" cy="10.5" r="6.5" />
+                            <path d="m16 16 5 5" />
+                        </svg>
+                        <span className="hidden lg:inline">Quick actions</span>
+                        <kbd className="hidden lg:inline">⌘ / Ctrl K</kbd>
+                    </button>
                     <span className="hidden min-h-9 items-center rounded-full bg-brand-subtle px-3 text-sm font-semibold text-brand-foreground ring-1 ring-brand-soft sm:inline-flex">
                         {userRole}
                     </span>
@@ -138,13 +173,13 @@ function Topbar({ clinicName, supportingText, title, userName, userEmail, userRo
                                             {userName}
                                         </p>
                                         {userEmail ? (
-                                            <p className="mt-0.5 truncate text-xs text-slate-500">
+                                            <p className="mt-0.5 truncate text-xs text-app-subtle">
                                                 {userEmail}
                                             </p>
                                         ) : null}
                                         <dl className="mt-3 grid gap-2 border-t border-slate-100 pt-3 text-xs">
                                             <div>
-                                                <dt className="font-semibold uppercase tracking-wide text-slate-500">
+                                                <dt className="font-semibold uppercase tracking-wide text-app-subtle">
                                                     Role
                                                 </dt>
                                                 <dd className="mt-0.5 font-semibold text-brand-foreground">
@@ -152,7 +187,7 @@ function Topbar({ clinicName, supportingText, title, userName, userEmail, userRo
                                                 </dd>
                                             </div>
                                             <div>
-                                                <dt className="font-semibold uppercase tracking-wide text-slate-500">
+                                                <dt className="font-semibold uppercase tracking-wide text-app-subtle">
                                                     Clinic
                                                 </dt>
                                                 <dd className="mt-0.5 break-words font-medium text-slate-700">
@@ -161,6 +196,14 @@ function Topbar({ clinicName, supportingText, title, userName, userEmail, userRo
                                             </div>
                                         </dl>
                                     </div>
+                                    {signOutError && (
+                                        <p
+                                            role="alert"
+                                            className="px-3 py-2 text-sm text-[var(--color-status-danger-text)]"
+                                        >
+                                            {signOutError}
+                                        </p>
+                                    )}
                                     <Link
                                         to={appRoutePaths.profile}
                                         className="mt-1 inline-flex min-h-10 w-full items-center justify-start gap-2 rounded-md px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"

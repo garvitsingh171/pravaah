@@ -1,4 +1,4 @@
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import QueuePage from './QueuePage';
@@ -175,6 +175,55 @@ describe('QueuePage manual reorder controls', () => {
         expect(payload.queueEntryIds).not.toContain(firstEntry.patientId);
         expect(payload.queueEntryIds).not.toContain(firstEntry.appointmentId);
         expect(await screen.findByText('Queue entry moved to position 2.')).toBeVisible();
+    });
+
+    it('drags across multiple positions using the complete expected doctor order', async () => {
+        const thirdEntry = createQueueEntry({
+            id: 'third-entry',
+            position: 3,
+            patientName: 'Demo Third',
+        });
+        mockListTodayQueue.mockResolvedValue({
+            queueEntries: [firstEntry, secondEntry, thirdEntry],
+        });
+        mockReorderQueue.mockResolvedValue({
+            queueEntries: [
+                { ...secondEntry, position: 1 },
+                { ...thirdEntry, position: 2 },
+                { ...firstEntry, position: 3 },
+            ],
+        });
+        renderQueuePage();
+        await screen.findByText('Position 3');
+        const cards = getActiveQueueCards();
+        const dataTransfer = { setData: vi.fn(), effectAllowed: '', dropEffect: '' };
+        fireEvent.dragStart(cards[0].querySelector('[draggable]')!, { dataTransfer });
+        fireEvent.dragOver(cards[2], { dataTransfer });
+        expect(cards[2]).toHaveAttribute('data-drop-target', 'true');
+        fireEvent.drop(cards[2], { dataTransfer });
+        await waitFor(() =>
+            expect(mockReorderQueue).toHaveBeenCalledWith(adminActiveClinic.clinicId, {
+                date: getClinicDateInputValue(adminActiveClinic.clinic?.timezone),
+                queueEntryIds: [secondEntry.id, thirdEntry.id, firstEntry.id],
+                expectedQueueEntryIds: [firstEntry.id, secondEntry.id, thirdEntry.id],
+            })
+        );
+        expect(await screen.findByText('Queue entry moved to position 3.')).toBeVisible();
+    });
+
+    it('rejects drag drops into a different doctor lane', async () => {
+        const otherDoctorEntry = {
+            ...secondEntry,
+            doctor: { ...secondEntry.doctor, id: 'other-doctor', fullName: 'Dr. Other' },
+        };
+        mockListTodayQueue.mockResolvedValue({ queueEntries: [firstEntry, otherDoctorEntry] });
+        renderQueuePage();
+        await screen.findByRole('heading', { name: 'Dr. Other' });
+        const cards = getActiveQueueCards();
+        const dataTransfer = { setData: vi.fn(), effectAllowed: '', dropEffect: '' };
+        fireEvent.dragStart(cards[0].querySelector('[draggable]')!, { dataTransfer });
+        fireEvent.drop(cards[1], { dataTransfer });
+        expect(mockReorderQueue).not.toHaveBeenCalled();
     });
 
     it('moves an entry with the keyboard and keeps a contextual action available', async () => {

@@ -5,7 +5,10 @@ function FilterBar({ children, className, ...props }: HTMLAttributes<HTMLDivElem
     return (
         <div
             {...props}
-            className={cx('rounded-lg border border-app-border bg-white p-4 md:p-5', className)}
+            className={cx(
+                'workspace-filter-bar rounded-app-lg border border-app-border bg-app-surface p-4',
+                className
+            )}
         >
             {children}
         </div>

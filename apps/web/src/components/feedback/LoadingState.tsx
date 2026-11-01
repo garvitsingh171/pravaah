@@ -1,9 +1,32 @@
 type LoadingStateProps = {
     message?: string;
-    variant?: 'inline' | 'panel';
+    variant?: 'inline' | 'panel' | 'table';
 };
 
 function LoadingState({ message = 'Loading...', variant = 'inline' }: LoadingStateProps) {
+    if (variant === 'table') {
+        return (
+            <div
+                className="rounded-app-lg border border-app-border bg-white p-4"
+                role="status"
+                aria-live="polite"
+            >
+                <p className="mb-4 text-sm font-medium text-app-muted">{message}</p>
+                <div aria-hidden="true" className="space-y-3">
+                    {[0, 1, 2, 3, 4].map((row) => (
+                        <div
+                            key={row}
+                            className="flex items-center gap-4 rounded-md bg-app-surface-muted p-3"
+                        >
+                            <span className="h-9 w-9 shrink-0 rounded-md bg-app-border" />
+                            <span className="h-3 w-1/3 rounded bg-app-border" />
+                            <span className="ml-auto h-3 w-1/5 rounded bg-app-border" />
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    }
     if (variant === 'panel') {
         return (
             <div

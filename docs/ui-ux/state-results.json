@@ -1,0 +1,12 @@
+{
+    "checks": [
+        "Empty appointments provide a booking recovery action",
+        "Dashboard load failure offers Retry",
+        "Slow queue distinguishes pending counts from confirmed zero",
+        "Staff cannot see administration commands or open clinic settings",
+        "Failed settings save preserves edits and the dirty indicator",
+        "Keyboard shortcut opens the palette and leaves typing alone",
+        "Native drag sends the doctor order; rejection retains entries and reports failure"
+    ],
+    "errors": []
+}
