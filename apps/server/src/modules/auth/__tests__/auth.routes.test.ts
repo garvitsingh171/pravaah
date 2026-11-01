@@ -68,6 +68,7 @@ describe('authRouter onboarding route middleware', () => {
     it('uses Clerk identity-only authentication for onboarding status', () => {
         expect(getRouteHandlerNames(authRouter, 'get', '/onboarding-status')).toEqual([
             'authenticateClerkIdentity',
+            'rateLimitRequest',
             'getOnboardingStatusController',
         ]);
     });
@@ -78,6 +79,7 @@ describe('authRouter onboarding route middleware', () => {
         expect(handlers).toEqual([
             'authenticateClerkIdentity',
             'validateOnboardingClinicRequest',
+            'rateLimitRequest',
             'createClinicOnboardingController',
         ]);
         expect(handlers).not.toContain('authenticateRequest');
@@ -86,13 +88,14 @@ describe('authRouter onboarding route middleware', () => {
     it('uses the onboarding clinic body validator before the provisioning controller', () => {
         const handlers = getRouteHandlers(authRouter, 'post', '/onboarding/clinic');
 
-        expect(handlers).toHaveLength(3);
+        expect(handlers).toHaveLength(4);
         expect(handlers[1]).toBe(validateOnboardingClinicRequest);
     });
 
     it('keeps current-user lookup behind full internal-user authentication', () => {
         expect(getRouteHandlerNames(authRouter, 'get', '/me')).toEqual([
             'authenticateRequest',
+            'rateLimitRequest',
             'getCurrentUserController',
         ]);
     });

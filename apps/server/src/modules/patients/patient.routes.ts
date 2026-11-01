@@ -1,3 +1,4 @@
+import { rateLimit } from '../../middleware/rateLimit.js';
 import { Router } from 'express';
 import { validateRequest } from '../../utils/validateRequest.js';
 import {
@@ -38,6 +39,7 @@ patientRouter.post(
     }),
     requireClinicAccess,
     requireClinicStaffRole,
+    rateLimit('provider'),
     createPatientController
 );
 
@@ -50,6 +52,7 @@ patientRouter.post(
     }),
     requireClinicAccess,
     requireClinicStaffRole,
+    rateLimit('provider'),
     retryPatientRoutingController
 );
 
@@ -62,6 +65,7 @@ patientRouter.patch(
     }),
     requireClinicAccess,
     requireClinicStaffRole,
+    rateLimit('provider'),
     updatePatientController
 );
 
@@ -74,6 +78,7 @@ patientRouter.post(
     }),
     requireClinicAccess,
     requireClinicStaffRole,
+    rateLimit('provider'),
     retryPatientGeocodingController
 );
 
@@ -86,6 +91,7 @@ patientRouter.get(
     }),
     requireClinicAccess,
     requireClinicStaffRole,
+    rateLimit('collection'),
     listPatientsByClinicController
 );
 
@@ -95,6 +101,7 @@ patientRouter.get(
     validateRequest({ params: clinicPatientIdParamsSchema }),
     requireClinicAccess,
     requireClinicStaffRole,
+    rateLimit('collection'),
     getPatientByClinicController
 );
 
@@ -104,6 +111,7 @@ patientRouter.get(
     validateRequest({ params: clinicPatientIdParamsSchema }),
     requireClinicAccess,
     requireAdminRole,
+    rateLimit('collection'),
     getPatientLifecycleImpactController
 );
 
@@ -113,6 +121,7 @@ patientRouter.delete(
     validateRequest({ params: clinicPatientIdParamsSchema }),
     requireClinicAccess,
     requireAdminRole,
+    rateLimit('mutation'),
     archivePatientController
 );
 
@@ -122,6 +131,7 @@ patientRouter.post(
     validateRequest({ params: clinicPatientIdParamsSchema }),
     requireClinicAccess,
     requireAdminRole,
+    rateLimit('mutation'),
     restorePatientController
 );
 

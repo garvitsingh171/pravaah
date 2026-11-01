@@ -208,8 +208,7 @@ The MVP does not store:
 ## Current Security Limitations
 
 - Only minimal structured operational event logs exist for Staff invitation/status changes; there is no compliance audit platform.
-- No rate limiting middleware.
-- v0.2 onboarding increases the public surface; rate limiting and production monitoring still need a deployment decision.
+- Risk-based API rate limiting is implemented locally for Issue #304, but production deployment and traffic tuning remain unverified. See [API Rate Limiting](../security/API_RATE_LIMITING.md).
 - No dedicated production logging/monitoring configuration.
 - No fine-grained permission model beyond Admin/Staff.
 - No multi-clinic membership table.
@@ -219,11 +218,11 @@ The MVP does not store:
 ## Future Hardening Ideas
 
 - audit logs for appointment, queue, and user access changes
-- rate limiting and request size review
+- pre-authentication abuse protection and request size review
 - production logging with redaction
 - security headers appropriate to deployment target
 - role-per-clinic membership model
-- invitation rate limiting and production-grade delivery/monitoring
+- production-grade invitation delivery/monitoring
 - stricter CORS origin configuration per environment
 - automated dependency/security scanning
 

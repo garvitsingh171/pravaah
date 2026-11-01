@@ -1,3 +1,4 @@
+import { rateLimit } from '../../middleware/rateLimit.js';
 import { Router } from 'express';
 import { validateRequest } from '../../utils/validateRequest.js';
 import {
@@ -33,6 +34,7 @@ clinicRouter.get(
     authenticateRequest,
     validateRequest({ params: clinicIdParamsSchema }),
     requireAdminRole,
+    rateLimit('collection'),
     getClinicLifecycleImpactController
 );
 
@@ -41,6 +43,7 @@ clinicRouter.post(
     authenticateRequest,
     validateRequest({ params: clinicIdParamsSchema, body: deactivateClinicBodySchema }),
     requireAdminRole,
+    rateLimit('mutation'),
     deactivateClinicController
 );
 
@@ -49,6 +52,7 @@ clinicRouter.post(
     authenticateRequest,
     validateRequest({ params: clinicIdParamsSchema, body: restoreClinicBodySchema }),
     requireAdminRole,
+    rateLimit('mutation'),
     restoreClinicController
 );
 
@@ -60,6 +64,7 @@ clinicRouter.get(
     }),
     requireClinicAccess,
     requireAdminRole,
+    rateLimit('collection'),
     getClinicSettingsController
 );
 
@@ -72,6 +77,7 @@ clinicRouter.patch(
     }),
     requireClinicAccess,
     requireAdminRole,
+    rateLimit('provider'),
     updateClinicController
 );
 
@@ -84,6 +90,7 @@ clinicRouter.post(
     }),
     requireClinicAccess,
     requireAdminRole,
+    rateLimit('provider'),
     retryClinicGeocodingController
 );
 
@@ -96,6 +103,7 @@ clinicRouter.post(
     }),
     requireClinicAccess,
     requireAdminRole,
+    rateLimit('provisioning'),
     provisionSampleDataController
 );
 

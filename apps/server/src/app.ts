@@ -19,6 +19,8 @@ import { predictionFeedbackRouter } from './modules/predictions/prediction-feedb
 
 export const app = express();
 
+if (env.trustProxyCidrs.length > 0) app.set('trust proxy', env.trustProxyCidrs);
+
 app.use(clerkMiddleware());
 
 app.use(
