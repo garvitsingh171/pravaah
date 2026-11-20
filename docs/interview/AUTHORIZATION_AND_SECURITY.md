@@ -56,3 +56,7 @@ The frontend may submit clinic profile data, but it must not choose authority fi
 - No full multi-clinic membership model.
 - No production monitoring/audit-log system yet.
 - No Clerk webhook implementation despite an env placeholder.
+
+## Current trust and abuse boundaries (HEAD)
+
+Clerk supplies identity; `apps/server/src/modules/auth/auth.middleware.ts` resolves the internal `User` and enforces role, status and clinic access. Identity-only onboarding and invitation preview/acceptance are deliberate exceptions to requiring an existing internal user. A clinic path parameter is untrusted, and an object UUID still needs object-level clinic authorization in the service or repository. `apps/server/src/app.ts` applies Clerk middleware, CORS and JSON parsing before routers and the global error handler. Current route files use `rateLimit(...)` buckets backed by `ApiRateLimitCounter` in Prisma; this limits abuse but does not replace authorization or guarantee idempotency. Staff invitation creation uses `apps/server/src/modules/staff/staff.service.ts` and the email service; the API returns invitation metadata, never the raw invite URL. Do not infer that HEAD has been deployed from these files.

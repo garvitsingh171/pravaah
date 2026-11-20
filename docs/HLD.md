@@ -7,7 +7,7 @@
 | Architecture version | 1.0                                                                                                                 |
 | Verification status  | Verified against repository implementation on 2026-08-07 for Issue #233 workflow atlas navigation and traceability. |
 | Last verified date   | 2026-08-07                                                                                                          |
-| Repository scope     | Current repository state for root package version `0.3.0`; `v0.3.0` owner production verification is recorded.      |
+| Repository scope     | Current repository state for root package version `0.4.0`; `v0.3.0` owner production verification is recorded.      |
 | Intended audience    | Engineers, reviewers, maintainers, interviewers, and AI coding assistants.                                          |
 | Maintainer           | Owner verification required for production deployment and personal-contribution claims.                             |
 | Change process       | Update this file when architecture, stack, APIs, schema, auth, transactions, deployment, or major workflows change. |

@@ -275,3 +275,20 @@ See `docs/guides/DEPLOYMENT.md` for a deployment checklist.
 - Do not make queue or appointment decisions automatic without product approval.
 - Do not edit applied Prisma migrations casually.
 - Do not expose backend secrets to the frontend.
+
+## Current code and release boundary (2026-11-20)
+
+HEAD `9e0714ef0952f6425c308faebe3ce870a1844182` uses a React/Vite web workspace and an Express API workspace. `apps/server/src/app.ts` mounts the feature routers after Clerk middleware, CORS and JSON parsing. Auth middleware resolves the internal user and clinic authority; services enforce business rules; repositories use Prisma and PostgreSQL, with transaction-scoped advisory locks for booking and queue reorder. The database includes `ApiRateLimitCounter`, prediction history/feedback/refresh work, availability periods, location/routing state and lifecycle records; see `apps/server/prisma/schema.prisma`. The root package is `0.4.0`; v0.3 owner-reported production verification does not establish deployment of HEAD.
+
+```mermaid
+flowchart LR
+  B[Browser React/Vite] -->|Clerk token| E[Express routes]
+  E --> M[Identity, role, clinic guard]
+  M --> V[Zod validation and rate limits]
+  V --> S[Feature services]
+  S --> R[Repositories and Prisma]
+  R --> P[(PostgreSQL)]
+  S --> C[Clerk identity]
+  S --> Mail[Email provider]
+  S --> Geo[Geoapify]
+```

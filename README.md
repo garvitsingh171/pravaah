@@ -243,3 +243,7 @@ Public landing
 ```
 
 Use [Demo Guide](docs/guides/DEMO_GUIDE.md) for the scripted walkthrough and [v0.2 Assets](docs/assets/v0.2/README.md) for screenshot capture requirements.
+
+## Current interview preparation
+
+Start with the [source-backed interview pack](docs/interview/README.md) and the [November 2026 documentation audit](docs/audits/INTERVIEW_DOCUMENTATION_AUDIT.md). The root package version is `0.4.0`; the owner-verified production release evidence remains tied to `v0.3.0`, while later source and audit work need separate deployment verification.

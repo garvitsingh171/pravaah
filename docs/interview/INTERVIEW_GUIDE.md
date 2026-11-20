@@ -6,7 +6,7 @@
 | ------------------- | -------------------------------------------------------------------------------------------------- |
 | Purpose             | Authoritative interview and screen-share guide for explaining Pravaah accurately.                  |
 | Verification status | Verified against repository implementation on 2026-08-04.                                          |
-| Product scope       | Current repository state for root package version `0.3.0`; owner production verification recorded. |
+| Product scope       | Current repository state for root package version `0.4.0`; owner production verification recorded. |
 | Authority           | Read [Product Requirements](../PRD.md) and [High-Level Design](../HLD.md) first.                   |
 
 Use this guide to explain the real repository. Do not invent personal contribution claims; use "Owner input required" when repository evidence cannot prove who did what.

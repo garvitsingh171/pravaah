@@ -1316,3 +1316,7 @@ Retries use only the stored structured address. Incomplete data returns
 `LOCATION_ADDRESS_INCOMPLETE`; missing server configuration returns
 `GEOAPIFY_NOT_CONFIGURED`; provider failure returns
 `GEOAPIFY_GEOCODING_FAILED`. GET/list endpoints never contact the provider.
+
+## HEAD route and verification note (2026-11-20)
+
+The mounted-router inventory and middleware matrix for HEAD `9e0714ef0952f6425c308faebe3ce870a1844182` is in [Code Trace Index](../interview/CODE_TRACE_INDEX.md). It includes rate-limit buckets and object-ID routes, which need service-level clinic ownership checks. The route-derived index records 58 declarations, including the disabled `POST /api/clinics` path; it is a navigation aid, not evidence that every response example in this document was retested against a deployed instance. `apps/server/src/app.ts` is the mount authority. Consult each route's Zod schema and controller for exact response and error contracts.

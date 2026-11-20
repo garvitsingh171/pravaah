@@ -6,7 +6,7 @@ This document records verified release identity for reviewer and release docs.
 
 | Field                        | Verified value                                                        |
 | ---------------------------- | --------------------------------------------------------------------- |
-| Root package version         | `0.3.0` in [package.json](../../package.json)                         |
+| Root package version         | `0.4.0` in [package.json](../../package.json)                         |
 | Web workspace version        | `0.1.0` in [apps/web/package.json](../../apps/web/package.json)       |
 | Server workspace version     | `0.1.0` in [apps/server/package.json](../../apps/server/package.json) |
 | Release label                | `v0.3.0`                                                              |
@@ -76,3 +76,7 @@ See [v0.3 Release Notes](V0_3_0_RELEASE_NOTES.md), [v0.3 Release Charter](V0.3_R
 ## Remaining Release Metadata To Fill
 
 The owner has not provided the actual calendar release date or GitHub Release URL. Do not invent either value.
+
+## Current source after the verified v0.3 record
+
+The root package now reads `0.4.0` at HEAD `9e0714ef0952f6425c308faebe3ce870a1844182`. The table above retains the owner-reported `v0.3.0` GO, deployed SHAs and production smoke evidence as historical release evidence. [v0.4.0 release notes](V0_4_0_RELEASE_NOTES.md) describe a source release boundary subject to release-gate verification; this document has no owner-supplied deployed SHA or smoke result for HEAD. A committed v0.4 feature, later migration or v0.5 audit does not extend v0.3 production verification.

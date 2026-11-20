@@ -30,7 +30,7 @@ Rule-based, advisory, stored with reasons and suggested actions. Not trained ML.
 
 ## Current Release Line
 
-`v0.3.0` is a release candidate. Tests, builds, deployment checks, production smoke results, and screenshots must be verified before final release.
+`v0.3.0` has owner-reported production verification and GO approval. Root package `0.4.0` and later code are not thereby production verified.
 
 ## Non-Goals
 

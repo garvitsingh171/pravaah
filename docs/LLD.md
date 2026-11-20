@@ -8,7 +8,7 @@
 | Purpose                    | Single-file implementation-level design for frontend, backend, database, and workflows.                                        |
 | Audience                   | Project owner, contributors, reviewers, interviewers, maintainers, and AI coding assistants.                                   |
 | Last reviewed              | 2026-08-07                                                                                                                     |
-| Implementation baseline    | Repository source inspected in root package version `0.3.0`.                                                                   |
+| Implementation baseline    | Repository source inspected in root package version `0.4.0`.                                                                   |
 | Current document status    | Implemented documentation; owner production verification is recorded for v0.3.0. Actual calendar release date is not provided. |
 | Branch or commit reference | Not recorded by Codex because this docs-only issue disallows Git operations.                                                   |
 
@@ -224,7 +224,7 @@ not import feature business logic. `packages/*` has no current shared frontend c
 | `/appointments`      | Protected application           | Admin/Staff                                  | `AppLayout`                  | `AppointmentsPage`      | Book/filter/status/reschedule appointments, show risk, and open operational activity. | Guarded by shell.                                                           | `noindex,nofollow`.            |
 | `/queue`             | Protected application           | Admin/Staff                                  | `AppLayout`                  | `QueuePage`             | Today's queue, status updates, doctor-scoped manual reorder.                          | Guarded by shell.                                                           | `noindex,nofollow`.            |
 | `/clinic-settings`   | Admin-only protected app        | Admin backend authority; Staff nav hidden    | `AppLayout`                  | `ClinicSettingsPage`    | Edit supported clinic settings.                                                       | Frontend hides Staff nav; backend Admin check is authoritative.             | `noindex,nofollow`.            |
-| `/staff`             | Admin-only protected app        | Admin backend authority; Staff route blocked | `AppLayout`                  | `StaffManagementPage`   | Team list, invite history, suspend/reactivate, revoke/reinvite, one-time copy link.   | Frontend route metadata plus authoritative Admin-only backend APIs.         | `noindex,nofollow`.            |
+| `/staff`             | Admin-only protected app        | Admin backend authority; Staff route blocked | `AppLayout`                  | `StaffManagementPage`   | Team list, invite history, suspend/reactivate, revoke/reinvite, email-submitted invitation.   | Frontend route metadata plus authoritative Admin-only backend APIs.         | `noindex,nofollow`.            |
 | `*`                  | Public not found                | Any visitor                                  | Public boundary              | `NotFoundPage`          | Public-safe fallback.                                                                 | Links back to home or dashboard depending auth.                             | `noindex,nofollow`.            |
 
 No dynamic record-detail routes, callback routes, dedicated unauthorized route,

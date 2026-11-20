@@ -24,8 +24,20 @@ Workflow walkthroughs:
 
 ## Ground Rules
 
-- Say v0.3 is a release candidate until production verification and owner GO approval are complete.
+- Say v0.3 has owner-reported production verification and GO approval. The current root package is 0.4.0; later source features need their own deployment verification.
 - Say no-show scoring is rule-based.
 - Say patients and doctors are records, not logged-in users.
 - Use fake data only in demos.
 - If asked about production URLs or screenshots, say they are pending owner verification.
+
+## Expanded practice (HEAD source)
+
+- [180 route and architecture questions](QUESTION_INDEX.md)
+- [30 scenario exercises](QUESTIONS_AND_SIMULATIONS.md)
+- [15 live coding and SQL exercises](LIVE_CODING_EXERCISES.md)
+- [Code trace index](CODE_TRACE_INDEX.md)
+- [Ten scored risk examples](NO_SHOW_SCORING.md)
+- [System design](SYSTEM_DESIGN_CHALLENGES.md), [product and business](PRODUCT_AND_BUSINESS_INTERVIEW.md), [mock interviews](MOCK_INTERVIEW_PLAYBOOK.md), [honest limitations](HONEST_LIMITATIONS.md)
+- Study plans: [one day](study-plans/ONE_DAY_REVISION.md), [three days](study-plans/THREE_DAY_REVISION.md), [seven days](study-plans/SEVEN_DAY_PREPARATION.md)
+
+These pages describe the checked-out source. v0.3 owner-reported release evidence does not verify deployment of HEAD.
